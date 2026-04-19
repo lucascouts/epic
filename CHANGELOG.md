@@ -13,6 +13,29 @@ gracefully (see README "Prerequisites").
 
 _No changes yet._
 
+## [0.1.4] — 2026-04-19
+
+Documentation-only release. Introduces a dedicated `ARCHITECTURE.md` covering
+the conceptual model, sub-agent pipeline, artifact contracts, hook matrix,
+executor protocol, validation layers, and architectural decisions — content
+previously scattered across `references/*` and inline agent prompts. No code
+or behavioural changes.
+
+**Minimum Claude Code:** unchanged from 0.1.3 (v2.1.105 for full capability
+surface; degraded operation on v2.1.85+).
+
+### Added
+
+- **`ARCHITECTURE.md`** — design-level contributor guide at the repo root.
+  Documents the Plan → Execute → Verify pipeline, which persona activates at
+  each scale, artifact/frontmatter/cross-reference contracts, the hook matrix
+  with per-event minimum CC versions, the executor 6-step protocol, the four
+  validation layers (artifact, cross-reference, task, audit), story-directory
+  lifecycle, and rationale for 9 architectural choices (bash-only scripts,
+  single-skill routing, scale-adaptive modes, English-only artifacts,
+  plugin-scope hooks, archive immutability via PreToolUse, agent-teams as
+  opt-in, `defer` for headless commits, graceful MCP degradation).
+
 ## [0.1.3] — 2026-04-19
 
 Adopt new Claude Code 2.1.105 capabilities across the plugin surface. All
@@ -168,7 +191,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:task stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/lucascouts/epic/releases/tag/v0.1.4
 [0.1.3]: https://github.com/lucascouts/epic/releases/tag/v0.1.3
 [0.1.2]: https://github.com/lucascouts/epic/releases/tag/v0.1.2
 [0.1.1]: https://github.com/lucascouts/epic/releases/tag/v0.1.1

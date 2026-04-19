@@ -124,8 +124,6 @@ Artifacts live in `.epic/stories/NNN-kebab-case/` (gitignored by default; keep o
 
 ---
 
-## Architecture
-
 ### Sub-agents
 
 | Agent | Role |
@@ -297,14 +295,20 @@ See the [setting reference](https://code.claude.com/docs/en/settings#settings-fi
 
 ---
 
+## Contributing
+
+See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the maintainer-facing
+overview: pipeline, persistence layer, hook web, invariants, and
+extension points.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
 
----
+## Author
 
-## Related Documents
+[lucascouts](https://github.com/lucascouts) · lucascs@protonmail.com
 
-- [CHANGELOG.md](CHANGELOG.md) — release history
-- [SKILL.md](skills/task/SKILL.md) — full skill specification
-- [phase-gates.md](references/phase-gates.md) — phase gates and recovery procedures
+## Version
+
+0.1.4 — see [CHANGELOG](./CHANGELOG.md).

@@ -1,6 +1,6 @@
 {
   "name": "epic",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Scale-adaptive story framework for features and bugfixes: structured requirements (EARS), design, task breakdown, and execution with specialized sub-agents for analysis, architecture, implementation, validation, and audit.",
   "author": {
     "name": "Lucas CS",
