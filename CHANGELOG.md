@@ -11,7 +11,54 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
-_Capabilities adopted but not yet released. See README and `references/` for the full surface._
+_No changes yet._
+
+## [0.1.3] — 2026-04-19
+
+Adopt new Claude Code 2.1.105 capabilities across the plugin surface. All
+changes are additive and backwards-compatible — older Claude Code versions
+continue to work with degraded ergonomics (see README "Minimum Claude Code
+version per component" table).
+
+**Minimum Claude Code:** v2.1.105 for the full new capability surface.
+Degraded operation on v2.1.85+.
+
+### Added
+
+- **README** — per-component minimum-version table covering conditional hooks,
+  skill `effort`, `EnterWorktree.path`, plugin monitors, plugin `bin/`, output
+  styles, `PermissionDenied` retry, `defer` commit gating, agent-teams,
+  `--bare`, and `disableSkillShellExecution`.
+- **`hooks/hooks.json`** — three new hook events:
+  - `PostToolUseFailure(matcher: Bash)` → `hook-post-tool-failure.sh` (injects
+    executor protocol reminder when a Bash command fails mid-story).
+  - `CwdChanged` → `hook-cwd-changed.sh` (orients on `cd` into a `.epic/`
+    project: surfaces story counts and constitution head).
+  - `FileChanged(matcher: constitution.md)` → `hook-file-changed.sh`
+    (re-surfaces constitution head when modified outside the session).
+- **`hooks/hooks.json`** — `asyncRewake: true` on `TaskCompleted` so the
+  validate re-run does not block the foreground.
+- **`agents/auditor.md`** — `LSP` tool added; project-scoped memory declared
+  for recurring scope-creep patterns and false-positive deviations.
+- **`agents/analyst.md`** — project-scoped memory declared for accumulated
+  pattern findings; documented `Explore` agent as a faster alternative for
+  Function 1 when memory continuity is not required.
+- **`skills/task/SKILL.md`** — `AskUserQuestion` added to allowed-tools; Clarify
+  Protocol reworked to use multiple-choice prompts (with legacy
+  numbered-assertion fallback when the tool is unavailable). Architectural note
+  documents why hooks live at plugin scope rather than skill frontmatter.
+- **`references/ci-mode.md`** — typed `--json-schema` validation example for
+  CI gating; `system/init` event recipe for detecting plugin load failures
+  from `--output-format stream-json --verbose`.
+- **`scripts/`** — `hook-cwd-changed.sh`, `hook-file-changed.sh`,
+  `hook-post-tool-failure.sh`.
+
+### Changed
+
+- **`scripts/monitor-stale.sh`** — clarifies that the Claude Code runtime
+  (not the script) is responsible for skipping plugin monitors on
+  Bedrock/Vertex/Foundry and when `DISABLE_TELEMETRY` /
+  `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` are set.
 
 ## [0.1.2] — 2026-04-19
 
@@ -121,7 +168,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:task stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/lucascouts/epic/releases/tag/v0.1.3
 [0.1.2]: https://github.com/lucascouts/epic/releases/tag/v0.1.2
 [0.1.1]: https://github.com/lucascouts/epic/releases/tag/v0.1.1
 [0.1.0]: https://github.com/lucascouts/epic/releases/tag/v0.1.0
