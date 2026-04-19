@@ -3,9 +3,11 @@
 # threshold. Each stdout line becomes a notification to the main agent.
 #
 # Lifecycle: started by monitors/monitors.json on the first /epic:task
-# invocation (when: on-skill-invoke:task). Only runs in interactive sessions
-# — skipped on Bedrock, Vertex AI, Microsoft Foundry, and when
-# DISABLE_TELEMETRY or CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC is set.
+# invocation (when: on-skill-invoke:task).
+#
+# The Claude Code runtime — not this script — is responsible for skipping
+# plugin monitors on Bedrock/Vertex/Foundry and when DISABLE_TELEMETRY or
+# CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC are set. See plugins-reference#monitors.
 #
 # Opt-in: the user activates the monitor by setting the plugin option
 # `enableStaleMonitor=true` (surfaced via userConfig in plugin.json). When

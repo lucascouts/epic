@@ -76,7 +76,40 @@
         "hooks": [
           {
             "type": "command",
+            "asyncRewake": true,
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-task-completed.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-post-tool-failure.sh\""
+          }
+        ]
+      }
+    ],
+    "CwdChanged": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-cwd-changed.sh\""
+          }
+        ]
+      }
+    ],
+    "FileChanged": [
+      {
+        "matcher": "constitution.md",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-file-changed.sh\""
           }
         ]
       }

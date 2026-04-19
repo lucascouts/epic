@@ -22,6 +22,7 @@ allowed-tools:
   - Bash
   - TodoWrite
   - Agent
+  - AskUserQuestion
   - EnterWorktree
   - ExitWorktree
 effort: max
@@ -283,17 +284,41 @@ The proposal does **not** block triage — user choice is captured and the flow 
 
 ## Clarify Protocol
 
-**Mandatory for standard and full modes.** After triage confirmation, ask assertive clarifying questions before generating any phase.
+**Mandatory for standard and full modes.** After triage confirmation, gather
+clarifications using the `AskUserQuestion` tool. Multiple-choice prompts are
+faster for the user than free-text confirmations and yield structured answers
+the orchestrator can route on without re-parsing prose.
 
-- Style: "I understand X will work as Y. Confirm?" — not open-ended questions
-- Use up to **3 rounds** of clarification. If ambiguities remain after 3 rounds, document assumptions explicitly in story.md and proceed. Quality matters more than speed, but infinite clarification defeats the purpose.
-- Focus on: ambiguities, scope boundaries, edge cases, dependencies
-- **Stack recommendation must consider story complexity**
-- **Implicit capability detection:** For each requirement, identify whether it implicitly depends on an architectural capability not yet established in the design. Flag it.
-- For Fast mode: skip clarify only if request is unambiguous
-- **Never skip clarify for Standard/Full**
+- Use up to **3 rounds** of clarification. Each `AskUserQuestion` call may
+  bundle 3–7 related questions; the user answers them together. If ambiguities
+  remain after 3 rounds, document assumptions explicitly in story.md and
+  proceed. Quality matters more than speed, but infinite clarification defeats
+  the purpose.
+- For each ambiguity, build a question with **2–4 mutually-exclusive options**.
+  When the answer is binary, prefer `[yes / no / out-of-scope]` over open
+  phrasings.
+- Focus on: ambiguities, scope boundaries, edge cases, dependencies.
+- **Stack recommendation must consider story complexity.**
+- **Implicit capability detection:** For each requirement, identify whether
+  it implicitly depends on an architectural capability not yet established in
+  the design. Add it as a multi-choice question (`include now / defer to
+  follow-up story / explicitly out of scope`).
+- For Fast mode: skip clarify only if request is unambiguous.
+- **Never skip clarify for Standard/Full.**
 
-Present all clarifying questions in a single message as a numbered list of assertions to confirm.
+### Question shape
+
+```
+question:    "Should new email-verification tokens expire after?"
+options:     ["1 hour (default)", "24 hours", "Configurable per environment", "No expiration"]
+description: "Affects R2.3 (token TTL) and downstream session handling"
+```
+
+### Fallback (headless or AskUserQuestion unavailable)
+
+When the tool is not callable (some `-p` modes, restricted permission scopes),
+revert to the legacy assertion style — present a single message with a numbered
+list of `"I understand X will work as Y. Confirm?"` items.
 
 ## Completeness Checklist
 
@@ -398,6 +423,16 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
 ## Validation
 
 Validation runs automatically via PostToolUse hook when any story artifact is written to `.epic/stories/`. Manual validation is also available:
+
+> **Architectural note.** Hooks live in `hooks/hooks.json` (plugin scope), not
+> in this skill's frontmatter, by design. They must fire when the user edits
+> `.epic/` files outside an active `/epic:task` session — e.g. through a plain
+> `Edit` call, an external editor, or a different skill. All hooks use `if:`
+> filters scoped to `.epic/**` paths or specific tool arguments, so cost is
+> negligible when no Epic story exists. Skill-frontmatter hooks would only
+> apply during `/epic:task` execution — none of the current hooks fit that
+> profile.
+
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate-story.sh" <story-directory>

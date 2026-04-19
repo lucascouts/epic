@@ -53,10 +53,28 @@ Run `/reload-plugins` after updating plugin files.
 
 ### Prerequisites
 
-- **Claude Code v2.1.105+** — required for conditional hooks (`if:`), stable plugin skill naming via frontmatter, skill `effort` field, extended descriptions (>250 chars), `EnterWorktree.path`, background monitors, and the `PreCompact` / `SessionStart(compact)` hooks used for context recovery. Epic works on v2.1.85+ with degraded ergonomics (no compact recovery; hooks fire on every Write/Edit regardless of path).
+- **Claude Code v2.1.105+** — required for the full capability surface. Epic works on v2.1.85+ with degraded ergonomics (no compact recovery; hooks fire on every Write/Edit regardless of path; no plugin monitors).
 - `bash`, `git`, `jq` available on PATH
 - **Optional MCPs** for deeper context and research: `perplexity`, `brave-search`, `context7`. Epic health-checks each MCP before suggesting it; missing MCPs degrade gracefully.
 - **Optional tooling for development**: `shellcheck` and `bats` for running the script test suite locally (`bats tests/`).
+
+#### Minimum Claude Code version per component
+
+| Component | Minimum CC version | Behavior on older versions |
+|---|---|---|
+| Conditional hooks (`if:` field in `hooks/hooks.json`) | **2.1.85** | `if:` ignored — hooks fire on every matched call (noisy but functional) |
+| Skill `effort` field | **2.1.85** | Field ignored — inherits session effort |
+| Skill description cap raised to 1,536 chars | **2.1.105** | Older sessions truncate at 250 chars (some Epic descriptions get cut) |
+| `EnterWorktree.path` (switch into existing worktree) | **2.1.105** | Tool only creates new worktrees |
+| `PreCompact` + `SessionStart(compact)` hooks (context recovery) | **2.1.105** | No automatic snapshot/restore around compactions; drafts still work |
+| Plugin monitors (`monitors/monitors.json`, `when:` field) | **2.1.105** | Monitor never starts; stale-story detection unavailable |
+| Plugin `bin/` executables on PATH | **2.1.91** | `epic-validate`/`epic-xref` not exposed; call scripts directly |
+| Output style `keep-coding-instructions: true` | **2.1.94** | Activating `/output-style epic` may override skill directives |
+| `PermissionDenied` hook with `{retry: true}` | **2.1.89** | MCP retry-on-deny disabled; user sees raw permission errors |
+| `PreToolUse` `permissionDecision: "defer"` (headless commit gating) | **2.1.89** | `hook-defer-commit.sh` is a no-op in CI |
+| Agent-teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) | **2.1.32** | Teams proposal silently skipped; falls back to sequential/worktree execution |
+| `--bare` flag for headless invocation | **2.1.81** | Use plain `claude -p`; expect slower startup and reduced reproducibility |
+| `disableSkillShellExecution` setting honored | **2.1.91** | Inline `!` shell blocks always execute (not blockable by managed policy) |
 
 ---
 
