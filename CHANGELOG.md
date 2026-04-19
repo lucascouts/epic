@@ -13,6 +13,27 @@ gracefully (see README "Prerequisites").
 
 _No changes yet._
 
+## [0.1.5] — 2026-04-19
+
+CI hotfix. Resolves three shellcheck warnings that were failing the
+`shell-ci` workflow on `main` after v0.1.4. No behavioural changes to
+the plugin or scripts.
+
+**Minimum Claude Code:** unchanged from 0.1.4.
+
+### Fixed
+
+- **`scripts/run-evals.sh`** — SC2155: separated `local workdir`
+  declaration from its command-substitution assignment so the subshell's
+  exit status is no longer masked by `local`.
+- **`scripts/run-evals.sh`** — SC2015: replaced
+  `cd "$workdir" && claude ... || true` with an explicit
+  `if cd "$workdir"; then claude ... || true; fi` block so control flow
+  on `cd` failure is unambiguous.
+- **`scripts/validate-story.sh`** — SC2034: removed the unused
+  `HAS_DESIGN` variable. It was assigned but never read, since
+  `design.md` presence is not required for structural validation.
+
 ## [0.1.4] — 2026-04-19
 
 Documentation-only release. Introduces a dedicated `ARCHITECTURE.md` covering
@@ -191,7 +212,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:task stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/lucascouts/epic/releases/tag/v0.1.5
 [0.1.4]: https://github.com/lucascouts/epic/releases/tag/v0.1.4
 [0.1.3]: https://github.com/lucascouts/epic/releases/tag/v0.1.3
 [0.1.2]: https://github.com/lucascouts/epic/releases/tag/v0.1.2

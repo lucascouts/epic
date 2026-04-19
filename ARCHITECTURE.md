@@ -2,7 +2,7 @@
 
 Design-level view of the Epic plugin for contributors and integrators. The [README](README.md) covers *what* Epic is and how to install it; this document covers *how the pieces fit together* and *why*.
 
-- Last verified against: **v0.1.4** (`.claude-plugin/plugin.json`)
+- Last verified against: **v0.1.5** (`.claude-plugin/plugin.json`)
 - If you only want to add a new story mode or tweak an agent prompt, jump to [Extension points](#extension-points).
 
 ---
