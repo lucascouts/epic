@@ -47,12 +47,10 @@ add_warning() { WARNINGS+=("$1"); }
 
 # --- Detect scale from files present ---
 HAS_STORY=false
-HAS_DESIGN=false
 HAS_TASKS=false
 IS_BUGFIX=false
 
 [[ -f "$STORY_DIR/story.md" ]] && HAS_STORY=true
-[[ -f "$STORY_DIR/design.md" ]] && HAS_DESIGN=true
 [[ -f "$STORY_DIR/tasks.md" ]] && HAS_TASKS=true
 
 if [[ "$HAS_TASKS" == false ]]; then

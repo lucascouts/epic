@@ -77,16 +77,18 @@ run_case() {
 
 run_trigger() {
   local phrase="$1" expect_trigger="$2"
-  local workdir="$TMP/trigger-$(echo "$phrase" | tr -cd 'a-zA-Z0-9' | head -c 30)"
+  local workdir
+  workdir="$TMP/trigger-$(echo "$phrase" | tr -cd 'a-zA-Z0-9' | head -c 30)"
   mkdir -p "$workdir"
 
   local output
   output=$(
-    cd "$workdir" && \
-    claude -p "$phrase" \
-      --plugin-dir "$ROOT" \
-      --allowedTools "Read,Glob,Grep,Agent" \
-      --bare --output-format json 2>&1 || true
+    if cd "$workdir"; then
+      claude -p "$phrase" \
+        --plugin-dir "$ROOT" \
+        --allowedTools "Read,Glob,Grep,Agent" \
+        --bare --output-format json 2>&1 || true
+    fi
   )
 
   local triggered=false
