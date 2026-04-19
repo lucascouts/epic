@@ -26,17 +26,27 @@ Scale is chosen per request:
 
 ## Installation
 
+### Marketplace (recommended)
+
+Inside Claude Code:
+
+```
+/plugin marketplace add lucascouts/epic
+/plugin install epic@lucascouts
+```
+
+Or from a shell:
+
+```bash
+claude plugin marketplace add lucascouts/epic
+claude plugin install epic@lucascouts
+```
+
 ### Local (development)
 
 ```bash
 git clone https://github.com/lucascouts/epic.git
 claude --plugin-dir ./epic
-```
-
-### Marketplace (planned)
-
-```bash
-claude plugin install epic@<marketplace>
 ```
 
 Run `/reload-plugins` after updating plugin files.

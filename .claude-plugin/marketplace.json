@@ -1,0 +1,26 @@
+{
+  "name": "lucascouts",
+  "owner": {
+    "name": "Lucas CS",
+    "email": "lucascs@protonmail.com"
+  },
+  "metadata": {
+    "description": "Plugins maintained by lucascouts"
+  },
+  "plugins": [
+    {
+      "name": "epic",
+      "source": "./",
+      "description": "Scale-adaptive story framework for features and bugfixes: structured requirements (EARS), design, task breakdown, and execution with specialized sub-agents for analysis, architecture, implementation, validation, and audit.",
+      "author": {
+        "name": "Lucas CS",
+        "email": "lucascs@protonmail.com"
+      },
+      "homepage": "https://github.com/lucascouts/epic",
+      "repository": "https://github.com/lucascouts/epic",
+      "license": "MIT",
+      "category": "workflow",
+      "tags": ["stories", "ears", "planning", "task-breakdown", "bugfix", "workflow", "requirements"]
+    }
+  ]
+}
