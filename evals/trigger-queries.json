@@ -1,0 +1,30 @@
+{
+  "should_trigger": [
+    "let's plan the Stripe webhook handler before coding — it touches payments/, notifications/, and the audit log",
+    "can you break the OAuth2 migration into tasks? we need to keep backwards compat with the old JWT tokens",
+    "I need to document what we're building for the auth system",
+    "create a story for the payment integration",
+    "what needs to be done to implement real-time notifications?",
+    "list my stories",
+    "run task 3 from story 001",
+    "validate the implementation against the plan",
+    "I've got 3 things on my plate this sprint — user invitations, the search rewrite, and fixing the CSV export. let's structure the invitation one first",
+    "I want to formalize the API redesign before we start",
+    "can you create an epic for the user onboarding flow?",
+    "show me all stories — I want to see what's left before the release freeze on Friday"
+  ],
+  "should_not_trigger": [
+    "write a unit test for validateCredentials() in src/auth/login.service.ts",
+    "explain how the rateLimiter middleware in src/middleware/rate-limit.ts works — I'm seeing 429 errors in staging",
+    "refactor this function to use async/await",
+    "create a pull request for the current changes",
+    "debug why the API returns 500",
+    "add error handling to the payment module",
+    "review this pull request",
+    "help me set up the GitHub Actions pipeline — I need build, test, and deploy to staging on push to develop",
+    "what does this regex do?",
+    "rename getUserById to findUserById across the codebase",
+    "how do I install prisma 7 with the new ESM config? the docs mention a breaking change",
+    "fix the typo in the README"
+  ]
+}

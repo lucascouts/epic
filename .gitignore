@@ -1,0 +1,17 @@
+# Claude Code artifacts
+.epic/
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log

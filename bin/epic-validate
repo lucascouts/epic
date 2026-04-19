@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Thin wrapper over scripts/validate-story.sh exposed on PATH while the
+# Epic plugin is active. Usage is identical to the underlying script.
+exec bash "$(dirname "$0")/../scripts/validate-story.sh" "$@"

@@ -1,0 +1,8 @@
+[
+  {
+    "name": "epic-stale-stories",
+    "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/monitor-stale.sh\"",
+    "description": "Alerts on stories with no progress past the staleness threshold. Opt-in via userConfig enableStaleMonitor.",
+    "when": "on-skill-invoke:task"
+  }
+]

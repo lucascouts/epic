@@ -1,0 +1,96 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Write(.epic/**)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-validate.sh\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(.epic/archive/**)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-archive-guard.sh\""
+          },
+          {
+            "type": "command",
+            "if": "Write(.epic/archive/**)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-archive-guard.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-defer-commit.sh\""
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-precompact.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-session-restore.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-session-end-cleanup.sh\""
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-task-completed.sh\""
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"retry\": true}'"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "epic",
+  "version": "0.1.0",
+  "description": "Scale-adaptive story framework for features and bugfixes: structured requirements (EARS), design, task breakdown, and execution with specialized sub-agents for analysis, architecture, implementation, validation, and audit.",
+  "author": {
+    "name": "Lucas CS",
+    "email": "lucascs@protonmail.com"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/lucascouts/epic",
+  "repository": "https://github.com/lucascouts/epic",
+  "keywords": [
+    "epic",
+    "stories",
+    "requirements",
+    "ears",
+    "planning",
+    "task-breakdown",
+    "bugfix",
+    "validation",
+    "workflow"
+  ],
+  "userConfig": {
+    "defaultScale": {
+      "description": "Default scale when triage cannot determine one (fast | standard | full)",
+      "default": "standard"
+    },
+    "artifactLanguage": {
+      "description": "Override artifact language. Claude performs best in English; change only if your organisation mandates another language for written artifacts.",
+      "default": "en"
+    },
+    "enableStaleMonitor": {
+      "description": "Enable the background watcher that surfaces stories with no progress past the staleness threshold.",
+      "default": false
+    },
+    "staleThresholdDays": {
+      "description": "Days of inactivity before a story with pending tasks is flagged as stale. Only effective when enableStaleMonitor is true.",
+      "default": "7"
+    },
+    "staleCheckIntervalSeconds": {
+      "description": "How often the stale watcher polls, in seconds. Lower values surface alerts faster; higher values reduce overhead. Only effective when enableStaleMonitor is true.",
+      "default": "3600"
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "test_cases": [
+    {
+      "id": "fast-feature",
+      "description": "Simple feature using Fast mode — tasks only",
+      "prompt": "/epic:task Add email validation to the user profile form",
+      "assertions": [
+        "Creates .epic/stories/ directory structure",
+        "Generates tasks.md with frontmatter containing scale: fast",
+        "Tasks use format '- [ ] N - Name' (not bold, not [T1] prefix)",
+        "No story.md generated (Fast mode)",
+        "tasks.md has Quality Gates section",
+        "Validation script passes with exit 0"
+      ]
+    },
+    {
+      "id": "standard-bugfix",
+      "description": "Medium bugfix using Standard mode — story + tasks",
+      "prompt": "/epic:task Fix: login form submits but returns blank page instead of redirect to dashboard",
+      "assertions": [
+        "Triage detects bugfix type",
+        "Recommends Standard or Full mode",
+        "story.md contains 'Unchanged Behavior' section",
+        "Unchanged Behavior has >= 2 items with 'SHALL CONTINUE TO'",
+        "story.md uses SHALL not SHOULD",
+        "tasks.md references R-numbers from story.md",
+        "Validation script passes with exit 0"
+      ]
+    },
+    {
+      "id": "full-feature",
+      "description": "Complex feature using Full mode — all artifacts",
+      "prompt": "/epic:task Build a workspace invitation system with email notifications, role-based permissions, and audit logging",
+      "assertions": [
+        "Triage detects Moderate or High complexity",
+        "Recommends Full mode",
+        "Generates story.md + design.md + tasks.md",
+        "design.md contains at least one Mermaid diagram (```mermaid block)",
+        "Every R-number in story.md appears in at least one task's Requirements field",
+        "tasks.md has metadata lines with _Complexity: ..._",
+        "tasks.md has Commit sub-tasks",
+        "Validation script passes with exit 0",
+        "Cross-reference script reports clean status"
+      ]
+    },
+    {
+      "id": "greenfield-project",
+      "description": "Brand new project with no existing code or .epic directory",
+      "prompt": "/epic:task Build a REST API for a todo app from scratch — this is a brand new project with no existing code",
+      "assertions": [
+        "Creates .epic/stories/ directory structure",
+        "Does not fail or reference non-existent files",
+        "Includes EARS primer in triage (first story detection)",
+        "Triage proposal includes all required fields",
+        "Handles absence of CLAUDE.md, spec.md, roadmap.md gracefully"
+      ]
+    },
+    {
+      "id": "ambiguous-input",
+      "description": "Vague request requiring clarification before proceeding",
+      "prompt": "/epic:task organize this",
+      "assertions": [
+        "Does not immediately generate artifacts",
+        "Asks for clarification about what to organize",
+        "Does not crash or produce empty story",
+        "Maintains conversational tone"
+      ]
+    },
+    {
+      "id": "hidden-complexity",
+      "description": "Request sounds simple but reveals high complexity requiring mode upgrade",
+      "prompt": "/epic:task Add a dark mode toggle to the settings page — needs to persist preference in DB, sync across devices, respect system preferences, handle SSR hydration mismatch, and update all 47 themed components",
+      "assertions": [
+        "Triage detects Moderate or High complexity despite simple-sounding start",
+        "Recommends Full mode (not Fast)",
+        "Explains trade-off of choosing a lighter mode",
+        "Identifies cross-cutting concerns (SSR, persistence, sync)"
+      ]
+    }
+  ]
+}

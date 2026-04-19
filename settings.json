@@ -1,0 +1,5 @@
+{
+  "subagentStatusLine": {
+    "command": "printf '[epic] %s — turn %s' \"${CLAUDE_SUBAGENT_TYPE:-agent}\" \"${CLAUDE_SUBAGENT_TURN:-?}\""
+  }
+}
