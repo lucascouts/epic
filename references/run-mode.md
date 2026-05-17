@@ -13,7 +13,7 @@ Triggered by `/epic:epic stories run NNN`, `/epic:epic stories NNN run all`, or 
 4. **Check dependencies** — if a pending task depends on an uncompleted task, warn the user
 5. **Detect parallel groups** — identify non-blocking tasks (see Parallel Execution)
 6. **Tech stack detection** — scan tasks to build tech profiles (see Tech Stack Detection)
-7. **Materialize pre-authored tests** — before any task execution, copy every file under the story's `.draft/authored-tests/**` into the real test tree at its mirrored path. This step is **idempotent**: if a target test path already exists in the real tree, **skip that file and emit a warning** (it may already exist from a prior Run, a partial `run N.N`, or a manual executor edit — never overwrite it). Files that do not yet exist are copied. Materialization runs once per Run, ahead of step 8.
+7. **Materialize pre-authored tests (Standard/Full only)** — before any task execution, copy every file under the story's `.draft/authored-tests/**` into the real test tree at its mirrored path. This step is **idempotent**: if a target test path already exists in the real tree, **skip that file and emit a warning** (it may already exist from a prior Run, a partial `run N.N`, or a manual executor edit — never overwrite it). Files that do not yet exist are copied. Materialization runs once per Run, ahead of step 8. This step applies to **Standard and Full scales only** — they stage Test Advisor-authored tests in `.draft/authored-tests/`. **Fast mode has no `.draft/` staging**: its tests are authored at run time and written straight into the real test tree (see Task Execution Flow), so a Fast Run has nothing to materialize and skips this step.
 8. **Present execution plan** — show which tasks will be executed, in order, highlighting parallel groups and executor assignment
 9. **Wait for user confirmation** before executing
 
@@ -76,9 +76,28 @@ For `--auto` flag: threshold unchanged. Sub-agents still run, but gates between 
 
 For each pending sub-task, in order:
 
+### Run-time test-first ordering (Fast mode)
+
+For a **Fast-mode** sub-task carrying a `Tests` field, the test is authored, run, and confirmed failing **before** implementation begins — the order is **author → Red → Green → Refactor**:
+
+1. **Author** the test from the sub-task's `Tests` field, Objective, and Acceptance contract.
+2. **Run** it and confirm **Red** — it must fail, and fail **for the right reason**: the behavior under test is absent or not yet correct. A failure caused by a broken test (syntax error, wrong import, misconfigured runner) is **not** valid Red; correct the test, then re-run, before implementation proceeds.
+3. **Green** — implement until the test passes and the Validation command passes.
+4. **Refactor** — improve the code while keeping the test and Validation green; revert any refactor that breaks either.
+
+Unlike Standard/Full, Fast does **not** author tests at plan time — there is no Test Advisor sub-agent, no `.draft/authored-tests/`, and no `red-evidence.yaml`. Test authorship is done by the **main agent** at run time (the `test-advisor` sub-agent is not spawned), and the authored test is written **directly into the project's real test tree** — no `.draft/` staging, so step 7 (Materialize pre-authored tests) does not apply to Fast. Red confirmation lives in the run report only; it is not persisted to a file. This mirrors the "Plan time vs run time" note in `phase-gates.md` — the Test Advisor Lite checklist decides *whether* a test is needed; this section is *when* the test-first ordering happens.
+
+A Fast-mode sub-task with no `Tests` field is implemented against its `Acceptance` field plus the Validation command — no test is authored.
+
+**Unexpected green (Fast).** If an authored Fast test **passes on its first run**, the sub-task is blocked — the test is not establishing Red. Revise the test **once** so it fails for the expected reason. If it still passes after that single revision, **escalate to the user** rather than proceed — describe the test, the sub-task, and why it will not fail. Never weaken or delete assertions to force a failure. This is lighter than the Standard/Full 2-attempt cap.
+
+The two paths below — Trivial inline and Simple+ via the Executor — apply this ordering; Standard/Full sub-tasks are unaffected.
+
 ### Trivial Complexity — Main Agent Inline
 
 The main agent executes directly but MUST follow the same step sequence as the Executor. No step may be skipped. If a Context field exists, context MUST be gathered before implementation.
+
+For a **Fast-mode Trivial** sub-task carrying a `Tests` field, the main agent is the **single author** for the whole cycle: it authors the test, runs it, confirms **Red** (for the right reason), then implements inline to **Green**, validates, and **Refactors** — all in the one inline execution. The unexpected-green rule above applies: revise once, then escalate.
 
 ### Simple+ Complexity — Executor Sub-agent
 
@@ -91,6 +110,12 @@ Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent se
 5. If PASS: check for tech boundaries → spawn Tech Reviewers if needed
 6. If FAIL: report to user, ask how to proceed
 7. After all reviews pass: mark sub-task `[x]` in tasks.md
+
+For a **Fast-mode Simple-or-higher** sub-task carrying a `Tests` field, the test-first cycle is **split** between the orchestrator and the Executor — but the Executor protocol itself is **reused unchanged**:
+
+- **Before spawning the Executor**, the orchestrator (main agent) authors the test, runs it, and confirms **Red** (for the right reason). The unexpected-green rule above applies: revise once, then escalate to the user. The test is written directly into the project's real test tree — there is no `.draft/` staging for Fast.
+- The orchestrator then passes that confirmed-failing test to the Executor as the read-only **"Pre-Authored Test"** input (its path and contents in the Executor prompt section of the same name). The Executor consumes it exactly like a materialized Standard/Full pre-authored test.
+- The Executor runs the **existing six-step protocol with its conditional step 5** (see Executor Sub-agent): step 2 becomes Implementation (Green) — make the pre-authored test pass — and step 5 becomes Refactor. No new or Fast-specific Executor protocol is introduced.
 
 ### Commit Sub-tasks
 

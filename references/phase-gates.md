@@ -192,7 +192,7 @@ The main agent merges the Test Advisor mapping into the task list before writing
 
 ### Test Advisor Lite (Fast mode)
 
-For Fast mode, the main agent decides Tests inline (no sub-agent) using this 3-check checklist:
+For Fast mode, the main agent decides Tests inline (no sub-agent) using this 4-check checklist:
 
 1. **State change?** Does this sub-task create/update/delete data?
    → YES: add at least 1 test that verifies resulting state (not just return code)
@@ -206,7 +206,13 @@ For Fast mode, the main agent decides Tests inline (no sub-agent) using this 3-c
    → YES: verify existing tests still pass (add to Validation)
    → NO: apply rules 1-2 above
 
+4. **Contract rule.** Every implementing (non-Commit) sub-task carries either a `Tests` field or an `Acceptance` field — a sub-task with testable logic gets a `Tests` field, a structural sub-task with no testable logic gets an `Acceptance` field. Commit sub-tasks are exempt (they implement nothing).
+   → checks 1-3 say a test is needed: add the `Tests` field
+   → checks 1-3 say no test is needed: add an `Acceptance` field (1-3 observable-behavior statements)
+
 Keep it lightweight — 1-2 test entries max per sub-task.
+
+**Plan time vs run time.** Unlike Standard/Full Phase 3, Fast does **not** author tests at plan time — there is no Test Advisor sub-agent, no `.draft/authored-tests/`, and no `red-evidence.yaml`. This checklist only decides *whether* a test is needed and records that decision as the `Tests` or `Acceptance` field. The test-first ordering itself — authoring the test, confirming Red, then implementing — happens at run time (see `run-mode.md`).
 
 ## Reviewer Sub-agent (Full mode only)
 

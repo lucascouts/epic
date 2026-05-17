@@ -94,6 +94,7 @@ Content fields appear in sub-task bodies. Include only fields that are applicabl
 | Objective | Always | What this achieves (1 line) |
 | ToDo | Always (except Commit sub-tasks) | Steps to implement |
 | Tests | Sub-task produces testable code (set by Test Advisor) | Type · `path` — scenarios to cover |
+| Acceptance | Fast-mode sub-task without a `Tests` field | 1-3 observable-behavior statements |
 | Validation | Always | Command or check proving completion |
 | Requirements | Standard + Full scales | R1.1, R2.3 format. Omit for fast scale |
 | Commit | Last sub-task of a group, or inline on single sub-tasks | Conventional commit message |
@@ -124,6 +125,21 @@ Format: `Type · \`path/to/test_file\` — scenario1, scenario2, scenario3`
 - The Tests field is populated by the **Test Advisor** sub-agent (see SKILL.md), not by the main agent.
 
 **Standard + Full scales — the Tests field is _authored_, not merely specified.** During Phase 3, the test-advisor writes the actual failing test file under the story's `.draft/authored-tests/` directory, mirroring the target test path (the `path` shown in the Tests field). It then runs the test to confirm it fails for the right reason and records that Red verification in `.draft/red-evidence.yaml`. The `path` in the Tests field is therefore the target location an executor will copy the authored test into — the test itself already exists in `.draft/authored-tests/` before implementation begins.
+
+### Acceptance Field
+
+Format: a bullet list of 1-3 observable-behavior statements, placed in the sub-task body alongside `Validation`.
+
+```markdown
+- Acceptance:
+  - Loading a well-formed config file returns a populated config object
+  - Loading a missing file returns a clear error, not a crash
+```
+
+- **Optional** — present only on sub-tasks that have no `Tests` field. A sub-task carries one or the other, never both.
+- **Fast-only** — Standard and Full sub-tasks use the EARS R-number in their `Requirements` field as the anchor, so the `Acceptance` field does not exist there.
+- **Sub-task-level** — never on a parent task; never on a Commit sub-task.
+- **EARS-lite** — plain statements of what is observably true, with no EARS `SHALL` ceremony. Describe the behavior, not how it is built.
 
 ### Commit Sub-tasks
 
@@ -180,4 +196,5 @@ When generating tasks for fast scale (no story.md):
 - Omit `Requirements` field (no requirements to reference)
 - Keep the same structure otherwise (metadata line, content fields)
 - Quality Gates section is still mandatory
+- **Test-or-Acceptance contract rule:** every implementing (non-Commit) sub-task carries either a `Tests` field or an `Acceptance` field — a sub-task with testable logic gets a `Tests` field, a structural sub-task with no testable logic gets an `Acceptance` field. Commit sub-tasks are exempt (they implement nothing).
 - If during generation the scope appears larger than expected, recommend upgrading to standard scale
