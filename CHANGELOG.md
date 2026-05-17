@@ -11,7 +11,21 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+
+- **Fast-mode run-time test-first execution** (story `002-fast-mode-test-first`).
+  A Fast sub-task carrying a `Tests` field now has its test authored and
+  confirmed failing (**Red**) before implementation, then proceeds
+  **Green-then-Refactor**. Test authoring happens at run time and is
+  single-author — the main agent writes the test directly; no `test-advisor`
+  sub-agent is involved (that pipeline remains Standard/Full only).
+- **Optional Fast-only `Acceptance` field** — 1-3 observable-behaviour
+  statements on a Fast sub-task. Every implementing (non-Commit) Fast sub-task
+  now carries either a `Tests` field or an `Acceptance` field.
+- Standard and Full mode test-first behaviour is **unchanged**.
+- **`agents/executor.md`** is reused **unmodified** — its existing conditional
+  six-step protocol already consumes a pre-authored test (step 5 Refactor for a
+  sub-task with a pre-authored test, Tests otherwise).
 
 ## [0.2.0] — 2026-05-17
 
