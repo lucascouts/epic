@@ -1,6 +1,6 @@
 # Claude Code artifacts
 .epic/
-.claude/settings.local.json
+.claude/
 
 # OS
 .DS_Store
