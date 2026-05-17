@@ -12,7 +12,7 @@ Epic is responsible for:
 
 - **Epic/story creation** — turn a request into EARS-notation requirements, an optional design document, and a hierarchical task breakdown (`tasks.md`).
 - **Story management** — list, refine, archive, and version stories under `.epic/stories/`.
-- **Task orchestration** — drive the Executor sub-agent through the 6-step protocol (context → implementation → design fidelity → validation → tests → report) for each sub-task in `tasks.md`.
+- **Task orchestration** — drive the Executor sub-agent through the 6-step protocol (context → implementation → design fidelity → validation → refactor-or-tests → report; step 5 is conditional) for each sub-task in `tasks.md`.
 - **Planned validation & audit** — run the Validator and Auditor *against the story artifacts the plugin produced*, to verify implementation matches the planned scope.
 - **Traceability** — enforce the R-number → design-component → sub-task chain via `scripts/cross-reference.sh` and the archive immutability guard.
 
