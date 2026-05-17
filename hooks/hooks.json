@@ -58,6 +58,24 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-session-restore.sh\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-teams-session-start.sh\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-teams-prompt-submit.sh\""
+          }
+        ]
       }
     ],
     "SessionEnd": [
