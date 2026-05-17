@@ -242,6 +242,8 @@ When a command references `NNN`:
 | **Standard** | Medium feature, 2-5 files, clear scope | Story + Tasks | `story.md` + `tasks.md` |
 | **Full** | Complex feature, 5+ files, design decisions, integrations | Story + Design + Tasks | `story.md` + `design.md` + `tasks.md` |
 
+Fast mode is **test-first at run time**: a sub-task carrying a `Tests` field has its test authored and confirmed failing (Red) before implementation, then Green-then-Refactor. A sub-task with no testable logic carries an optional Fast-only `Acceptance` field instead — 1-3 observable-behavior statements. Every implementing (non-Commit) Fast sub-task carries one or the other (the test-or-Acceptance contract rule). Fast stays single-author: no Test Advisor sub-agent, no `.draft/`, no `story.md`, no gate.
+
 ## Workflow Variants (Full mode, feature only)
 
 | Variant | When to suggest | Phase order |
@@ -507,6 +509,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/cross-reference.sh" <story-directory>
 - EARS: use `SHALL`, never `SHOULD` — one condition per requirement, each independently testable
 - Requirements: number hierarchically (R1, R1.1, R1.2, R2...)
 - Bugfix: Unchanged Behavior section is **mandatory**, minimum 2 items
-- Fast mode: recommend upgrading if scope grows during task generation
+- Fast mode is test-first at run time: a sub-task with a `Tests` field is authored Red, then Green-then-Refactor; a sub-task with no testable logic carries an `Acceptance` field (1-3 observable-behavior statements) instead — every implementing (non-Commit) sub-task carries one or the other
+- Fast → Standard upgrade: recommend upgrading during triage or task generation when scope grows, **or** when a change genuinely needs requirement traceability or design documentation — Fast provides neither
 - Constitution constraints are soft — warnings, not blocks
 - This skill formalizes work into structured stories — it does NOT explore ideas from scratch or write implementation code

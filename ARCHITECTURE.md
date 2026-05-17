@@ -210,7 +210,7 @@ Epic has four distinct validation layers, each catching a different failure mode
 | Task validation | After each sub-task | Implementation fails the sub-task's declared validation command | `validator` sub-agent + `scripts/validate-story.sh` |
 | Story audit | After all tasks complete | Scope creep, deviations not in register, unmet quality gates, integration gaps, missing Red evidence | `auditor` sub-agent |
 
-The story audit includes a **Red-evidence gate** (auditor check #10): every sub-task that carries a pre-authored test must have a corresponding entry in `.draft/red-evidence.yaml` showing the test failed before implementation. A missing entry fails the audit.
+The story audit includes a **Red-evidence gate** (auditor check #10): every sub-task that carries a pre-authored test must have a corresponding entry in `.draft/red-evidence.yaml` showing the test failed before implementation. A missing entry fails the audit. This gate is **Standard/Full only** — those scales stage tests at plan time. Fast mode is **test-first at run time**: the main agent authors a `Tests`-bearing sub-task's test and confirms it fails (Red) before implementation, then proceeds Green-then-Refactor. Fast keeps its lightweight scale — no `.draft/`, no `red-evidence.yaml` — so its Red confirmation lives in the Run report only and is not gated by the auditor. A Fast sub-task with no testable logic pins behavior via an optional `Acceptance` field (1–3 observable-behavior statements) instead; the `Acceptance` field is the Fast intent anchor when no test exists, and every implementing (non-Commit) Fast sub-task carries either a `Tests` field or an `Acceptance` field.
 
 `--strict` mode promotes warnings to errors (exit 1 on any warning) — use it in CI gates.
 
@@ -256,6 +256,8 @@ Every mode (Create, List, Run, Validate, Refine, Archive, Teams, Init) lives und
 ### Scale-adaptive (Fast / Standard / Full)
 
 Forcing full planning ceremony on a 1-file change is user-hostile; skipping planning on a 10-file cross-cutting change is risk-hostile. Scale is chosen per-story during triage with an explicit trade-off statement. Upgrade paths exist (Fast → Standard → Full) if scope grows during planning.
+
+Test-first ordering is scale-adaptive too. Standard and Full author failing tests at **plan time** (Test Advisor, Phase 3) and stage them in `.draft/authored-tests/`. Fast is test-first at **run time**: there is no Test Advisor sub-agent, no `.draft/`, and no `red-evidence.yaml`. For a Fast sub-task carrying a `Tests` field the main agent authors the test and confirms it fails (Red) before implementation, then proceeds Green-then-Refactor — a Trivial sub-task runs this inline as a single author, while a Simple-or-higher sub-task has the main agent author and Red-verify, then pass the confirmed-failing test to the Executor as a read-only **Pre-Authored Test** input. The Executor (`agents/executor.md`) is **reused unchanged** across all scales: its existing conditional six-step protocol already consumes a Pre-Authored Test section regardless of scale, so wiring Fast into test-first needed no Executor edit.
 
 ### English-only artifacts, user's language in chat
 

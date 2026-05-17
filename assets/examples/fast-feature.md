@@ -34,7 +34,11 @@ Add an email field to the user profile form with validation. Single-component ch
       - Files: `src/schemas/profile.ts` (existing schema to extend)
     - Objective: Add email to the Zod schema and TypeScript type
     - ToDo: Add `email: z.string().email()` to the profile schema in `src/schemas/profile.ts`. Update the inferred TypeScript type.
-    - Validation: Schema rejects invalid emails, accepts valid ones
+    - Acceptance:
+      - The profile schema accepts a well-formed email value
+      - The profile schema rejects a malformed email value
+      - The inferred TypeScript type exposes an `email` string field
+    - Validation: `npm run typecheck` passes
 
   - [ ] 1.2 - Add email input to form component
     - Context:

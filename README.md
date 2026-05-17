@@ -24,6 +24,8 @@ Scale is chosen per request:
 | **Standard** | `story.md` + `tasks.md` | 2–5 files, clear scope |
 | **Full** | `story.md` + `design.md` + `tasks.md` | 5+ files, design decisions, integrations |
 
+All three modes are **test-first**. Standard and Full author tests at plan time — the Test Advisor writes one failing test per Unit/Integration sub-task in Phase 3. Fast mode is **test-first at run time and single-author**: a Fast sub-task carrying a `Tests` field has its test authored by the main agent and confirmed failing (Red) before implementation, then Green-then-Refactor — no Test Advisor sub-agent. A Fast sub-task with no testable logic carries an optional Fast-only `Acceptance` field instead — 1–3 observable-behavior statements; every implementing (non-Commit) Fast sub-task carries either a `Tests` field or an `Acceptance` field. Fast keeps its lightweight scale: no `story.md`, no design, no gate, no `.draft/`.
+
 ---
 
 ## Installation
@@ -291,6 +293,7 @@ See the [setting reference](https://code.claude.com/docs/en/settings#settings-fi
 - **Artifacts in English** — consistent quality across Claude models
 - **EARS notation** — `SHALL`, one condition per requirement, each independently testable
 - **Hierarchical traceability** — R-numbers flow from story → tasks → code
+- **Test-first at every scale** — Standard and Full author failing tests at plan time (Test Advisor, Phase 3); Fast authors them at run time, single-author. A Fast sub-task without testable logic pins behavior via its `Acceptance` field instead
 - **Fail fast** — executors stop on validation failure, never auto-fix silently
 - **Draft recovery** — each phase approval saves `.draft/` inside the story directory (gitignored) so interrupted sessions resume cleanly. Drafts live in the project, not in `${CLAUDE_PLUGIN_DATA}`, keeping them tied to the repo and visible to teammates inspecting the same checkout.
 - **Numbers never recycled** — archived stories keep their numbers permanently
