@@ -13,6 +13,71 @@ gracefully (see README "Prerequisites").
 
 _No changes yet._
 
+## [0.2.0] — 2026-05-17
+
+Feature release. Introduces **test-first execution with independent test
+authorship**, narrows the plugin's purpose with an explicit scope contract,
+makes MCP selection cost-aware, and adds agent-teams flag-mismatch detection.
+Ships a **breaking command rename** — `/epic:task` is now `/epic:epic`.
+
+**Minimum Claude Code:** unchanged from 0.1.5 (v2.1.105 for the full
+capability surface; degraded operation on v2.1.85+).
+
+### Changed
+
+- **BREAKING — the command is renamed `/epic:task` → `/epic:epic`.** The skill
+  directory moved `skills/task/` → `skills/epic/`, and every reference across
+  docs, `references/*`, evals, monitors and output styles was updated. Existing
+  `/epic:task` invocations no longer resolve — use `/epic:epic`.
+- **`references/mcp-integration.md`** — MCP selection is now cost-aware. A
+  priority order (`context7` > `brave-search` > `exa` > `tavily` > `firecrawl`)
+  replaces flat detection; `perplexity` is demoted to a last-resort option and
+  is no longer health-checked by default, since each query is paid.
+- **`.gitignore`** — ignores the entire `.claude/` directory (local settings
+  and sub-agent agent-memory), not just `.claude/settings.local.json`.
+
+### Added
+
+- **Test-first execution with independent test authorship** (story
+  `001-test-first-execution`). Standard and Full stories now execute test-first:
+  - **`agents/test-advisor.md`** — becomes a failing-test author. Gains the
+    `Write` and `Bash` tools (`maxTurns` 15→30, `effort` medium→high). For each
+    Standard/Full sub-task whose Tests field is Unit or Integration it authors
+    one failing test into the story's `.draft/authored-tests/`, runs it to
+    confirm it fails (Red), and records `.draft/red-evidence.yaml`. It receives
+    the EARS requirement, Objective, Tests scenarios and — Full only — the
+    `design.md` contract, but never the `ToDo` field. An unexpected-green test
+    is revised up to 2 times, then escalated to the user.
+  - **`agents/executor.md`** — the protocol keeps six steps, but step 5 is now
+    conditional: **Refactor** for a sub-task with a pre-authored test (improve
+    code while the test and validation stay green), **Tests** for one without.
+    Adds a frozen-test rule (assertions immutable; imports / signature
+    call-sites adjustable only for an intentional design deviation, recorded
+    with `test_surface_adjusted: true`) and behavior-deviation escalation.
+  - **`agents/auditor.md`** — new audit check #10: every sub-task with a
+    pre-authored test must have a Red-evidence entry recorded before
+    implementation.
+  - **`references/run-mode.md`** — an idempotent test-materialization step
+    (copies `.draft/authored-tests/**` into the real test tree, skip-and-warn
+    on existing paths) and a read-only Pre-Authored Test input in the Executor
+    prompt template.
+  - **`references/phase-gates.md`**, **`references/validate-mode.md`**,
+    **`references/tasks.md`** — orchestration prompt templates and the Tests
+    field documentation updated to match the new authoring role.
+- **`PURPOSE.md`** + a hard-refusal scope table in `skills/epic/SKILL.md` —
+  Epic now states a single narrow purpose (create, structure and manage epics
+  and their stories) and refuses out-of-scope requests (code review, refactor,
+  debug, ad-hoc analysis) with a pointer to the correct Claude Code command.
+- **`skills/epic/SKILL.md`** — a runtime dependency precheck for
+  `AskUserQuestion` and `TaskCreate` / `TodoWrite` before Standard/Full triage,
+  with explicit fallbacks and no silent degradation; frontmatter gains the
+  `Task*` tools.
+- **`hooks/hooks.json`** — `SessionStart` and `UserPromptSubmit` hooks
+  (`hook-teams-session-start.sh`, `hook-teams-prompt-submit.sh`) that detect a
+  stale `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` flag (set in settings but not
+  active in the running session) and escalate over two prompts before
+  disabling it.
+
 ## [0.1.5] — 2026-04-19
 
 CI hotfix. Resolves three shellcheck warnings that were failing the
@@ -212,7 +277,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/lucascouts/epic/releases/tag/v0.2.0
 [0.1.5]: https://github.com/lucascouts/epic/releases/tag/v0.1.5
 [0.1.4]: https://github.com/lucascouts/epic/releases/tag/v0.1.4
 [0.1.3]: https://github.com/lucascouts/epic/releases/tag/v0.1.3
