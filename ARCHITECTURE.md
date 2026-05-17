@@ -101,7 +101,8 @@ Each `agents/*.md` declares its allowed tools. Narrower scopes catch drift early
 
 - `executor`: `Read, Write, Edit, Bash, Glob, Grep` (implements code)
 - `auditor`: adds `LSP` (reads symbols, writes deviation register)
-- `analyst`, `architect`, `reviewer`, `test-advisor`, `tech-reviewer`: read-only surfaces
+- `test-advisor`: `Read, Write, Bash, Glob, Grep` — no longer a read-only surface. It authors the failing tests for test-first sub-tasks (`Write`) and runs them to capture Red evidence (`Bash`).
+- `analyst`, `architect`, `reviewer`, `tech-reviewer`: read-only surfaces
 - `validator`: `Read, Glob, Grep, Bash` (runs validation commands, no writes)
 
 ---
@@ -122,6 +123,8 @@ Artifacts are the stable interface between phases and between agents. Agents pas
     ├── story.md          # after Phase 1 approval
     ├── design.md         # after Phase 2 approval
     ├── meta.yaml         # phase + project-hash + analyst cache
+    ├── authored-tests/   # failing test files authored in Phase 3 (test-first)
+    ├── red-evidence.yaml # Red-phase verification record per pre-authored test
     └── *.md.wip          # checkpoint markers inside long artifacts
 ```
 
@@ -183,11 +186,13 @@ Degradation on older CC versions is documented in [README.md#minimum-claude-code
 
 A sub-task passes through the executor as an ordered pipeline. Skipping any step is a protocol violation — the auditor catches this. Full definition in [`agents/executor.md`](agents/executor.md).
 
+The protocol **remains six steps**. Steps 2 and 5 are *conditional* — their wording depends on whether the sub-task carries a pre-authored failing test (a test-first sub-task) or not (a test-after sub-task):
+
 1. **Context gathering** — read every file/doc listed in the sub-task's `Context:` field before writing code.
-2. **Implementation** — implement literally what `ToDo:` says; deviate only with a documented reason.
+2. **Implementation** (**Green** for a test-first sub-task) — implement literally what `ToDo:` says; deviate only with a documented reason. For a test-first sub-task the goal is to make the pre-authored failing test pass; the test is a read-only input whose assertions are immutable.
 3. **Design fidelity check** — diff the implementation's signatures, error paths, data structures, and contracts against `design.md`. Classify deviations as INTENTIONAL (with rationale, appended to deviation register) or ACCIDENTAL (fix before proceeding).
 4. **Validation** — run the sub-task's `Validation:` command; report full output. On failure, STOP.
-5. **Tests** — create/run tests listed in the sub-task's `Tests:` field. On failure, STOP.
+5. **Refactor** (test-first sub-task) **/ Tests** (test-after sub-task) — for a test-first sub-task, improve the implementation while the pre-authored test and the validation command stay green. For a test-after sub-task, create/run the tests listed in the sub-task's `Tests:` field. On failure, STOP.
 6. **Report** — structured report back to the main agent.
 
 The main agent does not implement code; the executor does not make scope decisions. This separation is load-bearing for the auditor's effectiveness.
@@ -203,7 +208,9 @@ Epic has four distinct validation layers, each catching a different failure mode
 | Artifact validation | On every write to `.epic/**` | Malformed frontmatter, missing sections, bad YAML | `scripts/validate-story.sh` (via `hook-validate.sh`) |
 | Cross-reference | Manual or `--cross-ref` flag | Orphan R-numbers, design components unreferenced by tasks, tasks without R-numbers | `scripts/cross-reference.sh` |
 | Task validation | After each sub-task | Implementation fails the sub-task's declared validation command | `validator` sub-agent + `scripts/validate-story.sh` |
-| Story audit | After all tasks complete | Scope creep, deviations not in register, unmet quality gates, integration gaps | `auditor` sub-agent |
+| Story audit | After all tasks complete | Scope creep, deviations not in register, unmet quality gates, integration gaps, missing Red evidence | `auditor` sub-agent |
+
+The story audit includes a **Red-evidence gate** (auditor check #10): every sub-task that carries a pre-authored test must have a corresponding entry in `.draft/red-evidence.yaml` showing the test failed before implementation. A missing entry fails the audit.
 
 `--strict` mode promotes warnings to errors (exit 1 on any warning) — use it in CI gates.
 

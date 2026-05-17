@@ -13,7 +13,7 @@ Invoked as `/epic:epic` inside Claude Code.
 Ad-hoc prompts lose context, drift in scope, and produce undocumented changes. Epic formalizes the loop:
 
 - **Plan**: EARS requirements (`SHALL ...`), optional design doc with component interfaces, hierarchical tasks with validation commands.
-- **Execute**: Sub-agent (`executor`) follows a strict 6-step protocol per sub-task (context → implementation → design fidelity → validation → tests → report).
+- **Execute**: Sub-agent (`executor`) follows a strict 6-step protocol per sub-task (context → implementation → design fidelity → validation → refactor-or-tests → report). Step 5 is conditional: Refactor when the sub-task carries a pre-authored failing test, Tests when it does not.
 - **Verify**: Validator runs every validation command; Auditor cross-checks code against story and design for scope creep, deviations, and unmet quality gates.
 
 Scale is chosen per request:
@@ -132,9 +132,9 @@ Artifacts live in `.epic/stories/NNN-kebab-case/` (gitignored by default; keep o
 |---|---|
 | `analyst` | Context discovery, codebase scan, completeness checklist |
 | `architect` | Pattern research, design context, gotcha capture (Full mode) |
-| `test-advisor` | Defines testing requirements per sub-task (Phase 3, Standard + Full) |
+| `test-advisor` | Defines testing requirements per sub-task and authors one failing test per Unit/Integration sub-task with Red-phase verification (Phase 3, Standard + Full) |
 | `reviewer` | Cross-artifact review — gaps, consistency, orphan wiring (Full mode) |
-| `executor` | 6-step implementation protocol (context → impl → fidelity → validation → tests → report) |
+| `executor` | 6-step implementation protocol (context → implementation → design fidelity → validation → refactor-or-tests → report); step 5 is conditional — Refactor for a test-first sub-task, Tests for a test-after one |
 | `tech-reviewer` | Correctness at technology boundaries (templates, SQL, APIs) |
 | `validator` | Runs validation commands and tests per completed task |
 | `auditor` | Compares built code against story + design; detects scope creep |
