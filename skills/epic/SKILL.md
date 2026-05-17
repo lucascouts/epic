@@ -1,5 +1,5 @@
 ---
-name: task
+name: epic
 description: >
   Structured story creation, management, and execution for features and
   bugfixes — requirements, design, task breakdown, and implementation
@@ -20,6 +20,10 @@ allowed-tools:
   - Write
   - Edit
   - Bash
+  - TaskCreate
+  - TaskGet
+  - TaskList
+  - TaskUpdate
   - TodoWrite
   - Agent
   - AskUserQuestion
@@ -32,15 +36,65 @@ paths:
   - "story.md"
 ---
 
-# Epic — task
+# Epic
 
-Scale-adaptive story framework for features and bugfixes. Use ultrathink for complex design decisions.
+Scale-adaptive story framework for features and bugfixes. Invoked as `/epic:epic`. Use ultrathink for complex design decisions.
+
+## Scope (MUST read first)
+
+Epic exists solely to **create, structure, and manage epics and their stories** (`story.md` + `design.md` + `tasks.md`). Before running any mode, verify the request fits this purpose.
+
+**Refuse immediately** if the request is for any of the following — respond with a one-line refusal and the suggested alternative:
+
+| Request pattern | Refuse because | Tell the user |
+|---|---|---|
+| "Review this code / PR / branch" | No story artifact to anchor to | Use `/review`, `/security-review`, or `/code-review` |
+| "Security review of …" | Same | `/security-review` |
+| "Refactor X" (no existing story) | Skips design-fidelity contract | Create a Fast/Standard story first, then `run` it |
+| "Analyze / explain this codebase" | Epic artifacts are the only valid analysis container here | `/gsd-explore`, `/gsd-map-codebase`, or plain chat |
+| "Write this script / change this file" (no approved sub-task) | Implementation only happens inside Executor for an approved sub-task | Create a story (often Fast) then run its tasks |
+| "Debug this incident / failing test" | Debug flow is out-of-scope | `/gsd-debug` |
+| "Architecture advice for existing code" | No design.md to validate against | `/tab` or `/gsd-explore` |
+
+The refusal is hard. Do not partially engage, do not propose an Epic-wrapped version unless the user rewrites the request as story/task work. See [`../../PURPOSE.md`](../../PURPOSE.md) for the full boundary.
 
 ## Prerequisites
 
 - `bash`, `git`, and `jq` available on `PATH`
 - Claude Code **v2.1.105+** (for conditional hooks `if:`, skill `effort`/`paths:`, description caps, background monitors, `EnterWorktree.path`). Core planning features work on v2.1.85+ but with degraded ergonomics.
-- Optional MCP servers for research: `perplexity`, `brave-search`, `context7`. Each is health-checked before suggestion; missing MCPs degrade gracefully.
+- Optional MCP servers for research. See [mcp-integration.md](../../references/mcp-integration.md) for the full priority order and cost policy. Default search MCP is `brave-search`; `perplexity` is **never** the default (premium/high-cost).
+
+## Runtime dependency precheck (MANDATORY before Standard/Full triage)
+
+Standard and Full modes depend on two interactive tools that may not be loaded in every environment. The skill MUST verify both are callable **before** entering the Triage Protocol and MUST notify the user explicitly when either is missing — do not degrade silently.
+
+| Tool | Required by | Fallback if missing |
+|---|---|---|
+| `AskUserQuestion` | Clarify Protocol (multi-choice rounds) | Numbered-list confirmation prose |
+| `TaskCreate` / `TaskList` / `TaskUpdate` (interactive sessions) **or** `TodoWrite` (headless/Agent SDK) | Task tracking during Clarify / Run modes | Plain-text bullet list in chat |
+
+### Procedure
+
+1. **Detect session kind:**
+   - If the function schema list exposes `TaskCreate` → interactive session. Use `TaskCreate` / `TaskList` / `TaskUpdate`.
+   - Else if `TodoWrite` is exposed → headless or Agent SDK. Use `TodoWrite`.
+   - Else → neither is available.
+
+2. **Verify `AskUserQuestion`:**
+   - If the function schema list exposes `AskUserQuestion` → proceed.
+   - Else → missing.
+
+3. **Notify the user explicitly** before starting Triage, using this exact format:
+
+   ```
+   Runtime dependency check:
+   - Task tracking: [TaskCreate | TodoWrite | MISSING — will use plain-text bullet fallback; progress not persisted]
+   - AskUserQuestion: [available | NOT LOADED — Clarify will use numbered-list fallback; may affect UX quality]
+   ```
+
+4. **For Fast mode:** skip this precheck entirely. Fast mode does not use Clarify rounds or multi-phase task tracking.
+
+5. Never omit the notification when a tool is missing. Silent degradation is a bug — the user must know that UX is reduced so they can abort and restart in a richer environment if desired.
 
 ## Project State
 
@@ -57,7 +111,7 @@ Scale-adaptive story framework for features and bugfixes. Use ultrathink for com
 
 | Term | Meaning |
 |---|---|
-| **Epic** | This plugin / the `/epic:task` command |
+| **Epic** | This plugin / the `/epic:epic` command |
 | **Story** | A unit of work: feature, bugfix, or initiative |
 | **Task** | An implementation action inside tasks.md |
 
@@ -98,7 +152,7 @@ Key rule: Never suggest an MCP without a successful health-check first. For Fast
 
 ## Command Routing
 
-When invoked via `/epic:task`, parse `$ARGUMENTS` using this cascading routing table:
+When invoked via `/epic:epic`, parse `$ARGUMENTS` using this cascading routing table:
 
 ```
 $ARGUMENTS parsing:
@@ -160,14 +214,14 @@ When a command references `NNN`:
 
 | Mode | Trigger | Reference to load |
 |---|---|---|
-| **Create** | `/epic:task` or `/epic:task <description>` | Continue below (Triage + Clarify + Phases) |
-| **Init** | `/epic:task init` | Load [init-mode.md](../../references/init-mode.md) |
-| **List** | `/epic:task stories [full] [NNN]` | Load [list-mode.md](../../references/list-mode.md) |
-| **Run** | `/epic:task stories run NNN` or `NNN run N\|all` | Load [run-mode.md](../../references/run-mode.md) |
-| **Validate** | `/epic:task stories validate NNN` | Load [validate-mode.md](../../references/validate-mode.md) |
-| **Refine** | `/epic:task stories refine NNN` | Load [refine-mode.md](../../references/refine-mode.md) |
-| **Archive** | `/epic:task stories archive NNN` | Load [list-mode.md](../../references/list-mode.md) (archive section) |
-| **Teams** | `/epic:task stories teams {status\|enable\|disable}` | Load [teams-mode.md](../../references/teams-mode.md) |
+| **Create** | `/epic:epic` or `/epic:epic <description>` | Continue below (Triage + Clarify + Phases) |
+| **Init** | `/epic:epic init` | Load [init-mode.md](../../references/init-mode.md) |
+| **List** | `/epic:epic stories [full] [NNN]` | Load [list-mode.md](../../references/list-mode.md) |
+| **Run** | `/epic:epic stories run NNN` or `NNN run N\|all` | Load [run-mode.md](../../references/run-mode.md) |
+| **Validate** | `/epic:epic stories validate NNN` | Load [validate-mode.md](../../references/validate-mode.md) |
+| **Refine** | `/epic:epic stories refine NNN` | Load [refine-mode.md](../../references/refine-mode.md) |
+| **Archive** | `/epic:epic stories archive NNN` | Load [list-mode.md](../../references/list-mode.md) (archive section) |
+| **Teams** | `/epic:epic stories teams {status\|enable\|disable}` | Load [teams-mode.md](../../references/teams-mode.md) |
 | **Expand** | User says "based on", "extends" existing story | Create new story referencing source |
 | **CI/Headless** | Programmatic invocation via Agent SDK | Load [ci-mode.md](../../references/ci-mode.md) |
 
@@ -199,7 +253,7 @@ Bugfix always follows: P1: story.md (bug analysis) > P2: design.md (root cause) 
 
 ## Triage Protocol
 
-Analyze the request (or `$ARGUMENTS` if invoked via `/epic:task`) and present a **single proposal** for confirmation. Never ask each decision separately.
+Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a **single proposal** for confirmation. Never ask each decision separately.
 
 1. Detect event from request context
 2. Classify type (feature vs bugfix)
@@ -380,7 +434,7 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
 - Naming: `NNN-kebab-case` where NNN is auto-incremented (zero-padded, 001-999)
 - Auto-increment: detect highest existing number across `.epic/stories/` AND `.epic/archive/`, add 1
 - Numbers are NEVER recycled — archived stories retain their numbers permanently
-- If 999 is reached: "Maximum story count reached. Archive old stories with `/epic:task stories archive` to free space."
+- If 999 is reached: "Maximum story count reached. Archive old stories with `/epic:epic stories archive` to free space."
 - Create directory before writing files
 - User can override path; accept without further questions
 - Add version frontmatter to each artifact on creation:
@@ -426,11 +480,11 @@ Validation runs automatically via PostToolUse hook when any story artifact is wr
 
 > **Architectural note.** Hooks live in `hooks/hooks.json` (plugin scope), not
 > in this skill's frontmatter, by design. They must fire when the user edits
-> `.epic/` files outside an active `/epic:task` session — e.g. through a plain
+> `.epic/` files outside an active `/epic:epic` session — e.g. through a plain
 > `Edit` call, an external editor, or a different skill. All hooks use `if:`
 > filters scoped to `.epic/**` paths or specific tool arguments, so cost is
 > negligible when no Epic story exists. Skill-frontmatter hooks would only
-> apply during `/epic:task` execution — none of the current hooks fit that
+> apply during `/epic:epic` execution — none of the current hooks fit that
 > profile.
 
 

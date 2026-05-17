@@ -2,7 +2,9 @@
 
 Scale-adaptive plugin for creating, managing, and executing development work as structured stories (features and bugfixes). Epic turns vague requests into EARS-notation requirements, design documents, and a tracked task list — then orchestrates specialized sub-agents to implement, validate, and audit the work.
 
-Invoked as `/epic:task` inside Claude Code.
+Invoked as `/epic:epic` inside Claude Code.
+
+> **Scope is narrow.** Epic creates, structures, and manages epics/stories — nothing else. It does **not** perform ad-hoc code review, security review, refactors outside a planned story, general analysis, or exploratory code generation. See [PURPOSE.md](PURPOSE.md) for the full in-scope / out-of-scope contract and which Claude Code command to use for each refused case.
 
 ---
 
@@ -82,22 +84,22 @@ Run `/reload-plugins` after updating plugin files.
 
 ```bash
 # 1. Initialize project configuration (wizard)
-/epic:task init
+/epic:epic init
 
 # 2. Create a story (triage proposes scale, you confirm)
-/epic:task Add email verification to the user signup flow
+/epic:epic Add email verification to the user signup flow
 
 # 3. List stories
-/epic:task stories
+/epic:epic stories
 
 # 4. Run tasks of story 001
-/epic:task stories run 001
+/epic:epic stories run 001
 
 # 5. Validate the implementation against story + design
-/epic:task stories validate 001
+/epic:epic stories validate 001
 
 # 6. Archive completed stories
-/epic:task stories archive 001
+/epic:epic stories archive 001
 ```
 
 Artifacts live in `.epic/stories/NNN-kebab-case/` (gitignored by default; keep or commit depending on your workflow).
@@ -108,19 +110,19 @@ Artifacts live in `.epic/stories/NNN-kebab-case/` (gitignored by default; keep o
 
 | Command | Purpose |
 |---|---|
-| `/epic:task` | Create story from free-text description (triage + clarify + phases) |
-| `/epic:task init` | Set up `.epic/constitution.md`, `CLAUDE.md`, sub-agents |
-| `/epic:task stories` | List all stories (summary) |
-| `/epic:task stories full` | List all stories with tasks |
-| `/epic:task stories NNN` | Show one story in detail |
-| `/epic:task stories run NNN` | Execute pending tasks of story NNN |
-| `/epic:task stories run NNN --auto` | Run non-stop, only halt on failure |
-| `/epic:task stories run NNN --batch=N` | Gate every N task groups |
-| `/epic:task stories run NNN --gate=commit` | Gate only at Commit sub-tasks |
-| `/epic:task stories validate NNN` | Run Validator + Auditor on NNN |
-| `/epic:task stories refine NNN` | Delta refinement (versioned) |
-| `/epic:task stories archive NNN` | Move completed story to `.epic/archive/` |
-| `/epic:task stories teams {status\|enable\|disable}` | Manage the experimental agent-teams flag (opt-in, per-project) |
+| `/epic:epic` | Create story from free-text description (triage + clarify + phases) |
+| `/epic:epic init` | Set up `.epic/constitution.md`, `CLAUDE.md`, sub-agents |
+| `/epic:epic stories` | List all stories (summary) |
+| `/epic:epic stories full` | List all stories with tasks |
+| `/epic:epic stories NNN` | Show one story in detail |
+| `/epic:epic stories run NNN` | Execute pending tasks of story NNN |
+| `/epic:epic stories run NNN --auto` | Run non-stop, only halt on failure |
+| `/epic:epic stories run NNN --batch=N` | Gate every N task groups |
+| `/epic:epic stories run NNN --gate=commit` | Gate only at Commit sub-tasks |
+| `/epic:epic stories validate NNN` | Run Validator + Auditor on NNN |
+| `/epic:epic stories refine NNN` | Delta refinement (versioned) |
+| `/epic:epic stories archive NNN` | Move completed story to `.epic/archive/` |
+| `/epic:epic stories teams {status\|enable\|disable}` | Manage the experimental agent-teams flag (opt-in, per-project) |
 
 ---
 
@@ -149,7 +151,7 @@ When a story artifact is written to `.epic/stories/*/`, a PostToolUse hook runs 
 epic/
 ├── .claude-plugin/plugin.json   # manifest (name, userConfig, homepage, repository)
 ├── settings.json                # plugin defaults (subagentStatusLine)
-├── skills/task/SKILL.md         # main skill (/epic:task)
+├── skills/epic/SKILL.md         # main skill (/epic:epic)
 ├── agents/                      # 8 specialized sub-agents
 ├── hooks/hooks.json             # 7 hook events, all if:-filtered or matcher-scoped
 ├── monitors/monitors.json       # opt-in background watcher (stale stories)
@@ -185,7 +187,7 @@ When the plugin is active, the scripts are also on PATH as `epic-validate` and `
 Generate stories programmatically with the Agent SDK:
 
 ```bash
-claude -p "/epic:task Add retry logic to the payment gateway" \
+claude -p "/epic:epic Add retry logic to the payment gateway" \
   --allowedTools "Read,Write,Glob,Grep,Bash,Agent" \
   --bare --output-format json
 ```
@@ -226,7 +228,7 @@ Configurable via the install wizard or directly through settings. Each option is
 
 ## Background Monitors (optional)
 
-When `enableStaleMonitor=true`, a background script (`monitors/monitors.json` → `scripts/monitor-stale.sh`) starts on the first `/epic:task` invocation and periodically reports stories with pending tasks untouched for more than 7 days. Stdout lines surface as notifications to the main agent.
+When `enableStaleMonitor=true`, a background script (`monitors/monitors.json` → `scripts/monitor-stale.sh`) starts on the first `/epic:epic` invocation and periodically reports stories with pending tasks untouched for more than 7 days. Stdout lines surface as notifications to the main agent.
 
 Constraints:
 
@@ -241,9 +243,9 @@ Constraints:
 Epic integrates with Claude Code's experimental [agent-teams](https://code.claude.com/docs/en/agent-teams) feature for the Run phase. When enabled, stories with 2+ independent tracks can spawn a dedicated teammate per track, each using Epic's existing `executor` agent definition in its own context window — an alternative to the default sequential / `EnterWorktree` execution.
 
 ```
-/epic:task stories teams status     # inspect state
-/epic:task stories teams enable     # opt in (restart required)
-/epic:task stories teams disable    # opt out
+/epic:epic stories teams status     # inspect state
+/epic:epic stories teams enable     # opt in (restart required)
+/epic:epic stories teams disable    # opt out
 ```
 
 The flag is written to `.claude/settings.local.json` in the project, which Claude Code auto-gitignores. Nothing global is changed. When the flag is off, Run mode behaviour is identical to 1.3.0.
@@ -268,12 +270,12 @@ This is opt-in — no default behaviour changes. Defined in `output-styles/epic.
 
 ### `disableSkillShellExecution`
 
-The `## Project State` block in `skills/task/SKILL.md` uses inline shell execution (`!` prefix) to list existing stories, print the constitution header, and report git HEAD. When the managed setting `disableSkillShellExecution: true` is active, these commands are replaced with `[shell command execution disabled by policy]` and the skill renders without initial context.
+The `## Project State` block in `skills/epic/SKILL.md` uses inline shell execution (`!` prefix) to list existing stories, print the constitution header, and report git HEAD. When the managed setting `disableSkillShellExecution: true` is active, these commands are replaced with `[shell command execution disabled by policy]` and the skill renders without initial context.
 
 The skill still functions — pass the missing context explicitly in the prompt:
 
 ```
-/epic:task Add password reset. Context: project already has stories 001 (signup), 002 (login).
+/epic:epic Add password reset. Context: project already has stories 001 (signup), 002 (login).
 ```
 
 See the [setting reference](https://code.claude.com/docs/en/settings#settings-files) for managed-settings deployment.
