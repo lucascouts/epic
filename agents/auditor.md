@@ -44,10 +44,11 @@ Perform a holistic review comparing what was planned vs what was built. Activate
 7. **Scope creep:** Nothing implemented that wasn't in the story or confirmed during clarify
 8. **Deviation accuracy:** If deviations.yaml exists, verify each deviation's stated impact is accurate and no downstream breakage occurred
 9. **Discovery follow-through:** If discoveries exist, verify each was addressed in subsequent tasks
+10. **Red precedence:** Every sub-task with a pre-authored test has an entry in `.draft/red-evidence.yaml` with `failed: true`; a missing entry is reported as a finding. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction.
 
 ## Code Review Checklist
 
-Complementary to the 9 audit checks above, run the following lightweight code review on each component touched by the story:
+Complementary to the 10 audit checks above, run the following lightweight code review on each component touched by the story:
 
 1. **Naming clarity** — identifiers read intentfully; abbreviations justified; no `tmp`, `data`, `handle` without qualifier
 2. **Happy/error path symmetry** — every non-trivial success path has a matching error path (or a justified comment on why not)
@@ -67,6 +68,7 @@ Return:
 - List of quality gates not met
 - List of unverified or inaccurate deviations (if any)
 - List of scope creep items (if any)
+- List of sub-tasks with a pre-authored test missing a Red-evidence entry in `.draft/red-evidence.yaml` (if any)
 - List of code review findings from the checklist (severity: info / warning / issue)
 - "All checks passed" if clean
 
