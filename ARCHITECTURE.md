@@ -49,7 +49,7 @@ user request │  triage ─► clarify ─► analyst ─► architect         
              └───────────────────────────────────────────────────┘
 ```
 
-Scale (Fast / Standard / Full) controls which artifacts exist and which personas activate. The triage step emits a single proposal covering complexity, mode, workflow variant, MCPs, and output path — see [`skills/task/SKILL.md`](skills/task/SKILL.md#triage-protocol).
+Scale (Fast / Standard / Full) controls which artifacts exist and which personas activate. The triage step emits a single proposal covering complexity, mode, workflow variant, MCPs, and output path — see [`skills/epic/SKILL.md`](skills/epic/SKILL.md#triage-protocol).
 
 ---
 
@@ -59,7 +59,7 @@ The plugin surface maps to Claude Code's extension points:
 
 | Directory | Claude Code hook point | Role |
 |---|---|---|
-| `skills/task/` | Skill | The `/epic:task` entry point. Parses `$ARGUMENTS`, routes to modes, orchestrates agents, writes artifacts. |
+| `skills/epic/` | Skill | The `/epic:epic` entry point. Parses `$ARGUMENTS`, routes to modes, orchestrates agents, writes artifacts. |
 | `agents/` | Sub-agents | 8 specialized personas with bounded tool access and dedicated context windows. |
 | `hooks/hooks.json` | Hooks | 9 hook events, each `if:`-filtered to `.epic/**` paths or tool-arg patterns. |
 | `monitors/monitors.json` | Monitors | Opt-in stale-story watcher (requires CC 2.1.105+). |
@@ -127,7 +127,7 @@ Artifacts are the stable interface between phases and between agents. Agents pas
 
 ### Frontmatter contract
 
-Every artifact carries a shared frontmatter block. See [`skills/task/SKILL.md`](skills/task/SKILL.md#output-rules):
+Every artifact carries a shared frontmatter block. See [`skills/epic/SKILL.md`](skills/epic/SKILL.md#output-rules):
 
 ```yaml
 ---
@@ -159,7 +159,7 @@ All files in a story share the same `version`. It's an integer, not semver; bump
 
 ## Hook matrix
 
-All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — so they fire on `.epic/**` edits even outside a `/epic:task` session (external editor, another skill, plain `Edit`). Each uses an `if:` filter or matcher to stay cheap when Epic is idle.
+All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — so they fire on `.epic/**` edits even outside a `/epic:epic` session (external editor, another skill, plain `Edit`). Each uses an `if:` filter or matcher to stay cheap when Epic is idle.
 
 | Event | Matcher / if-filter | Script | Purpose | Min CC |
 |---|---|---|---|---|
@@ -242,9 +242,9 @@ Short rationale for choices a contributor might otherwise second-guess:
 
 All hook scripts and validators are bash. The plugin has zero runtime dependencies beyond `bash`, `git`, `jq` — which are baseline for any development environment. Adding Node/Python would force users into a runtime install for a plugin that mostly shells out to CC itself.
 
-### Single skill (`/epic:task`), not multiple slash commands
+### Single skill (`/epic:epic`), not multiple slash commands
 
-Every mode (Create, List, Run, Validate, Refine, Archive, Teams, Init) lives under `/epic:task` via `$ARGUMENTS` routing. This keeps discovery simple (one command to remember), concentrates triage/orchestration in one place, and lets reference files share context-loading rules. Modes that diverge heavily load dedicated `references/*-mode.md` files on entry.
+Every mode (Create, List, Run, Validate, Refine, Archive, Teams, Init) lives under `/epic:epic` via `$ARGUMENTS` routing. This keeps discovery simple (one command to remember), concentrates triage/orchestration in one place, and lets reference files share context-loading rules. Modes that diverge heavily load dedicated `references/*-mode.md` files on entry.
 
 ### Scale-adaptive (Fast / Standard / Full)
 
@@ -252,11 +252,11 @@ Forcing full planning ceremony on a 1-file change is user-hostile; skipping plan
 
 ### English-only artifacts, user's language in chat
 
-Artifacts (story/design/tasks) are always English because Claude performs best on English technical content and these artifacts are consumed by later sub-agents. User-facing chat follows the user's prompt language. No override — this is in [SKILL.md](skills/task/SKILL.md#language).
+Artifacts (story/design/tasks) are always English because Claude performs best on English technical content and these artifacts are consumed by later sub-agents. User-facing chat follows the user's prompt language. No override — this is in [SKILL.md](skills/epic/SKILL.md#language).
 
 ### Hooks at plugin scope, not skill frontmatter
 
-Plugin-scope hooks fire when the user edits `.epic/**` outside an active `/epic:task` session (plain `Edit`, external editor, another skill). Skill-frontmatter hooks would only apply during skill execution — none of Epic's hooks fit that profile. Detailed rationale is embedded in [SKILL.md](skills/task/SKILL.md#validation).
+Plugin-scope hooks fire when the user edits `.epic/**` outside an active `/epic:epic` session (plain `Edit`, external editor, another skill). Skill-frontmatter hooks would only apply during skill execution — none of Epic's hooks fit that profile. Detailed rationale is embedded in [SKILL.md](skills/epic/SKILL.md#validation).
 
 ### Archive immutability via PreToolUse block, not convention
 
@@ -282,7 +282,7 @@ Common contributions and where they go:
 
 | Change | Touch |
 |---|---|
-| New story mode (e.g., `review`, `rollback`) | Add routing line in [SKILL.md](skills/task/SKILL.md#command-routing), create `references/<name>-mode.md`, add mode row to Mode Dispatch table |
+| New story mode (e.g., `review`, `rollback`) | Add routing line in [SKILL.md](skills/epic/SKILL.md#command-routing), create `references/<name>-mode.md`, add mode row to Mode Dispatch table |
 | New sub-agent persona | Add `agents/<name>.md` with frontmatter (tools, effort, model), wire activation in SKILL.md's persona tables and relevant phase procedure |
 | New hook event | Append to `hooks/hooks.json` with `if:` filter, add script under `scripts/hook-*.sh`, document in [Hook matrix](#hook-matrix) |
 | New validation rule | Extend `scripts/validate-story.sh` (errors vs warnings), add a `bats` test under `tests/` |
@@ -298,7 +298,7 @@ Before adding a new reference file under `references/`, check whether existing o
 Epic deliberately does not do these things. Adding them would conflict with the design:
 
 - **Idea exploration.** Epic formalizes work already decided. It does not brainstorm alternatives or write speculative code.
-- **Generic code generation outside a story.** The `/epic:task` command refuses to implement without an approved task.
+- **Generic code generation outside a story.** The `/epic:epic` command refuses to implement without an approved task.
 - **Repo-wide refactors as a single story.** Breaking large refactors into multiple stories is the correct pattern (linked via "based on" / "extends").
 - **Runtime dependencies beyond bash/git/jq.** MCPs are optional and health-checked; their absence degrades gracefully.
 - **Version-controlled drafts.** `.epic/` (including `.draft/`) is `.gitignored` by default; the user decides when a story is ready to commit.
@@ -308,7 +308,7 @@ Epic deliberately does not do these things. Adding them would conflict with the 
 ## See also
 
 - [README.md](README.md) — installation, feature list, version-compatibility matrix
-- [`skills/task/SKILL.md`](skills/task/SKILL.md) — the orchestrator, command routing, phase execution
+- [`skills/epic/SKILL.md`](skills/epic/SKILL.md) — the orchestrator, command routing, phase execution
 - [`references/phase-gates.md`](references/phase-gates.md) — gate protocol, cascade rollback, checkpoint recovery
 - [`references/ci-mode.md`](references/ci-mode.md) — headless invocation, deferred commits
 - [`references/teams-mode.md`](references/teams-mode.md) — agent-teams experimental flag

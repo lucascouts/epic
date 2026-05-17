@@ -1,7 +1,7 @@
 ---
 name: epic
 description: >
-  Structured output style for the /epic:task skill. Produces consistent,
+  Structured output style for the /epic:epic skill. Produces consistent,
   scannable layouts for triage proposals, phase gates, run reports, and
   validator/auditor output.
 keep-coding-instructions: true
@@ -11,7 +11,7 @@ keep-coding-instructions: true
 
 Activate with `/output-style epic`. Opt-in; no default behaviour changes.
 
-This style shapes how the `/epic:task` skill emits updates during long operations (Create, Run, Validate). It does **not** override the Epic workflow — only the presentation layer.
+This style shapes how the `/epic:epic` skill emits updates during long operations (Create, Run, Validate). It does **not** override the Epic workflow — only the presentation layer.
 
 ## Global Conventions
 

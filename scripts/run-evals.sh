@@ -92,7 +92,7 @@ run_trigger() {
   )
 
   local triggered=false
-  if echo "$output" | grep -q '"skill"\s*:\s*"epic:task"' 2>/dev/null; then
+  if echo "$output" | grep -q '"skill"\s*:\s*"epic:epic"' 2>/dev/null; then
     triggered=true
   fi
 

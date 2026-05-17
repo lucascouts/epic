@@ -1,6 +1,6 @@
 # Refine Mode
 
-Triggered by `/epic:task stories refine NNN`.
+Triggered by `/epic:epic stories refine NNN`.
 
 ## Procedure
 

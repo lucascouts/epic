@@ -2,8 +2,8 @@
 # Background monitor: detects epic stories with no progress past a staleness
 # threshold. Each stdout line becomes a notification to the main agent.
 #
-# Lifecycle: started by monitors/monitors.json on the first /epic:task
-# invocation (when: on-skill-invoke:task).
+# Lifecycle: started by monitors/monitors.json on the first /epic:epic
+# invocation (when: on-skill-invoke:epic).
 #
 # The Claude Code runtime — not this script — is responsible for skipping
 # plugin monitors on Bedrock/Vertex/Foundry and when DISABLE_TELEMETRY or

@@ -1,6 +1,6 @@
 # Init Mode
 
-Triggered by `/epic:task init`. Interactive wizard to set up project configuration files.
+Triggered by `/epic:epic init`. Interactive wizard to set up project configuration files.
 
 ## Procedure
 

@@ -1,10 +1,10 @@
 # Validate Mode
 
-Triggered by `/epic:task stories validate NNN`.
+Triggered by `/epic:epic stories validate NNN`.
 
 ## Post-Implementation Personas
 
-These personas are activated **after implementation**, not during story creation. They are optional — activated when the user invokes `/epic:task validate` on a story directory, or when a sub-agent execution flow completes all tasks.
+These personas are activated **after implementation**, not during story creation. They are optional — activated when the user invokes `/epic:epic validate` on a story directory, or when a sub-agent execution flow completes all tasks.
 
 | Persona | Role | When | Sub-agent type |
 |---|---|---|---|

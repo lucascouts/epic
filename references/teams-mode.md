@@ -26,9 +26,9 @@ For the generic decision framework, see [agent-teams#when-to-use](https://code.c
 Epic ships a subcommand and a script — both do the same thing.
 
 ```
-/epic:task teams status     # inspect current state
-/epic:task teams enable     # sets CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
-/epic:task teams disable    # removes the flag
+/epic:epic teams status     # inspect current state
+/epic:epic teams enable     # sets CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+/epic:epic teams disable    # removes the flag
 ```
 
 Or invoke the script directly:
@@ -141,7 +141,7 @@ tmux ls
 tmux kill-session -t <session-name>
 ```
 
-### Flag was set but `/epic:task teams status` still reports `inactive`
+### Flag was set but `/epic:epic teams status` still reports `inactive`
 
 Verify by inspecting the file directly:
 

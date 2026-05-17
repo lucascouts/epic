@@ -87,7 +87,7 @@ Degraded operation on v2.1.85+.
 - **`agents/analyst.md`** — project-scoped memory declared for accumulated
   pattern findings; documented `Explore` agent as a faster alternative for
   Function 1 when memory continuity is not required.
-- **`skills/task/SKILL.md`** — `AskUserQuestion` added to allowed-tools; Clarify
+- **`skills/epic/SKILL.md`** — `AskUserQuestion` added to allowed-tools; Clarify
   Protocol reworked to use multiple-choice prompts (with legacy
   numbered-assertion fallback when the tool is unavailable). Architectural note
   documents why hooks live at plugin scope rather than skill frontmatter.
@@ -134,7 +134,7 @@ Initial public release. Internal pre-public history (referenced in `references/t
 
 - Single-plugin marketplace named `lucascouts`, sourced from the same repo (`source: "./"`).
 
-### Skill — `/epic:task`
+### Skill — `/epic:epic`
 
 - Scale-adaptive workflow with three modes (Fast / Standard / Full) and two workflow variants (Requirements-First / Design-First).
 - Sub-routes: `init`, `stories`, `stories full`, `stories NNN`, `stories run NNN [--auto|--batch=N|--gate=commit]`, `stories validate NNN`, `stories refine NNN`, `stories archive NNN[-MMM]|--done`, `stories teams {status|enable|disable}`, `archive`.
@@ -209,7 +209,7 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 
 - During Full-mode triage with 2+ independent tracks, offers `[y]/[n]/[never]` proposal to enable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` _(requires v2.1.32)_.
 - Teammates reuse the `executor` agent definition (one per track, in its own context).
-- `/epic:task stories teams {status|enable|disable}` for direct flag management.
+- `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
 [Unreleased]: https://github.com/lucascouts/epic/compare/v0.1.5...HEAD

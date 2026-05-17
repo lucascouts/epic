@@ -22,7 +22,7 @@ Exit codes: 0 = pass, 1 = issues found, 2 = invalid input. Output is always JSON
 ## Generate Stories Programmatically
 
 ```bash
-claude -p "/epic:task Add retry logic to the payment gateway" \
+claude -p "/epic:epic Add retry logic to the payment gateway" \
   --allowedTools "Read,Write,Glob,Grep,Bash,Agent" \
   --bare \
   --output-format json
@@ -31,7 +31,7 @@ claude -p "/epic:task Add retry logic to the payment gateway" \
 ## Validate Implementation Against Story
 
 ```bash
-claude -p "/epic:task stories validate 001" \
+claude -p "/epic:epic stories validate 001" \
   --allowedTools "Read,Glob,Grep,Bash,Agent" \
   --bare \
   --output-format json
@@ -40,7 +40,7 @@ claude -p "/epic:task stories validate 001" \
 ## List Stories
 
 ```bash
-claude -p "/epic:task stories" \
+claude -p "/epic:epic stories" \
   --allowedTools "Read,Glob,Grep" \
   --bare \
   --output-format text
@@ -69,7 +69,7 @@ the `structured_output` field, sibling to the usual `result` and metadata.
 Example: extract a validation summary for a story:
 
 ```bash
-claude -p "/epic:task stories validate 001" \
+claude -p "/epic:epic stories validate 001" \
   --bare --allowedTools "Read,Glob,Grep,Bash,Agent" \
   --output-format json \
   --json-schema '{

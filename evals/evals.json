@@ -3,7 +3,7 @@
     {
       "id": "fast-feature",
       "description": "Simple feature using Fast mode — tasks only",
-      "prompt": "/epic:task Add email validation to the user profile form",
+      "prompt": "/epic:epic Add email validation to the user profile form",
       "assertions": [
         "Creates .epic/stories/ directory structure",
         "Generates tasks.md with frontmatter containing scale: fast",
@@ -16,7 +16,7 @@
     {
       "id": "standard-bugfix",
       "description": "Medium bugfix using Standard mode — story + tasks",
-      "prompt": "/epic:task Fix: login form submits but returns blank page instead of redirect to dashboard",
+      "prompt": "/epic:epic Fix: login form submits but returns blank page instead of redirect to dashboard",
       "assertions": [
         "Triage detects bugfix type",
         "Recommends Standard or Full mode",
@@ -30,7 +30,7 @@
     {
       "id": "full-feature",
       "description": "Complex feature using Full mode — all artifacts",
-      "prompt": "/epic:task Build a workspace invitation system with email notifications, role-based permissions, and audit logging",
+      "prompt": "/epic:epic Build a workspace invitation system with email notifications, role-based permissions, and audit logging",
       "assertions": [
         "Triage detects Moderate or High complexity",
         "Recommends Full mode",
@@ -46,7 +46,7 @@
     {
       "id": "greenfield-project",
       "description": "Brand new project with no existing code or .epic directory",
-      "prompt": "/epic:task Build a REST API for a todo app from scratch — this is a brand new project with no existing code",
+      "prompt": "/epic:epic Build a REST API for a todo app from scratch — this is a brand new project with no existing code",
       "assertions": [
         "Creates .epic/stories/ directory structure",
         "Does not fail or reference non-existent files",
@@ -58,7 +58,7 @@
     {
       "id": "ambiguous-input",
       "description": "Vague request requiring clarification before proceeding",
-      "prompt": "/epic:task organize this",
+      "prompt": "/epic:epic organize this",
       "assertions": [
         "Does not immediately generate artifacts",
         "Asks for clarification about what to organize",
@@ -69,7 +69,7 @@
     {
       "id": "hidden-complexity",
       "description": "Request sounds simple but reveals high complexity requiring mode upgrade",
-      "prompt": "/epic:task Add a dark mode toggle to the settings page — needs to persist preference in DB, sync across devices, respect system preferences, handle SSR hydration mismatch, and update all 47 themed components",
+      "prompt": "/epic:epic Add a dark mode toggle to the settings page — needs to persist preference in DB, sync across devices, respect system preferences, handle SSR hydration mismatch, and update all 47 themed components",
       "assertions": [
         "Triage detects Moderate or High complexity despite simple-sounding start",
         "Recommends Full mode (not Fast)",

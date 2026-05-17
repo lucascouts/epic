@@ -35,7 +35,7 @@ case "$CHANGE_TYPE" in
     ;;
   deleted)
     echo "Epic constitution deleted: ${FILE_PATH}."
-    echo "Project conventions are no longer enforced. Re-run /epic:task init to recreate."
+    echo "Project conventions are no longer enforced. Re-run /epic:epic init to recreate."
     ;;
   *)
     # Unknown change type — emit nothing.

@@ -40,7 +40,7 @@ if [ -f "$CONSTITUTION" ]; then
   echo "  Constitution head:"
   head -10 "$CONSTITUTION" | sed 's/^/    /'
 else
-  echo "  No constitution.md (run /epic:task init to create one)."
+  echo "  No constitution.md (run /epic:epic init to create one)."
 fi
 
 exit 0

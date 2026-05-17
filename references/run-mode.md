@@ -1,6 +1,6 @@
 # Run Mode
 
-Triggered by `/epic:task stories run NNN`, `/epic:task stories NNN run all`, or `/epic:task stories NNN run N`.
+Triggered by `/epic:epic stories run NNN`, `/epic:epic stories NNN run all`, or `/epic:epic stories NNN run N`.
 
 ## Procedure
 
@@ -29,10 +29,10 @@ Parse flags from `$ARGUMENTS` after the run command:
 
 Examples:
 ```
-/epic:task stories run 004                    ← default (gate after each group)
-/epic:task stories run 004 --auto             ← only stop on failure
-/epic:task stories run 004 --batch=3          ← gate every 3 groups
-/epic:task stories run 004 --gate=commit      ← gate only at commits
+/epic:epic stories run 004                    ← default (gate after each group)
+/epic:epic stories run 004 --auto             ← only stop on failure
+/epic:epic stories run 004 --batch=3          ← gate every 3 groups
+/epic:epic stories run 004 --gate=commit      ← gate only at commits
 ```
 
 ## Tech Stack Detection

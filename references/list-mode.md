@@ -1,6 +1,6 @@
 # List Mode
 
-Triggered by `/epic:task stories`, `/epic:task stories full`, or `/epic:task stories NNN`.
+Triggered by `/epic:epic stories`, `/epic:epic stories full`, or `/epic:epic stories NNN`.
 
 ## Procedure
 
@@ -9,7 +9,7 @@ Triggered by `/epic:task stories`, `/epic:task stories full`, or `/epic:task sto
 3. Calculate progress: count `[x]` vs `[ ]` across all tasks and sub-tasks
 4. Parse Quality Gates section: count checked vs unchecked
 
-## Summary View (`/epic:task stories`)
+## Summary View (`/epic:epic stories`)
 
 ```
 Stories in .epic/stories/:
@@ -23,7 +23,7 @@ Stories in .epic/stories/:
 
 One line per story: scale, type, version, progress.
 
-## Detailed View (`/epic:task stories full`)
+## Detailed View (`/epic:epic stories full`)
 
 Same as summary, plus expand each story's task list showing checkbox state, task name, and metadata line. Do not show sub-task content fields (ToDo, Context, etc.) — only titles and status.
 
@@ -43,13 +43,13 @@ Same as summary, plus expand each story's task list showing checkbox state, task
     [ ] Full flow integration test
 ```
 
-## Single Story View (`/epic:task stories NNN`)
+## Single Story View (`/epic:epic stories NNN`)
 
 Same as detailed view but for one story only. Additionally show:
 - Next pending task (first `[ ]` in order)
 - Quality gates status (each gate individually)
 
-## Archive View (`/epic:task archive`)
+## Archive View (`/epic:epic archive`)
 
 List archived stories from `.epic/archive/manifest.yaml`:
 
@@ -60,14 +60,14 @@ Archived stories:
   002-user-dashboard        | archived 2026-03-20 | complete
 ```
 
-## Archive Command (`/epic:task stories archive NNN[-MMM]`)
+## Archive Command (`/epic:epic stories archive NNN[-MMM]`)
 
 Move completed stories to `.epic/archive/`:
 
 ```
-/epic:task stories archive 001          ← archive story 001
-/epic:task stories archive 001-005      ← archive stories 001 through 005
-/epic:task stories archive --done        ← archive all stories at 100% completion
+/epic:epic stories archive 001          ← archive story 001
+/epic:epic stories archive 001-005      ← archive stories 001 through 005
+/epic:epic stories archive --done        ← archive all stories at 100% completion
 ```
 
 Procedure:
