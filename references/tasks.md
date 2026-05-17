@@ -123,6 +123,8 @@ Format: `Type · \`path/to/test_file\` — scenario1, scenario2, scenario3`
 - When a sub-task's logic is already tested by another task: `Covered by Task X.Y`
 - The Tests field is populated by the **Test Advisor** sub-agent (see SKILL.md), not by the main agent.
 
+**Standard + Full scales — the Tests field is _authored_, not merely specified.** During Phase 3, the test-advisor writes the actual failing test file under the story's `.draft/authored-tests/` directory, mirroring the target test path (the `path` shown in the Tests field). It then runs the test to confirm it fails for the right reason and records that Red verification in `.draft/red-evidence.yaml`. The `path` in the Tests field is therefore the target location an executor will copy the authored test into — the test itself already exists in `.draft/authored-tests/` before implementation begins.
+
 ### Commit Sub-tasks
 
 - Last sub-task of each task group when the group has 2+ working sub-tasks.

@@ -13,8 +13,9 @@ Triggered by `/epic:epic stories run NNN`, `/epic:epic stories NNN run all`, or 
 4. **Check dependencies** — if a pending task depends on an uncompleted task, warn the user
 5. **Detect parallel groups** — identify non-blocking tasks (see Parallel Execution)
 6. **Tech stack detection** — scan tasks to build tech profiles (see Tech Stack Detection)
-7. **Present execution plan** — show which tasks will be executed, in order, highlighting parallel groups and executor assignment
-8. **Wait for user confirmation** before executing
+7. **Materialize pre-authored tests** — before any task execution, copy every file under the story's `.draft/authored-tests/**` into the real test tree at its mirrored path. This step is **idempotent**: if a target test path already exists in the real tree, **skip that file and emit a warning** (it may already exist from a prior Run, a partial `run N.N`, or a manual executor edit — never overwrite it). Files that do not yet exist are copied. Materialization runs once per Run, ahead of step 8.
+8. **Present execution plan** — show which tasks will be executed, in order, highlighting parallel groups and executor assignment
+9. **Wait for user confirmation** before executing
 
 ## Execution Flags
 
@@ -125,6 +126,10 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 > Files created/modified by previous tasks: [list with paths]
 > Design deviations from previous tasks: [deviation register entries, if any]
 >
+> ## Pre-Authored Test
+>
+> [INCLUDED ONLY when this sub-task has a pre-authored failing test. Path to the materialized test file plus its contents. This is a **read-only input** — you implement against it to make it pass; you do NOT author, replace, or weaken it. If this section is absent, this is a test-after sub-task: author tests yourself in step 5 as before.]
+>
 > ## Available MCPs
 >
 > [List of verified MCPs from triage: context7 for docs, brave/perplexity for research, etc.]
@@ -134,6 +139,11 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 > ## Execution Protocol
 >
 > You MUST execute these steps IN ORDER. Do not skip any step. Do not proceed to the next step until the current one is complete. Report what you did in each step.
+>
+> **The protocol REMAINS SIX STEPS.** Only step 2 and step 5 change wording depending on whether the sub-task carries a pre-authored test:
+>
+> - A **test-first sub-task** has a pre-authored failing test supplied as a read-only input (the "Pre-Authored Test" section above). For it, step 2 is **Implementation (Green)** and step 5 is **Refactor**.
+> - A **test-after sub-task** has no pre-authored test. For it, the protocol is unchanged: step 2 is **Implementation** and step 5 is **Tests**.
 >
 > ### Step 1: CONTEXT GATHERING
 >
@@ -161,6 +171,12 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 > - Apply findings from Step 1. If the docs revealed a framework behavior (e.g., template engine fails on missing variables, form deserialization happens before handler), adapt the implementation accordingly.
 > - When the ToDo specifies a function signature, match it against the Design Context. If you need to deviate, document WHY.
 >
+> **Test-first sub-task — Implementation is the Green phase.** When the prompt carries a "Pre-Authored Test" section, your goal in this step is to make that pre-authored failing test pass. The test is a **read-only input** — you implement against it, you do not author or replace it.
+>
+> **Frozen-test rule.** The pre-authored test's **assertions are immutable** — you MUST NOT modify them, weaken them, or delete them to get a passing run. The test's **imports and signature call-sites** (how it imports the unit under test and how it invokes it) MAY be adjusted **only** to match an INTENTIONAL design deviation you confirm in step 3 — never for any other reason. Each such surface adjustment MUST be recorded in `.draft/deviations.yaml` with the field `test_surface_adjusted: true`.
+>
+> **Behavior-changing deviation — STOP and escalate.** If an intentional design deviation would change *what an assertion expects* (the behavior the test pins), rather than only the call surface (imports / signature), you MUST **STOP and escalate** instead of proceeding. Never edit an assertion to resolve the conflict.
+>
 > ### Step 3: DESIGN FIDELITY CHECK
 >
 > Before proceeding to validation, compare your implementation against the Design Context:
@@ -178,9 +194,13 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 >
 > Run the Validation command specified in the sub-task. Report the FULL output — do not summarize as "it passed". If the command fails, report the failure and STOP. Do not attempt to fix and retry without reporting first.
 >
-> ### Step 5: TESTS (if Tests field exists)
+> ### Step 5: REFACTOR or TESTS (conditional)
 >
-> Create or update the test file at the specified path. Implement the test scenarios listed. Run the tests and report the full output. If tests fail, report and STOP.
+> This step depends on whether the sub-task carries a pre-authored test. It is still **step 5 of the same six-step protocol** — only the wording changes.
+>
+> **Test-first sub-task → REFACTOR.** With the pre-authored test now passing (step 2) and Validation green (step 4), improve the implementation: remove duplication, clarify names, simplify structure. Use the passing test plus the Validation command as a **regression safety net** — re-run both after refactoring and confirm they **stay green**. The frozen-test rule still applies: do not modify the test's assertions. If a refactor cannot keep the test and validation green, revert it. If refactoring surfaces a behavior-changing design deviation, **STOP and escalate** — never edit an assertion.
+>
+> **Test-after sub-task → TESTS (if a Tests field exists).** Create or update the test file. Implement the test scenarios listed. Run tests and report full output. If fail: **STOP**.
 >
 > ### Step 6: REPORT
 >
@@ -308,6 +328,8 @@ After each sub-task completes, the orchestrator extracts from the Executor's rep
 2. **Design deviations** — any intentional deviations that downstream tasks must know about. Example: "AppConfig::from_env returns Result<Self, String> instead of Result<Self, AppError> — downstream callers must handle String errors"
 3. **Framework discoveries** — gotchas found during context gathering that apply to future tasks. Example: "Tera requires all variables referenced in {% if %} to exist in context, even with empty values"
 
+When a sub-task has a pre-authored failing test, the orchestrator also passes the **pre-authored test as a read-only input** — the materialized test file's path and contents in the Executor prompt's "Pre-Authored Test" section. The Executor implements against that test to make it pass and does not author, replace, or weaken it.
+
 ### What Does NOT Get Passed
 
 - Full file contents (executor reads files directly)
@@ -333,6 +355,13 @@ deviations:
     actual: "includes variant prefix 'Database error:'"
     reason: "single Display impl serves both logging and response"
     impact: "HTTP error responses leak error category name"
+  - task: "4.2"
+    component: "parse_config signature"
+    design: "parse_config(path: &str)"
+    actual: "parse_config(path: &Path)"
+    reason: "callers already hold a Path; &str forced a redundant conversion"
+    impact: "call surface only — no behavior change"
+    test_surface_adjusted: true   # executor adjusted the pre-authored test's call-site to match
 discoveries:
   - task: "5.3"
     tech: "actix-web"
@@ -341,6 +370,8 @@ discoveries:
     tech: "Tera"
     finding: "Variables in {% if %} must exist in context — default filter only works in {{ }}"
 ```
+
+A deviation entry carries the optional boolean field `test_surface_adjusted`. It is `true` on a deviation where the Executor adjusted a pre-authored test's imports or signature call-sites to match that INTENTIONAL deviation (the only test edit the frozen-test rule permits — assertions are never touched). The field is absent on deviations that did not require any test surface change.
 
 The register is:
 - Updated after each Executor completes
