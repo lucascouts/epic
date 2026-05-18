@@ -11,6 +11,20 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-05-17
+
+Patch release. Fixes plugin metadata so the version is shown in the Claude Code
+plugin UI.
+
+**Minimum Claude Code:** unchanged from 0.2.0.
+
+### Fixed
+
+- The plugin entry in `.claude-plugin/marketplace.json` was missing a `version`
+  field, so the **Plugins → Installed** details view displayed no version.
+  Added `"version"` to the marketplace entry, kept in sync with
+  `plugin.json`.
+
 ## [0.3.0] — 2026-05-17
 
 Feature release. Adds **Fast-mode run-time test-first execution** and an
