@@ -26,6 +26,24 @@ gracefully (see README "Prerequisites").
 - **`agents/executor.md`** is reused **unmodified** — its existing conditional
   six-step protocol already consumes a pre-authored test (step 5 Refactor for a
   sub-task with a pre-authored test, Tests otherwise).
+- **Preferred-tooling policy** (story `003-preferred-tooling-policy`).
+  - **`references/preferred-tooling.md`** — a new opinionated policy reference.
+    Favorite E2E tools are `playwright` and `chrome-devtools`; optional E2E
+    tools are `puppeteer`, `selenium`, `browser-use` and `stagehand`. Detection
+    uses three mechanisms — MCP health-check, dependency-manifest inspection,
+    and skill-list presence — and runs in **all modes, including Fast**. When no
+    favorite is installed the policy is recommend-and-pause: Epic surfaces a
+    recommendation and waits rather than silently selecting an optional tool.
+  - **`skills/epic/SKILL.md`** — triage gains step 7b "Detect preferred
+    tooling", a `### Preferred Tooling` subsection, and a `> - Tooling:`
+    proposal line. The resolved selection is persisted to `design.md`'s
+    `## Tooling Decisions` block.
+  - **`agents/test-advisor.md`** — the Test Advisor now also authors `E2E` test
+    files (in addition to `Unit` and `Integration`), using the story's selected
+    E2E tool. Red-phase verification for an `E2E` test is **deferred to Run
+    mode**, which confirms the deferred Red before implementation and Green
+    after. The `frontend-design` skill is the preferred frontend implementation
+    aid when installed.
 
 ## [0.2.0] — 2026-05-17
 

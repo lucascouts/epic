@@ -18,6 +18,7 @@ Design-level view of the Epic plugin for contributors and integrators. The [READ
 | Debug a hook firing | [Hook matrix](#hook-matrix) |
 | Understand how implementation happens | [Executor 6-step protocol](#executor-6-step-protocol) |
 | Understand the validation layers | [Validation layers](#validation-layers) |
+| Know how E2E tooling is chosen | [Preferred-tooling policy](#preferred-tooling-policy) |
 | Know why a choice was made | [Architectural decisions](#architectural-decisions) |
 
 ---
@@ -101,7 +102,7 @@ Each `agents/*.md` declares its allowed tools. Narrower scopes catch drift early
 
 - `executor`: `Read, Write, Edit, Bash, Glob, Grep` (implements code)
 - `auditor`: adds `LSP` (reads symbols, writes deviation register)
-- `test-advisor`: `Read, Write, Bash, Glob, Grep` — no longer a read-only surface. It authors the failing tests for test-first sub-tasks (`Write`) and runs them to capture Red evidence (`Bash`).
+- `test-advisor`: `Read, Write, Bash, Glob, Grep` — no longer a read-only surface. It authors the failing tests for test-first sub-tasks (`Write`) and runs them to capture Red evidence (`Bash`). Its scope now covers `E2E` sub-tasks in addition to `Unit`/`Integration` — an `E2E` test is authored against the story's selected E2E tool (see [Preferred-tooling policy](#preferred-tooling-policy)) with Red-phase verification **deferred to Run mode**, so for those sub-tasks the Test Advisor writes the file but does not run `Bash`.
 - `analyst`, `architect`, `reviewer`, `tech-reviewer`: read-only surfaces
 - `validator`: `Read, Glob, Grep, Bash` (runs validation commands, no writes)
 
@@ -282,6 +283,18 @@ In headless mode (`CI=true`/`CLAUDE_CODE_HEADLESS=true`), `hook-defer-commit.sh`
 ### Degrade gracefully on missing MCPs
 
 MCPs (`perplexity`, `brave-search`, `context7`) are health-checked during triage. A missing MCP never blocks the flow — the skill substitutes an alternative or skips that category. No user-visible errors for optional tooling.
+
+---
+
+## Preferred-tooling policy
+
+Epic is opinionated about E2E test tooling so stories do not silently adopt whatever happens to be installed. The full policy lives in [`references/preferred-tooling.md`](references/preferred-tooling.md); the architectural shape is:
+
+- **Favorites vs optional.** Favorite E2E tools are `playwright` and `chrome-devtools`. Optional E2E tools (`puppeteer`, `selenium`, `browser-use`, `stagehand`) are accepted but never auto-selected over a favorite.
+- **Three-mechanism detection.** Triage detects installed tools via (1) MCP health-check, (2) dependency-manifest inspection, and (3) skill-list presence. Detection runs in **all modes, including Fast** — it is not gated by scale.
+- **Recommend-and-pause fallback.** When no favorite is installed, triage surfaces a recommendation and pauses rather than silently choosing an optional tool.
+- **Where it surfaces.** Triage (`skills/epic/SKILL.md`) carries step 7b "Detect preferred tooling", a `### Preferred Tooling` subsection, and a `> - Tooling:` proposal line. The resolved selection is persisted to `design.md`'s `## Tooling Decisions` block, which the Test Advisor reads when authoring `E2E` tests.
+- **Frontend aid.** When the `frontend-design` skill is installed it is the preferred frontend implementation aid.
 
 ---
 

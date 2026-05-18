@@ -24,7 +24,9 @@ Scale is chosen per request:
 | **Standard** | `story.md` + `tasks.md` | 2–5 files, clear scope |
 | **Full** | `story.md` + `design.md` + `tasks.md` | 5+ files, design decisions, integrations |
 
-All three modes are **test-first**. Standard and Full author tests at plan time — the Test Advisor writes one failing test per Unit/Integration sub-task in Phase 3. Fast mode is **test-first at run time and single-author**: a Fast sub-task carrying a `Tests` field has its test authored by the main agent and confirmed failing (Red) before implementation, then Green-then-Refactor — no Test Advisor sub-agent. A Fast sub-task with no testable logic carries an optional Fast-only `Acceptance` field instead — 1–3 observable-behavior statements; every implementing (non-Commit) Fast sub-task carries either a `Tests` field or an `Acceptance` field. Fast keeps its lightweight scale: no `story.md`, no design, no gate, no `.draft/`.
+All three modes are **test-first**. Standard and Full author tests at plan time — the Test Advisor writes one failing test per Unit/Integration/E2E sub-task in Phase 3. For an E2E sub-task the Test Advisor uses the story's selected E2E tool and **defers Red-phase verification to Run mode** (Run confirms the deferred Red before implementation and Green after). Fast mode is **test-first at run time and single-author**: a Fast sub-task carrying a `Tests` field has its test authored by the main agent and confirmed failing (Red) before implementation, then Green-then-Refactor — no Test Advisor sub-agent. A Fast sub-task with no testable logic carries an optional Fast-only `Acceptance` field instead — 1–3 observable-behavior statements; every implementing (non-Commit) Fast sub-task carries either a `Tests` field or an `Acceptance` field. Fast keeps its lightweight scale: no `story.md`, no design, no gate, no `.draft/`.
+
+Epic ships an opinionated **preferred-tooling policy** ([references/preferred-tooling.md](references/preferred-tooling.md)) for E2E test tooling. Triage detects installed E2E tools — favorites are `playwright` and `chrome-devtools` — via MCP health-check, dependency-manifest inspection, and skill-list presence, in **all modes including Fast**. When no favorite is found, Epic recommends one and pauses rather than silently picking an optional tool (`puppeteer`, `selenium`, `browser-use`, `stagehand`). The resolved choice is persisted to `design.md`'s `## Tooling Decisions` block.
 
 ---
 
@@ -134,7 +136,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/` (gitignored by default; keep o
 |---|---|
 | `analyst` | Context discovery, codebase scan, completeness checklist |
 | `architect` | Pattern research, design context, gotcha capture (Full mode) |
-| `test-advisor` | Defines testing requirements per sub-task and authors one failing test per Unit/Integration sub-task with Red-phase verification (Phase 3, Standard + Full) |
+| `test-advisor` | Defines testing requirements per sub-task and authors one failing test per Unit/Integration/E2E sub-task with Red-phase verification — E2E tests use the story's selected E2E tool with Red verification deferred to Run mode (Phase 3, Standard + Full) |
 | `reviewer` | Cross-artifact review — gaps, consistency, orphan wiring (Full mode) |
 | `executor` | 6-step implementation protocol (context → implementation → design fidelity → validation → refactor-or-tests → report); step 5 is conditional — Refactor for a test-first sub-task, Tests for a test-after one |
 | `tech-reviewer` | Correctness at technology boundaries (templates, SQL, APIs) |
