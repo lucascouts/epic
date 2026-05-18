@@ -11,6 +11,14 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-17
+
+Feature release. Adds **Fast-mode run-time test-first execution** and an
+opinionated **preferred-tooling policy** for E2E tool selection across all
+modes.
+
+**Minimum Claude Code:** unchanged from 0.2.0.
+
 ### Added
 
 - **Fast-mode run-time test-first execution** (story `002-fast-mode-test-first`).
