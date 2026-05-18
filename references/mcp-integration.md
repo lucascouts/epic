@@ -2,6 +2,8 @@
 
 Epic sub-agents can use MCP (Model Context Protocol) servers when available. The goal is to **prefer what is already installed** on the user's system, respect cost, and fall back gracefully to Claude Code's native web tools (`WebFetch`, `WebSearch`) when no research MCP is present.
 
+This document covers **research** MCPs (docs, web search). For the policy on selecting an E2E testing tool or a frontend implementation aid — favorite vs. optional tiers, detection, and the recommend-and-pause fallback — see [preferred-tooling.md](preferred-tooling.md).
+
 ## Priority order
 
 When multiple research MCPs are detected, pick the first one from this ordered list. This list is the default; if the user explicitly asks for a different one, honor the request.
