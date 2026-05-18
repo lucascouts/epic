@@ -131,9 +131,9 @@ The Architect output is injected as context when generating design.md. Skipped f
 
 ## Test Advisor Sub-agent (Standard + Full, during Phase 3)
 
-After the main agent generates the task list structure (with Objective, ToDo, Validation, Requirements — but **without Tests fields**), spawn the **Test Advisor** sub-agent (`subagent_type: test-advisor`, defined in `agents/test-advisor.md`) to define testing requirements per sub-task **and author one failing test file per Unit/Integration sub-task**:
+After the main agent generates the task list structure (with Objective, ToDo, Validation, Requirements — but **without Tests fields**), spawn the **Test Advisor** sub-agent (`subagent_type: test-advisor`, defined in `agents/test-advisor.md`) to define testing requirements per sub-task **and author one test file per Unit/Integration/E2E sub-task** (Unit/Integration are Red-verified in Phase 3; E2E defers Red to Run mode):
 
-> "Analyze these tasks, define which sub-tasks need tests, and author the failing test files.
+> "Analyze these tasks, define which sub-tasks need tests, and author the test files (Unit/Integration as failing tests, E2E with Red deferred to Run mode).
 >
 > Story requirements: [path to story.md]
 > Story scale: [Standard | Full]
@@ -170,9 +170,9 @@ After the main agent generates the task list structure (with Objective, ToDo, Va
 >
 > Include a 1-line justification for every 'None' and 'Covered by' entry.
 >
-> ### Part 2 — Author the failing test files
+> ### Part 2 — Author the test files
 >
-> For each sub-task whose Tests field type is `Unit` or `Integration`, author a failing test file before Phase 3 completes. Never author for `E2E`, `None`, `Covered by`, or Commit sub-tasks.
+> For each sub-task whose final Tests field type is `Unit`, `Integration`, or `E2E`, author a test file before Phase 3 completes. A `Unit` or `Integration` test is authored as a failing test and Red-verified during Phase 3; an `E2E` test is authored with the story's selected E2E tool and its Red-phase verification is DEFERRED to Run mode — it is not run during Phase 3. Never author for `None`, `Covered by`, or Commit sub-tasks.
 >
 > **Context boundary — author from the contract, not the implementation.** When authoring a test for a sub-task you may use ONLY: the sub-task's EARS requirement text, the sub-task Objective, the sub-task Tests scenarios, the project test conventions, and — Full mode only — the relevant design.md contract excerpt. You are NOT given the sub-task's `ToDo` field and MUST NOT request or rely on it. The test must describe *what* the behavior should be (its contract), never *how* the implementer will build it.
 >
@@ -180,15 +180,26 @@ After the main agent generates the task list structure (with Objective, ToDo, Va
 >
 > **Where to write.** Write each authored test under the story's `.draft/authored-tests/` directory, mirroring the target test path in the real test tree — e.g. a Tests field targeting `tests/foo.test.ts` is authored at `.epic/stories/NNN-name/.draft/authored-tests/tests/foo.test.ts`. Do NOT write into the project's real test tree; materialization happens later, in Run mode.
 >
-> **Red-phase verification and record.** After authoring each test file: run it with the project's test runner, confirm it fails AND fails for the expected reason — the code under test does not yet exist or does not yet behave as specified (e.g. `ReferenceError`, `ImportError`, assertion mismatch). A failure from a broken test (syntax error, wrong import, misconfigured runner) does NOT count as valid Red. Record each confirmed failure in `.draft/red-evidence.yaml` with one entry per authored test (`task`, `test_file`, `target_path`, `command`, `failed`, `reason`, `recorded`).
+> **Red-phase verification and record (Unit and Integration).** After authoring each `Unit` or `Integration` test file: run it with the project's test runner, confirm it fails AND fails for the expected reason — the code under test does not yet exist or does not yet behave as specified (e.g. `ReferenceError`, `ImportError`, assertion mismatch). A failure from a broken test (syntax error, wrong import, misconfigured runner) does NOT count as valid Red. Record each confirmed failure in `.draft/red-evidence.yaml` with one entry per authored test (`task`, `test_file`, `target_path`, `command`, `failed`, `reason`, `recorded`).
 >
-> **Unexpected green.** IF an authored test passes instead of failing, Phase 3 is blocked — do NOT report the test as ready. Revise the test so it genuinely fails for the expected reason; you may revise up to 2 times. IF it still passes after the 2nd revision, escalate to the user — describe the test, the sub-task, and why it will not fail — rather than proceeding. Do not weaken or delete assertions just to force a failure.
+> **Deferred-Red verification and record (E2E).** For an authored `E2E` test, DEFER Red-phase verification to Run mode — do NOT run the test during Phase 3. E2E tests need the application running and an E2E tool environment that Phase 3 does not set up, so Run mode confirms Red just before implementation instead. Record a deferred-Red entry in `.draft/red-evidence.yaml` with `red_deferred: true` and a `tool:` field, OMITTING `failed`, `reason`, and `command` (no run happened). GOTCHA — do **not** write `failed: false` for an E2E entry: Run mode reads `failed: false` as a broken-test error. The `red_deferred: true` entry and a `failed:` key are mutually exclusive — never write both. An E2E entry has this shape:
+>
+> ```yaml
+>   - task: "4.2"                       # E2E — deferred Red
+>     test_file: ".draft/authored-tests/e2e/checkout.spec.ts"
+>     target_path: "e2e/checkout.spec.ts"
+>     tool: "playwright"
+>     red_deferred: true                # Red confirmed in Run mode, not Phase 3
+>     recorded: 2026-05-17
+> ```
+>
+> **Unexpected green.** IF an authored `Unit` or `Integration` test passes instead of failing, Phase 3 is blocked — do NOT report the test as ready. Revise the test so it genuinely fails for the expected reason; you may revise up to 2 times. IF it still passes after the 2nd revision, escalate to the user — describe the test, the sub-task, and why it will not fail — rather than proceeding. Do not weaken or delete assertions just to force a failure. (An `E2E` test is never run in Phase 3, so this check applies only to Unit/Integration.)
 >
 > You may write ONLY inside the story's `.draft/` directory (authored tests and `red-evidence.yaml`). You MUST NOT modify any other project file.
 >
 > Return the Tests mapping, and for each authored test report the authored path and its `target_path`, the Red-verification result (command run, failure reason), and any test that required revision or was escalated."
 
-The main agent merges the Test Advisor mapping into the task list before writing tasks.md to disk. The Test Advisor writes **only** inside the story's `.draft/` directory — the authored failing test files under `.draft/authored-tests/` and the Red evidence in `.draft/red-evidence.yaml` — and modifies no other project file. Every Unit/Integration test it authors must be confirmed Red before Phase 3 completes; an authored test that passes blocks Phase 3 until revised (up to 2 attempts) or escalated to the user.
+The main agent merges the Test Advisor mapping into the task list before writing tasks.md to disk. The Test Advisor writes **only** inside the story's `.draft/` directory — the authored test files under `.draft/authored-tests/` and the Red evidence in `.draft/red-evidence.yaml` — and modifies no other project file. Every Unit/Integration test it authors must be confirmed Red before Phase 3 completes; an authored Unit/Integration test that passes blocks Phase 3 until revised (up to 2 attempts) or escalated to the user. An authored E2E test is not run in Phase 3 — its Red verification is deferred to Run mode and recorded as a `red_deferred: true` entry.
 
 ### Test Advisor Lite (Fast mode)
 
