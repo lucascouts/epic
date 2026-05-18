@@ -150,6 +150,12 @@ During triage, detect and health-check available MCPs. Load [mcp-integration.md]
 
 Key rule: Never suggest an MCP without a successful health-check first. For Fast mode: skip MCP detection.
 
+### Preferred Tooling
+
+During triage, detect available E2E testing tools and the `frontend-design` aid, then resolve which to use. Load [preferred-tooling.md](../../references/preferred-tooling.md) for the favorite/optional tiers, the detection procedure, and the no-favorite recommendation.
+
+Key rule: prefer a favorite (`playwright`, `chrome-devtools`); an optional tool is selected only when already installed AND the task context calls for it. Unlike MCP detection, preferred-tooling detection runs in **all modes, including Fast**.
+
 ## Command Routing
 
 When invoked via `/epic:epic`, parse `$ARGUMENTS` using this cascading routing table:
@@ -264,6 +270,12 @@ Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a 
 5. Suggest workflow variant (full mode only)
 6. Check for context files — load [context-discovery.md](../../references/context-discovery.md)
 7. **Health-check candidate MCPs** — load [mcp-integration.md](../../references/mcp-integration.md)
+7b. **Detect preferred tooling** — load [preferred-tooling.md](../../references/preferred-tooling.md). Runs in **all modes, including Fast** (unlike step 7, which Fast skips). Detect every favorite and optional E2E tool plus the `frontend-design` aid, then resolve the selection:
+   - WHEN a favorite is available, select it (`playwright` by default; `chrome-devtools` when the task is Chrome-specific). For a frontend story with `frontend-design` available, designate it the preferred implementation aid.
+   - WHEN no favorite is available, recommend installing one and **pause** for the user's `[y/n]` decision. The pause reuses the Runtime dependency precheck's interactive/headless signal — `TaskCreate` present = interactive session, so pause; in a **headless** session do not pause, emit a logged note instead and proceed. WHEN the user proceeds without installing, select the best installed optional tool that fits the task context (per [preferred-tooling.md](../../references/preferred-tooling.md)).
+   - WHEN no favorite and no fitting optional tool exist, record `none — no E2E tooling available` in design.md's `## Tooling Decisions` block AND as a story Constraint.
+
+   The recommendation/pause happens at triage **only**. The resolved decision is written to design.md's `## Tooling Decisions` block and the relevant E2E/frontend sub-tasks are annotated in tasks.md — the Executor and Test Advisor consume that decision without re-detecting.
 8. Auto-increment story number from existing stories in `.epic/stories/`
 9. Propose output path in `NNN-kebab-case`
 10. If no existing stories in `.epic/stories/`: append EARS primer
@@ -295,6 +307,7 @@ Present as:
 > - **Workflow:** Requirements-First / Design-First (full mode only)
 > - **Context:** [files found and how they'll be used]
 > - **MCPs:** [verified MCPs and any substitutions]
+> - **Tooling:** [detected E2E tools + `frontend-design`; resolved E2E/frontend selection; any favorite-absent install recommendation]
 > - **Output:** `.epic/stories/NNN-<proposed-name>/`
 >
 > Confirm or adjust?"
