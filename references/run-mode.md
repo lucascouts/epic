@@ -13,7 +13,7 @@ Triggered by `/epic:epic stories run NNN`, `/epic:epic stories NNN run all`, or 
 4. **Check dependencies** — if a pending task depends on an uncompleted task, warn the user
 5. **Detect parallel groups** — identify non-blocking tasks (see Parallel Execution)
 6. **Tech stack detection** — scan tasks to build tech profiles (see Tech Stack Detection)
-7. **Materialize pre-authored tests (Standard/Full only)** — before any task execution, copy every file under the story's `.draft/authored-tests/**` into the real test tree at its mirrored path. This step is **idempotent**: if a target test path already exists in the real tree, **skip that file and emit a warning** (it may already exist from a prior Run, a partial `run N.N`, or a manual executor edit — never overwrite it). Files that do not yet exist are copied. Materialization runs once per Run, ahead of step 8. This step applies to **Standard and Full scales only** — they stage Test Advisor-authored tests in `.draft/authored-tests/`. **Fast mode has no `.draft/` staging**: its tests are authored at run time and written straight into the real test tree (see Task Execution Flow), so a Fast Run has nothing to materialize and skips this step.
+7. **Materialize pre-authored tests (Standard/Full only)** — before any task execution, copy every file under the story's `.draft/authored-tests/**` into the real test tree at its mirrored path. This step is **idempotent**: if a target test path already exists in the real tree, **skip that file and emit a warning** (it may already exist from a prior Run, a partial `run N.N`, or a manual executor edit — never overwrite it). Files that do not yet exist are copied. Materialization runs once per Run, ahead of step 8. This step applies to **Standard and Full scales only** — they stage Test Advisor-authored tests in `.draft/authored-tests/`. **Fast mode has no `.draft/` staging**: its tests are authored at run time and written straight into the real test tree (see Task Execution Flow), so a Fast Run has nothing to materialize and skips this step. Materialization only **copies** files — it never runs them. A materialized E2E test whose `.draft/red-evidence.yaml` entry carries `red_deferred: true` has its Red confirmed at task-execution time, not here (see Deferred Red for E2E sub-tasks under Task Execution Flow).
 8. **Present execution plan** — show which tasks will be executed, in order, highlighting parallel groups and executor assignment
 9. **Wait for user confirmation** before executing
 
@@ -120,6 +120,24 @@ For a **Fast-mode Simple-or-higher** sub-task carrying a `Tests` field, the test
 ### Commit Sub-tasks
 
 Always executed by the main agent (not a sub-agent). Git operations require the main worktree context.
+
+### Deferred Red for E2E sub-tasks
+
+Most Standard/Full pre-authored tests have their Red confirmed by the Test Advisor at plan time (Phase 3) — their `.draft/red-evidence.yaml` entry records `failed: true` with a `reason` and `command`. **E2E tests are the exception.** An E2E test usually needs the application running, a browser driver, fixtures, or a built artifact — none of which exist at plan time — so the Test Advisor authors the E2E test but **defers** its Red confirmation, recording an entry with `red_deferred: true` and **omitting** `failed`, `reason`, and `command` (no run happened in Phase 3). The orchestrator owns that deferred Red check, and it runs at task-execution time:
+
+For a sub-task whose pre-authored test's `red-evidence.yaml` entry carries `red_deferred: true`:
+
+1. **Before spawning the Executor**, the orchestrator runs the materialized E2E test and confirms it **FAILS (Red)** — the behavior under test is absent or not yet correct. This is the same "valid Red" bar used elsewhere: a failure caused by a broken test (syntax error, wrong import, misconfigured runner, missing driver) is **not** valid Red.
+2. **If the deferred Red does not fail as expected** — it passes, errors out, or cannot be run — the orchestrator does **not** spawn the Executor. **STOP and escalate to the user**, describing the test, the sub-task, and the unexpected result.
+3. If Red is confirmed, the orchestrator spawns the Executor for the sub-task as normal.
+4. **After the Executor completes**, the orchestrator runs the same E2E test again and confirms it now **PASSES (Green)**. A still-failing test is a failed sub-task — report it and stop, as with any validation/test failure.
+
+**The Executor's protocol is unchanged.** The deferred-Red check is **orchestrator-owned**: the orchestrator runs the test before and after, the Executor never performs it. The Executor still receives the pre-authored E2E test as its read-only **"Pre-Authored Test"** input and therefore still treats the sub-task as a **test-first sub-task** — its conditional step 2/5 branching (step 2 Implementation/Green, step 5 Refactor) applies exactly as documented in the Executor Sub-agent section. No new or E2E-specific Executor protocol is introduced; `red_deferred` changes only *when and by whom* the Red is confirmed, not the Executor's six steps.
+
+**Absent `failed` is valid for a `red_deferred` entry.** Run mode MUST distinguish two states of the `failed` key in `red-evidence.yaml`:
+
+- `failed` key **absent** on a `red_deferred: true` entry — **valid**. No Phase 3 run happened by design; Red is confirmed at run time by the flow above. Run mode does **not** treat a missing `failed` key on a `red_deferred` entry as missing or invalid Red evidence, and does **not** block on it.
+- `failed: false` **present** — a broken test that did not establish Red. This blocks Phase 3 and is **distinct** from an absent `failed` key. It is never produced by a `red_deferred` entry.
 
 ## Executor Sub-agent
 
