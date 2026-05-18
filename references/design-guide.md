@@ -95,7 +95,13 @@ WHEN a flow execution is requested THE SYSTEM SHALL enqueue the job and return a
 
 - **Unit tests:** [What to test at unit level]
 - **Integration tests:** [What to test at integration level]
-- **E2E tests:** [What to test end-to-end, if applicable]
+- **E2E tests:** [What to test end-to-end, if applicable] (tool: [selected E2E tool from Tooling Decisions, or `none`])
+
+## Tooling Decisions
+
+- E2E tool: `playwright` (favorite, MCP available) | none — no E2E tooling available
+- Frontend aid: `frontend-design` (skill available) | none
+- Recommendation surfaced: <yes — favorite absent, user proceeded | no>
 
 ## Integration Points
 
@@ -108,6 +114,7 @@ WHEN a flow execution is requested THE SYSTEM SHALL enqueue the job and return a
 2. **Mermaid diagrams are preferred** but not mandatory. Use them when they clarify relationships that prose cannot.
 3. **Omit irrelevant sections.** If there are no security considerations, don't include the section.
 4. **API Design applies to HTTP APIs, CLI interfaces, and SDK methods.** Adapt the table format as needed.
+5. **Tooling Decisions is written by triage**, not the design author — it records the resolved preferred-tooling selections (E2E tool, frontend aid, whether a recommendation was surfaced). The Testing Strategy E2E line should reference the recorded E2E tool.
 
 ## Gotchas
 

@@ -50,7 +50,11 @@ Implement the changes described in the ToDo field.
 - Apply findings from Step 1.
 - When the ToDo specifies a function signature, match it against the Design Context. If you need to deviate, document WHY.
 
+**Frontend sub-tasks — `frontend-design` skill.** When a frontend implementation sub-task designates the `frontend-design` skill — as recorded in design.md's `## Tooling Decisions` block and surfaced in the sub-task ToDo — use that skill during this Implementation step. Consume the recorded designation as-is: do NOT re-detect or re-decide the tooling.
+
 **Test-first sub-task — Implementation is the Green phase.** When the prompt carries a "Pre-Authored Test" section, your goal in this step is to make that pre-authored failing test pass. The test is a **read-only input** — you implement against it, you do not author or replace it.
+
+**Deferred-Red E2E sub-task.** An E2E sub-task may carry a pre-authored E2E test whose Red (failing run) was deferred at plan time. The orchestrator has already run that test and confirmed its Red BEFORE spawning you, and will confirm its Green AFTER. Treat such a sub-task as a normal test-first sub-task — the pre-authored E2E test is your read-only "Pre-Authored Test" input (step 2 Implementation/Green, step 5 Refactor). You MUST NOT run the deferred-Red check yourself, MUST NOT re-author the test, and MUST NOT re-verify it.
 
 **Frozen-test rule.** The pre-authored test's **assertions are immutable** — you MUST NOT modify them, weaken them, or delete them to get a passing run. The test's **imports and signature call-sites** (how it imports the unit under test and how it invokes it) MAY be adjusted **only** to match an INTENTIONAL design deviation you confirm in step 3 — never for any other reason. Each such surface adjustment MUST be recorded in `.draft/deviations.yaml` with the field `test_surface_adjusted: true`.
 
