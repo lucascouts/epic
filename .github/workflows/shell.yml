@@ -30,7 +30,7 @@ jobs:
       - name: Install bats and jq
         run: sudo apt-get update -qq && sudo apt-get install -y bats jq
       - name: Run tests
-        run: bats tests/validate-story.bats tests/teams-config.bats
+        run: bats tests/validate-story.bats tests/cross-reference.bats tests/teams-config.bats
 
   validate-examples:
     name: validate-examples

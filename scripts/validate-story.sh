@@ -41,9 +41,19 @@ fi
 ERRORS=()
 WARNINGS=()
 
-# --- Helper ---
+# --- Helpers ---
 add_error() { ERRORS+=("$1"); }
 add_warning() { WARNINGS+=("$1"); }
+
+# xr_in_list <needle> <haystack...> — membership test for the cross-ref check.
+xr_in_list() {
+  local needle="$1" item
+  shift
+  for item in "$@"; do
+    [[ "$item" == "$needle" ]] && return 0
+  done
+  return 1
+}
 
 # --- Detect scale from files present ---
 HAS_STORY=false
@@ -183,29 +193,46 @@ for arg in "$@"; do
 done
 
 if [[ "$CROSS_REF" == true && "$HAS_STORY" == true && "$HAS_TASKS" == true ]]; then
-  # Extract R-numbers from story.md (R1, R1.1, R2, etc.)
-  STORY_REQS=$(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' "$STORY_DIR/story.md" 2>/dev/null | sort -u || true)
+  # Requirements are hierarchical: a group header `### Rn.` and its leaf
+  # criteria `Rn.m`. Tasks reference the leaves. A one-level token Rn is a
+  # requirement of its own only when story.md defines no child Rn.m for it;
+  # otherwise Rn is a group header, covered via its leaves. Counting a header
+  # as a leaf produced a false orphan for every `### Rn.` heading.
+  mapfile -t XR_STORY_LEAVES < <(grep -oE '\bR[0-9]+\.[0-9]+\b' "$STORY_DIR/story.md" 2>/dev/null | sort -u || true)
+  mapfile -t XR_STORY_ONELEVEL < <(grep -oE '\bR[0-9]+\b' "$STORY_DIR/story.md" 2>/dev/null | sort -u || true)
+  mapfile -t XR_TASK_TOKENS < <(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' "$STORY_DIR/tasks.md" 2>/dev/null | sort -u || true)
 
-  # Extract R-numbers referenced in tasks.md
-  TASK_REQS=$(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' "$STORY_DIR/tasks.md" 2>/dev/null | sort -u || true)
-
-  if [[ -n "$STORY_REQS" && -n "$TASK_REQS" ]]; then
-    # Requirements in story but not in tasks
-    ORPHAN_REQS=$(comm -23 <(echo "$STORY_REQS") <(echo "$TASK_REQS") 2>/dev/null || true)
-    if [[ -n "$ORPHAN_REQS" ]]; then
-      while IFS= read -r req; do
-        [[ -n "$req" ]] && add_warning "Requirement $req in story.md has no matching reference in tasks.md"
-      done <<< "$ORPHAN_REQS"
+  XR_STORY_REQS=("${XR_STORY_LEAVES[@]}")
+  XR_STORY_GROUPS=()
+  for xr_tok in "${XR_STORY_ONELEVEL[@]}"; do
+    xr_has_child=false
+    for xr_leaf in "${XR_STORY_LEAVES[@]}"; do
+      if [[ "$xr_leaf" == "$xr_tok".* ]]; then
+        xr_has_child=true
+        break
+      fi
+    done
+    if [[ "$xr_has_child" == true ]]; then
+      XR_STORY_GROUPS+=("$xr_tok")
+    else
+      XR_STORY_REQS+=("$xr_tok")
     fi
+  done
 
-    # Requirements in tasks but not in story
-    PHANTOM_REQS=$(comm -13 <(echo "$STORY_REQS") <(echo "$TASK_REQS") 2>/dev/null || true)
-    if [[ -n "$PHANTOM_REQS" ]]; then
-      while IFS= read -r req; do
-        [[ -n "$req" ]] && add_warning "Requirement $req referenced in tasks.md does not exist in story.md"
-      done <<< "$PHANTOM_REQS"
-    fi
-  elif [[ -n "$STORY_REQS" && -z "$TASK_REQS" ]]; then
+  if [[ ${#XR_STORY_REQS[@]} -gt 0 && ${#XR_TASK_TOKENS[@]} -gt 0 ]]; then
+    # Story leaf requirements with no matching task reference (orphans).
+    for xr_req in "${XR_STORY_REQS[@]}"; do
+      if ! xr_in_list "$xr_req" "${XR_TASK_TOKENS[@]}"; then
+        add_warning "Requirement $xr_req in story.md has no matching reference in tasks.md"
+      fi
+    done
+    # Task references matching no story requirement (phantoms).
+    for xr_tok in "${XR_TASK_TOKENS[@]}"; do
+      if ! xr_in_list "$xr_tok" "${XR_STORY_REQS[@]}" && ! xr_in_list "$xr_tok" "${XR_STORY_GROUPS[@]}"; then
+        add_warning "Requirement $xr_tok referenced in tasks.md does not exist in story.md"
+      fi
+    done
+  elif [[ ${#XR_STORY_REQS[@]} -gt 0 && ${#XR_TASK_TOKENS[@]} -eq 0 ]]; then
     add_warning "story.md has requirements but tasks.md has no R-number references"
   fi
 fi

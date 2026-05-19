@@ -15,7 +15,7 @@ Cross-references R-numbers between story.md and tasks.md.
 Reports orphan requirements (in story but not tasks) and
 phantom references (in tasks but not story).
 
-Output: JSON traceability report with per-requirement mapping.
+Output: JSON traceability report.
 
 Exit codes:
   0  All requirements traced
@@ -47,45 +47,72 @@ fi
 STORY_FILE="$STORY_DIR/story.md"
 TASKS_FILE="$STORY_DIR/tasks.md"
 
-# Get unique R-numbers from each file
-STORY_REQS=$(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' "$STORY_FILE" 2>/dev/null | sort -u || true)
-TASK_REQS=$(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' "$TASKS_FILE" 2>/dev/null | sort -u || true)
+# Requirements are hierarchical: a group header `### Rn.` (one-level token Rn)
+# and its leaf acceptance criteria `Rn.m`. Tasks reference the LEAVES. A
+# one-level token Rn is a requirement of its own ONLY when the story defines
+# no child Rn.m for it (a flat, sub-criteria-less requirement); otherwise Rn
+# is a group header, covered via its leaves. Counting a group header as a
+# leaf produced a false orphan for every `### Rn.` heading.
+mapfile -t STORY_LEAVES < <(grep -oE '\bR[0-9]+\.[0-9]+\b' "$STORY_FILE" 2>/dev/null | sort -u || true)
+mapfile -t STORY_ONELEVEL < <(grep -oE '\bR[0-9]+\b' "$STORY_FILE" 2>/dev/null | sort -u || true)
+mapfile -t TASK_TOKENS < <(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' "$TASKS_FILE" 2>/dev/null | sort -u || true)
+
+# in_list <needle> <haystack...> — membership test.
+in_list() {
+  local needle="$1" item
+  shift
+  for item in "$@"; do
+    [[ "$item" == "$needle" ]] && return 0
+  done
+  return 1
+}
+
+# Split one-level tokens into standalone leaves (no Rn.m child) and group
+# headers (have at least one Rn.m child). Effective requirements = all
+# Rn.m leaves + standalone one-level leaves.
+STORY_REQS_ARR=("${STORY_LEAVES[@]}")
+STORY_GROUPS=()
+for tok in "${STORY_ONELEVEL[@]}"; do
+  has_child=false
+  for leaf in "${STORY_LEAVES[@]}"; do
+    if [[ "$leaf" == "$tok".* ]]; then
+      has_child=true
+      break
+    fi
+  done
+  if [[ "$has_child" == true ]]; then
+    STORY_GROUPS+=("$tok")
+  else
+    STORY_REQS_ARR+=("$tok")
+  fi
+done
 
 # --- Build traceability ---
-ORPHANS=()    # In story but not tasks
-PHANTOMS=()   # In tasks but not story
-TRACED=()     # In both
+ORPHANS=()    # Story leaf requirement with no task reference
+PHANTOMS=()   # Task reference matching no story requirement
+TRACED=()     # Story leaf requirement referenced by at least one task
 
-if [[ -n "$STORY_REQS" && -n "$TASK_REQS" ]]; then
-  # Requirements in story but not in tasks
-  while IFS= read -r req; do
-    [[ -n "$req" ]] && ORPHANS+=("$req")
-  done < <(comm -23 <(echo "$STORY_REQS") <(echo "$TASK_REQS") 2>/dev/null || true)
+for req in "${STORY_REQS_ARR[@]}"; do
+  if in_list "$req" "${TASK_TOKENS[@]}"; then
+    TRACED+=("$req")
+  else
+    ORPHANS+=("$req")
+  fi
+done
 
-  # Requirements in tasks but not in story
-  while IFS= read -r req; do
-    [[ -n "$req" ]] && PHANTOMS+=("$req")
-  done < <(comm -13 <(echo "$STORY_REQS") <(echo "$TASK_REQS") 2>/dev/null || true)
-
-  # Requirements in both
-  while IFS= read -r req; do
-    [[ -n "$req" ]] && TRACED+=("$req")
-  done < <(comm -12 <(echo "$STORY_REQS") <(echo "$TASK_REQS") 2>/dev/null || true)
-elif [[ -n "$STORY_REQS" && -z "$TASK_REQS" ]]; then
-  while IFS= read -r req; do
-    [[ -n "$req" ]] && ORPHANS+=("$req")
-  done <<< "$STORY_REQS"
-elif [[ -z "$STORY_REQS" && -n "$TASK_REQS" ]]; then
-  while IFS= read -r req; do
-    [[ -n "$req" ]] && PHANTOMS+=("$req")
-  done <<< "$TASK_REQS"
-fi
+for tok in "${TASK_TOKENS[@]}"; do
+  # Valid when it is an effective story leaf, or a known group header
+  # (a leaf reference Rn.m implicitly covers its group Rn).
+  if ! in_list "$tok" "${STORY_REQS_ARR[@]}" && ! in_list "$tok" "${STORY_GROUPS[@]}"; then
+    PHANTOMS+=("$tok")
+  fi
+done
 
 TOTAL_ORPHANS=${#ORPHANS[@]}
 TOTAL_PHANTOMS=${#PHANTOMS[@]}
 TOTAL_TRACED=${#TRACED[@]}
-TOTAL_STORY_REQS=$(echo "$STORY_REQS" | grep -c '\S' 2>/dev/null || echo 0)
-TOTAL_TASK_REQS=$(echo "$TASK_REQS" | grep -c '\S' 2>/dev/null || echo 0)
+TOTAL_STORY_REQS=${#STORY_REQS_ARR[@]}
+TOTAL_TASK_REQS=${#TASK_TOKENS[@]}
 HAS_ISSUES=$([[ $TOTAL_ORPHANS -gt 0 || $TOTAL_PHANTOMS -gt 0 ]] && echo true || echo false)
 
 # --- JSON helper ---
