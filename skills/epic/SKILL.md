@@ -513,6 +513,8 @@ For cross-reference checks (requirements traceability):
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/cross-reference.sh" <story-directory>
 ```
 
+Its JSON `mapping` field gives the requirement → sub-tasks relation directly — the Traceability Check builds its table from it, never by hand-counting.
+
 - Output is JSON with `errors`, `warnings`, and `status` (pass/fail)
 - Errors must be fixed before considering the story complete
 - Warnings are informational — present them to the user

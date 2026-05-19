@@ -116,3 +116,56 @@ EOF
   [ "$status" -eq 1 ]
   echo "$output" | grep -qF '"orphan_requirements": ["R2"]'
 }
+
+@test "mapping: lists the sub-task that declares each requirement" {
+  cat > "$STORY/story.md" <<'EOF'
+### R1. First
+#### Acceptance Criteria
+- R1.1: WHEN x THE SYSTEM SHALL y
+- R1.2: WHEN a THE SYSTEM SHALL b
+EOF
+  cat > "$STORY/tasks.md" <<'EOF'
+- [ ] 1 - Group
+  - [ ] 1.1 - implement A
+    - Requirements: R1.1
+  - [ ] 1.2 - implement B
+    - Requirements: R1.2
+EOF
+  run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" "$STORY"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -qF '"R1.1": ["1.1"]'
+  echo "$output" | grep -qF '"R1.2": ["1.2"]'
+}
+
+@test "mapping: an orphan requirement maps to an empty array" {
+  cat > "$STORY/story.md" <<'EOF'
+### R1. First
+#### Acceptance Criteria
+- R1.1: WHEN x THE SYSTEM SHALL y
+- R1.2: WHEN a THE SYSTEM SHALL b
+EOF
+  cat > "$STORY/tasks.md" <<'EOF'
+- [ ] 1.1 - implement A
+  - Requirements: R1.1
+EOF
+  run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" "$STORY"
+  [ "$status" -eq 1 ]
+  echo "$output" | grep -qF '"R1.2": []'
+}
+
+@test "mapping: a requirement shared by two sub-tasks lists both" {
+  cat > "$STORY/story.md" <<'EOF'
+### R1. First
+#### Acceptance Criteria
+- R1.1: WHEN x THE SYSTEM SHALL y
+EOF
+  cat > "$STORY/tasks.md" <<'EOF'
+- [ ] 1.1 - implement
+  - Requirements: R1.1
+- [ ] 2.1 - integrate
+  - Requirements: R1.1
+EOF
+  run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" "$STORY"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -qF '"R1.1": ["1.1","2.1"]'
+}

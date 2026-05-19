@@ -2,7 +2,7 @@
 # Cross-references requirements between story.md and tasks.md
 # Usage: bash scripts/cross-reference.sh <story-directory>
 # Exit 0 = all requirements traced, Exit 1 = orphans/phantoms found, Exit 2 = invalid input
-# Output: JSON traceability report
+# Output: JSON traceability report with a per-requirement task map
 
 set -euo pipefail
 
@@ -15,7 +15,8 @@ Cross-references R-numbers between story.md and tasks.md.
 Reports orphan requirements (in story but not tasks) and
 phantom references (in tasks but not story).
 
-Output: JSON traceability report.
+Output: JSON traceability report. The "mapping" object lists, per story
+requirement, the sub-tasks that declare it in a Requirements: field.
 
 Exit codes:
   0  All requirements traced
@@ -115,6 +116,29 @@ TOTAL_STORY_REQS=${#STORY_REQS_ARR[@]}
 TOTAL_TASK_REQS=${#TASK_TOKENS[@]}
 HAS_ISSUES=$([[ $TOTAL_ORPHANS -gt 0 || $TOTAL_PHANTOMS -gt 0 ]] && echo true || echo false)
 
+# --- Build requirement → task map ---
+# Maps each requirement to the sub-tasks that declare it. Parses tasks.md
+# structurally: a task/sub-task heading sets the current task number, and a
+# `Requirements:` line attributes its R-numbers to that task.
+declare -A REQ_MAP
+CURRENT_TASK=""
+task_heading_re='^[[:space:]]*-[[:space:]]\[[ x]\][[:space:]]+([0-9]+(\.[0-9]+)?)[[:space:]]+-[[:space:]]'
+requirements_re='^[[:space:]]*-[[:space:]]Requirements:[[:space:]]*(.+)$'
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+  if [[ "$line" =~ $task_heading_re ]]; then
+    CURRENT_TASK="${BASH_REMATCH[1]}"
+  elif [[ -n "$CURRENT_TASK" && "$line" =~ $requirements_re ]]; then
+    reqs_text="${BASH_REMATCH[1]}"
+    while IFS= read -r rtok; do
+      [[ -n "$rtok" ]] || continue
+      if [[ " ${REQ_MAP[$rtok]:-} " != *" $CURRENT_TASK "* ]]; then
+        REQ_MAP[$rtok]="${REQ_MAP[$rtok]:-}${REQ_MAP[$rtok]:+ }$CURRENT_TASK"
+      fi
+    done < <(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' <<< "$reqs_text" || true)
+  fi
+done < "$TASKS_FILE"
+
 # --- JSON helper ---
 json_array() {
   local arr=("$@")
@@ -132,6 +156,29 @@ json_array() {
   echo "]"
 }
 
+# emit_mapping — JSON object mapping each story requirement to the array of
+# sub-task numbers that declare it. An empty array means no task declares it.
+emit_mapping() {
+  local req entry t sep out=""
+  local -a tlist
+  for req in "${STORY_REQS_ARR[@]}"; do
+    entry="\"$req\": ["
+    sep=""
+    tlist=()
+    read -ra tlist <<< "${REQ_MAP[$req]:-}"
+    for t in "${tlist[@]}"; do
+      entry+="$sep\"$t\""
+      sep=","
+    done
+    entry+="]"
+    if [[ -n "$out" ]]; then
+      out+=", "
+    fi
+    out+="$entry"
+  done
+  echo -n "{$out}"
+}
+
 # --- Output ---
 echo "{"
 echo "  \"story\": \"$STORY_DIR\","
@@ -141,6 +188,7 @@ echo "  \"traced\": $TOTAL_TRACED,"
 echo "  \"orphan_requirements\": $(json_array "${ORPHANS[@]}"),"
 echo "  \"phantom_references\": $(json_array "${PHANTOMS[@]}"),"
 echo "  \"coverage\": \"$TOTAL_TRACED/$TOTAL_STORY_REQS\","
+echo "  \"mapping\": $(emit_mapping),"
 echo "  \"status\": \"$([[ "$HAS_ISSUES" == true ]] && echo 'issues' || echo 'clean')\""
 echo "}"
 

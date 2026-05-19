@@ -256,21 +256,27 @@ After **all phases are written**, spawn the **Reviewer** sub-agent (`subagent_ty
 
 ## Traceability Check
 
-After the final phase approval (standard and full scales only), generate a traceability table:
+After the final phase approval (standard and full scales only), generate a traceability table. **Build it from `cross-reference.sh`, never by hand-counting** — manual tallying is error-prone at scale. Run:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/cross-reference.sh" .epic/stories/NNN-name
+```
+
+The JSON output carries everything the table needs: `mapping` is the requirement → sub-tasks relation, `orphan_requirements` lists requirements no task declares, `phantom_references` lists task references with no requirement. Render the table directly from those fields — task numbers come straight from `mapping`:
 
 ```markdown
 | Requirement | Tasks | Status |
 |---|---|---|
-| R1.1 — [description] | T1, T1.1 | Covered |
-| R2.3 — [description] | — | No task |
-| — | T5 | No requirement |
+| R1.1 | 1.1 | Covered |
+| R2.3 | — | No task |
+| — | 5.1 | No requirement |
 ```
 
 Rules:
-- Generated automatically — no user action needed
-- Orphan requirements (no tasks) → warning shown to user
-- Orphan tasks (no requirement) → warning shown to user
+- Built from the `cross-reference.sh` `mapping` field — never hand-counted
+- Orphan requirements (`orphan_requirements`; empty `mapping` array) → warning shown to user
+- Phantom references (`phantom_references`) → warning shown to user
 - Warnings are informational — user decides whether to address them
 - For bugfix stories, verify Unchanged Behavior items have regression test tasks
-- If no orphans found, show the table briefly and proceed to write
+- If `status` is `clean`, show the table briefly and proceed to write
 - Skipped for Fast mode (no requirements to trace)
