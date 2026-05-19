@@ -119,7 +119,7 @@ Before generating design.md, spawn the **Architect** sub-agent to research the c
 > Tasks:
 > 1. Search for existing patterns similar to what this story needs (e.g., existing handlers, models, middleware)
 > 2. Identify conventions the new code should follow (naming, structure, error handling)
-> 3. If documentation MCPs are available, fetch current docs for relevant libraries/frameworks
+> 3. Fetch current docs for relevant libraries/frameworks — via a documentation MCP if one is available to you, otherwise `WebFetch`/`WebSearch`
 > 4. Note any integration points where the new feature connects to existing code
 > 5. **Implementation gotchas:** For each architectural pattern or library usage identified, research known pitfalls, common misconfiguration, or non-obvious setup steps. Format these as concrete warnings: 'GOTCHA: [pattern/library] — [what goes wrong] — [correct approach]'. These will be propagated to task ToDo fields to prevent implementation errors.
 >

@@ -194,8 +194,8 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 >
 > For each item in the Context field:
 > - **Files:** Read each listed file using the Read tool. Note patterns, conventions, and existing code you must integrate with.
-> - **Docs:** Fetch documentation using the specified MCP tool. Call the MCP and read the result BEFORE writing any code. If the MCP call fails, try an alternative (brave_web_search, perplexity_search) to find the same information. If no MCP works, note the gap and proceed with caution, flagging it in your report.
-> - **Research:** Query the specified MCP for the research topic. Read the results and note findings relevant to implementation.
+> - **Docs:** Fetch the documentation BEFORE writing any code — use the MCP named in the Context field if it is available to you, otherwise `WebFetch`/`WebSearch`. If every lookup fails, note the gap and proceed with caution, flagging it in your report.
+> - **Research:** Query the research topic — use the MCP named in the Context field if it is available to you, otherwise `WebSearch`. Read the results and note findings relevant to implementation.
 >
 > Even if no Context field exists, read any files you will modify (if they already exist) to understand the current state.
 >
@@ -341,7 +341,7 @@ If only one technology with no boundary interaction: skip review.
 >
 > ## Protocol
 >
-> 1. If relevant documentation MCPs are available, fetch current docs for [technology] to verify behavior assumptions
+> 1. Fetch current docs for [technology] to verify behavior assumptions — via a documentation MCP if one is available to you, otherwise `WebFetch`/`WebSearch`
 > 2. Review the implementation files against your focus area
 > 3. Report:
 >    - **PASS** — no issues found at this boundary

@@ -4,7 +4,7 @@ description: >
   Analyzes project context and generates completeness checklists for epic stories.
   Scans directory structure, samples representative files, detects patterns and conventions.
 model: inherit
-tools: Read, Glob, Grep
+tools: Read, Glob, Grep, WebFetch, WebSearch
 maxTurns: 15
 effort: medium
 memory: project
@@ -50,8 +50,8 @@ When asked to analyze a project:
 
 1. **Scan directory structure** — detect architectural pattern, framework, key dependencies
 2. **Sample 3-5 representative files** — detect naming conventions, patterns, module organization
-3. **If research MCPs are available**, look up best practices relevant to the request domain
-4. **If documentation MCPs are available**, fetch current docs for detected framework/libraries
+3. **Look up best practices** relevant to the request domain — via a research MCP if one is available to you, otherwise `WebSearch`
+4. **Fetch current docs** for the detected framework/libraries — via a documentation MCP (e.g. `context7`) if available to you, otherwise `WebFetch`/`WebSearch`
 
 Return a concise summary (**max 20 lines**) covering:
 - Detected project patterns and conventions
@@ -67,7 +67,7 @@ When asked to generate clarifying questions:
 1. Identify every entity, action, input, and collection in the request
 2. For each, determine what implicit decisions the user hasn't stated
 3. For each state-changing action (create, login, enable, open, start), verify the inverse (delete, logout, disable, close, stop) is addressed or explicitly excluded
-4. If research MCPs are available, check for common pitfalls and edge cases in this domain
+4. Check for common pitfalls and edge cases in this domain — via a research MCP if one is available to you, otherwise `WebSearch`
 5. Generate **5-10 assertive questions** formatted as: "I understand X will work as Y. Confirm?"
 6. For each proposed approach, evaluate whether it fully satisfies the requirement's intent
 

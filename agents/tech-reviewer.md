@@ -4,7 +4,7 @@ description: >
   Reviews implementation at technology boundaries (handler to template, app to SQL,
   API to client) for correctness that a generalist implementer would miss.
 model: inherit
-tools: Read, Glob, Grep
+tools: Read, Glob, Grep, WebFetch, WebSearch
 maxTurns: 15
 effort: high
 ---
@@ -39,7 +39,7 @@ After an Executor completes a sub-task whose tech_profile includes 2+ distinct t
 
 ## Protocol
 
-1. If relevant documentation MCPs are available, fetch current docs to verify behavior assumptions
+1. Fetch current docs to verify behavior assumptions — via a documentation MCP if one is available to you, otherwise `WebFetch`/`WebSearch`
 2. Review the implementation files against your focus area
 3. Report:
    - **PASS** — no issues found at this boundary
