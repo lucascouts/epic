@@ -126,15 +126,57 @@ if [[ "$HAS_TASKS" == true ]]; then
   TASKS_FILE="$STORY_DIR/tasks.md"
 
   # Check task title format (new format: - [ ] N - Name)
-  OLD_FORMAT_COUNT=$(grep -cE '^\s*- \[[ x]\].*\*\*\[T[0-9]\]\*\*' "$TASKS_FILE" 2>/dev/null || true)
+  OLD_FORMAT_COUNT=$(grep -cE '^\s*- \[[ x~]\].*\*\*\[T[0-9]\]\*\*' "$TASKS_FILE" 2>/dev/null || true)
   if [[ "$OLD_FORMAT_COUNT" -gt 0 ]]; then
     add_warning "Found $OLD_FORMAT_COUNT tasks using old [T1]/[T2]/[T3] prefix format — use new format: - [ ] N - Name"
   fi
 
-  # Count all tasks (parent + sub-tasks); needed by checks inside and outside
-  # the HAS_STORY branch below — define once here so set -u doesn't trip Fast
-  # mode validation (tasks.md without story.md).
-  TASK_COUNT=$(grep -cE '^\s*- \[[ x]\]' "$TASKS_FILE" 2>/dev/null || true)
+  # --- Checkbox census (R3.1, R3.2, R3.5) ---
+  # One line grammar, three box states:
+  #   - [ ] open   - [x] closed   - [~] closed WITHOUT doing the work.
+  # A `[~]` MUST say why on the same line. Terminal qualifiers (waived:, n-a:,
+  # superseded-by:) end the work for good and count as closed; `deferred:` is
+  # counted apart, because that work is resolved in the plan but still owed by
+  # an external actor — progress then reads "closed/total (+D deferred)"
+  # instead of pretending it happened.
+  # Counters are plain integers incremented in the loop, never ${#assoc[@]} on
+  # a possibly-empty associative array (that trips set -u on bash 5.3 — the
+  # same reason REQ_KEYS exists in cross-reference.sh).
+  BOX_OPEN=0         # [ ]
+  BOX_CLOSED=0       # [x] plus terminal [~]
+  BOX_DEFERRED=0     # [~] deferred: — closed in the plan, open in the world
+  BOX_UNQUALIFIED=0  # [~] with no recognized qualifier: a grammar error
+  LINE_NO=0
+  box_re='^[[:space:]]*- \[([ x~])\]'
+  # A qualifier is a token in its own right: `(n-a: ...)` qualifies, the tail
+  # of a word like `man-a:` does not.
+  deferred_re='(^|[^[:alnum:]_-])deferred:'
+  terminal_re='(^|[^[:alnum:]_-])(waived|n-a|superseded-by):'
+  tilde_forms="'deferred: <reason>', 'waived: <reason>', 'n-a: <reason>', 'superseded-by: NNN'"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    LINE_NO=$((LINE_NO + 1))
+    [[ "$line" =~ $box_re ]] || continue
+    case "${BASH_REMATCH[1]}" in
+      ' ') BOX_OPEN=$((BOX_OPEN + 1)) ;;
+      'x') BOX_CLOSED=$((BOX_CLOSED + 1)) ;;
+      '~')
+        if [[ "$line" =~ $deferred_re ]]; then
+          BOX_DEFERRED=$((BOX_DEFERRED + 1))
+        elif [[ "$line" =~ $terminal_re ]]; then
+          BOX_CLOSED=$((BOX_CLOSED + 1))
+        else
+          BOX_UNQUALIFIED=$((BOX_UNQUALIFIED + 1))
+          add_error "tasks.md line $LINE_NO: [~] checkbox has no qualifier — a box closed without doing the work must say why on the same line, one of: $tilde_forms"
+        fi
+        ;;
+    esac
+  done < "$TASKS_FILE" 2>/dev/null || true
+
+  # Count all tasks (parent + sub-tasks) = every box whatever its state;
+  # needed by checks inside and outside the HAS_STORY branch below — define
+  # once here so set -u doesn't trip Fast mode validation (tasks.md without
+  # story.md).
+  TASK_COUNT=$(( ${BOX_OPEN:-0} + ${BOX_CLOSED:-0} + ${BOX_DEFERRED:-0} + ${BOX_UNQUALIFIED:-0} ))
 
   # A tasks.md with ZERO parseable checkbox tasks must never pass: every
   # downstream check is gated on TASK_COUNT > 0, so an unrecognized dialect
@@ -166,7 +208,7 @@ if [[ "$HAS_TASKS" == true ]]; then
   fi
 
   # Check for metadata lines (italic format)
-  PARENT_TASK_COUNT=$(grep -cE '^\s*- \[[ x]\]\s+[0-9]+\s+-\s+' "$TASKS_FILE" 2>/dev/null || true)
+  PARENT_TASK_COUNT=$(grep -cE '^\s*- \[[ x~]\]\s+[0-9]+\s+-\s+' "$TASKS_FILE" 2>/dev/null || true)
   METADATA_COUNT=$(grep -cE '^\s*- _Complexity:' "$TASKS_FILE" 2>/dev/null || true)
   if [[ "$PARENT_TASK_COUNT" -gt 0 && "$METADATA_COUNT" -eq 0 ]]; then
     add_warning "No metadata lines found (expected _Complexity: ... | Tests: ... | ..._) on parent tasks"
@@ -174,7 +216,7 @@ if [[ "$HAS_TASKS" == true ]]; then
 
   # Check for Commit fields or sub-tasks
   COMMIT_COUNT=$(grep -ci '^\s*- Commit:' "$TASKS_FILE" 2>/dev/null || true)
-  COMMIT_SUBTASK_COUNT=$(grep -ciE '^\s*- \[[ x]\].*[Cc]ommit' "$TASKS_FILE" 2>/dev/null || true)
+  COMMIT_SUBTASK_COUNT=$(grep -ciE '^\s*- \[[ x~]\].*[Cc]ommit' "$TASKS_FILE" 2>/dev/null || true)
   TOTAL_COMMITS=$((COMMIT_COUNT + COMMIT_SUBTASK_COUNT))
   if [[ "$PARENT_TASK_COUNT" -gt 0 && "$TOTAL_COMMITS" -eq 0 ]]; then
     add_warning "No Commit fields or Commit sub-tasks found — every task group should have a commit point"
@@ -187,7 +229,22 @@ if [[ "$HAS_TASKS" == true ]]; then
   fi
 fi
 
-# --- Validate version frontmatter ---
+# --- Validate frontmatter (version, status) ---
+# `status:` is the story's single lifecycle state, shared by every artifact.
+# Grammar rule: fail-CLOSED on a present-but-wrong value (an invented dialect
+# is an error), fail-OPEN on absence (340+ legacy stories have no status: and
+# must validate exactly as before — no error, no warning, no extra line).
+# One source of truth for the enum: the alternation drives both the check and
+# the human-readable message (a `case` pattern cannot — bash does not re-parse
+# `|` from an expanded variable as alternation, only `[[ =~ ]]` does).
+STATUS_ENUM='draft|in-progress|done|validated|superseded|archived'
+STATUS_ENUM_TEXT=${STATUS_ENUM//|/, }
+# The states that claim the work is finished — the ones a leftover `[ ]` box
+# contradicts.
+STATUS_COMPLETE='done|validated'
+STATUS_FILES=()   # basenames of the artifacts that actually carry the field
+STATUS_VALUES=()  # their values, parallel to STATUS_FILES
+
 for f in "$STORY_DIR"/*.md; do
   [[ -f "$f" ]] || continue
   BASENAME=$(basename "$f")
@@ -206,10 +263,58 @@ for f in "$STORY_DIR"/*.md; do
     if [[ -n "$VERSION_VAL" ]] && ! [[ "$VERSION_VAL" =~ ^[0-9]+$ ]]; then
       add_error "$BASENAME frontmatter 'version' must be an integer, found: $VERSION_VAL"
     fi
+    # Lifecycle state. Anchored at column 0 like the templates write it, so a
+    # compound or nested key (`review_status:`) can never fake a status value.
+    STATUS_VAL=$(echo "$FRONT" | grep -E '^status:' | head -1 | sed 's/.*status:\s*//' | tr -d '[:space:]' || true)
+    if [[ -n "$STATUS_VAL" ]]; then
+      if ! [[ "$STATUS_VAL" =~ ^($STATUS_ENUM)$ ]]; then
+        add_error "$BASENAME frontmatter 'status' is not a lifecycle state: found '$STATUS_VAL' — must be one of: $STATUS_ENUM_TEXT"
+      fi
+      # An artifact without the field carries no opinion, so it is never
+      # divergent: only artifacts that declare a status are compared.
+      STATUS_FILES+=("$BASENAME")
+      STATUS_VALUES+=("$STATUS_VAL")
+    fi
   else
     add_warning "$BASENAME is missing version frontmatter"
   fi
 done
+
+# --- Story-level status consistency ---
+# Entered only when at least one artifact declared a status: a story with no
+# status: field skips this block whole, which is the fail-open rule made
+# structural (no error, no warning, byte-identical output to pre-change).
+if [[ ${#STATUS_VALUES[@]} -gt 0 ]]; then
+  # BOX_OPEN comes from the checkbox census, which runs only when tasks.md
+  # exists; under set -u a story without tasks.md would abort here without the
+  # ${VAR:-0} guard used throughout this script.
+  OPEN_BOXES=${BOX_OPEN:-0}
+
+  # The status lies about the work: it claims done while `[ ]` boxes remain.
+  # `[~]` boxes are closed by grammar and must NOT count as open here.
+  if [[ "$OPEN_BOXES" -gt 0 ]]; then
+    for st_i in "${!STATUS_VALUES[@]}"; do
+      if [[ "${STATUS_VALUES[$st_i]}" =~ ^($STATUS_COMPLETE)$ ]]; then
+        add_warning "status is ahead of the checkboxes: ${STATUS_FILES[$st_i]} says '${STATUS_VALUES[$st_i]}' but $OPEN_BOXES task checkbox(es) are still open ([ ])"
+        break  # one story, one lie — do not repeat it per artifact
+      fi
+    done
+  fi
+
+  # One story, one status: artifacts declaring different values disagree about
+  # where the story is.
+  STATUS_DIVERGED=false
+  for st_v in "${STATUS_VALUES[@]}"; do
+    [[ "$st_v" == "${STATUS_VALUES[0]}" ]] || STATUS_DIVERGED=true
+  done
+  if [[ "$STATUS_DIVERGED" == true ]]; then
+    STATUS_PAIRS=""
+    for st_i in "${!STATUS_FILES[@]}"; do
+      STATUS_PAIRS+="${STATUS_PAIRS:+, }${STATUS_FILES[$st_i]}=${STATUS_VALUES[$st_i]}"
+    done
+    add_warning "Artifacts of this story declare different 'status' values ($STATUS_PAIRS) — every artifact must carry the same lifecycle state"
+  fi
+fi
 
 # --- Flag parsing ---
 CROSS_REF=false
