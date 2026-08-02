@@ -56,7 +56,6 @@ TASKS_FILE="$STORY_DIR/tasks.md"
 # leaf produced a false orphan for every `### Rn.` heading.
 mapfile -t STORY_LEAVES < <(grep -oE '\bR[0-9]+\.[0-9]+\b' "$STORY_FILE" 2>/dev/null | sort -u || true)
 mapfile -t STORY_ONELEVEL < <(grep -oE '\bR[0-9]+\b' "$STORY_FILE" 2>/dev/null | sort -u || true)
-mapfile -t TASK_TOKENS < <(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' "$TASKS_FILE" 2>/dev/null | sort -u || true)
 
 # in_list <needle> <haystack...> — membership test.
 in_list() {
@@ -88,13 +87,50 @@ for tok in "${STORY_ONELEVEL[@]}"; do
   fi
 done
 
+# --- Parse tasks.md structurally (single source of truth) ---
+# REQ_MAP maps each R-token declared in a `Requirements:` field to the
+# sub-tasks that declare it. Coverage, orphans and phantoms are ALL derived
+# from this same structural parse. The previous implementation grepped the
+# whole file for tokens, so a requirement mentioned only in prose (an
+# Objective, a ToDo, a commit message) counted as "traced" while the mapping
+# showed it empty — the exact condition this gate exists to catch.
+declare -A REQ_MAP
+REQ_KEYS=0   # manual count: ${#REQ_MAP[@]} on an empty assoc array trips set -u (bash 5.3)
+CURRENT_TASK=""
+PARSEABLE_TASKS=0
+task_heading_re='^[[:space:]]*-[[:space:]]\[[ x]\][[:space:]]+([0-9]+(\.[0-9]+)?)[[:space:]]+-[[:space:]]'
+requirements_re='^[[:space:]]*-[[:space:]]Requirements:[[:space:]]*(.+)$'
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+  if [[ "$line" =~ $task_heading_re ]]; then
+    CURRENT_TASK="${BASH_REMATCH[1]}"
+    PARSEABLE_TASKS=$((PARSEABLE_TASKS + 1))
+  elif [[ -n "$CURRENT_TASK" && "$line" =~ $requirements_re ]]; then
+    reqs_text="${BASH_REMATCH[1]}"
+    while IFS= read -r rtok; do
+      [[ -n "$rtok" ]] || continue
+      if [[ " ${REQ_MAP[$rtok]:-} " != *" $CURRENT_TASK "* ]]; then
+        [[ -z "${REQ_MAP[$rtok]:-}" ]] && REQ_KEYS=$((REQ_KEYS + 1))
+        REQ_MAP[$rtok]="${REQ_MAP[$rtok]:-}${REQ_MAP[$rtok]:+ }$CURRENT_TASK"
+      fi
+    done < <(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' <<< "$reqs_text" || true)
+  fi
+done < "$TASKS_FILE"
+
+# Task-side tokens = the keys of REQ_MAP (structured references only).
+if [[ $REQ_KEYS -gt 0 ]]; then
+  mapfile -t TASK_TOKENS < <(printf '%s\n' "${!REQ_MAP[@]}" | sort -u)
+else
+  TASK_TOKENS=()
+fi
+
 # --- Build traceability ---
-ORPHANS=()    # Story leaf requirement with no task reference
-PHANTOMS=()   # Task reference matching no story requirement
-TRACED=()     # Story leaf requirement referenced by at least one task
+ORPHANS=()    # Story leaf requirement with no Requirements-field reference
+PHANTOMS=()   # Requirements-field reference matching no story requirement
+TRACED=()     # Story leaf requirement declared by at least one sub-task
 
 for req in "${STORY_REQS_ARR[@]}"; do
-  if in_list "$req" "${TASK_TOKENS[@]}"; then
+  if [[ -n "${REQ_MAP[$req]:-}" ]]; then
     TRACED+=("$req")
   else
     ORPHANS+=("$req")
@@ -114,32 +150,40 @@ TOTAL_PHANTOMS=${#PHANTOMS[@]}
 TOTAL_TRACED=${#TRACED[@]}
 TOTAL_STORY_REQS=${#STORY_REQS_ARR[@]}
 TOTAL_TASK_REQS=${#TASK_TOKENS[@]}
-HAS_ISSUES=$([[ $TOTAL_ORPHANS -gt 0 || $TOTAL_PHANTOMS -gt 0 ]] && echo true || echo false)
 
-# --- Build requirement → task map ---
-# Maps each requirement to the sub-tasks that declare it. Parses tasks.md
-# structurally: a task/sub-task heading sets the current task number, and a
-# `Requirements:` line attributes its R-numbers to that task.
-declare -A REQ_MAP
-CURRENT_TASK=""
-task_heading_re='^[[:space:]]*-[[:space:]]\[[ x]\][[:space:]]+([0-9]+(\.[0-9]+)?)[[:space:]]+-[[:space:]]'
-requirements_re='^[[:space:]]*-[[:space:]]Requirements:[[:space:]]*(.+)$'
+# untraceable-format: the story defines requirements but the structural
+# parser found no sub-task headings (unrecognized tasks.md dialect) or no
+# Requirements: fields at all. Reporting "clean" here is exactly the
+# false-clean this gate must never emit; reporting per-leaf orphans would be
+# noise — the actionable fix is the format, not the coverage.
+UNTRACEABLE=false
+if [[ $TOTAL_STORY_REQS -gt 0 && ( $PARSEABLE_TASKS -eq 0 || $REQ_KEYS -eq 0 ) ]]; then
+  UNTRACEABLE=true
+fi
 
-while IFS= read -r line || [[ -n "$line" ]]; do
-  if [[ "$line" =~ $task_heading_re ]]; then
-    CURRENT_TASK="${BASH_REMATCH[1]}"
-  elif [[ -n "$CURRENT_TASK" && "$line" =~ $requirements_re ]]; then
-    reqs_text="${BASH_REMATCH[1]}"
-    while IFS= read -r rtok; do
-      [[ -n "$rtok" ]] || continue
-      if [[ " ${REQ_MAP[$rtok]:-} " != *" $CURRENT_TASK "* ]]; then
-        REQ_MAP[$rtok]="${REQ_MAP[$rtok]:-}${REQ_MAP[$rtok]:+ }$CURRENT_TASK"
-      fi
-    done < <(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' <<< "$reqs_text" || true)
-  fi
-done < "$TASKS_FILE"
+HAS_ISSUES=$([[ $TOTAL_ORPHANS -gt 0 || $TOTAL_PHANTOMS -gt 0 || "$UNTRACEABLE" == true ]] && echo true || echo false)
 
-# --- JSON helper ---
+if [[ "$UNTRACEABLE" == true ]]; then
+  STATUS_STR="untraceable-format"
+elif [[ "$HAS_ISSUES" == true ]]; then
+  STATUS_STR="issues"
+else
+  STATUS_STR="clean"
+fi
+
+# --- JSON helpers ---
+# Minimal string escape so paths/tokens with quotes, backslashes or control
+# characters never produce invalid JSON for the jq consumers downstream.
+json_escape() {
+  local s="$1"
+  s=${s//\\/\\\\}
+  s=${s//\"/\\\"}
+  s=${s//$'\n'/\\n}
+  s=${s//$'\r'/\\r}
+  s=${s//$'\t'/\\t}
+  printf '%s' "$s"
+}
+
 json_array() {
   local arr=("$@")
   local len=${#arr[@]}
@@ -151,7 +195,7 @@ json_array() {
   for i in "${!arr[@]}"; do
     COMMA=","
     [[ $i -eq $((len - 1)) ]] && COMMA=""
-    echo -n "\"${arr[$i]}\"$COMMA"
+    echo -n "\"$(json_escape "${arr[$i]}")\"$COMMA"
   done
   echo "]"
 }
@@ -181,15 +225,16 @@ emit_mapping() {
 
 # --- Output ---
 echo "{"
-echo "  \"story\": \"$STORY_DIR\","
+echo "  \"story\": \"$(json_escape "$STORY_DIR")\","
 echo "  \"story_requirements\": $TOTAL_STORY_REQS,"
 echo "  \"task_references\": $TOTAL_TASK_REQS,"
+echo "  \"parseable_tasks\": $PARSEABLE_TASKS,"
 echo "  \"traced\": $TOTAL_TRACED,"
 echo "  \"orphan_requirements\": $(json_array "${ORPHANS[@]}"),"
 echo "  \"phantom_references\": $(json_array "${PHANTOMS[@]}"),"
 echo "  \"coverage\": \"$TOTAL_TRACED/$TOTAL_STORY_REQS\","
 echo "  \"mapping\": $(emit_mapping),"
-echo "  \"status\": \"$([[ "$HAS_ISSUES" == true ]] && echo 'issues' || echo 'clean')\""
+echo "  \"status\": \"$STATUS_STR\""
 echo "}"
 
 if [[ "$HAS_ISSUES" == true ]]; then

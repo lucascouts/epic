@@ -16,12 +16,17 @@ STORIES_ROOT=".epic/stories"
 [ -d "$STORIES_ROOT" ] || exit 0
 
 # Pick the story whose tasks.md was touched most recently — that's the one
-# the current session is actively working on.
-ACTIVE_STORY=$(
-  find "$STORIES_ROOT" -mindepth 2 -maxdepth 2 -name tasks.md \
-    -printf '%T@ %h\n' 2>/dev/null \
-    | sort -rn | head -1 | awk '{print $2}'
-)
+# the current session is actively working on. Portable (no GNU find
+# -printf) and safe for paths containing spaces.
+ACTIVE_STORY=""
+NEWEST=0
+while IFS= read -r f; do
+  ts=$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo 0)
+  if [ "$ts" -gt "$NEWEST" ]; then
+    NEWEST=$ts
+    ACTIVE_STORY=$(dirname "$f")
+  fi
+done < <(find "$STORIES_ROOT" -mindepth 2 -maxdepth 2 -name tasks.md 2>/dev/null)
 [ -n "${ACTIVE_STORY:-}" ] && [ -d "$ACTIVE_STORY" ] || exit 0
 
 DRAFT_DIR="$ACTIVE_STORY/.draft"
@@ -41,8 +46,12 @@ HEAD_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "(not a git repo)")
   echo
 
   if [ -f "$ACTIVE_STORY/tasks.md" ]; then
-    TOTAL=$(grep -cE '^\s*- \[[ x]\]' "$ACTIVE_STORY/tasks.md" 2>/dev/null || echo 0)
-    DONE=$(grep -cE '^\s*- \[x\]' "$ACTIVE_STORY/tasks.md" 2>/dev/null || echo 0)
+    # grep -c already prints 0 on zero matches (while exiting 1); the old
+    # `|| echo 0` appended a SECOND line, yielding "0\n0" as the value.
+    TOTAL=$(grep -cE '^\s*- \[[ x]\]' "$ACTIVE_STORY/tasks.md" 2>/dev/null || true)
+    DONE=$(grep -cE '^\s*- \[x\]' "$ACTIVE_STORY/tasks.md" 2>/dev/null || true)
+    TOTAL=${TOTAL:-0}
+    DONE=${DONE:-0}
     NEXT=$(grep -nE '^\s*- \[ \]' "$ACTIVE_STORY/tasks.md" 2>/dev/null | head -1 || true)
     echo "## Progress"
     echo "- Tasks: $DONE/$TOTAL completed"

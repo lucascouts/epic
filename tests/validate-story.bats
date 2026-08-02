@@ -272,3 +272,35 @@ EOF
   [ "$status" -eq 0 ]
   echo "$output" | grep -q 'Requirement R1.2 in story.md has no matching'
 }
+
+# --- Wave-0 regressions: structural silence and JSON validity ---
+
+@test "tasks.md with zero parseable tasks is an error, not a silent pass" {
+  cat > "$STORY/tasks.md" <<'TASKS'
+---
+version: 1
+created: 2026-07-23
+---
+## T1. Heading-style task
+### T1.1 Do the thing [x]
+- **Covers:** R1.1
+TASKS
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  [ "$status" -eq 1 ]
+  echo "$output" | grep -q 'no parseable checkbox tasks'
+}
+
+@test "JSON output stays valid when a message embeds a double quote" {
+  cat > "$STORY/tasks.md" <<'TASKS'
+---
+version: v1"quoted
+created: 2026-07-23
+---
+- [ ] 1 - One
+  - Requirements: R1
+  - Validation: ok
+TASKS
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e . > /dev/null
+}

@@ -11,14 +11,23 @@
 
 set -euo pipefail
 
+# Resolve the plugin root even when CLAUDE_PLUGIN_ROOT is unset (set -u).
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
 STORIES_ROOT=".epic/stories"
 [ -d "$STORIES_ROOT" ] || exit 0
 
-ACTIVE_STORY=$(
-  find "$STORIES_ROOT" -mindepth 2 -maxdepth 2 -name tasks.md \
-    -printf '%T@ %h\n' 2>/dev/null \
-    | sort -rn | head -1 | awk '{print $2}'
-)
+# Most-recently-modified tasks.md, portable (no GNU find -printf) and safe
+# for paths containing spaces.
+ACTIVE_STORY=""
+NEWEST=0
+while IFS= read -r f; do
+  ts=$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo 0)
+  if [ "$ts" -gt "$NEWEST" ]; then
+    NEWEST=$ts
+    ACTIVE_STORY=$(dirname "$f")
+  fi
+done < <(find "$STORIES_ROOT" -mindepth 2 -maxdepth 2 -name tasks.md 2>/dev/null)
 [ -n "${ACTIVE_STORY:-}" ] && [ -d "$ACTIVE_STORY" ] || exit 0
 
 # Only validate stories past Phase 3 (tasks.md must have at least one
@@ -27,8 +36,11 @@ if ! grep -qE '^\s*- \[[ x]\]\s+[0-9]+\s+-\s+' "$ACTIVE_STORY/tasks.md" 2>/dev/n
   exit 0
 fi
 
-OUTPUT=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate-story.sh" "$ACTIVE_STORY" 2>&1)
-STATUS=$?
+# Capture the validator's exit status without tripping set -e: a bare
+# OUTPUT=$(...) inherits a non-zero status and aborts the hook on the
+# assignment itself, so the blocking exit 2 below never runs (fail-open).
+STATUS=0
+OUTPUT=$(bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$ACTIVE_STORY" 2>&1) || STATUS=$?
 
 if [ "$STATUS" -eq 1 ]; then
   {

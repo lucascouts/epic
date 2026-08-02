@@ -23,11 +23,16 @@ INPUT=$(cat)
 TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty')
 [ "$TOOL" = "Bash" ] || exit 0
 
-ACTIVE_STORY=$(
-  find "$STORIES_ROOT" -mindepth 2 -maxdepth 2 -name tasks.md \
-    -printf '%T@ %h\n' 2>/dev/null \
-    | sort -rn | head -1 | awk '{print $2}'
-)
+# Portable newest-tasks.md (no GNU find -printf), space-safe.
+ACTIVE_STORY=""
+NEWEST=0
+while IFS= read -r f; do
+  ts=$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo 0)
+  if [ "$ts" -gt "$NEWEST" ]; then
+    NEWEST=$ts
+    ACTIVE_STORY=$(dirname "$f")
+  fi
+done < <(find "$STORIES_ROOT" -mindepth 2 -maxdepth 2 -name tasks.md 2>/dev/null)
 [ -n "${ACTIVE_STORY:-}" ] && [ -d "$ACTIVE_STORY" ] || exit 0
 
 # Only surface for stories mid-run: at least one [x] AND one [ ].

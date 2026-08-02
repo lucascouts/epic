@@ -169,3 +169,55 @@ EOF
   [ "$status" -eq 0 ]
   echo "$output" | grep -qF '"R1.1": ["1.1","2.1"]'
 }
+
+# --- Wave-0 regressions: coverage must derive from the structural parse ---
+
+@test "prose-only reference is NOT traced (false-clean regression)" {
+  cat > "$STORY/story.md" <<'STORY'
+### R1. First requirement
+- R1.1: WHEN x THE SYSTEM SHALL y
+- R1.2: WHEN a THE SYSTEM SHALL b
+STORY
+  cat > "$STORY/tasks.md" <<'TASKS'
+## Overview
+This plan covers R1.2 in prose only.
+- [ ] 1.1 - implement
+  - Requirements: R1.1
+  - ToDo: also touches R1.2 (mentioned outside any Requirements field)
+TASKS
+  run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" "$STORY"
+  [ "$status" -eq 1 ]
+  echo "$output" | grep -q '"status": "issues"'
+  echo "$output" | grep -q '"R1.2"'
+  echo "$output" | grep -q '"coverage": "1/2"'
+}
+
+@test "unrecognized tasks.md dialect reports untraceable-format, never clean" {
+  cat > "$STORY/story.md" <<'STORY'
+### R1. First requirement
+- R1.1: WHEN x THE SYSTEM SHALL y
+STORY
+  cat > "$STORY/tasks.md" <<'TASKS'
+## T1. Heading-style task
+### T1.1 Do the thing [x]
+- **Covers:** R1.1
+TASKS
+  run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" "$STORY"
+  [ "$status" -eq 1 ]
+  echo "$output" | grep -q '"status": "untraceable-format"'
+  echo "$output" | grep -q '"parseable_tasks": 0'
+}
+
+@test "report includes parseable_tasks count" {
+  cat > "$STORY/story.md" <<'STORY'
+### R1. First requirement
+- R1.1: WHEN x THE SYSTEM SHALL y
+STORY
+  cat > "$STORY/tasks.md" <<'TASKS'
+- [ ] 1.1 - implement
+  - Requirements: R1.1
+TASKS
+  run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" "$STORY"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '"parseable_tasks": 1'
+}

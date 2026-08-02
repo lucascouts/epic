@@ -45,6 +45,19 @@ WARNINGS=()
 add_error() { ERRORS+=("$1"); }
 add_warning() { WARNINGS+=("$1"); }
 
+# Minimal JSON string escape: messages can embed content read from the
+# artifacts (quotes, backslashes, control chars) and must never break the
+# jq consumers downstream (hooks, CI).
+json_escape() {
+  local s="$1"
+  s=${s//\\/\\\\}
+  s=${s//\"/\\\"}
+  s=${s//$'\n'/\\n}
+  s=${s//$'\r'/\\r}
+  s=${s//$'\t'/\\t}
+  printf '%s' "$s"
+}
+
 # xr_in_list <needle> <haystack...> — membership test for the cross-ref check.
 xr_in_list() {
   local needle="$1" item
@@ -123,6 +136,19 @@ if [[ "$HAS_TASKS" == true ]]; then
   # mode validation (tasks.md without story.md).
   TASK_COUNT=$(grep -cE '^\s*- \[[ x]\]' "$TASKS_FILE" 2>/dev/null || true)
 
+  # A tasks.md with ZERO parseable checkbox tasks must never pass: every
+  # downstream check is gated on TASK_COUNT > 0, so an unrecognized dialect
+  # used to sail through with "pass, 0 errors". Name the variant when we can.
+  if [[ "$TASK_COUNT" -eq 0 ]]; then
+    VARIANT_HINT=""
+    if grep -qE '^\s*-?\s*\*\*Covers:\*\*|^Covers:' "$TASKS_FILE" 2>/dev/null; then
+      VARIANT_HINT=" (detected 'Covers:' dialect)"
+    elif grep -qE '^#{2,3}\s+T?[0-9]+(\.[0-9]+)?[[:space:]]' "$TASKS_FILE" 2>/dev/null; then
+      VARIANT_HINT=" (detected heading-based task dialect)"
+    fi
+    add_error "tasks.md has no parseable checkbox tasks (- [ ] N - ...)${VARIANT_HINT} — unrecognized format, nothing was validated"
+  fi
+
   # Check Requirements field (only if story.md exists = standard/full)
   if [[ "$HAS_STORY" == true ]]; then
     # Accept both old format (Requirements Coverage) and new format (Requirements:)
@@ -166,8 +192,9 @@ for f in "$STORY_DIR"/*.md; do
   [[ -f "$f" ]] || continue
   BASENAME=$(basename "$f")
   if head -1 "$f" | grep -q '^---$' 2>/dev/null; then
-    # Check required frontmatter fields
-    FRONT=$(sed -n '2,/^---$/p' "$f" | head -n -1)
+    # Check required frontmatter fields ($d is POSIX; GNU-only `head -n -1`
+    # aborted the whole validation on BSD/macOS under set -e + pipefail)
+    FRONT=$(sed -n '2,/^---$/p' "$f" | sed '$d')
     if ! echo "$FRONT" | grep -q 'version:'; then
       add_warning "$BASENAME frontmatter missing 'version' field"
     fi
@@ -242,7 +269,7 @@ TOTAL_ERRORS=${#ERRORS[@]}
 TOTAL_WARNINGS=${#WARNINGS[@]}
 
 echo "{"
-echo "  \"story\": \"$STORY_DIR\","
+echo "  \"story\": \"$(json_escape "$STORY_DIR")\","
 echo "  \"errors\": $TOTAL_ERRORS,"
 echo "  \"warnings\": $TOTAL_WARNINGS,"
 
@@ -251,7 +278,7 @@ if [[ $TOTAL_ERRORS -gt 0 ]]; then
   for i in "${!ERRORS[@]}"; do
     COMMA=","
     [[ $i -eq $((TOTAL_ERRORS - 1)) ]] && COMMA=""
-    echo "    \"${ERRORS[$i]}\"$COMMA"
+    echo "    \"$(json_escape "${ERRORS[$i]}")\"$COMMA"
   done
   echo "  ],"
 else
@@ -263,7 +290,7 @@ if [[ $TOTAL_WARNINGS -gt 0 ]]; then
   for i in "${!WARNINGS[@]}"; do
     COMMA=","
     [[ $i -eq $((TOTAL_WARNINGS - 1)) ]] && COMMA=""
-    echo "    \"${WARNINGS[$i]}\"$COMMA"
+    echo "    \"$(json_escape "${WARNINGS[$i]}")\"$COMMA"
   done
   echo "  ],"
 else
