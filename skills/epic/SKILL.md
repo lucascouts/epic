@@ -480,6 +480,26 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
 - Maximum 10 history entries; older entries: "see git history"
 - All files in a story share the same version number
 
+### Lifecycle Status (`status:`)
+
+`status:` is the story's lifecycle state, carried in the frontmatter of every artifact that has frontmatter. Six values, no others:
+
+| Value | Written by |
+|---|---|
+| `draft` | CREATE — when the artifacts are first written |
+| `in-progress` | RUN — when execution of the story starts |
+| `done` | RUN — when the story is complete (no `[ ]` remains) |
+| `validated` | VALIDATE — after Validator and Auditor pass |
+| `superseded` | the supersede operation |
+| `archived` | the archive operation |
+
+- **Engine-written, never hand-edited.** The writer list above is exhaustive — no other mode touches the field. A human editing it is tolerated, not blocked: validation only flags the result. A value outside the six is an **error**; `done` or `validated` while a `[ ]` box is still open is a **warning** (the status is ahead of the checkboxes).
+- **Same value in every artifact** of the story, exactly like `version`. Artifacts declaring **different** values raise a warning naming them. An artifact with no `status:` carries no opinion and is never counted as divergent.
+- **Absence is legal and silent.** A story with no `status:` anywhere is neither an error nor a warning — stories written before the field validate byte-identically. The field is never required by validation.
+- **Persisted values only.** `done-except-external` is not a `status:` value: it is a condition computed from the checkboxes at read time (see [tasks.md](../../references/tasks.md#completion)), never written to a file.
+- **Written with `Edit`, not `Write`** — deliberately. The `hook-validate` PostToolUse matcher in `hooks/hooks.json` is `Write` only, so engine status transitions must not re-trigger a validation pass on every write.
+- **Companion field `superseded-by: MMM`** — optional, written **only** by the supersede operation, next to `status: superseded`. It names the story that took over the scope and is the machine-readable source the story index renders. Nothing else writes it.
+
 ## Language
 
 **Artifacts are always written in English.** Claude models perform best processing English-language technical content. This ensures optimal quality when artifacts are consumed later for implementation. There is no override for this rule.

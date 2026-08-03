@@ -73,6 +73,47 @@ created: <date>
 4. **Sub-tasks inherit** parent metadata. Only declare fields that differ from the parent.
 5. **Omit fields** that are not applicable or inherited unchanged. Never fill "None" in a sub-task if the parent already says "None".
 
+### Checkbox Grammar
+
+Every task, sub-task, and Quality Gate carries one of three boxes:
+
+| Box | State | Meaning |
+|---|---|---|
+| `- [ ]` | open | still owed — the only state that counts as pending |
+| `- [x]` | closed | the work was done |
+| `- [~]` | closed without doing the work | must say why on the same line |
+
+A `- [~]` box **MUST** carry a qualifier on the **same line**: a box closed without doing the work has to say why. Syntax: `- [~] N.N - Title (qualifier: reason)`.
+
+| Qualifier | Meaning | Terminal? |
+|---|---|---|
+| `deferred: <reason>` | resolved in the plan, execution awaits an external actor (hardware, operator, live proof) | **no** — the story becomes `done-except-external` |
+| `waived: <reason>` | gate consciously dispensed (tool absent, user decision) | **yes** |
+| `n-a: <reason>` | not applicable by construction | **yes** |
+| `superseded-by: NNN` | this sub-task's scope moved to story NNN | **yes** |
+
+- The qualifier is mandatory. A `[~]` with none, or with an unrecognized one, is a **validation error** naming the line and the four valid forms.
+- Matching is token-anchored: `(n-a: ...)` qualifies, the tail of a word like `man-a:` does not.
+- If a line carries both `deferred:` and a terminal qualifier, **`deferred:` wins** — the work is still owed by someone.
+- Implementing sub-tasks and Quality Gates use the same grammar. There is no per-line-type distinction.
+
+### Completion
+
+One definition, used by every mode that reads a task list:
+
+- A story is **complete** when **no `[ ]` remains**.
+- It is **`done`** when every box is `[x]` or terminal `[~]`.
+- It is **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`.
+
+`done-except-external` is a **computed condition** — derived from the boxes at read time, never written to a file.
+
+Counting, for progress and reporting:
+
+- `total` = every box, whatever its state (`[ ]`, `[x]`, `[~]`)
+- `closed` = `[x]` + terminal `[~]`
+- `deferred` = `[~]` qualified `deferred:`
+- progress renders as `closed/total (+D deferred)` — the `+D` is omitted when `D` is 0
+
 ### Metadata Line Fields
 
 The metadata line appears on parent tasks and optionally on sub-tasks (only overridden fields).
@@ -163,7 +204,7 @@ Format: a bullet list of 1-3 observable-behavior statements, placed in the sub-t
 
 1. **Coding tasks only.** Exclude: deployment, documentation writing, UAT, performance metrics collection.
 2. **Every sub-task references requirements** (standard and full scales). Use R1.1, R2.3 format. For bugfixes, reference Current/Expected/Unchanged behavior items. For fast scale, omit this field.
-3. **Checkboxes on all items.** Use `- [ ]` for incomplete, `- [x]` for complete.
+3. **Checkboxes on all items.** The grammar is `- [ ]` open, `- [x]` done, `- [~]` closed without doing the work — and a `- [~]` always carries a same-line qualifier (`deferred:`, `waived:`, `n-a:`, `superseded-by:`). See Checkbox Grammar above.
 4. **Dependencies are explicit.** If task 2 requires task 1, the metadata line says so. Sub-task dependencies reference parent.task format (e.g. "Task 1.2").
 5. **Validation is testable.** "Works correctly" is not acceptable. "`go test ./models/...` passes" is.
 6. **Quality Gates are mandatory.** Always include the quality gates section at the end.
@@ -184,6 +225,8 @@ Format: a bullet list of 1-3 observable-behavior statements, placed in the sub-t
 ## Gotchas
 
 - Title format: `- [ ] N - Name` — no bold wrappers, no [T1] prefix
+- A `[~]` box without a same-line qualifier is a validation error — closing a box without doing the work must say why
+- Complete means no `[ ]` remains — not "every box is `[x]`"
 - Maximum 2 hierarchy levels (task 1. + sub-task 1.1)
 - Coding-only — no deploy, docs, UAT, performance metrics
 - Each sub-task references requirement numbers (R1.1, R2.3) — except fast scale

@@ -7,7 +7,7 @@ Triggered by `/epic:epic stories run NNN`, `/epic:epic stories NNN run all`, or 
 1. **Resolve story** — find `.epic/stories/NNN-*/`
 2. **Read tasks.md** — parse all tasks, sub-tasks, and their fields
 3. **Determine scope:**
-   - `run NNN` or `NNN run all` → all pending tasks (those with `[ ]`)
+   - `run NNN` or `NNN run all` → all pending tasks (those with `[ ]` — a `[~]` box is closed and is never pending)
    - `NNN run N` → specific task N and all its pending sub-tasks
    - `NNN run N.N` → specific sub-task only
 4. **Check dependencies** — if a pending task depends on an uncompleted task, warn the user
@@ -109,7 +109,7 @@ Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent se
 4. Reads the Executor's structured report
 5. If PASS: check for tech boundaries → spawn Tech Reviewers if needed
 6. If FAIL: report to user, ask how to proceed
-7. After all reviews pass: mark sub-task `[x]` in tasks.md
+7. After all reviews pass: mark the sub-task `[x]` in tasks.md — or `[~]` with a same-line qualifier (`deferred:`, `waived:`, `n-a:`, `superseded-by:`) when the box is closed without the work being done. See [tasks.md](tasks.md#checkbox-grammar) for the grammar
 
 For a **Fast-mode Simple-or-higher** sub-task carrying a `Tests` field, the test-first cycle is **split** between the orchestrator and the Executor — but the Executor protocol itself is **reused unchanged**:
 
@@ -429,7 +429,7 @@ When multiple pending tasks share the same dependency set and all dependencies a
 ### Detection
 
 1. Build dependency graph from tasks.md parent task `Dependencies` field
-2. Identify parallel group: tasks where all deps are `[x]` and no task in the group depends on another task in the same group
+2. Identify parallel group: tasks where all deps are closed (`[x]` or terminal `[~]`) and no task in the group depends on another task in the same group. A dep closed as `[~] (deferred: …)` is **not** satisfied — the work is still owed by an external actor
 3. Verify no file conflicts: tasks that modify the same files should NOT be parallelized
 4. Present to user: "Tasks N, M, P are independent (all depend only on completed tasks). Execute in parallel? [y/n]"
 
@@ -462,6 +462,7 @@ If confirmed:
 - **User gates** — controlled by execution flags (default: gate after every task group)
 - **Context is fresh** — each Executor reads files directly. The orchestrator passes only metadata (paths, deviations, discoveries) between tasks.
 - **Commit granularity** — follow the Commit fields defined in tasks. Never commit in the middle of a task group unless a Commit sub-task says so.
+- **Completion** — a story is **complete** when **no `[ ]` remains**: it is **`done`** when every box is `[x]` or terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), and **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`. `done-except-external` is computed at read time, never written to a file. Progress reads `closed/total (+D deferred)`. See [tasks.md](tasks.md#completion)
 - **Quality gates check** — after all tasks complete (or after the last requested task), run through quality gates and report status
 - **Validator integration** — after all requested tasks complete, optionally spawn the Validator sub-agent for verification. Ask: "All tasks completed. Run Validator to verify? (y/n)"
 

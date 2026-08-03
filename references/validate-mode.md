@@ -18,7 +18,8 @@ Triggered per-task or in batch after implementation. Can be invoked incrementall
 > "Validate the implementation of these completed tasks.
 >
 > Tasks file: [path to tasks.md]
-> Completed tasks: [list of tasks marked [x]]
+> Completed tasks: [list of tasks marked `[x]`]
+> Closed without work: [list of tasks marked `[~]`, each with its qualifier — these have nothing to run]
 > Project root: [path]
 >
 > For each completed task and sub-task:
@@ -29,7 +30,7 @@ Triggered per-task or in batch after implementation. Can be invoked incrementall
 > Report per sub-task:
 > - PASS: task N.N — validation succeeded
 > - FAIL: task N.N — [what failed and why]
-> - SKIP: task N.N — no validation command (e.g., Commit sub-task with no prior failures)
+> - SKIP: task N.N — nothing to run (a Commit sub-task with no prior failures, or a `[~]` box closed without the work being done — name its qualifier)
 >
 > At the end, check Quality Gates:
 > - For each gate in the Quality Gates section, determine if it is satisfied based on task results
@@ -74,7 +75,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 ## Validate Mode Procedure
 
 1. Resolve story directory from NNN
-2. Read tasks.md and check for completed tasks (`[x]`)
+2. Read tasks.md and take the checkbox census. A story is **complete** when **no `[ ]` remains**: it is **`done`** when every box is `[x]` or terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), and **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`. `done-except-external` is computed at read time, never written to a file. Only `[x]` sub-tasks have an implementation to validate — see [tasks.md](tasks.md#completion)
 3. Spawn Validator sub-agent — runs validation commands and tests per task
 4. If Validator passes, spawn Auditor sub-agent — compares code against story + design, reviews deviation register
 5. Present combined results to the user
