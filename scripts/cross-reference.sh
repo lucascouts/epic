@@ -98,7 +98,19 @@ declare -A REQ_MAP
 REQ_KEYS=0   # manual count: ${#REQ_MAP[@]} on an empty assoc array trips set -u (bash 5.3)
 CURRENT_TASK=""
 PARSEABLE_TASKS=0
-task_heading_re='^[[:space:]]*-[[:space:]]\[[ x]\][[:space:]]+([0-9]+(\.[0-9]+)?)[[:space:]]+-[[:space:]]'
+# A heading is parseable in all three box states — `[ ]` open, `[x]` closed,
+# `[~]` closed without doing the work — because a heading this regex cannot
+# see never updates CURRENT_TASK, so the `Requirements:` line under it is
+# credited to the PREVIOUS task: deferring a sub-task would silently reassign
+# its R-numbers (R4.2). Terminal (`waived:`/`n-a:`/`superseded-by:`) vs
+# non-terminal (`deferred:`) makes no difference here — both trace their
+# requirements; the qualifier grammar is validate-story.sh's job and is
+# deliberately not duplicated. Keep the `[ x~]` class in sync with
+# validate-story.sh and hook-task-completed.sh: one drifted copy reopens the
+# false-clean/false-orphan class (R4.1). monitor-stale.sh is the deliberate
+# exception — it matches `[ ]` only, because it asks what work is still owed
+# rather than what counts as a task (R4.3).
+task_heading_re='^[[:space:]]*-[[:space:]]\[[ x~]\][[:space:]]+([0-9]+(\.[0-9]+)?)[[:space:]]+-[[:space:]]'
 requirements_re='^[[:space:]]*-[[:space:]]Requirements:[[:space:]]*(.+)$'
 
 while IFS= read -r line || [[ -n "$line" ]]; do

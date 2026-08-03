@@ -46,15 +46,33 @@ HEAD_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "(not a git repo)")
   echo
 
   if [ -f "$ACTIVE_STORY/tasks.md" ]; then
+    # Counting follows the three-state checkbox grammar (R3.5): `[ ]` open,
+    # `[x]` closed, `[~]` closed WITHOUT doing the work. Terminal qualifiers
+    # (waived:/n-a:/superseded-by:) count as done; `deferred:` is reported
+    # apart, because that work is settled in the plan but still owed by an
+    # external actor — folding it into either number would make this snapshot
+    # lie to the model it is injected into. When a line carries both,
+    # `deferred:` wins, matching validate-story.sh's census.
+    # Keep the `[ x~]` class in sync with validate-story.sh,
+    # cross-reference.sh and hook-task-completed.sh; monitor-stale.sh is the
+    # deliberate exception — pending is `[ ]` and only `[ ]` (R4.3).
     # grep -c already prints 0 on zero matches (while exiting 1); the old
     # `|| echo 0` appended a SECOND line, yielding "0\n0" as the value.
-    TOTAL=$(grep -cE '^\s*- \[[ x]\]' "$ACTIVE_STORY/tasks.md" 2>/dev/null || true)
-    DONE=$(grep -cE '^\s*- \[x\]' "$ACTIVE_STORY/tasks.md" 2>/dev/null || true)
+    TOTAL=$(grep -cE '^\s*- \[[ x~]\]' "$ACTIVE_STORY/tasks.md" 2>/dev/null || true)
+    DONE_X=$(grep -cE '^\s*- \[x\]' "$ACTIVE_STORY/tasks.md" 2>/dev/null || true)
+    DONE_T=$(grep -E '^\s*- \[~\].*[^[:alnum:]_-](waived|n-a|superseded-by):' "$ACTIVE_STORY/tasks.md" 2>/dev/null \
+      | grep -cvE '[^[:alnum:]_-]deferred:' || true)
+    DEFERRED=$(grep -cE '^\s*- \[~\].*[^[:alnum:]_-]deferred:' "$ACTIVE_STORY/tasks.md" 2>/dev/null || true)
     TOTAL=${TOTAL:-0}
-    DONE=${DONE:-0}
+    DONE=$(( ${DONE_X:-0} + ${DONE_T:-0} ))
+    DEFERRED=${DEFERRED:-0}
     NEXT=$(grep -nE '^\s*- \[ \]' "$ACTIVE_STORY/tasks.md" 2>/dev/null | head -1 || true)
     echo "## Progress"
-    echo "- Tasks: $DONE/$TOTAL completed"
+    if [ "$DEFERRED" -gt 0 ]; then
+      echo "- Tasks: $DONE/$TOTAL completed (+$DEFERRED deferred)"
+    else
+      echo "- Tasks: $DONE/$TOTAL completed"
+    fi
     [ -n "$NEXT" ] && echo "- Next pending: $NEXT"
     echo
   fi

@@ -32,7 +32,16 @@ done < <(find "$STORIES_ROOT" -mindepth 2 -maxdepth 2 -name tasks.md 2>/dev/null
 
 # Only validate stories past Phase 3 (tasks.md must have at least one
 # explicit task). Prevents false positives during story generation.
-if ! grep -qE '^\s*- \[[ x]\]\s+[0-9]+\s+-\s+' "$ACTIVE_STORY/tasks.md" 2>/dev/null; then
+# All three box states are an explicit task — `[ ]` open, `[x]` closed, `[~]`
+# closed without doing the work — so any of them proves Phase 3 happened. The
+# narrower `[ x]` class read a story whose headings were all `[~]` as "still
+# being generated" and skipped validation entirely: the hook exited 0 where it
+# should have blocked with 2 (R4.1). The qualifier grammar behind `[~]`
+# (deferred:/waived:/n-a:/superseded-by:) is validate-story.sh's job and is
+# deliberately not duplicated here. Keep the `[ x~]` class in sync with
+# validate-story.sh and cross-reference.sh; monitor-stale.sh is the deliberate
+# exception — it matches `[ ]` only, see the comment there (R4.3).
+if ! grep -qE '^\s*- \[[ x~]\]\s+[0-9]+\s+-\s+' "$ACTIVE_STORY/tasks.md" 2>/dev/null; then
   exit 0
 fi
 
