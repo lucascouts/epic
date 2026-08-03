@@ -80,3 +80,36 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 4. If Validator passes, spawn Auditor sub-agent — compares code against story + design, reviews deviation register
 5. Present combined results to the user
 6. If gaps found, offer to create new tasks to address them
+7. Apply the status transition for this verdict — see Status Transition (`validated`)
+
+## Status Transition (`validated`)
+
+Validate mode owns exactly one of the six `status:` values — `validated` — and writes it at exactly one point: a passing verdict. It never writes any of the other five; those belong to CREATE, RUN, the supersede operation and the archive operation. See [SKILL.md](../skills/epic/SKILL.md#lifecycle-status-status) for the full field spec.
+
+**The write mechanism is defined once**, in [run-mode.md](run-mode.md#status-transitions) — `Edit` on the frontmatter line and never `Write`, the same value in every artifact that carries frontmatter, the `Edit` adding the field on a legacy story that never had one. Validate mode reuses it unchanged; restating it here is exactly how the two copies would drift apart. A failed write is reported and the flow continues: `status:` is advisory metadata and must never change, delay or block the verdict it is recording.
+
+Apply the first rule that matches:
+
+| # | The verdict | Then |
+|---|---|---|
+| 1 | Validator **and** Auditor pass, and no `[ ]` remains | write `validated` (nothing to do if the field already reads `validated`) |
+| 2 | Validator **and** Auditor pass, and at least one `[ ]` remains | write nothing — report the pass and state why the status was not advanced |
+| 3 | Either sub-agent fails | write nothing — leave `status:` exactly as it was |
+
+**Rule 2 — a partial validation must not manufacture the lie.** `/epic:epic stories validate NNN` can be invoked at any time, including on a story that still has open `[ ]` boxes: the Validator simply has fewer `[x]` sub-tasks to run, and it can still pass. Writing `validated` there would immediately trip `validate-story.sh`'s ahead-of-checkboxes warning — `done` or `validated` while a `[ ]` remains (R2.3) — so the engine would have written the exact claim that check exists to expose. Report the pass instead, and say why the status stayed where it is: **`validated` means "the finished story was verified", not "the part that exists so far looks fine".** When the remaining boxes close, Run mode writes its own transition, and the next passing verdict earns `validated`.
+
+**Rule 3 — a failing verdict writes nothing at all.** Not `in-progress`, and not a rollback of a `validated` left by an earlier pass. A failure is a report, not a lifecycle transition; the story keeps whatever state its last real transition recorded.
+
+**`in-progress → validated`, skipping `done`.** A story whose only non-`[x]` boxes are `[~] (deferred: …)` never receives `done`: Run mode writes `done` only when no `[ ]` **and** no deferred `[~]` remains, so such a story stays `in-progress` (see [run-mode.md](run-mode.md#status-transitions)). Nothing blocks it from being validated. Rule 1 asks for no `[ ]`, and a deferred box is closed, not open — the same reading `validate-story.sh` applies, whose ahead-of-checkboxes check counts `[ ]` only, so `validated` on a `done-except-external` story raises no warning. Such a story therefore runs `in-progress → validated`, skipping `done` entirely.
+
+**design.md's state diagram does not draw that edge** — it shows only `done --> validated`. The edge falls out of the acceptance criteria all the same: R1.3 withholds `done` while a deferred box remains, R1.4 grants `validated` on a passing verdict. It is written down here rather than left implicit because an undocumented edge in a state machine is how the next maintainer gets it wrong.
+
+**Ordering at the pass point.** Three things happen on a passing verdict, in this fixed order. Only step 2 exists today — steps 1 and 3 are slots, named here so the order is settled before their behavior lands.
+
+| # | Step | Owner | Why here |
+|---|---|---|---|
+| 1 | Integration warning — validation passed but the story's work is not integrated into the main branch | story 006, **not implemented** | The caveat reaches the user before anything acts on the verdict |
+| 2 | The status write above (`validated`) | this section | — |
+| 3 | Archive offer, gated on a status of `done` or `validated` | story 005, **not implemented** | Its gate is true only once step 2 has written the value — which is why the gate reads `done` or `validated`, and not `done` alone |
+
+Do not implement steps 1 or 3 here. This section fixes their order and the reason for it; stories 005 and 006 own the behavior.

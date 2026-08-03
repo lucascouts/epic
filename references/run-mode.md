@@ -109,13 +109,94 @@ Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent se
 4. Reads the Executor's structured report
 5. If PASS: check for tech boundaries → spawn Tech Reviewers if needed
 6. If FAIL: report to user, ask how to proceed
-7. After all reviews pass: mark the sub-task `[x]` in tasks.md — or `[~]` with a same-line qualifier (`deferred:`, `waived:`, `n-a:`, `superseded-by:`) when the box is closed without the work being done. See [tasks.md](tasks.md#checkbox-grammar) for the grammar
+7. After all reviews pass: mark the sub-task `[x]` in tasks.md — or `[~]` with a same-line qualifier (`deferred:`, `waived:`, `n-a:`, `superseded-by:`) when the box is closed without the work being done. See [tasks.md](tasks.md#checkbox-grammar) for the grammar. Then apply the story's status transition for that marking (see Status Transitions)
 
 For a **Fast-mode Simple-or-higher** sub-task carrying a `Tests` field, the test-first cycle is **split** between the orchestrator and the Executor — but the Executor protocol itself is **reused unchanged**:
 
 - **Before spawning the Executor**, the orchestrator (main agent) authors the test, runs it, and confirms **Red** (for the right reason). The unexpected-green rule above applies: revise once, then escalate to the user. The test is written directly into the project's real test tree — there is no `.draft/` staging for Fast.
 - The orchestrator then passes that confirmed-failing test to the Executor as the read-only **"Pre-Authored Test"** input (its path and contents in the Executor prompt section of the same name). The Executor consumes it exactly like a materialized Standard/Full pre-authored test.
 - The Executor runs the **existing six-step protocol with its conditional step 5** (see Executor Sub-agent): step 2 becomes Implementation (Green) — make the pre-authored test pass — and step 5 becomes Refactor. No new or Fast-specific Executor protocol is introduced.
+
+### Status Transitions
+
+The story's `status:` frontmatter field is **engine-written, never hand-edited**. Run mode owns two of the six values — `in-progress` and `done` — and writes them right after a box in tasks.md is marked. The other four belong elsewhere and Run mode never writes them: `draft` to CREATE, `validated` to VALIDATE, `superseded` to the supersede operation, `archived` to the archive operation. See [SKILL.md](../skills/epic/SKILL.md#lifecycle-status-status) for the full field spec.
+
+**When the check runs:** after **every** marking in tasks.md — each sub-task marking, whichever path executed the sub-task (Trivial inline or Executor, step 7 above), and the end-of-Run quality-gate settlement, which is usually the marking that closes the last box.
+
+Census the boxes **as just written** — `open`, `closed` and `deferred` are defined once, in [tasks.md](tasks.md#completion), and the census spans the task list **and** the Quality Gates — then apply the first rule that matches:
+
+| # | After the marking | Then |
+|---|---|---|
+| 1 | no `[ ]` remains **and** no `[~] (deferred: …)` remains | write `done` (nothing to do if the field already reads `done`) |
+| 2 | rule 1 did not fire, and `status:` is **absent or `draft`** | write `in-progress` |
+| 3 | neither fired | write nothing |
+
+Rule 1 is the canonical **`done`**: "every box is `[x]` or terminal `[~]`" and "no `[ ]` and no deferred `[~]`" are the same condition read from its two ends (see [tasks.md](tasks.md#completion) — do not restate it as a third variant). Rule 2 is the first marking of a story that has not been executed before: absence and `draft` are the two states a run can start from. Rule 3 keeps a story already `in-progress` where it is — the transition is written once, not re-affirmed on every sub-task. A marking that satisfies rule 1 on a story that had reached `validated` writes `done`: work done after a validation is work that validation did not cover, and VALIDATE earns `validated` back on its next pass.
+
+**A deferred box blocks `done` — deliberately.** A story whose only remaining non-`[x]` boxes are `[~] (deferred: …)` does **not** get `status: done` from Run mode. Its status stays `in-progress`. Its completeness is visible as the computed condition **`done-except-external`**, which is derived from the boxes at read time and never persisted — LIST renders it `in-progress · done-except-external (N deferred)`. The persisted enum has no value for that condition, and that is deliberate, not an omission: the work is settled in the plan and still owed in the world, so the lifecycle state must not claim the story is finished.
+
+**Writing the transition:**
+
+1. **`Edit` the frontmatter line — never `Write` the file.** The PostToolUse hook in `hooks/hooks.json` matches **`Write` only**: a `Write` under `.epic/**` re-runs `validate-story.sh`. Transitions written with `Write` would fire a full validation pass after every marking — a validation storm on an advisory metadata update. An `Edit` of the single `status:` line does not trigger the hook.
+2. **The same value in every artifact of the story that carries frontmatter** — `story.md`, `design.md`, `tasks.md`, whichever exist (a Fast story has only tasks.md). One story, one lifecycle state: artifacts declaring different values raise a validation warning naming them. An artifact with no frontmatter is skipped — there is no line to edit, and its silence is never counted as divergence.
+3. **Legacy story with no `status:` field — the `Edit` adds it.** Most existing stories predate the field; absence is legal, silent, and never an error. Insert `status: <value>` as a new line inside the frontmatter block, before the closing `---`, in each artifact that has one.
+4. **Add only the state this run observed.** The value added is what the engine just saw: a marking that leaves work open is `in-progress`; a marking that satisfies rule 1 is `done`. Never back-date `draft` onto a story the engine never saw created, and never write an intermediate value the run did not observe — a legacy story whose first marking also completes it goes straight from no field to `done`, in one write. The field is worth having only because it is evidence; a fabricated prior state is exactly the lie it exists to prevent.
+5. **A failed write is reported, and the run continues.** If an `Edit` cannot be applied — no frontmatter block, the line is not where expected, a concurrent edit conflicts — report it in the Run output and carry on. `status:` is advisory metadata and must never block the run that is producing the actual work.
+
+**Dry run.** `042-legacy-import`: three artifacts (`story.md`, `design.md`, `tasks.md`), none carrying `status:` — a legacy story.
+
+```
+tasks.md at the start                       status: in all three artifacts
+
+- [ ] 1 - Import pipeline                   (absent)
+  - [ ] 1.1 - Parse the vendor CSV
+  - [ ] 1.2 - Load into staging
+- [ ] 2 - Cutover
+  - [ ] 2.1 - Switch the production reader
+## Quality Gates
+- [ ] Schema diff reviewed by the data owner
+- [ ] Load test at 1k rps
+
+1. Run starts. Nothing marked yet -> no census, no write.
+   status: still absent. CREATE never ran on this story, so there is no `draft`
+   to back-date: the run has observed nothing, so it records nothing.
+
+2. 1.1 passes its reviews -> mark `- [x] 1.1`.
+   Census: 6 open, 0 deferred -> rule 1 no. status: absent -> RULE 2.
+   Edit story.md, design.md, tasks.md: add `status: in-progress`.
+   validate-story.sh -> 0 errors, 0 warnings.
+
+3. 1.2 passes -> mark `- [x] 1.2`, and `- [x] 1` now that its children are closed.
+   Census: 4 open -> rule 1 no. status: in-progress -> rule 2 no.
+   RULE 3: nothing written.
+
+4. 2.1 passes -> mark `- [x] 2.1`, `- [x] 2`.
+   Census: 2 open (both Quality Gates) -> rule 1 no. RULE 3: nothing written.
+
+5. End-of-Run quality gates settled -> `- [x] Schema diff reviewed by the data owner`,
+   `- [~] Load test at 1k rps (waived: no load-test rig on this host — user decision)`.
+   Census: 0 open, 0 deferred (the waived gate is terminal, so it counts closed)
+   -> RULE 1.
+   Edit all three artifacts: status: in-progress -> done.
+   validate-story.sh -> 0 errors, 0 warnings.
+```
+
+The same run, with one box deferred instead:
+
+```
+4'. 2.1 cannot be executed here — the vendor's production account does not exist yet.
+    Mark `- [~] 2.1 - Switch the production reader (deferred: needs the vendor's
+    production account)` and `- [x] 2`.
+
+5'. Quality gates settled exactly as in step 5.
+    Census: 0 open, 1 deferred -> rule 1 does NOT fire.
+    status: in-progress -> rule 2 no. RULE 3: nothing written.
+    The story stays `in-progress`. LIST renders it
+    `in-progress · done-except-external (1 deferred)`.
+    validate-story.sh -> 0 errors, 0 warnings.
+```
+
+Metadata lines and the `Objective`, `Validation`, `Requirements` and `Commit` fields are elided from both listings: they carry no checkbox and never enter the census.
 
 ### Commit Sub-tasks
 
@@ -463,7 +544,8 @@ If confirmed:
 - **Context is fresh** — each Executor reads files directly. The orchestrator passes only metadata (paths, deviations, discoveries) between tasks.
 - **Commit granularity** — follow the Commit fields defined in tasks. Never commit in the middle of a task group unless a Commit sub-task says so.
 - **Completion** — a story is **complete** when **no `[ ]` remains**: it is **`done`** when every box is `[x]` or terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), and **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`. `done-except-external` is computed at read time, never written to a file. Progress reads `closed/total (+D deferred)`. See [tasks.md](tasks.md#completion)
-- **Quality gates check** — after all tasks complete (or after the last requested task), run through quality gates and report status
+- **Lifecycle status** — Run mode writes `status: in-progress` when a marking finds the field absent or `draft`, and `status: done` when a marking leaves no `[ ]` and no deferred `[~]`. Always with `Edit` on the frontmatter line, never `Write`; the same value in every artifact that carries frontmatter; on a legacy story the `Edit` adds the field with the state this run observed, never a back-dated one. A failed write is reported and the run continues. See Status Transitions
+- **Quality gates check** — after all tasks complete (or after the last requested task), run through quality gates and report status. Settling a gate box is a marking like any other: apply the status transition after it, since it is usually the marking that closes the story's last box
 - **Validator integration** — after all requested tasks complete, optionally spawn the Validator sub-agent for verification. Ask: "All tasks completed. Run Validator to verify? (y/n)"
 
 ## Progress Tracking

@@ -460,8 +460,15 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
   scale: fast | standard | full
   version: 1
   created: <date>
+  status: draft
   ---
   ```
+- `status: draft` applies to **newly created stories only**. Never add the field
+  to a story that already exists — an existing story's state is whatever the
+  engine observed, and CREATE observed nothing about it. See
+  [Lifecycle Status](#lifecycle-status-status) for the full field spec.
+- Refine does not write `status:` — it is not one of the field's writers. A
+  refined story keeps whatever value it already carried, including none.
 - On Refine, increment version and add history entry:
   ```yaml
   ---

@@ -19,7 +19,7 @@ A computed condition is appended after a `·`. It is derived from the boxes at r
 |---|---|---|
 | `done-except-external` | no `[ ]` remains and at least one box is `[~] (deferred: …)` | `done-except-external (N deferred)` |
 
-So `done · done-except-external (2 deferred)` reads: the file says `done`, the boxes say two items are still owed by an actor outside this repo.
+So `in-progress · done-except-external (2 deferred)` reads: the file says `in-progress`, the boxes say nothing is open here and two items are still owed by an actor outside this repo. The pairing is the normal one — Run mode writes `done` only when no `[ ]` and no deferred box remains (R1.3), so a story waiting on an external actor keeps `in-progress` until that work lands. The persisted enum has no value for "done except external"; that is deliberate, and the reason the condition is computed rather than stored.
 
 **Progress renders as `closed/total`, plus `(+D deferred)` when D > 0** — and only then. By the census in [tasks.md](tasks.md#completion), `closed` is `[x]` plus terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), so a waived gate closes its box and a finished story reads `5/5`, never an eternal `4/5`. Deferred boxes are closed too, but counted apart: that work is settled in the plan and still owed in the world.
 
@@ -35,7 +35,7 @@ Stories in .epic/stories/:
      standard | feature | v1 | in-progress | Tasks: 4/8 (+1 deferred) | Gates: 0/5
 
   003-payment-webhooks
-     standard | feature | v1 | done · done-except-external (2 deferred) | Tasks: 4/6 (+2 deferred) | Gates: 5/5
+     standard | feature | v1 | in-progress · done-except-external (2 deferred) | Tasks: 4/6 (+2 deferred) | Gates: 5/5
 
   004-legacy-import
      standard | feature | v1 | — | Tasks: 1/4 | Gates: 0/5
@@ -64,7 +64,7 @@ Same as summary, plus expand each story's task list showing checkbox state, task
 Render every box as the file writes it, qualifier included. Under the gate count, list the gates that are not `[x]`: the count says a gate is settled, the line says how it was settled.
 
 ```
-003-payment-webhooks (standard, feature, v1) | done · done-except-external (2 deferred) | Tasks: 4/6 (+2 deferred)
+003-payment-webhooks (standard, feature, v1) | in-progress · done-except-external (2 deferred) | Tasks: 4/6 (+2 deferred)
 
   - [x] 1 - Webhook Receiver
     - [x] 1.1 - Signature verification
@@ -84,7 +84,7 @@ Same as detailed view but for one story only. Additionally show:
 - Quality gates status (each gate individually)
 
 ```
-003-payment-webhooks (standard, feature, v1) | done · done-except-external (2 deferred) | Tasks: 4/6 (+2 deferred)
+003-payment-webhooks (standard, feature, v1) | in-progress · done-except-external (2 deferred) | Tasks: 4/6 (+2 deferred)
 
   No pending tasks — complete. Still owed by an external actor:
     - [~] 2.1 - Register the production callback URL (deferred: needs the provider's live account)
