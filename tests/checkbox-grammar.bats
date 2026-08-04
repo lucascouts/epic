@@ -1,11 +1,17 @@
 #!/usr/bin/env bats
-# Story 004, sub-task 2.3 — cross-regression harness (R4.1, R5.1).
+# Story 004, sub-tasks 2.3 and 5.3/5.4 — cross-regression harness (R4.1, R5.1,
+# R3.3, R3.4).
 # ONE mixed fixture ([x] / [ ] / [~] terminal / [~] deferred) is passed
-# through the four checkbox consumers — validate-story.sh, cross-reference.sh,
-# hook-task-completed.sh, monitor-stale.sh — asserting they agree on which
-# boxes exist and which work is open. This pins the quadruplicated regex so
-# one drifted copy cannot silently reopen the false-clean/false-orphan class
-# fixed in e890d02.
+# through the FIVE checkbox consumers — validate-story.sh, cross-reference.sh,
+# hook-task-completed.sh, monitor-stale.sh, hook-precompact.sh — asserting they
+# agree on which boxes exist and which work is open. This pins the duplicated
+# regex so one drifted copy cannot silently reopen the false-clean/false-orphan
+# class fixed in e890d02.
+#
+# The design originally claimed "6 regex places across 4 scripts"; a fifth
+# script (hook-precompact.sh) was found during Run and is covered here plus in
+# tests/hook-precompact-grammar.bats. If a sixth appears, it belongs here too —
+# that is the whole point of a harness over a per-script suite.
 #
 # Mixed fixture totals (the shared truth all four must agree on):
 #   total = 5 boxes · closed = 3 ([x] 1.1, 1.2 + terminal [~] 1.3)
@@ -182,6 +188,53 @@ EOF
     bash "$PLUGIN_ROOT/scripts/monitor-stale.sh"
   [ "$status" -eq 124 ]
   refute_grep '010-mixed'
+}
+
+@test "R4.1: hook-precompact renders the census the other four parse" {
+  cd "$WORK/proj"
+  run bash "$PLUGIN_ROOT/scripts/hook-precompact.sh"
+  [ "$status" -eq 0 ]
+  run grep '^- Tasks:' "$MIXED/.draft/compact-snapshot.md"
+  # Same shared truth as the header: total 5, closed 3, deferred 1.
+  [ "$output" = "- Tasks: 3/5 completed (+1 deferred)" ]
+}
+
+@test "R3.3/R3.4: only-deferred fixture — no work is open, and the deferred box is not hidden" {
+  # The scenario task 3.2 claimed was covered and was not. Close the last [ ]:
+  # what remains is [x] + terminal [~] + one deferred [~]. By the single
+  # completion definition nothing is pending, and the story's computed
+  # condition is done-except-external (1 deferred).
+  sed -i 's/^- \[ \] 1.5/- [x] 1.5/' "$MIXED/tasks.md"
+
+  # A persisted `validated` here must NOT trip the ahead-of-checkboxes warning
+  # (R2.3 counts `[ ]` only) — this is what lets a done-except-external story
+  # go in-progress -> validated, skipping done.
+  sed -i 's/^created: 2026-08-02$/created: 2026-08-02\nstatus: validated/' \
+    "$MIXED/tasks.md" "$MIXED/story.md"
+
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$MIXED"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '"errors": 0'
+  echo "$output" | grep -q '"warnings": 0'
+  refute_grep 'ahead of the checkboxes'
+
+  # cross-reference still traces every requirement, deferred box included.
+  run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" "$MIXED"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -qF '"parseable_tasks": 5'
+  echo "$output" | grep -qF '"coverage": "5/5"'
+
+  # The renderer reports 4 closed of 5, with the one deferred box counted apart
+  # rather than folded into either number.
+  cd "$WORK/proj"
+  run bash "$PLUGIN_ROOT/scripts/hook-precompact.sh"
+  [ "$status" -eq 0 ]
+  run grep '^- Tasks:' "$MIXED/.draft/compact-snapshot.md"
+  [ "$output" = "- Tasks: 4/5 completed (+1 deferred)" ]
+
+  # And nothing is pending: no "Next pending" line is emitted.
+  run grep -c '^- Next pending:' "$MIXED/.draft/compact-snapshot.md"
+  [ "$output" = "0" ]
 }
 
 @test "R5.1: legacy story — validate-story output is byte-identical to the pre-change golden" {
