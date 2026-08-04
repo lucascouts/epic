@@ -10,7 +10,7 @@ Triggered by `/epic:epic stories run NNN`, `/epic:epic stories NNN run all`, or 
    - `run NNN` or `NNN run all` → all pending tasks (those with `[ ]` — a `[~]` box is closed and is never pending)
    - `NNN run N` → specific task N and all its pending sub-tasks
    - `NNN run N.N` → specific sub-task only
-4. **Check dependencies** — if a pending task depends on an uncompleted task, warn the user
+4. **Check dependencies** — if a pending task depends on a task that is not **satisfied**, warn the user. Satisfied is defined once, in [tasks.md](tasks.md#dependency-satisfaction): every box `[x]` or terminal `[~]`, and a `[~] (deferred: …)` dependency is **not** satisfied
 5. **Detect parallel groups** — identify non-blocking tasks (see Parallel Execution)
 6. **Tech stack detection** — scan tasks to build tech profiles (see Tech Stack Detection)
 7. **Materialize pre-authored tests (Standard/Full only)** — before any task execution, copy every file under the story's `.draft/authored-tests/**` into the real test tree at its mirrored path. This step is **idempotent**: if a target test path already exists in the real tree, **skip that file and emit a warning** (it may already exist from a prior Run, a partial `run N.N`, or a manual executor edit — never overwrite it). Files that do not yet exist are copied. Materialization runs once per Run, ahead of step 8. This step applies to **Standard and Full scales only** — they stage Test Advisor-authored tests in `.draft/authored-tests/`. **Fast mode has no `.draft/` staging**: its tests are authored at run time and written straight into the real test tree (see Task Execution Flow), so a Fast Run has nothing to materialize and skips this step. Materialization only **copies** files — it never runs them. A materialized E2E test whose `.draft/red-evidence.yaml` entry carries `red_deferred: true` has its Red confirmed at task-execution time, not here (see Deferred Red for E2E sub-tasks under Task Execution Flow).
@@ -505,14 +505,14 @@ The register is:
 
 ## Parallel Execution
 
-When multiple pending tasks share the same dependency set and all dependencies are complete, these tasks are **non-blocking** relative to each other.
+When multiple pending tasks share the same dependency set and all dependencies are **satisfied** ([tasks.md](tasks.md#dependency-satisfaction) — deliberately not the same test as story *completion*), these tasks are **non-blocking** relative to each other.
 
 ### Detection
 
 1. Build dependency graph from tasks.md parent task `Dependencies` field
-2. Identify parallel group: tasks where all deps are closed (`[x]` or terminal `[~]`) and no task in the group depends on another task in the same group. A dep closed as `[~] (deferred: …)` is **not** satisfied — the work is still owed by an external actor
+2. Identify parallel group: tasks where all deps are **satisfied** ([tasks.md](tasks.md#dependency-satisfaction) — `[x]` or terminal `[~]`; a dep closed as `[~] (deferred: …)` is **not**) and no task in the group depends on another task in the same group
 3. Verify no file conflicts: tasks that modify the same files should NOT be parallelized
-4. Present to user: "Tasks N, M, P are independent (all depend only on completed tasks). Execute in parallel? [y/n]"
+4. Present to user: "Tasks N, M, P are independent (all depend only on satisfied tasks). Execute in parallel? [y/n]"
 
 ### Execution
 

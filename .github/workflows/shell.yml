@@ -30,7 +30,11 @@ jobs:
       - name: Install bats and jq
         run: sudo apt-get update -qq && sudo apt-get install -y bats jq
       - name: Run tests
-        run: bats tests/validate-story.bats tests/cross-reference.bats tests/teams-config.bats
+        # The whole directory, never a hand-maintained list: an enumerated list
+        # silently drops every suite added after it, which is how 6 of 9 suites
+        # went dark here — including the cross-regression harness whose entire
+        # job is to catch checkbox-grammar drift.
+        run: bats tests/
 
   validate-examples:
     name: validate-examples

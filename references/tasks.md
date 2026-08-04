@@ -114,6 +114,15 @@ Counting, for progress and reporting:
 - `deferred` = `[~]` qualified `deferred:`
 - progress renders as `closed/total (+D deferred)` — the `+D` is omitted when `D` is 0
 
+### Dependency Satisfaction
+
+Whether a task may *start* is a different question from whether a story is *complete*, and conflating the two is how a deferred box turns into work built on nothing. One definition, used wherever a `Dependencies` field is read:
+
+- A task is **satisfied** as a dependency when every one of its boxes is `[x]` or **terminal** `[~]` (`waived:`, `n-a:`, `superseded-by:`).
+- A task closed as `[~] (deferred: …)` is **not** satisfied — the plan settled it, the world still owes the work.
+
+This is the **only** place where terminal and deferred `[~]` diverge. Everywhere else — completion, progress, staleness, the `closed` count — both are closed. Note the asymmetry it creates, and that it is intended: a story whose only open boxes are deferred is `done-except-external` (nothing is pending), yet a task depending on one of those boxes must still wait.
+
 ### Metadata Line Fields
 
 The metadata line appears on parent tasks and optionally on sub-tasks (only overridden fields).
