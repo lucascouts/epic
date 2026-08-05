@@ -8,6 +8,7 @@ Triggered by `/epic:epic stories`, `/epic:epic stories full`, or `/epic:epic sto
 2. For each story, read the frontmatter (type, scale, version, status) and parse task checkboxes
 3. Take the checkbox census — `total`, `closed` and `deferred` are defined once, in [tasks.md](tasks.md#completion). Census the task list and the Quality Gates separately: each renders its own pair
 4. Derive the story's computed condition from the census (see Status and Progress)
+5. Refresh the managed index block opportunistically — `bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-index.sh"`; a non-zero exit warns and never blocks the listing (defined once, in [validate-mode.md](validate-mode.md#index-refresh))
 
 ## Status and Progress
 
@@ -95,39 +96,127 @@ Same as detailed view but for one story only. Additionally show:
 
 ## Archive View (`/epic:epic archive`)
 
-List archived stories from `.epic/archive/manifest.yaml`:
+List archived stories from `.epic/archive/manifest.yaml` — the append-only record `archive-story.sh` writes at the moment of each move. Render each row **from the entry's own fields**; never re-derive them by re-reading the archived story. The entry is what the boxes said when the story left `stories/`, and re-deriving it is how a rendering starts disagreeing with the record it claims to render.
 
 ```
 Archived stories:
 
-  001-fruit-management-api  | archived 2026-03-15 | complete
-  002-user-dashboard        | archived 2026-03-20 | complete
+  001-fruit-management-api  | archived 2026-03-15 | validated  | 11/11
+  003-payment-webhooks      | archived 2026-08-05 | validated  | 5/7 (+2 deferred)
+  004-legacy-import         | archived 2026-08-05 | in-progress | 1/2 (forced: superseded by the new bulk loader)
 ```
 
-## Archive Command (`/epic:epic stories archive NNN[-MMM]`)
+- `archived_at` is a full ISO-8601 timestamp — render the date part.
+- `status` is the story's **own frontmatter status as it read at move time**, never a verdict the archive invented. A `--force`d archive of unfinished work therefore says `in-progress`, and shows its open boxes.
+- `forced_reason` is present only on a forced entry. Always show it: it is the only record that a refusal was overridden, and by whom for what.
+- Progress renders `tasks_closed/tasks_total`, plus `(+N deferred)` when `tasks_deferred > 0` — the manifest's own three numbers. Note they partition differently from the census above: the manifest counts **every** `[~]` as `tasks_deferred`, where this mode's Progress column folds terminal `[~]` into `closed`. One grammar, two aggregations — see the contract below.
 
-Move completed stories to `.epic/archive/`:
+## Archive Command (`/epic:epic stories archive NNN[-MMM]|--done`)
+
+**Archiving is one script, never a manual move.** [`scripts/archive-story.sh`](../scripts/archive-story.sh) runs preflight → guards → prune → derived manifest entry → move → index regeneration as one fail-closed sequence. This mode resolves *which* stories to archive and calls it once per story. It never moves a directory itself and never writes a manifest entry itself: an entry written by hand can claim a completion the checkboxes contradict, which is precisely what the old prose procedure allowed.
 
 ```
-/epic:epic stories archive 001          ← archive story 001
-/epic:epic stories archive 001-005      ← archive stories 001 through 005
-/epic:epic stories archive --done       ← archive every complete story (no `[ ]` remains)
+/epic:epic stories archive 001          ← story 001
+/epic:epic stories archive 001-005      ← stories 001 through 005
+/epic:epic stories archive --done       ← every complete story
 ```
 
-Procedure:
-1. Verify the story exists and is **complete** — no `[ ]` box remains, in the task list or in the Quality Gates. `[x]` and terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`) both close a box; see [tasks.md](tasks.md#completion)
-   - If any `[ ]` remains: warn with the census (`closed/total`) and require the `--force` flag to proceed
-   - A `done-except-external` story clears the gate — nothing is open — and is reported with its deferred count, so work owed outside this repo is stated rather than buried
-2. Move directory from `.epic/stories/NNN-name/` to `.epic/archive/NNN-name/`
-3. Update or create `.epic/archive/manifest.yaml` with entry:
-   ```yaml
-   archived:
-     - number: "001"
-       name: fruit-management-api
-       archived_at: 2026-04-02
-       status: complete
-       tasks_total: 11
-       tasks_completed: 11
-   ```
-4. Numbers are NEVER recycled — new stories always get the next highest number
-5. Report: "Story NNN archived to `.epic/archive/NNN-name/`"
+### Resolving the argument
+
+**One story per invocation.** The script accepts exactly one story and rejects a second positional argument with exit 2. Ranges and `--done` are expanded *here* and the script is called once per story, in ascending number order.
+
+| Argument | Expands to |
+|---|---|
+| `NNN` | that one story |
+| `NNN-MMM` | every existing story in the inclusive range; a number with no directory is skipped, not an error |
+| `--done` | every story in `.epic/stories/` that is **complete** — no `[ ]` box remains, in the task list or in the Quality Gates. `[x]` and terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`) both close a box; see [tasks.md](tasks.md#completion) |
+
+A `done-except-external` story clears that gate — nothing is open — and is reported with its deferred count, so work owed outside this repo is stated rather than buried. If any `[ ]` remains, the story is **not** `--done`; archiving it anyway is the user's explicit `--force <reason>` decision, never this mode's.
+
+**One verdict per story, and a batch never stops on one.** Each call returns its own verdict; a `blocked` or `refused` story is reported and the batch continues with the next number. Surface every verdict exactly as [validate-mode.md](validate-mode.md#archive-offer) prescribes — that table is the single definition of how each `status` is presented, here and at the offer. Close a batch with a one-line tally (`archived N, blocked M, refused K`) so a partial sweep is visible as a partial sweep.
+
+### Invocation and flags
+
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/archive-story.sh" <NNN|story-dir> [flags]
+```
+
+The story number (`003`) resolves against the nearest `.epic/`; a directory path also works.
+
+| Flag | Effect | Recorded as |
+|---|---|---|
+| `--allow-heavy` | Archive despite files >10 MB or non-text | `overrides_used: ["allow-heavy"]` |
+| `--skip-secrets` | Skip the secrets scan entirely | `overrides_used: ["skip-secrets"]` |
+| `--keep-logs` | Keep `.draft/logs/` instead of collapsing it | `overrides_used: ["keep-logs"]` |
+| `--keep-copies` | Keep `.draft/` files identical to their promoted sibling | `overrides_used: ["keep-copies"]` |
+| `--force <reason>` | Archive an incomplete story. **The reason is required** — omitting it is exit 2 | `overrides_used: ["force"]` + `forced_reason: "<reason>"` |
+| `--help`, `-h` | Usage on stdout, exit 0 | — |
+
+**Never add a flag on the engine's own initiative.** Every flag is a user decision and every one is recorded permanently in the manifest entry; an override the engine chose for itself is an override nobody agreed to. A blocked archive is reported, not retried with the guard turned off.
+
+### Output and exit codes
+
+**One JSON object on stdout, every diagnostic on stderr** — so stdout pipes straight into `jq`. Keys: `story`, `path`, `status`, `moved`, `reason`, `tasks{total, closed, deferred, open}`, `pruned{logs_kb, copies_removed}`, `guard{violations[]}`, `secrets{}`, `index`, `overrides_used[]`, `manifest_entry{}`.
+
+| Exit | `status` | Meaning |
+|---|---|---|
+| 0 | `archived` | The move completed |
+| 1 | `blocked` | A guard hit — **nothing was moved** |
+| 1 | `refused` | Preflight said no (already archived, incomplete without `--force`, not a story directory) — **nothing was moved** |
+| 2 | — | Invalid input, and **no JSON is printed at all**: stderr only |
+
+`index` reads `ok`, `regen-failed` or `skipped`. `regen-failed` is a warning, never a failure — the index is a *rendering* of the move (see [validate-mode.md](validate-mode.md#index-refresh)), so the archive stands and the next refresh retries. `skipped` means the run never reached that step, which is the normal value on `blocked` and `refused`.
+
+### Guards — nothing destructive runs until both pass
+
+| Guard | Blocks on | Absent / skipped |
+|---|---|---|
+| **Weight and binary** (always on) | any file >10 MB, or any non-text file (NUL bytes) | `--allow-heavy` overrides, and the override is recorded |
+| **Secrets** (`gitleaks`, when installed) | any finding — reports the count and the report path | Scanner **absent** → proceed with a note (`secrets.scanned: false`, `secrets.skipped` says why). Scanner **ran and failed** → block: a scan that errored proved nothing. `--skip-secrets` skips it, recorded |
+
+`guard.violations[]` holds **objects**, not sentences: `{file, size, reason}` per offender, with `size: null` when it could not be established — a size that was never measured must not read as a measurement that came back zero. `secrets{}` keeps one uniform shape on every path (`scanner`, `scanned`, `findings`, `unscanned_files`, `report`, `skipped`, `error`), because "scanned and clean" and "nobody looked" must never be indistinguishable in a permanent record.
+
+### Pruning (after the guards, before the move)
+
+- `.draft/logs/` collapses into a single `.draft/logs-summary.md`; the freed size lands in `pruned.logs_kb`. Override: `--keep-logs`.
+- `.draft/` files **byte-identical** to their promoted sibling are removed; the count lands in `pruned.copies_removed`. Override: `--keep-copies`.
+
+Both are default-on because archived evidence is kept forever: the corpus archived 55 MB of run logs and several exact duplicates of files that were already promoted next to them.
+
+### The manifest entry — derived, never declared
+
+`.epic/archive/manifest.yaml` is created on first use with a comment header carrying the never-recycle policy, then appended to — one entry per archived story, written by this script only. Every field is derived from the story's own artifacts at move time:
+
+```yaml
+archived:
+  - story: "003-payment-webhooks"
+    number: "003"
+    slug: "payment-webhooks"
+    type: "feature"
+    scale: "standard"
+    status: "validated"
+    tasks_total: 7
+    tasks_closed: 5
+    tasks_deferred: 2
+    tasks_open: 0
+    deferred_items:
+      - "2.1 — Register the production callback URL (deferred: needs the provider's live account)"
+      - "2.2 — Verify the first live event (deferred: needs a real payment in production)"
+    archived_at: "2026-08-05T14:43:19-03:00"
+    pruned:
+      logs_kb: 15
+      copies_removed: 1
+    overrides_used: []
+```
+
+- `status` is the story's frontmatter value, not a verdict — a forced archive records `in-progress` and the open count beside it.
+- `tasks_*` partition the census: `closed + deferred + open == total`, where `deferred` is **every** `[~]` box whatever its qualifier. That is deliberately not this mode's Progress aggregation (which folds terminal `[~]` into `closed`) — one grammar, one aggregation per consumer, and the manifest's job is three disjoint numbers.
+- `deferred_items[]` records one `N.N — title (qualifier: reason)` line per `[~]`. A count alone tells a future reader nothing about what is still owed.
+- `forced_reason` appears only when `--force` was used.
+- The same object is echoed in the report's `manifest_entry` key, rendered from the very scalars written to the file, so stdout and the file cannot drift.
+
+**Numbers are NEVER recycled.** A new story always takes the next highest number, even when a lower one now exists only in this file — once a story leaves `stories/`, the manifest is the only place that still knows the number was used.
+
+### After the move
+
+The script sets `status: archived` in the moved artifacts' frontmatter and regenerates the managed index block as its final step, so the story's row retargets into `.epic/archive/` automatically ([validate-mode.md](validate-mode.md#index-refresh)). Everything under `.epic/archive/` is read-only for the `Edit` and `Write` tools — `scripts/hook-archive-guard.sh` blocks them — and this script is the one sanctioned path in.

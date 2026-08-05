@@ -74,7 +74,7 @@ Run `/reload-plugins` after updating plugin files.
 | `EnterWorktree.path` (switch into existing worktree) | **2.1.105** | Tool only creates new worktrees |
 | `PreCompact` + `SessionStart(compact)` hooks (context recovery) | **2.1.105** | No automatic snapshot/restore around compactions; drafts still work |
 | Plugin monitors (`monitors/monitors.json`, `when:` field) | **2.1.105** | Monitor never starts; stale-story detection unavailable |
-| Plugin `bin/` executables on PATH | **2.1.91** | `epic-validate`/`epic-xref` not exposed; call scripts directly |
+| Plugin `bin/` executables on PATH | **2.1.91** | `epic-validate`/`epic-xref`/`epic-archive` not exposed; call scripts directly |
 | Output style `keep-coding-instructions: true` | **2.1.94** | Activating `/output-style epic` may override skill directives |
 | `PermissionDenied` hook with `{retry: true}` | **2.1.89** | MCP retry-on-deny disabled; user sees raw permission errors |
 | `PreToolUse` `permissionDecision: "defer"` (headless commit gating) | **2.1.89** | `hook-defer-commit.sh` is a no-op in CI |
@@ -125,7 +125,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/` (gitignored by default; keep o
 | `/epic:epic stories run NNN --gate=commit` | Gate only at Commit sub-tasks |
 | `/epic:epic stories validate NNN` | Run Validator + Auditor on NNN |
 | `/epic:epic stories refine NNN` | Delta refinement (versioned) |
-| `/epic:epic stories archive NNN` | Move completed story to `.epic/archive/` |
+| `/epic:epic stories archive NNN[-MMM]\|--done` | Archive completed stories via `scripts/archive-story.sh` — guarded move, pruned evidence, derived manifest entry |
 | `/epic:epic stories teams {status\|enable\|disable}` | Manage the experimental agent-teams flag (opt-in, per-project) |
 
 ---
@@ -160,7 +160,7 @@ epic/
 ├── hooks/hooks.json             # 7 hook events, all if:-filtered or matcher-scoped
 ├── monitors/monitors.json       # opt-in background watcher (stale stories)
 ├── output-styles/epic.md        # optional structured output style
-├── bin/                         # PATH-exposed wrappers (epic-validate, epic-xref)
+├── bin/                         # PATH-exposed wrappers (epic-validate, epic-xref, epic-archive)
 ├── references/                  # mode-specific operational guides
 ├── scripts/                     # bash validators + hook scripts + monitor + eval runner
 ├── assets/examples/             # reference outputs for each scale
@@ -186,7 +186,7 @@ Use `--strict` in CI gates for stories expected to be production-ready (promotes
 bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" .epic/stories/001-feature/ --cross-ref --strict
 ```
 
-When the plugin is active, the scripts are also on PATH as `epic-validate` and `epic-xref`.
+When the plugin is active, the scripts are also on PATH as `epic-validate`, `epic-xref` and `epic-archive`.
 
 Generate stories programmatically with the Agent SDK:
 

@@ -564,6 +564,20 @@ If confirmed:
 - **Lifecycle status** — Run mode writes `status: in-progress` when a census finds the field absent or `draft`, or finds an open `[ ]` on a story reading `done` or `validated` (the reopen edge, R1.7), and `status: done` when a marking leaves no `[ ]` and no deferred `[~]`. Always with `Edit` on the frontmatter line, never `Write`; the same value in every artifact that carries frontmatter; on a legacy story the `Edit` adds the field with the state this run observed, never a back-dated one. A failed write is reported and the run continues. See Status Transitions
 - **Quality gates check** — after all tasks complete (or after the last requested task), run through quality gates and report status. Settling a gate box is a marking like any other: apply the status transition after it, since it is usually the marking that closes the story's last box
 - **Validator integration** — after all requested tasks complete, optionally spawn the Validator sub-agent for verification. Ask: "All tasks completed. Run Validator to verify? (y/n)"
+- **Archive offer** — when the run ends with the story transitioned to `done` (rule 1 of Status Transitions wrote it in this run), offer `Archive story NNN? [y/n]`; on `[y]` run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/archive-story.sh" <story-dir>` and surface its JSON verdict in full — `blocked` and `refused` included, verbatim, since a refusal nobody sees is the failure this offer exists to end. In a **headless** session do not pause: log the suggestion and proceed. **The offer is defined once**, in [validate-mode.md](validate-mode.md#archive-offer) — gate, prompt text, the deferred-items variant, verdict surfacing and the headless branch all live there, and Run mode reuses them unchanged
+- **Index refresh** — regenerate the managed index block at the end of a completed run: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-index.sh"`. Defined once, in [validate-mode.md](validate-mode.md#index-refresh); a non-zero exit warns and never gates the run
+
+### End of Run — Validator, archive, index
+
+A completed run finishes with these three steps, in this order:
+
+1. **Validator offer** — "All tasks completed. Run Validator to verify? (y/n)"
+2. **Archive offer** — made here **only** when the Validator offer was declined or not made. If the user accepted it, VALIDATE runs and makes the archive offer at its own pass point ([validate-mode.md](validate-mode.md#archive-offer), step 3 of the ordering table), where the gate is true anyway because the pass has just written `validated`. The user is asked once, not twice
+3. **Index refresh** — last, for the same reason it is last at the pass point: it renders what the steps before it changed. A zero-diff no-op when VALIDATE already refreshed it
+
+**The trigger is the transition, not the census.** Run mode offers the archive only when *this run* wrote `done` — rule 1 of Status Transitions. A run that ends with the story still `in-progress`, or that changed no status at all, makes no offer: the offer marks the moment a story became finished, and a story that was already `done` before the run started did not become finished here.
+
+**`done-except-external` never reaches this offer.** Rule 1 writes `done` only when no `[ ]` **and** no deferred `[~]` remains, so a story whose computed condition is `done-except-external` stays `in-progress` and is never offered the archive by Run mode — the deferred-items variant of the prompt is unreachable from here **by construction**, not by omission. It is reachable from VALIDATE, where such a story can pass and take the `in-progress → validated` edge documented in [validate-mode.md](validate-mode.md#status-transition-validated). The asymmetry is deliberate: the offer follows the transition, and only one of the two modes can transition a story that still owes work to the outside world.
 
 ## Progress Tracking
 

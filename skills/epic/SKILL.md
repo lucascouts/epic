@@ -188,7 +188,8 @@ $ARGUMENTS parsing:
   → REFINE mode (delta workflow on story NNN)
 
 "stories archive NNN[-MMM]|--done"
-  → ARCHIVE mode (move completed stories to archive)
+  → ARCHIVE mode (delegates to scripts/archive-story.sh, one call per story;
+    a range or --done is expanded here — the script takes exactly one story)
 
 "stories teams {status|enable|disable}"
   → TEAMS mode (manage experimental agent-teams flag for this project)
@@ -226,7 +227,7 @@ When a command references `NNN`:
 | **Run** | `/epic:epic stories run NNN` or `NNN run N\|all` | Load [run-mode.md](../../references/run-mode.md) |
 | **Validate** | `/epic:epic stories validate NNN` | Load [validate-mode.md](../../references/validate-mode.md) |
 | **Refine** | `/epic:epic stories refine NNN` | Load [refine-mode.md](../../references/refine-mode.md) |
-| **Archive** | `/epic:epic stories archive NNN` | Load [list-mode.md](../../references/list-mode.md) (archive section) |
+| **Archive** | `/epic:epic stories archive NNN[-MMM]\|--done` | Load [list-mode.md](../../references/list-mode.md) (Archive Command) — the mode resolves which stories to archive and calls `scripts/archive-story.sh` once per story; it never moves a directory or writes a manifest entry itself |
 | **Teams** | `/epic:epic stories teams {status\|enable\|disable}` | Load [teams-mode.md](../../references/teams-mode.md) |
 | **Expand** | User says "based on", "extends" existing story | Create new story referencing source |
 | **CI/Headless** | Programmatic invocation via Agent SDK | Load [ci-mode.md](../../references/ci-mode.md) |

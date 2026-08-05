@@ -81,6 +81,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 5. Present combined results to the user
 6. If gaps found, offer to create new tasks to address them
 7. Apply the status transition for this verdict — see Status Transition (`validated`)
+8. On a passing verdict, offer the archive and refresh the index — see Ordering at the pass point, then Archive Offer and Index Refresh
 
 ## Status Transition (`validated`)
 
@@ -104,12 +105,98 @@ Apply the first rule that matches:
 
 **design.md's state diagram does not draw that edge** — it shows only `done --> validated`. The edge falls out of the acceptance criteria all the same: R1.3 withholds `done` while a deferred box remains, R1.4 grants `validated` on a passing verdict. It is written down here rather than left implicit because an undocumented edge in a state machine is how the next maintainer gets it wrong.
 
-**Ordering at the pass point.** Three things happen on a passing verdict, in this fixed order. Only step 2 exists today — steps 1 and 3 are slots, named here so the order is settled before their behavior lands.
+**Ordering at the pass point.** Four things happen on a passing verdict, in this fixed order. Steps 2, 3 and 4 exist today — step 1 is still a slot, named here so the order is settled before its behavior lands.
 
 | # | Step | Owner | Why here |
 |---|---|---|---|
 | 1 | Integration warning — validation passed but the story's work is not integrated into the main branch | story 006, **not implemented** | The caveat reaches the user before anything acts on the verdict |
 | 2 | The status write above (`validated`) | this section | — |
-| 3 | Archive offer, gated on a status of `done` or `validated` | story 005, **not implemented** | Its gate is true only once step 2 has written the value — which is why the gate reads `done` or `validated`, and not `done` alone |
+| 3 | Archive offer, gated on a status of `done` or `validated` | Archive Offer, below | Its gate is true only once step 2 has written the value — which is why the gate reads `done` or `validated`, and not `done` alone |
+| 4 | Index refresh — regenerate the managed block in `.epic/EPIC.md` | Index Refresh, below | It renders what steps 2 and 3 changed: the new status, and the story's new location when the archive was accepted |
 
-Do not implement steps 1 or 3 here. This section fixes their order and the reason for it; stories 005 and 006 own the behavior.
+Do not implement step 1 here — story 006 owns that behavior. This section fixes the order and the reason for it.
+
+## Archive Offer
+
+Step 3 of the pass point, and **the single definition of the offer**. Run mode makes the same offer at its own trigger and reuses this section unchanged (see [run-mode.md](run-mode.md#end-of-run--validator-archive-index)); a second copy of a prompt that spends guards is how one of the copies ends up spending them differently.
+
+**Why here.** Archiving is Epic's most-skipped step — absent in 20 of 26 real projects — and the one archive that happened organically happened exactly here, glued to a passing validate. Offering it anywhere else asks the user to remember; offering it here asks them to confirm.
+
+### Gate
+
+Offer when **both** hold:
+
+1. The verdict is a pass **and no `[ ]` remains** — rule 1 of the status table above.
+2. `status:` reads **`done` or `validated`** after step 2.
+
+The field can still read `done` at this point even though rule 1 writes `validated`: a failed status write is reported and the flow continues, and an advisory write that failed must not also cost the user the offer. That is the whole reason the gate reads `done` **or** `validated`.
+
+**A partial pass never offers.** Rule 2 — a pass with at least one `[ ]` still open — writes no status and makes no offer, whatever the field already says. `archive-story.sh` would not stop it either: its completion check is an **OR** (frontmatter `status` of `done`/`validated`/`superseded` **or** no `[ ]` remaining), so a story left reading `validated` by an earlier pass satisfies preflight with an open box still in the file. The gate is therefore ours to hold. The offer means *this story is finished*, and proposing the archive over open work is the archive-with-a-false-stamp this story exists to end.
+
+### The prompt
+
+```
+Archive story NNN? [y/n]
+```
+
+When the census shows deferred boxes — the computed condition `done-except-external`, defined once in [tasks.md](tasks.md#completion) — list them under the question, so the user accepts with the outstanding work in view:
+
+```
+Archive story 003? [y/n]
+  Still owed by an external actor (2 deferred):
+    - 2.1 — Register the production callback URL (deferred: needs the provider's live account)
+    - 2.2 — Verify the first live event (deferred: needs a real payment in production)
+```
+
+Render each line as `N.N — title (qualifier: reason)` — the exact shape `archive-story.sh` derives into the manifest entry's `deferred_items[]`, so what the offer shows is what the archive will record.
+
+**The items are shown, never passed.** On acceptance the offer hands the script **no** item list and no counts: `archive-story.sh` derives `deferred_items[]`, `tasks_total`, `tasks_closed` and `tasks_deferred` from the checkboxes itself. Declaring them at the call site would rebuild the hand-declared manifest this story replaced — a manifest that can contradict the boxes it summarizes.
+
+### On `[y]`
+
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/archive-story.sh" <story-dir>
+```
+
+The story number (`005`) works in place of the directory — it resolves against the nearest `.epic/`. Pass **no flags**. `--allow-heavy`, `--skip-secrets`, `--keep-logs`, `--keep-copies` and `--force <reason>` are the user's decisions and each is recorded in the manifest entry as an override: an override the engine chose for itself is an override nobody agreed to. Never re-run a blocked archive with a guard flag on your own initiative — report the verdict and let the user ask for the override by name.
+
+The script prints **one JSON object on stdout**, diagnostics on stderr. Surface the verdict by its `status`:
+
+| Exit | `status` | Surface |
+|---|---|---|
+| 0 | `archived` | The move is done. Report `path`, `tasks{}`, `pruned{logs_kb, copies_removed}`, `overrides_used[]` when non-empty, and `secrets` — including a `skipped` scan, because a scan that did not happen is part of the verdict. `index: "regen-failed"` is a warning, not a failure: the story is archived and the next refresh retries |
+| 1 | `blocked` | A guard stopped it. Report `reason` plus every `guard.violations[]` entry (`file`, `size`, `reason`) and `secrets` (`findings`, `report`) verbatim. **Nothing was moved** |
+| 1 | `refused` | Preflight said no — already archived, incomplete without `--force`, not a story directory. Report `reason` verbatim. **Nothing was moved** |
+| 2 | — | Invalid input, and **no JSON is printed at all**. Report the stderr message: this is a bad invocation, not a user decision |
+
+**Never swallow a `blocked` or a `refused`.** Report the verdict in full, including the offending files and the findings count. A refusal the user cannot see is indistinguishable from an archive that happened — which is precisely how 20 of 26 projects ended up with no archive and nobody noticing.
+
+### On `[n]`
+
+One line, no argument, no second ask: the story stays in `.epic/stories/`. The offer returns on the next passing verdict, and `/epic:epic stories archive NNN` runs the same script at any time.
+
+### Headless
+
+**Headless / non-interactive session:** do **not** pause and do **not** call `AskUserQuestion`. Emit the offer as a logged note and proceed immediately — the archive is never performed without an accepted offer. The suggestion is informative, never gating, in a headless session. This is the same rule, in the same shape, that [preferred-tooling.md](preferred-tooling.md#no-favorite-available) applies to its install recommendation, and it reads the same session signal: `TaskCreate` present = interactive, per [SKILL.md](../skills/epic/SKILL.md#runtime-dependency-precheck-mandatory-before-standardfull-triage).
+
+The note names the command, so a logged suggestion is still actionable:
+
+```
+Archive suggestion: story 003 is validated and complete (2 deferred, still owed
+externally). To archive it, run:
+  bash "${CLAUDE_PLUGIN_ROOT}/scripts/archive-story.sh" 003
+```
+
+## Index Refresh
+
+Step 4 of the pass point, and **the single definition of the completion-time refresh** — Run mode invokes it at the end of a completed run and LIST refreshes it opportunistically, both pointing here.
+
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-index.sh"
+```
+
+It regenerates the managed block between the `<!-- epic:index:start -->` / `<!-- epic:index:end -->` markers in `.epic/EPIC.md` and preserves every byte outside them.
+
+**Why it runs last.** It renders state, so it must run after the state changes: after step 2's `status:` write, and after step 3 resolves. An accepted archive moved the directory and `archive-story.sh` already regenerated the block as its own final step — the refresh is then a zero-diff no-op, which is exactly what idempotent buys here. A declined offer leaves only the new status to render.
+
+**A non-zero exit warns and never gates the verdict.** Exit 1 is a failed regeneration (a broken marker pair, an unreadable or unwritable file — the file is left untouched); exit 2 is invalid input. The index is a rendering of the truth, not the truth: a stale rendering is never a reason to hold, delay or reverse a verdict, and the next refresh retries.

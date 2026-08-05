@@ -65,7 +65,7 @@ The plugin surface maps to Claude Code's extension points:
 | `hooks/hooks.json` | Hooks | 9 hook events, each `if:`-filtered to `.epic/**` paths or tool-arg patterns. |
 | `monitors/monitors.json` | Monitors | Opt-in stale-story watcher (requires CC 2.1.105+). |
 | `output-styles/epic.md` | Output style | Optional structured presentation mode. |
-| `bin/` | PATH executables | `epic-validate`, `epic-xref` — thin wrappers over `scripts/`. |
+| `bin/` | PATH executables | `epic-validate`, `epic-xref`, `epic-archive` — thin wrappers over `scripts/`. |
 | `scripts/` | — | Bash implementations behind hooks, bin, and CI. |
 | `references/` | — | Mode-specific operational guides loaded on-demand by the skill. |
 | `.claude-plugin/plugin.json` | Manifest | Plugin metadata + `userConfig` schema. |
