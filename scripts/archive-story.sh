@@ -23,14 +23,14 @@
 # before every guard has passed, the manifest entry is appended BEFORE the move,
 # and index regeneration is last.
 #   1. preflight ................ sub-task 1.1  (implemented)
-#   2. weight/binary guard ...... sub-task 2.1   (stub)
-#   3. secrets guard ............ sub-task 2.2   (stub)
+#   2. weight/binary guard ...... sub-task 2.1  (implemented — R1.2/R1.4)
+#   3. secrets guard ............ sub-task 2.2  (implemented — R1.3/R1.4/R1.8)
 #   4. prune .draft ............. sub-tasks 3.1 / 3.2 (stub)
 #   5. manifest append .......... sub-task 1.2  (implemented — before the move, R3.4)
 #   6. move ..................... sub-task 1.3  (implemented — git mv / mv, R6.1/R6.2)
 #   7. status: archived ......... sub-task 1.3  (implemented)
 #   8. index regeneration ....... sub-tasks 4.1 / 4.2 (stub)
-# Steps 2-4 and 8 are not implemented yet; each is a marked stub below.
+# Steps 4 and 8 are not implemented yet; each is a marked stub below.
 
 set -euo pipefail
 
@@ -63,8 +63,8 @@ when its `## Verdict` status is `wont-do`, or `promote` with a `promoted-to:`
 reference recorded.
 
 Output: JSON on stdout — {story, path, status, moved, reason, tasks, pruned,
-guard{violations}, secrets, index, overrides_used, manifest_entry}.
-Diagnostics on stderr.
+guard{violations[{file, size, reason}]}, secrets, index, overrides_used,
+manifest_entry}. Diagnostics on stderr.
 
 Exit codes:
   0  Story archived (move completed)
@@ -86,6 +86,11 @@ PRUNED_COPIES=0
 INDEX_STATE="skipped"  # ok | regen-failed | skipped (step 8 never ran)
 SECRETS_JSON='{}'      # filled by the secrets guard (sub-task 2.2)
 MANIFEST_JSON='{}'     # filled by the manifest step (sub-task 1.2)
+# guard.violations[] holds RENDERED JSON OBJECTS — {file, size, reason} — not
+# raw strings: R1.2 asks for the size and the reason of every offender, and a
+# consumer that has to parse those back out of one prose sentence is a consumer
+# that will parse them wrong. Append only through add_violation, and read only
+# through json_array_raw (json_array would re-quote the objects into strings).
 GUARD_VIOLATIONS=()
 OVERRIDES_USED=()
 
@@ -222,7 +227,7 @@ emit_report() {
   # ${arr[@]+"${arr[@]}"} — not plain "${arr[@]}": expanding an EMPTY array that
   # way is an unbound-variable abort under `set -u` on bash < 4.4 (macOS ships
   # 3.2), and this emitter runs on the paths where both arrays are empty.
-  violations=$(json_array ${GUARD_VIOLATIONS[@]+"${GUARD_VIOLATIONS[@]}"})
+  violations=$(json_array_raw ${GUARD_VIOLATIONS[@]+"${GUARD_VIOLATIONS[@]}"})
   overrides=$(json_array ${OVERRIDES_USED[@]+"${OVERRIDES_USED[@]}"})
   cat <<JSON
 {
@@ -596,6 +601,403 @@ resolve_by_number() {
   return 1
 }
 
+# --- Weight/binary guard (step 2) -------------------------------------------
+# R1.2: a file larger than 10 MB, or one that is not text, blocks the archive
+# with every offender listed and NOTHING moved. The corpus evidence is a single
+# 2.3 GB binary and 104 PNGs that went into an archive nobody could clone again.
+#
+# THE LIMIT IS INCLUSIVE: R1.2 blocks a file LARGER than 10 MB, so exactly
+# 10485760 bytes (10 MiB) passes and one byte more does not.
+GUARD_MAX_BYTES=10485760
+
+# The census convention: a manual integer counter, never ${#arr[@]} on an array
+# that may be empty. GUARD_OFFENDER_TEXT is the same list rendered as prose, for
+# the human `reason` — built beside the objects so the two cannot drift.
+GUARD_VIOLATION_COUNT=0
+GUARD_OFFENDER_TEXT=""
+GUARD_SCANNED=0
+
+# add_violation <display-path> <size|""> <reason> — one entry of
+# guard.violations[]. `size` is emitted as a JSON NUMBER, or as `null` when it
+# could not be established: a size the guard failed to read must not be
+# reported as a size it read. Every string goes through quote_scalar — a
+# filename may legally contain a quote, a newline, a DEL or a C1 byte, and this
+# one is the union escaper that both JSON and YAML accept.
+add_violation() {
+  local file="$1" size="$2" reason="$3" size_json="null" shown="$1"
+  [[ "$size" =~ ^[0-9]+$ ]] && size_json="$size"
+  GUARD_VIOLATIONS+=("$(printf '{ "file": %s, "size": %s, "reason": %s }' \
+    "$(quote_scalar "$file")" "$size_json" "$(quote_scalar "$reason")")")
+  GUARD_VIOLATION_COUNT=$((GUARD_VIOLATION_COUNT + 1))
+  [[ "$size_json" == "null" ]] || shown="$file ($size bytes)"
+  GUARD_OFFENDER_TEXT="${GUARD_OFFENDER_TEXT:+$GUARD_OFFENDER_TEXT; }$shown: $reason"
+  return 0
+}
+
+# file_size <path> — the PORTABLE PAIR, and both halves are needed: `-c` is a
+# GNU format string, `-f` is the BSD one — and on GNU stat `-f` means the FILE
+# SYSTEM, so it fails there and the GNU form has already answered. The output is
+# then VALIDATED as digits, because the losing form does not always fail
+# silently: GNU `stat -f %z <file>` prints a diagnostic AND a block of file
+# information. A size that cannot be established is not a size to assume small.
+FILE_SIZE=""
+file_size() {
+  local f="$1" out
+  FILE_SIZE=""
+  out=$(stat -c %s "$f" 2>/dev/null) || out=$(stat -f %z "$f" 2>/dev/null) || return 1
+  [[ "$out" =~ ^[0-9]+$ ]] || return 1
+  FILE_SIZE="$out"
+  return 0
+}
+
+# is_text <path> <size> — the design's heuristic, verbatim: `LC_ALL=C grep -qI .`
+# (`-I` = --binary-files=without-match, so grep reports NO MATCH for a file it
+# considers binary). LC_ALL=C is load-bearing: in a UTF-8 locale grep also calls
+# a file binary on an ENCODING error, which would flag any artifact holding a
+# stray non-UTF-8 byte; under C the test collapses to what the design specifies,
+# a NUL byte.
+#   0 = text        1 = non-text (binary)        2 = the file could not be read
+#
+# THREE documented edges, because a heuristic that is not written down gets
+# rediscovered as a bug:
+#   * UTF-16/UTF-32 — an ASCII-range character encodes with a NUL byte, so a
+#     perfectly good UTF-16 text file IS reported as binary. Deliberate, and it
+#     stays: the alternative (exempt files whose first bytes are a BOM) both
+#     misses BOM-less UTF-16 and hands any 2.3 GB blob a two-byte prefix that
+#     buys it a free pass — the exact hole this guard exists to close. The
+#     archive's own toolchain (grep/sed/frontmatter_field) reads artifacts as
+#     UTF-8, so re-encoding is the real fix; --allow-heavy is the escape, and
+#     the reason text says both.
+#   * `grep -q` stops at the first match and grep decides "binary" from the
+#     buffer it has read, so a NUL far past the start of an otherwise-text file
+#     is not seen. This is a first-buffer heuristic, not a full scan — which is
+#     also why it costs one read, not one read per gigabyte.
+#   * "no match" is NOT the same as "binary": a file with no character on any
+#     line (empty, or nothing but newlines) also matches nothing. The empty case
+#     is settled by the size, the newline-only case by re-asking with the empty
+#     pattern, which matches EVERY line and is still suppressed by -I. That
+#     second call runs only on the rare no-match path.
+IS_TEXT_ERR=""
+is_text() {
+  local f="$1" size="$2" out rc
+  IS_TEXT_ERR=""
+  [[ "$size" -eq 0 ]] && return 0
+  out=$(LC_ALL=C grep -qI . "$f" 2>&1) && return 0 || rc=$?
+  if [[ $rc -ge 2 ]]; then
+    IS_TEXT_ERR=${out//$'\n'/; }
+    return 2
+  fi
+  LC_ALL=C grep -qI '' "$f" 2>/dev/null && return 0
+  return 1
+}
+
+# scan_weight_binary — step 2 over the WHOLE story tree, `.draft/` included: a
+# 2 GB blob is no lighter for sitting one directory down. Returns 0 when the
+# story is clean, non-zero when GUARD_VIOLATIONS holds at least one offender —
+# the empty violation list IS the success condition, so the verdict and the list
+# cannot drift apart the way a separate boolean would.
+#
+# Regular files only (`-type f`): a symlink is moved as a link, so its target's
+# weight never enters the archive, and following it would let a link to /dev/zero
+# hang the guard.
+#
+# ORDER INSIDE THE LOOP is size, then text. An oversized file is already blocked,
+# so it is never read a second time to also be called binary — that is what
+# keeps the 2 GB case a stat(2) instead of a 2 GB read.
+#
+# A .draft/logs/ file bigger than the limit BLOCKS even though step 4 would have
+# collapsed it into a summary. That is the step order doing its job: pruning is
+# destructive, and nothing destructive may run before the guards pass.
+#
+# EVERY failure is a violation, never a silent pass: a file the guard cannot
+# measure or cannot read is a file it cannot clear (fail-closed, R1.2).
+scan_weight_binary() {
+  local tmp find_err list_err="" f display size rc
+  local files=()
+  GUARD_SCANNED=0
+
+  # The list goes through a temp file rather than a process substitution
+  # BECAUSE OF find's EXIT STATUS: `while … done < <(find …)` throws it away, so
+  # an unreadable subdirectory would silently shrink the scan to the files find
+  # did manage to print — a guard passing on a tree it never saw.
+  tmp=$(mktemp "${TMPDIR:-/tmp}/archive-guard.XXXXXX" 2>/dev/null) || {
+    add_violation "$STORY_PATH" "" "cannot create a temporary file to list the story's files — the guard cannot clear what it cannot enumerate"
+    return 1
+  }
+  # $STORY_ABS, not $STORY_PATH: find reads a leading `-` as a predicate, and a
+  # story reached as `archive-story.sh -- -005-x` from inside stories/ would
+  # otherwise turn into "unknown predicate". The absolute path can never do that,
+  # and the offender list is mapped back to the caller's path below.
+  find_err=$({ find "$STORY_ABS" -type f -print0 > "$tmp"; } 2>&1) ||
+    list_err="'find' exited non-zero${find_err:+: ${find_err//$'\n'/; }}"
+  # `{ …; :; } 2>/dev/null < f || …` is the form that CATCHES a failed
+  # redirection: `2>` before `<` suppresses bash's own message and the trailing
+  # `:` pins the group's status to the redirection instead of to the loop.
+  {
+    while IFS= read -r -d '' f; do files+=("$f"); done
+    :
+  } 2>/dev/null < "$tmp" || list_err="${list_err:+$list_err; }the file list could not be read back"
+  rm -f "$tmp" 2>/dev/null || true
+  if [[ -n "$list_err" ]]; then
+    add_violation "$STORY_PATH" "" "cannot enumerate every file under the story ($list_err) — a file the guard cannot see is a file it cannot clear"
+  fi
+
+  for f in ${files[@]+"${files[@]}"}; do
+    GUARD_SCANNED=$((GUARD_SCANNED + 1))
+    # Reported relative to the path the CALLER used, so the offender can be
+    # copy-pasted into an `ls` or an `rm` from where the command was run — the
+    # scan itself stays on the absolute path.
+    display="$STORY_PATH/${f#"$STORY_ABS"/}"
+    if ! file_size "$f"; then
+      add_violation "$display" "" "cannot read the file's size ('stat -c %s' and 'stat -f %z' both failed) — a file the guard cannot measure is a file it cannot clear"
+      continue
+    fi
+    size="$FILE_SIZE"
+    if [[ "$size" -gt "$GUARD_MAX_BYTES" ]]; then
+      add_violation "$display" "$size" "larger than the ${GUARD_MAX_BYTES}-byte (10 MB) limit"
+      continue
+    fi
+    is_text "$f" "$size" && rc=0 || rc=$?
+    case "$rc" in
+      0) ;;
+      2)
+        add_violation "$display" "$size" "cannot be read to check whether it is text${IS_TEXT_ERR:+ ($IS_TEXT_ERR)} — a file the guard cannot read is a file it cannot clear"
+        ;;
+      *)
+        # Kept to ONE line on purpose: this reason is repeated per offender, and
+        # the zeo-shaped case is 104 of them. The fix ("re-encode as UTF-8, or
+        # --allow-heavy") is spelled out once, in the block message.
+        add_violation "$display" "$size" "not a text file (holds NUL bytes; a UTF-16/UTF-32 text file trips this too)"
+        ;;
+    esac
+  done
+
+  [[ "$GUARD_VIOLATION_COUNT" -eq 0 ]]
+}
+
+# --- Secrets guard (step 3) -------------------------------------------------
+# R1.3: where a secrets scanner is installed, scan the story BEFORE the move and
+# block on findings, reporting the count. R1.8: where none is installed, proceed
+# and note the skipped scan.
+#
+# THAT ASYMMETRY IS THE ONE PLACE THIS SCRIPT IS NOT FAIL-CLOSED, so the line is
+# drawn here, once, where nobody can widen it by accident:
+#     a scanner that is ABSENT       -> a documented degradation: proceed, say so
+#     a scanner that RAN AND FAILED  -> a block, like every other guard
+# Collapsing the two turns every broken scanner into a free pass — which is
+# exactly the state R1.3 exists to end. "No findings" must mean "something
+# looked", never "nothing looked".
+#
+# THE EXIT CODE ALONE IS NOT A DISCRIMINATOR, and that is the load-bearing fact
+# of this whole step (probed on gitleaks 8.30.1): gitleaks exits 1 for FINDINGS
+# *and* for its own fatal errors — an unparseable config, an unwritable report
+# path and a target that does not exist all print `FTL` and exit 1. Reading
+# exit 1 as "leaks found" reports a scan that never ran as a findings block;
+# reading "0 findings, therefore clean" reports it as CLEAN, which is the
+# dangerous half. THE REPORT FILE is the discriminator: gitleaks writes it only
+# after a scan that actually ran, and a run with nothing to report writes `[]`.
+GITLEAKS_MAX_MB=15
+
+# More BYTES than this and gitleaks skips the file silently — nothing in its
+# report, nothing in its exit code (probed: 15000000 bytes is scanned, 15000001
+# is not; the unit is decimal MB, not MiB). Step 2 already blocks anything over
+# 10 MB, so a file can only reach the scanner unscanned when --allow-heavy was
+# passed — and when it does, the count below is the difference between "clean"
+# and "clean apart from the biggest file in the tree", which is the precise
+# failure R1.3 exists to prevent.
+GITLEAKS_SKIP_BYTES=15000000
+
+SECRETS_FINDINGS=0
+SECRETS_REPORT=""      # gitleaks' own JSON report, kept only when it is evidence
+SECRETS_ERR=""
+SECRETS_TMPDIR=""
+# "" until count_unscanned_large has actually taken the census, so that a path
+# where it never ran (an absent scanner, --skip-secrets) reports `null` rather
+# than a confident `0`. Same rule as `findings`: a number nobody measured must
+# not read as a measurement that came back empty.
+SECRETS_UNSCANNED=""
+SECRETS_UNSCANNED_TEXT=""
+
+# set_secrets_json <scanned> <findings|""> <report|""> <skipped|""> <error|"">
+# The `secrets` key of the report. ONE uniform shape on every path the guard
+# reaches, because the difference a consumer must never miss is "not scanned"
+# vs "scanned and clean" — and an absent key reads as neither:
+#   clean    scanned:true  findings:0    skipped:null   error:null
+#   findings scanned:true  findings:N    report:<path>
+#   skipped  scanned:false findings:null skipped:"<why>"
+#   error    scanned:false findings:null error:"<what failed>"
+# `{}` (the initial value) keeps its own meaning: the guard NEVER RAN, because
+# an earlier step blocked first.
+#
+# EVERY COUNT IS null WHEN NOBODY TOOK IT — `findings` on the three paths where
+# no scan happened, `unscanned_files` on the two where the size census never
+# ran. A number that was never measured must not read as a measurement that
+# came back empty; that is the same mistake as `size: 0` in guard.violations[].
+# `unscanned_files` is the count of files LARGER than the scanner's
+# --max-target-megabytes limit, which it skips without reporting the skip.
+set_secrets_json() {
+  local scanned="$1" findings="$2" report="$3" skipped="$4" err="$5"
+  local f_json="null" r_json="null" s_json="null" e_json="null" u_json="null"
+  [[ "$findings" =~ ^[0-9]+$ ]] && f_json="$findings"
+  [[ "$SECRETS_UNSCANNED" =~ ^[0-9]+$ ]] && u_json="$SECRETS_UNSCANNED"
+  [[ -n "$report" ]] && r_json=$(quote_scalar "$report")
+  [[ -n "$skipped" ]] && s_json=$(quote_scalar "$skipped")
+  [[ -n "$err" ]] && e_json=$(quote_scalar "$err")
+  SECRETS_JSON=$(printf '{ "scanner": "gitleaks", "scanned": %s, "findings": %s, "unscanned_files": %s, "report": %s, "skipped": %s, "error": %s }' \
+    "$scanned" "$f_json" "$u_json" "$r_json" "$s_json" "$e_json")
+  return 0
+}
+
+# count_unscanned_large — how many files the scanner will skip for their size,
+# and which. Asked of the filesystem rather than of gitleaks, because gitleaks
+# does not put the skip in its report or its exit code: without this, a story
+# whose biggest file holds a plaintext key archives as "scanned, 0 findings".
+# The list goes through a temp file for the same reason step 2's does — a
+# process substitution throws find's exit status away.
+count_unscanned_large() {
+  local tmp f
+  SECRETS_UNSCANNED=0
+  SECRETS_UNSCANNED_TEXT=""
+  tmp=$(mktemp "${TMPDIR:-/tmp}/archive-secrets-size.XXXXXX" 2>/dev/null) || {
+    SECRETS_UNSCANNED_TEXT="(the oversized-file list could not be built: no temporary file)"
+    return 0
+  }
+  # $STORY_ABS, not $STORY_PATH: find reads a leading `-` as a predicate.
+  # `-size +Nc` is an exact byte comparison — no block rounding.
+  find "$STORY_ABS" -type f -size +"${GITLEAKS_SKIP_BYTES}"c -print0 > "$tmp" 2>/dev/null ||
+    SECRETS_UNSCANNED_TEXT="(the oversized-file list is incomplete: 'find' exited non-zero)"
+  {
+    while IFS= read -r -d '' f; do
+      SECRETS_UNSCANNED=$((SECRETS_UNSCANNED + 1))
+      SECRETS_UNSCANNED_TEXT="${SECRETS_UNSCANNED_TEXT:+$SECRETS_UNSCANNED_TEXT; }$STORY_PATH/${f#"$STORY_ABS"/}"
+    done
+    :
+  } 2>/dev/null < "$tmp" || SECRETS_UNSCANNED_TEXT="${SECRETS_UNSCANNED_TEXT:+$SECRETS_UNSCANNED_TEXT; }(the oversized-file list could not be read back)"
+  rm -f "$tmp" 2>/dev/null || true
+  return 0
+}
+
+# report_is_array <path> — did gitleaks actually WRITE a JSON report here? The
+# whole "scanned" vs "never scanned" distinction rests on this: `[[ -f ]]` says
+# the file exists, not that it opens or that it holds a report, so the first
+# byte is read and must be the `[` of a JSON array.
+report_is_array() {
+  local first
+  first=$(head -c 1 "$1" 2>/dev/null) || return 1
+  [[ "$first" == "[" ]]
+}
+
+# count_report_findings <path> — one finding per `"RuleID":` KEY in the report.
+# The count cannot be forged from a secret's own text: every `"` inside a JSON
+# string value is written `\"`, so the exact byte sequence `"RuleID":` can only
+# ever be the key. `grep -o | wc -l` counts OCCURRENCES (plain `grep -c` counts
+# matching LINES and would answer 1 for a compact one-line report); `pipefail`
+# is armed, so grep's exit 1 on no-match is caught rather than aborting the run.
+REPORT_FINDINGS=0
+count_report_findings() {
+  local n
+  n=$(grep -o '"RuleID":' "$1" 2>/dev/null | wc -l) || n=0
+  n=${n//[[:space:]]/}
+  [[ "$n" =~ ^[0-9]+$ ]] || n=0
+  REPORT_FINDINGS="$n"
+  return 0
+}
+
+# secrets_cleanup_tmp — drop the private scan directory. Called only where the
+# report is NOT evidence (a clean scan writes `[]`, which tells nobody anything).
+secrets_cleanup_tmp() {
+  [[ -n "$SECRETS_TMPDIR" && -d "$SECRETS_TMPDIR" ]] || return 0
+  rm -rf "$SECRETS_TMPDIR" 2>/dev/null || true
+  SECRETS_TMPDIR=""
+  return 0
+}
+
+# run_secrets_scan — the scan itself. Three answers, never two:
+#   0  scanned, clean
+#   1  scanned, SECRETS_FINDINGS > 0, report kept at SECRETS_REPORT
+#   2  the scan did not produce a trustworthy result (SECRETS_ERR says why)
+#
+# WHERE THE REPORT LIVES, and why it is not obvious: gitleaks' JSON report holds
+# the MATCHED SECRET ITSELF, plus the file and line it came from. So it must be
+# (a) unreadable by other users on the machine — a private `mktemp -d`, which is
+# mode 0700, and the report inside it is chmod 600 as well; and (b) OUTSIDE the
+# story directory, because anything written inside it travels into
+# .epic/archive/ with the move and becomes a permanent, deliberately-hard-to-
+# delete copy of the very secret the guard just objected to.
+#
+# Every failure is captured and returned, never left to `set -e`: a bare abort
+# prints no JSON at all, and stdout is what the consumers parse.
+run_secrets_scan() {
+  local rc out report
+  SECRETS_FINDINGS=0
+  SECRETS_REPORT=""
+  SECRETS_ERR=""
+  SECRETS_TMPDIR=$(mktemp -d "${TMPDIR:-/tmp}/archive-secrets.XXXXXX" 2>/dev/null) || {
+    SECRETS_TMPDIR=""
+    SECRETS_ERR="cannot create a private temporary directory for the scan report (the report holds the matched secrets, so it is never written inside the story or into a shared location)"
+    return 2
+  }
+  report="$SECRETS_TMPDIR/gitleaks-report.json"
+  # --no-color is the one flag added to the designed command line: this output
+  # is spliced into a JSON `reason` a human reads, and gitleaks colourizes even
+  # into a pipe -- raw ANSI escapes there are noise that quote_scalar then has
+  # to encode one byte at a time into a message nobody can read.
+  out=$(gitleaks dir "$STORY_ABS" --no-banner --no-color --exit-code 1 \
+    --max-target-megabytes "$GITLEAKS_MAX_MB" \
+    --report-format json --report-path "$report" 2>&1) && rc=0 || rc=$?
+  chmod 600 "$report" 2>/dev/null || true
+  out=${out//$'\n'/; }
+
+  # A REPORT PATH IS NAMED ONLY WHERE THE FILE SURVIVES. Every error branch that
+  # has nothing to keep deletes the private directory and then says so WITHOUT
+  # pointing at it: sending an operator to read a file this function has just
+  # removed is the same class of mistake as telling them "nothing was moved"
+  # about a directory that moved. When the path IS the diagnosis (an unwritable
+  # report), gitleaks' own message carries it, and that message is appended.
+  case "$rc" in
+    0)
+      # Clean — but only if a report was actually written. Exit 0 with no report
+      # is a scanner that answered without looking.
+      if ! report_is_array "$report"; then
+        secrets_cleanup_tmp
+        SECRETS_ERR="gitleaks exited 0 but wrote no readable JSON report, so the scan cannot be shown to have run${out:+ — gitleaks said: $out}"
+        return 2
+      fi
+      count_report_findings "$report"
+      if [[ "$REPORT_FINDINGS" -ne 0 ]]; then
+        # Kept: a report holding findings is evidence whatever the exit code said.
+        SECRETS_REPORT="$report"
+        SECRETS_ERR="gitleaks exited 0 (clean) while reporting $REPORT_FINDINGS finding(s) in '$report' — its exit code and its report disagree, so neither can be trusted"
+        return 2
+      fi
+      secrets_cleanup_tmp
+      return 0
+      ;;
+    1)
+      # Findings OR one of gitleaks' own fatals — the report tells them apart.
+      if ! report_is_array "$report"; then
+        secrets_cleanup_tmp
+        SECRETS_ERR="gitleaks exited 1 without writing a readable JSON report. Exit 1 is BOTH its findings code and its fatal-error code, so with no report this is a scan that FAILED, not a scan that found something${out:+ — gitleaks said: $out}"
+        return 2
+      fi
+      count_report_findings "$report"
+      if [[ "$REPORT_FINDINGS" -eq 0 ]]; then
+        secrets_cleanup_tmp
+        SECRETS_ERR="gitleaks exited 1 (its findings code) with an EMPTY report — nothing was found and the scan still did not complete${out:+ — gitleaks said: $out}"
+        return 2
+      fi
+      SECRETS_FINDINGS="$REPORT_FINDINGS"
+      SECRETS_REPORT="$report"
+      return 1
+      ;;
+    *)
+      secrets_cleanup_tmp
+      SECRETS_ERR="gitleaks exited $rc, which is neither its clean code (0) nor its findings code (1) — the scan produced no verdict this archive can rely on${out:+ — gitleaks said: $out}"
+      return 2
+      ;;
+  esac
+}
+
 # --- Manifest (step 5) ------------------------------------------------------
 # The entry's fields, its two renderings (YAML for the file, JSON for the
 # report) and the append itself.
@@ -872,18 +1274,229 @@ manifest_read_entry() {
   return 0
 }
 
-# manifest_append — creates the file with its header when absent (R3.3), then
-# appends the entry. Every write reports instead of aborting, so a failure
-# becomes a `blocked` verdict with JSON on stdout rather than a bare non-zero
-# exit; MANIFEST_ERR carries what the OS actually said, because "permission
-# denied", "no space left on device" and "read-only file system" are three
-# different fixes and only the kernel knows which one it is.
+# --- The append lock (mutual exclusion between concurrent archives) ----------
 #
-# ONE WRITE PER ENTRY. The entry is composed in memory first and appended with a
+# WHY A LOCK AT ALL. `printf '%s\n' "$entry" >> file` is NOT one write(2).
+# Bash LINE-BUFFERS stdout, so the builtin flushes once per newline: an entry of
+# N lines costs N write(2) calls, whatever its total size. O_APPEND makes each
+# of those atomic INDIVIDUALLY — no byte is ever lost or overwritten — but it
+# says nothing about the group, so two concurrent archives interleave line by
+# line INSIDE an entry. MEASURED here on bash 5.3: concurrent writers of a
+# 1 066-byte, 22-line entry split into runs of exactly 102 bytes — one
+# deferred_items line — and 8 of 30 rounds at 8 writers produced a manifest.yaml
+# PyYAML refuses to load ("expected <block end>, but found '<block sequence
+# start>'"), entry B's keys sitting in the middle of entry A's list.
+#
+# The failure is INVISIBLE to a line-counting assertion: interleaving preserves
+# every line, so `grep -c '^  - story: '` still reports N and every entry looks
+# present. Only parsing the document sees it. And manifest.yaml is the archive's
+# permanent record, under .epic/archive/, which is read-only for the Edit/Write
+# tools by design — a corrupt one is unreadable to every consumer and not
+# repairable through the sanctioned tooling.
+#
+# THE PRIMITIVE IS `mkdir`, NOT `flock(1)`. mkdir(2) is required by POSIX to
+# fail with EEXIST when the name exists, on every filesystem — macOS and NFS
+# included. `flock(1)` is util-linux: absent on macOS, where a fail-closed
+# script would then have to BLOCK EVERY ARCHIVE rather than append without the
+# lock it cannot take. This script already paid that portability tax on purpose
+# once (the POSIX `date` fallback), so it does not add a Linux-only hard
+# dependency in the one place that decides whether an archive may proceed. The
+# cost of mkdir is that waiting is a poll rather than a blocking syscall —
+# irrelevant when the critical section is a single append.
+#
+# STALE LOCKS SELF-HEAL, and the break is IDENTITY-TARGETED so that it can never
+# take a LIVE lock:
+#   * the holder marks the directory with `owner.<nonce>` the instant it wins.
+#     A directory with a marker in it is NOT EMPTY, so `rmdir` on it fails;
+#   * a waiter breaks only a lock whose marker NEVER CHANGED for a whole
+#     timeout. A holder that finishes hands the lock on to a different nonce,
+#     which RESETS the waiter's clock — a busy lock is never read as a dead one;
+#   * the break is `rm -f <the marker it observed, by name>` then `rmdir`. If
+#     the lock changed hands in between, the new holder's marker is still inside
+#     and the rmdir fails with ENOTEMPTY. Two waiters breaking the same corpse
+#     at worst remove it once between them;
+#   * the one window left is a holder killed BETWEEN the mkdir and its marker —
+#     the directory is then genuinely empty, and breakable. The acquirer closes
+#     it from the other side: if creating the marker fails, the directory went
+#     away underneath it, so it does NOT consider itself the holder and retries.
+# The alternative — never break, block forever naming the directory to remove —
+# was rejected. A SIGKILL inside a millisecond-long critical section would wedge
+# every future archive on the machine, and unlike a truncated manifest entry a
+# stale lock holds no information a human has to adjudicate.
+#
+# TIMEOUT: 30 s against a critical section measured in milliseconds — a margin
+# of ~10 000x, so only a corpse (or a SIGSTOPped process) ever reaches it.
+# EPIC_ARCHIVE_LOCK_TIMEOUT overrides it so a test can exercise the break
+# without waiting 30 s; a non-numeric or zero value is IGNORED, because a
+# 0-second timeout would break live locks on sight.
+MANIFEST_LOCK_DIR=""      # set beside MANIFEST_FILE at story resolution
+MANIFEST_LOCK_HELD=false
+MANIFEST_LOCK_MARK=""
+MANIFEST_LOCK_NAP=""      # "" unknown | frac | int — fractional sleep support
+
+manifest_lock_timeout() {
+  local t="${EPIC_ARCHIVE_LOCK_TIMEOUT:-}"
+  if [[ "$t" =~ ^[0-9]+$ ]] && [[ "$t" -gt 0 ]]; then
+    printf '%s' "$t"
+  else
+    printf '30'
+  fi
+}
+
+# manifest_lock_nap — the poll interval. `sleep 0.02` is not POSIX (POSIX sleep
+# takes an integer), so support is probed ONCE, and only on the contended path;
+# a host without it polls once a second instead of fifty times.
+manifest_lock_nap() {
+  if [[ -z "$MANIFEST_LOCK_NAP" ]]; then
+    if sleep 0.01 2> /dev/null; then MANIFEST_LOCK_NAP=frac; else MANIFEST_LOCK_NAP=int; fi
+  fi
+  if [[ "$MANIFEST_LOCK_NAP" == frac ]]; then sleep 0.02; else sleep 1; fi
+}
+
+# manifest_lock_owner — the current holder's marker file NAME, or "" when the
+# lock directory is empty. The name IS the identity: a breaker removes exactly
+# the marker it observed, never "whatever happens to be in there now".
+manifest_lock_owner() {
+  local f
+  for f in "$MANIFEST_LOCK_DIR"/owner.*; do
+    [[ -e "$f" ]] || continue
+    printf '%s' "${f##*/}"
+    return 0
+  done
+  return 0
+}
+
+# manifest_lock_acquire <nonce> — returns 0 holding the lock, or 1 with
+# MANIFEST_ERR set. FAIL-CLOSED: a lock that cannot be acquired is never a
+# reason to append anyway. The caller turns the non-zero into a `blocked`
+# verdict with JSON on stdout and nothing moved (R3.4).
+manifest_lock_acquire() {
+  local err probe obs prev="" seen=false broke=false
+  local naps=0 races=0 per timeout
+  timeout=$(manifest_lock_timeout)
+  MANIFEST_ERR=""
+  while :; do
+    if err=$(mkdir "$MANIFEST_LOCK_DIR" 2>&1); then
+      # Won the race. Claim it BY NAME before anyone can call it abandoned.
+      if : > "$MANIFEST_LOCK_DIR/owner.$1" 2> /dev/null; then
+        MANIFEST_LOCK_HELD=true
+        MANIFEST_LOCK_MARK="$MANIFEST_LOCK_DIR/owner.$1"
+        return 0
+      fi
+      # The directory vanished between the mkdir and the marker: a waiter broke
+      # what looked like an empty corpse. We are NOT the holder — start over.
+      rmdir "$MANIFEST_LOCK_DIR" 2> /dev/null || true
+      manifest_lock_nap
+      continue
+    fi
+    # mkdir failed. SEVERAL answers hide behind that, and the errno TEXT cannot
+    # separate them — it follows the host locale ("Arquivo existe" on this
+    # machine, and the JSON report is no place to start matching translated
+    # strings). Neither can a second `[[ -e ]]`/`[[ -d ]]` test: EVERY such test
+    # is a fresh look at a path other archives are creating and removing, so it
+    # answers about a different instant than the mkdir did. Both bugs this
+    # classification has had were exactly that — `[[ ! -d ]]` reading a released
+    # lock as "impossible", then `[[ -e ]]` reading a RE-taken one as "a file is
+    # in the way". Only two facts here are stable under concurrency: whether a
+    # lock directory is present, and whether the PARENT can hold one at all.
+    if [[ ! -d "$MANIFEST_LOCK_DIR" ]]; then
+      # No lock directory at this instant — and an absent lock is a FREE lock,
+      # never a reason to fail. Ask the filesystem whether the parent works
+      # instead of guessing from the message: if a directory of our own can be
+      # created beside it, the failure was about the NAME and is retryable.
+      # (`-w` on the parent is not enough: it reads permission bits and answers
+      # wrong for a read-only mount, for ENOSPC, and for a mandatory-access-
+      # control refusal. Creating one actually settles it.)
+      if ! probe=$(mktemp -d "$ARCHIVE_DIR/.manifest-lock-probe.XXXXXX" 2> /dev/null); then
+        MANIFEST_ERR="cannot create the manifest lock '$MANIFEST_LOCK_DIR': ${err//$'\n'/; }"
+        return 1
+      fi
+      rmdir "$probe" 2> /dev/null || true
+      # A LOST RACE RESOLVES ITSELF; A BLOCKED NAME NEVER DOES — and retrying is
+      # what tells them apart without any racy test at all. The holder released
+      # between our mkdir and this point (the command substitution around mkdir
+      # makes that window MILLISECONDS wide, and it was measured at ~6% of
+      # concurrent runs, every one of them a spurious `blocked` verdict): the
+      # next attempt or two takes the lock. A regular file sitting at the name,
+      # by contrast, fails every attempt identically. Bounded, so the pathology
+      # ends in a verdict and never in a spin — ~0.4 s, against a 30 s timeout.
+      races=$((races + 1))
+      if [[ $races -gt 100 ]]; then
+        MANIFEST_ERR="cannot create the manifest lock '$MANIFEST_LOCK_DIR' in 100 consecutive attempts although its parent is writable: ${err//$'\n'/; }"
+        if [[ -e "$MANIFEST_LOCK_DIR" && ! -d "$MANIFEST_LOCK_DIR" ]]; then
+          # Advisory only, and read AFTER the verdict is already settled — so
+          # being wrong about it costs a confusing hint, never a wrong verdict.
+          MANIFEST_ERR="$MANIFEST_ERR — a non-directory occupies that path; remove it and re-run"
+        fi
+        return 1
+      fi
+      continue
+    fi
+    races=0   # somebody genuinely holds it: this is contention, not a race
+    obs=$(manifest_lock_owner)
+    if [[ "$seen" == false || "$obs" != "$prev" ]]; then
+      seen=true
+      prev="$obs"
+      naps=0   # the lock changed hands: it is alive, not stale
+    fi
+    # Elapsed time is counted in NAPS, not in $SECONDS. $SECONDS has one-second
+    # resolution and is measured from the shell's start, so `SECONDS - start >=
+    # 1` fires the instant the counter happens to tick — a 1-second timeout that
+    # is really zero, which is exactly how a live lock gets broken. Naps are
+    # monotonic, need no clock at all (this script already refuses to depend on
+    # `date` working), and a loaded machine makes them LONGER, so the timeout
+    # errs towards waiting rather than towards breaking.
+    if [[ "$MANIFEST_LOCK_NAP" == int ]]; then per=1; else per=50; fi
+    if [[ $naps -ge $((timeout * per)) ]]; then
+      if [[ "$broke" == true ]]; then
+        MANIFEST_ERR="the manifest lock '$MANIFEST_LOCK_DIR' is STILL held ${timeout}s after a stale one was cleared — another archive is running, or that directory cannot be removed; nothing was appended"
+        return 1
+      fi
+      printf 'archive-story: breaking the manifest lock held by %s for %ss — assuming the process that took it died\n' \
+        "${obs:-an unmarked holder}" "$timeout" >&2
+      # Identity-targeted: the marker is removed BY THE NAME that was observed,
+      # so a lock that changed hands keeps its new holder's marker and the
+      # rmdir below fails with ENOTEMPTY instead of stealing a live lock.
+      if [[ -n "$obs" ]]; then
+        rm -f "$MANIFEST_LOCK_DIR/$obs" 2> /dev/null || true
+      fi
+      rmdir "$MANIFEST_LOCK_DIR" 2> /dev/null || true
+      broke=true
+      seen=false
+      prev=""
+      naps=0
+      continue
+    fi
+    manifest_lock_nap
+    naps=$((naps + 1))
+  done
+}
+
+# manifest_lock_release — idempotent, and always 0: it also runs from the EXIT
+# trap, where a non-zero would be noise on a path that already has its verdict.
+manifest_lock_release() {
+  [[ "$MANIFEST_LOCK_HELD" == true ]] || return 0
+  MANIFEST_LOCK_HELD=false
+  rm -f "$MANIFEST_LOCK_MARK" 2> /dev/null || true
+  rmdir "$MANIFEST_LOCK_DIR" 2> /dev/null || true
+  return 0
+}
+
+# manifest_append — creates the file with its header when absent (R3.3), then
+# appends the entry UNDER THE LOCK ABOVE. Every write reports instead of
+# aborting, so a failure becomes a `blocked` verdict with JSON on stdout rather
+# than a bare non-zero exit; MANIFEST_ERR carries what the OS actually said,
+# because "permission denied", "no space left on device" and "read-only file
+# system" are three different fixes and only the kernel knows which one it is.
+#
+# ONE ENTRY PER APPEND. The entry is composed in memory first and written with a
 # single `printf`, not emitted field by field: a run killed between two of
 # fourteen writes used to leave a stub entry on disk that nothing would ever
-# repair. With O_APPEND (`>>`) a single write also cannot interleave with a
-# concurrent run's.
+# repair. That is about THIS process's own interruption; it is the LOCK, not the
+# single printf, that keeps a CONCURRENT run out of the middle of the entry —
+# bash line-buffers, so one printf is still one write(2) per line. `>>` stays:
+# O_APPEND means even a bug in the locking can only ever misorder whole lines,
+# never overwrite an entry that is already on disk.
 #
 # THE HEADER IS PUBLISHED ATOMICALLY, by writing it to a temp file in the same
 # directory and hard-linking it into place: `ln` fails with EEXIST if the name
@@ -896,11 +1509,21 @@ manifest_read_entry() {
 # the winner had written the header.
 MANIFEST_ERR=""
 manifest_append() {
-  local entry
+  local entry nonce rc
   entry=$(manifest_entry_yaml) || return 1
+  # The lock lives INSIDE the archive directory, so that directory has to exist
+  # before the lock can be taken. Its own failure is reported the same way.
+  if ! MANIFEST_ERR=$(mkdir -p "$ARCHIVE_DIR" 2>&1); then
+    MANIFEST_ERR=${MANIFEST_ERR//$'\n'/; }
+    return 1
+  fi
+  # A per-process nonce. $$ is unique among concurrent processes on a host;
+  # HOSTNAME distinguishes hosts sharing the archive over a network filesystem.
+  nonce="${HOSTNAME:-h}-$$-${RANDOM}"
+  nonce=${nonce//[^A-Za-z0-9_-]/_}
+  manifest_lock_acquire "$nonce" || return 1
   MANIFEST_ERR=$(
     {
-      mkdir -p "$ARCHIVE_DIR" || exit 1
       if [[ ! -e "$MANIFEST_FILE" ]]; then
         hdr=$(mktemp "$ARCHIVE_DIR/.manifest-header.XXXXXX") || exit 1
         manifest_header > "$hdr" || {
@@ -913,7 +1536,13 @@ manifest_append() {
       fi
       printf '%s\n' "$entry" >> "$MANIFEST_FILE" || exit 1
     } 2>&1
-  ) && return 0
+  ) && rc=0 || rc=1
+  # Released HERE, not at the end of the run: the move (step 6) is the long part
+  # and holding the lock across it would serialize whole archives, not appends.
+  manifest_lock_release
+  if [[ $rc -eq 0 ]]; then
+    return 0
+  fi
   # Bash prefixes a failed redirection with "<script>: line N: <path>: "; drop
   # both (the caller already names the file) and flatten to one line, so what
   # survives into the JSON report is the part only the kernel could tell us.
@@ -1256,6 +1885,9 @@ STORY_PARENT=$(basename "$(dirname "$STORY_ABS")")
 EPIC_DIR=$(dirname "$(dirname "$STORY_ABS")")
 ARCHIVE_DIR="$EPIC_DIR/archive"
 MANIFEST_FILE="$ARCHIVE_DIR/manifest.yaml"
+# Beside the file it guards, so it is on the same filesystem and inside the same
+# tree the archive guard protects. Dot-prefixed: it is machinery, not a record.
+MANIFEST_LOCK_DIR="$ARCHIVE_DIR/.manifest.lock"
 
 # The story directory must not be a symlink out of the project. `pwd -P`
 # resolves it, and everything downstream is then re-derived from the PHYSICAL
@@ -1337,22 +1969,111 @@ if [[ "$COMPLETE" != true ]]; then
   fi
 fi
 
-# ============================================================================
-# STUB — STEPS 2-4: WEIGHT/BINARY GUARD, SECRETS GUARD, PRUNE
-#                   (sub-tasks 2.1, 2.2, 3.1, 3.2)
-# ============================================================================
-# They belong HERE, between preflight and the manifest append: nothing
-# destructive may run before every guard has passed, and pruning must happen
-# before the entry is derived so `pruned {}` reports what actually happened.
-# Until they land, guard.violations stays empty, secrets stays {} and pruned
-# reports zeroes — which the report says as "not run", never as "clean".
-
 # Boundary log: the run's configuration, once, at the point where preflight has
 # passed and the destructive half begins. Which guards were overridden is the
 # first question anyone debugging an archive asks, and stdout is reserved for
 # the JSON report, so it goes to stderr as key=value.
 printf 'archive-story: story=%s allow_heavy=%s skip_secrets=%s keep_logs=%s keep_copies=%s force=%s\n' \
   "$STORY_ID" "$ALLOW_HEAVY" "$SKIP_SECRETS" "$KEEP_LOGS" "$KEEP_COPIES" "$FORCE" >&2
+
+# ============================================================================
+# STEP 2 — WEIGHT/BINARY GUARD (R1.2, R1.4)
+# ============================================================================
+# Default-on, and placed HERE for a reason the step order makes load-bearing:
+# before the manifest append (step 5), before the move (step 6) and before the
+# prune (step 4), so a blocked story leaves NO entry, NO archive directory and
+# nothing renamed or deleted. The whole guard is one flag away — `--allow-heavy`
+# skips it and is recorded in the manifest entry (R1.4), which is the difference
+# between a heavy archive somebody chose and one nobody noticed.
+# The three outcomes are logged in the same key=value shape as move_mode and
+# status, so `grep 'guard=weight-binary'` on stderr answers "what did the guard
+# decide" without parsing prose — stdout stays reserved for the JSON report.
+if [[ "$ALLOW_HEAVY" == true ]]; then
+  printf 'archive-story: guard=weight-binary verdict=skipped reason=--allow-heavy (files over %d bytes and non-text files are archived as they are; the override is recorded in the manifest entry)\n' \
+    "$GUARD_MAX_BYTES" >&2
+elif scan_weight_binary; then
+  printf 'archive-story: guard=weight-binary verdict=pass files_scanned=%d limit_bytes=%d\n' \
+    "$GUARD_SCANNED" "$GUARD_MAX_BYTES" >&2
+else
+  printf 'archive-story: guard=weight-binary verdict=blocked violations=%d files_scanned=%d\n' \
+    "$GUARD_VIOLATION_COUNT" "$GUARD_SCANNED" >&2
+  block "$GUARD_VIOLATION_COUNT file(s) fail the weight/binary guard (limit ${GUARD_MAX_BYTES} bytes, and the content must be text): $GUARD_OFFENDER_TEXT — nothing was moved and no manifest entry was written: the guard runs before both (R1.2). Remove or shrink them, re-encode a UTF-16/UTF-32 artifact as UTF-8 (its ASCII-range characters carry NUL bytes, which is what makes it read as binary), or re-run with --allow-heavy to archive them as they are (the override is recorded in the manifest entry)"
+fi
+
+# ============================================================================
+# STEP 3 — SECRETS GUARD (R1.3, R1.4, R1.8)
+# ============================================================================
+# Default-on when the scanner is there, and placed HERE for the same reason
+# step 2 is: before the prune (step 4), the manifest append (step 5) and the
+# move (step 6), so a blocked story leaves no entry, no archive directory and
+# nothing deleted. `--skip-secrets` is the one flag past it, and the flag parser
+# has already collected it into OVERRIDES_USED, which step 5 records (R1.4) —
+# the difference between an unscanned archive somebody chose and one nobody
+# noticed.
+#
+# The verdict is logged on stderr in the same key=value shape as step 2's, so
+# `grep 'guard=secrets'` answers "what did the scan decide" without parsing
+# prose; stdout stays reserved for the JSON report.
+if [[ "$SKIP_SECRETS" == true ]]; then
+  # R1.4. Reported as `scanned: false` with the reason, NEVER as `findings: 0`:
+  # a skip that looks like a clean scan is worse than no scan at all.
+  set_secrets_json false "" "" "--skip-secrets" ""
+  printf 'archive-story: guard=secrets verdict=skipped reason=--skip-secrets (the story is archived WITHOUT a secrets scan; the override is recorded in the manifest entry)\n' >&2
+elif ! command -v gitleaks > /dev/null 2>&1; then
+  # R1.8, and the ONE documented degradation in this script (see the note at the
+  # top of the guard). It is noted TWICE, on purpose and in two registers:
+  # structurally on stdout, in `secrets.skipped`, because the orchestrator pipes
+  # stdout into jq and a note only on stderr would be invisible to it; and in
+  # prose on stderr for the human, where every other diagnostic lives.
+  set_secrets_json false "" "" "gitleaks not installed" ""
+  printf 'archive-story: guard=secrets verdict=skipped reason=gitleaks-not-installed (no secrets scanner on PATH — the story is archived UNSCANNED; install gitleaks to turn the guard on)\n' >&2
+else
+  count_unscanned_large
+  run_secrets_scan && SECRETS_RC=0 || SECRETS_RC=$?
+  case "$SECRETS_RC" in
+    0)
+      set_secrets_json true "$SECRETS_FINDINGS" "" "" ""
+      if [[ "$SECRETS_UNSCANNED" -gt 0 ]]; then
+        # Not a block: R1.3 asks for a scan and a findings count, not for a size
+        # policy — step 2 already owns that, and getting here at all means
+        # --allow-heavy was used. But "0 findings" must not be allowed to imply
+        # "0 secrets" when the scanner never opened the biggest file in the tree.
+        printf 'archive-story: guard=secrets verdict=pass findings=0 unscanned_files=%d WARNING: gitleaks SILENTLY SKIPS any file over %d bytes (--max-target-megabytes %d), so this pass does NOT cover: %s\n' \
+          "$SECRETS_UNSCANNED" "$GITLEAKS_SKIP_BYTES" "$GITLEAKS_MAX_MB" "$SECRETS_UNSCANNED_TEXT" >&2
+      else
+        printf 'archive-story: guard=secrets verdict=pass findings=0 unscanned_files=0\n' >&2
+      fi
+      ;;
+    1)
+      # R1.3. The COUNT and the report PATH are what leave this process: the
+      # matched secrets stay in gitleaks' own report, mode 600 in a private
+      # directory outside the story. Putting them in the reason would copy the
+      # leak into every log that captures this run.
+      set_secrets_json true "$SECRETS_FINDINGS" "$SECRETS_REPORT" "" ""
+      printf 'archive-story: guard=secrets verdict=blocked findings=%d report=%s\n' \
+        "$SECRETS_FINDINGS" "$SECRETS_REPORT" >&2
+      block "gitleaks found $SECRETS_FINDINGS secret(s) in '$STORY_PATH' — the full report (rule, file and line per finding) is at '$SECRETS_REPORT', outside the project and readable only by you; the matched values are deliberately NOT repeated here. Nothing was moved and no manifest entry was written: the guard runs before both (R1.3). Rotate whatever leaked and remove it from the story's files, or re-run with --skip-secrets to archive them as they are (the override is recorded in the manifest entry)"
+      ;;
+    *)
+      # Fail-closed, and the whole point of the split: an ABSENT scanner is the
+      # degradation above; a scanner that RAN and could not answer is a guard
+      # hit like any other. Reporting it as `findings: 0` would be this script
+      # telling its consumer that something looked when nothing did.
+      set_secrets_json false "" "$SECRETS_REPORT" "" "$SECRETS_ERR"
+      printf 'archive-story: guard=secrets verdict=blocked reason=scan-failed\n' >&2
+      block "the secrets scan of '$STORY_PATH' FAILED, so its result cannot be trusted: $SECRETS_ERR. A scanner that RAN and failed is a block, never a pass — only an ABSENT scanner is a documented degradation (R1.8). Nothing was moved and no manifest entry was written: the guard runs before both (R1.3). Fix the scanner, or re-run with --skip-secrets to archive without a scan (the override is recorded in the manifest entry)"
+      ;;
+  esac
+fi
+
+# ============================================================================
+# STUB — STEP 4: PRUNE .draft (sub-tasks 3.1, 3.2)
+# ============================================================================
+# It belongs HERE, between the guards and the manifest append: nothing
+# destructive may run before every guard has passed, and pruning must happen
+# before the entry is derived so `pruned {}` reports what actually happened.
+# Until it lands, pruned reports zeroes — which the report says as "not run",
+# never as "clean".
 
 # ============================================================================
 # STEP 5 — MANIFEST APPEND (R3.1, R3.2, R3.3, R3.4)
@@ -1370,6 +2091,18 @@ printf 'archive-story: story=%s allow_heavy=%s skip_secrets=%s keep_logs=%s keep
 
 # ARCHIVE_DIR / MANIFEST_FILE are set at story resolution — preflight's orphan
 # note needs them before this point.
+
+# The append takes a lock (see manifest_lock_acquire). Release it on EVERY way
+# out of this process, so that the ordinary interruptions — Ctrl-C, a timeout's
+# SIGTERM, a closed terminal — cost the NEXT run nothing at all. Only SIGKILL
+# and a power cut can leave the lock behind, and those are what the stale-break
+# exists for. Installed here, not at the top: no lock is held before step 5, and
+# an EXIT trap that runs on the refusal paths would be dead weight there.
+# `|| true`: a trap must never turn a clean verdict into a failure.
+trap 'manifest_lock_release || true' EXIT
+trap 'manifest_lock_release || true; exit 130' INT
+trap 'manifest_lock_release || true; exit 143' TERM
+trap 'manifest_lock_release || true; exit 129' HUP
 
 if ! derive_entry_fields; then
   block "cannot derive the manifest entry for '$STORY_ID': $DERIVE_ERR — nothing was moved: the entry is written BEFORE the move, so an archive that cannot be recorded does not happen (R3.4)"

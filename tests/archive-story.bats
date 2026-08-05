@@ -534,30 +534,295 @@ open(p, "w").write("".join(out))
   [ "$(grep -c 'story: "005-trunc"' "$MANIFEST")" -eq 1 ]
 }
 
+# make_bulky_story <dir-name> [deferred-count]
+# A COMPLETE story (no `[ ]` left, status done) whose manifest entry runs to
+# MANY LINES: `deferred_items:` gets one line per `[~]` box.
+#
+# Entry LENGTH IN LINES is what makes the append race reproducible. Bash
+# line-buffers stdout, so `printf '%s\n' "$entry" >> file` is one write(2) PER
+# LINE, and every one of those is a seam a concurrent archive can cut into.
+# make_story's 3-box story is a 15-line entry and only tripped under whole-suite
+# contention (1 run in 3); 40 boxes is a ~58-line entry and trips every time.
+make_bulky_story() {
+  local dir="$PROJ/.epic/stories/$1" n="${2:-40}" i
+  mkdir -p "$dir"
+  cat > "$dir/story.md" <<EOF
+---
+story: ${1#*-}
+type: feature
+scale: standard
+version: 1
+created: 2026-08-01
+status: done
+---
+
+# Story - concurrency fixture
+EOF
+  {
+    echo '---'
+    echo 'version: 1'
+    echo 'created: 2026-08-01'
+    echo '---'
+    echo
+    echo '## Task List'
+    echo '- [x] 1 - The one closed thing'
+    for i in $(seq 1 "$n"); do
+      echo "- [~] 2.$i - deferred item number $i with a reasonably long title (deferred: waiting on an external actor)"
+    done
+  } > "$dir/tasks.md"
+}
+
+# keep_concurrent_evidence <n-runs> - surface AND preserve everything a failure
+# needs. The first version of this test sent all six runs to `> /dev/null 2>&1`,
+# so the day it finally went red there was nothing left to diagnose it with: the
+# corrupt manifest, every run's verdict and every stderr line died with the temp
+# directory, and the bug had to be reproduced from scratch by a separate
+# harness. EVERYTHING is copied out of $WORK (teardown deletes it) and the path
+# is printed; inline, only the runs that did NOT archive are echoed, because 80
+# successful JSON reports in a failure report bury the two that matter.
+keep_concurrent_evidence() {
+  local n keep verdict shown=0
+  keep=$(mktemp -d "${TMPDIR:-/tmp}/archive-conc-evidence.XXXXXX")
+  cp -- "$MANIFEST" "$keep/manifest.yaml" 2> /dev/null || true
+  for n in $(seq 1 "$1"); do
+    cp -- "$WORK/run.$n.out" "$keep/run.$n.out" 2> /dev/null || true
+    cp -- "$WORK/run.$n.err" "$keep/run.$n.err" 2> /dev/null || true
+    verdict=$(jq -r '.status // "NO-JSON"' < "$WORK/run.$n.out" 2> /dev/null || echo NO-JSON)
+    if [ "$verdict" != archived ] && [ "$shown" -lt 5 ]; then
+      shown=$((shown + 1))
+      echo "--- run $n verdict=$verdict ---"
+      cat -- "$WORK/run.$n.out" 2>&1 || true
+      echo "--- run $n stderr ---"
+      tail -5 -- "$WORK/run.$n.err" 2>&1 || true
+    fi
+  done
+  echo "--- every run's stdout/stderr and the manifest preserved in $keep ---"
+}
+
 @test "1.2: concurrent first-runs keep one header and lose no entry" {
-  # `manifest_header > "$MANIFEST_FILE"` used `>`, which TRUNCATES. Two runs
+  # TWO bugs, one case.
+  #
+  # (1) `manifest_header > "$MANIFEST_FILE"` used `>`, which TRUNCATES. Two runs
   # could both pass `[[ ! -e ]]`, and the second erased the first run's entry
   # while that first run reported exit 0 and moved its story - the moved-story-
   # without-its-entry state R3.4 exists to make impossible.
-  local n
-  for n in 1 2 3 4 5 6; do make_story "00$n-race" complete; done
-  for n in 1 2 3 4 5 6; do
-    bash "$ARCHIVE_SH" ".epic/stories/00$n-race" > /dev/null 2>&1 &
+  #
+  # (2) the append itself was unsynchronized. `printf '%s\n' "$entry" >> file`
+  # is NOT one write(2): bash line-buffers, so it is one write PER LINE, and two
+  # concurrent archives interleave INSIDE an entry - entry B's keys landing in
+  # the middle of entry A's `deferred_items:` list. O_APPEND loses no byte, so
+  # the LINE COUNTS SURVIVE: `grep -c '^  - story: '` still reports N and every
+  # entry still looks present. That is why this case must PARSE the document.
+  #
+  # WHY TEN ROUNDS. A collision needs two writers inside their append at the
+  # same instant, and the append is ~60us against a spread of arrival times of
+  # several ms - so ONE burst is a coin flip, not a proof. Measured against the
+  # unfixed code: a single 8-writer burst corrupts about 5-7 times in 10, so ten
+  # independent bursts miss with probability ~1e-4 at worst. Bigger entries do
+  # NOT help (measured: 200 boxes drops the rate to 2/10, because the longer
+  # census de-synchronizes the writers faster than it widens the window), and
+  # neither does a FIFO start barrier (5/10). Repetition is what buys the power;
+  # the deterministic pin of the mechanism itself is the mutual-exclusion case
+  # below. All rounds share ONE manifest, exactly as real archives do, so a
+  # single parse at the end catches a corruption from any of them.
+  local rounds=10 writers=8 r n idx total=80
+  for idx in $(seq 1 "$total"); do
+    make_bulky_story "$(printf '%03d-race' "$idx")" 40
   done
-  wait
-  [ -f "$MANIFEST" ]
-  # Every story archived, every entry present, exactly one header.
-  [ "$(ls -1 "$PROJ/.epic/archive" | grep -c -- '-race')" -eq 6 ]
-  [ "$(grep -c '^  - story: ' "$MANIFEST")" -eq 6 ]
-  [ "$(grep -c '^archived:' "$MANIFEST")" -eq 1 ]
-  # ...and the result is loadable YAML with six complete entries.
-  python3 -c '
+  for r in $(seq 1 "$rounds"); do
+    for n in $(seq 1 "$writers"); do
+      idx=$(((r - 1) * writers + n))
+      bash "$ARCHIVE_SH" ".epic/stories/$(printf '%03d-race' "$idx")" --skip-secrets \
+        > "$WORK/run.$idx.out" 2> "$WORK/run.$idx.err" &
+    done
+    wait
+  done
+
+  local failed="" archived entries headers yamlerr
+  [ -f "$MANIFEST" ] || failed+="no manifest was created; "
+  archived=$(ls -1 "$PROJ/.epic/archive" 2> /dev/null | grep -c -- '-race' || true)
+  [ "${archived:-0}" -eq "$total" ] || failed+="archived dirs ${archived:-0} != $total; "
+  entries=$(grep -c '^  - story: ' "$MANIFEST" 2> /dev/null || true)
+  [ "${entries:-0}" -eq "$total" ] || failed+="entry lines ${entries:-0} != $total; "
+  headers=$(grep -c '^archived:' "$MANIFEST" 2> /dev/null || true)
+  [ "${headers:-0}" -eq 1 ] || failed+="headers ${headers:-0} != 1; "
+  # The load-bearing one: a document that PARSES, with N complete entries.
+  yamlerr=$(python3 -c '
 import sys, yaml
-d = yaml.safe_load(open(sys.argv[1]))
-assert len(d["archived"]) == 6, d["archived"]
-for e in d["archived"]:
-    assert e["archived_at"], e
-' "$MANIFEST"
+try:
+    d = yaml.safe_load(open(sys.argv[1]))
+except Exception as e:
+    m = getattr(e, "problem_mark", None)
+    where = " at line %d" % (m.line + 1) if m else ""
+    print("PARSE " + str(e).splitlines()[0] + where)
+    raise SystemExit(0)
+a = (d or {}).get("archived") or []
+if len(a) != int(sys.argv[2]):
+    print("COUNT %d != %s" % (len(a), sys.argv[2]))
+    raise SystemExit(0)
+for e in a:
+    if not e.get("archived_at") or not e.get("story"):
+        print("INCOMPLETE " + repr(e)[:200])
+        raise SystemExit(0)
+print("OK")
+' "$MANIFEST" "$total" 2>&1 || true)
+  [ "$yamlerr" = OK ] || failed+="yaml: $yamlerr; "
+  # No lock may survive a run that finished.
+  [ ! -e "$PROJ/.epic/archive/.manifest.lock" ] || failed+="a manifest lock was left behind; "
+
+  if [ -n "$failed" ]; then
+    echo "CONCURRENCY FAILURE: $failed"
+    case "$yamlerr" in
+      *"at line "*)
+        local ln="${yamlerr##*at line }"
+        echo "--- manifest lines $((ln > 20 ? ln - 20 : 1))-$((ln + 5)) ---"
+        sed -n "$((ln > 20 ? ln - 20 : 1)),$((ln + 5))p" "$MANIFEST" || true
+        ;;
+    esac
+    keep_concurrent_evidence "$total"
+    false
+  fi
+}
+
+@test "1.2: an archive cannot append while another run holds the manifest lock" {
+  # The DETERMINISTIC pin of the mechanism the case above can only pin
+  # statistically. Mutual exclusion is not "two writers rarely collide" - it is
+  # "while one run holds the lock, no other run writes a byte". So this case
+  # takes the lock by hand, exactly the way manifest_append takes it, and
+  # watches: with the lock honoured the archive waits and the manifest does not
+  # grow; without it the append lands immediately and the assertion below fails
+  # on every run, not on some of them.
+  make_story 005-excl complete
+  mkdir -p "$PROJ/.epic/archive"
+  local lock="$PROJ/.epic/archive/.manifest.lock"
+  mkdir "$lock"
+  : > "$lock/owner.test-holder"
+  # A pre-existing manifest, so "did it append?" is a question about SIZE and
+  # not about whether the file was created at all.
+  printf '%s\n' 'archived:' > "$MANIFEST"
+  local before
+  before=$(wc -c < "$MANIFEST")
+  env EPIC_ARCHIVE_LOCK_TIMEOUT=30 bash "$ARCHIVE_SH" .epic/stories/005-excl \
+    > "$WORK/excl.out" 2> "$WORK/excl.err" &
+  local archiver=$!
+  # Long enough for an unsynchronized append to have happened many times over:
+  # the whole critical section is ~1ms.
+  sleep 1
+  local during
+  during=$(wc -c < "$MANIFEST")
+  [ "$during" -eq "$before" ] || {
+    echo "the manifest grew from $before to $during bytes while the lock was held:"
+    diff <(printf '%s\n' 'archived:') "$MANIFEST" || true
+    kill "$archiver" 2> /dev/null || true
+    wait "$archiver" 2> /dev/null || true
+    false
+  }
+  # The story has not moved either - the append is before the move (R3.4).
+  [ -d "$PROJ/.epic/stories/005-excl" ]
+  # Release, and it finishes normally.
+  rm -f "$lock"/owner.*
+  rmdir "$lock"
+  wait "$archiver"
+  [ -d "$PROJ/.epic/archive/005-excl" ]
+  [ "$(grep -c 'story: "005-excl"' "$MANIFEST")" -eq 1 ]
+  jq -e '.status == "archived"' < "$WORK/excl.out" > /dev/null
+}
+
+@test "1.2: a stale manifest lock left by a killed run is broken, not inherited" {
+  # The append is serialized by a lock directory. A run SIGKILLed inside the
+  # critical section cannot release it, and a lock nobody will ever release
+  # would wedge every future archive on the machine - the tool blocking forever
+  # on a corpse. The break is identity-targeted (see manifest_lock_acquire) and
+  # only fires on a marker that has not changed for the whole timeout, so it
+  # cannot take a live lock. Timeout shortened here so the case does not sit
+  # for the production 30s.
+  make_story 005-stale complete
+  mkdir -p "$PROJ/.epic/archive/.manifest.lock"
+  : > "$PROJ/.epic/archive/.manifest.lock/owner.dead-4242-1"
+  run --separate-stderr env EPIC_ARCHIVE_LOCK_TIMEOUT=1 \
+    bash "$ARCHIVE_SH" .epic/stories/005-stale
+  [ "$status" -eq 0 ]
+  [ -d "$PROJ/.epic/archive/005-stale" ]
+  # It says so, on stderr - breaking somebody's lock is never silent.
+  echo "$stderr" | grep -qi 'breaking the manifest lock'
+  # ...and the entry really is in there, and the lock is gone again.
+  [ "$(grep -c 'story: "005-stale"' "$MANIFEST")" -eq 1 ]
+  [ ! -e "$PROJ/.epic/archive/.manifest.lock" ]
+}
+
+@test "1.2: a manifest lock that keeps changing hands is waited for, never broken" {
+  # The other half of the stale rule, and the one that keeps the break safe: a
+  # lock is stale only when ONE identity has held it for the whole timeout. A
+  # holder that finishes hands it on to the next run's nonce, which resets the
+  # waiter's clock. A timeout measured against elapsed time ALONE would break
+  # this busy lock and let a second writer into the middle of an entry.
+  #
+  # The simulated holder KEEPS THE DIRECTORY the whole time and only rotates the
+  # marker inside it - the new marker is created BEFORE the old one is removed,
+  # so the directory is never empty and never legitimately breakable. That is
+  # the point being isolated: identity changed, ownership did not. (An earlier
+  # version of this scaffold let the directory go and then wrote markers into a
+  # path that no longer existed, so the "holder" held nothing, every write went
+  # to stderr, and the case failed on its own scaffolding - hence the
+  # holder-stderr assertion at the end, which turns that into a loud failure
+  # rather than a mysterious one.)
+  make_story 005-busy complete
+  local lock="$PROJ/.epic/archive/.manifest.lock"
+  mkdir -p "$PROJ/.epic/archive"
+  mkdir "$lock"
+  : > "$lock/owner.holder-0"
+  # Held for ~2s - TWICE the timeout, so a stale check that ignored identity
+  # would certainly fire - while the marker changes every ~0.1s.
+  (
+    i=1
+    while [ "$i" -lt 20 ]; do
+      sleep 0.1
+      : > "$lock/owner.holder-$i"
+      rm -f "$lock/owner.holder-$((i - 1))"
+      i=$((i + 1))
+    done
+    rm -f "$lock"/owner.*
+    rmdir "$lock"
+  ) 2> "$WORK/holder.err" &
+  local holder=$!
+  run --separate-stderr env EPIC_ARCHIVE_LOCK_TIMEOUT=1 \
+    bash "$ARCHIVE_SH" .epic/stories/005-busy
+  wait "$holder" || true
+  # The scaffold really did hold the lock for the whole window.
+  [ ! -s "$WORK/holder.err" ] || {
+    echo "holder scaffold failed:"
+    cat "$WORK/holder.err"
+    false
+  }
+  [ "$status" -eq 0 ]
+  # It waited for the holder instead of taking the lock away from it...
+  [[ "$stderr" != *"breaking the manifest lock"* ]]
+  # ...and then did its own append, exactly once.
+  [ "$(grep -c 'story: "005-busy"' "$MANIFEST")" -eq 1 ]
+  [ -d "$PROJ/.epic/archive/005-busy" ]
+  [ ! -e "$lock" ]
+}
+
+@test "1.2: a lock path that cannot be a lock is a verdict, not a 30-second wait" {
+  # `mkdir` failing is TWO different answers: EEXIST means somebody holds the
+  # lock and waiting is right; anything else (a plain file in the way, a
+  # read-only archive directory, ENOSPC) means the lock can never appear and
+  # waiting only delays the same verdict. Reading every failure as contention
+  # costs a full timeout - twice, once for the stale break - before reporting.
+  make_story 005-lockfile complete
+  mkdir -p "$PROJ/.epic/archive"
+  : > "$PROJ/.epic/archive/.manifest.lock"
+  local t0=$SECONDS
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-lockfile
+  local elapsed=$((SECONDS - t0))
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
+  # Fail-closed: no entry, nothing moved.
+  [ -d "$PROJ/.epic/stories/005-lockfile" ]
+  [ ! -d "$PROJ/.epic/archive/005-lockfile" ]
+  # Reported at once - the default timeout is 30s, so anything near it means
+  # the run sat waiting for a lock that could not exist.
+  [ "$elapsed" -lt 10 ]
 }
 
 # --- D: a verdict, with JSON, on the paths that used to die silently ---
@@ -618,7 +883,10 @@ for e in d["archived"]:
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.manifest_entry.status == "done"' > /dev/null
   grep -Eq 'status:[[:space:]]*"done"' "$MANIFEST"
-  ! grep -q 'closedearly' "$MANIFEST"
+  # NOT `! grep -q …`: bash's set -e exempts a command inverted with `!`, so
+  # such an assertion is a NO-OP anywhere but the last line of the body — and
+  # one appended line turns even a working one into silence. See the 2.2 block.
+  [[ "$(cat "$MANIFEST")" != *closedearly* ]]
 }
 
 # --- F: the destination is derived from the story's PHYSICAL location ---
@@ -712,7 +980,10 @@ open(p, "wb").write(d)
   grep -q $'^status: archived\r$' "$arch/story.md"
   grep -q '^status: archived$' "$arch/tasks.md"
   # ...and the file keeps its CRLF endings rather than growing a mixed one.
-  ! grep -qa $'[^\r]$' "$arch/story.md"
+  # `run` + an explicit status check, not `! grep …` — see the note at the
+  # closedearly assertion: an inverted command is exempt from set -e.
+  run grep -qa $'[^\r]$' "$arch/story.md"
+  [ "$status" -ne 0 ]
 }
 
 @test "1.3: an artifact left without frontmatter is named, not passed over in silence" {
@@ -759,7 +1030,7 @@ open(p, "wb").write(d)
   # Still exactly one entry, and the file is untouched by the second run.
   [ "$(grep -c 'story: "005-recorded"' "$MANIFEST")" -eq 1 ]
   grep -q 'forced_reason: "waiting on vendor"' "$MANIFEST"
-  ! grep -q 'giving up' "$MANIFEST"
+  [[ "$(cat "$MANIFEST")" != *"giving up"* ]]
 }
 
 @test "1.1: a refusal names the orphan entry an interrupted forced run left behind" {
@@ -846,6 +1117,181 @@ open(p, "wb").write(d)
   grep -q 'allow-heavy' "$MANIFEST"
 }
 
+# ADDITIVE 2.1 cases appended at execution time. Each pins behavior the ToDo
+# mandates that the four authored cases above leave unpinned. No assertion above
+# was modified, weakened or deleted, and every case below was mutation-checked
+# (break the fix -> the case fails).
+
+@test "2.1: every offending file is listed, not just the first" {
+  # R1.2 says "list EVERY offending file". A guard that stops at the first one
+  # turns a clean-up into a game of whack-a-mole: block, delete, block again.
+  make_story 005-many complete
+  local story="$PROJ/.epic/stories/005-many"
+  yes 'padding line for the weight guard fixture' | head -c 10485761 > "$story/first.txt"
+  yes 'padding line for the weight guard fixture' | head -c 10485762 > "$story/second.txt"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-many
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '(.guard.violations | length) == 2' > /dev/null
+  echo "$output" | jq -e '[.guard.violations[].file | endswith("first.txt")] | any' > /dev/null
+  echo "$output" | jq -e '[.guard.violations[].file | endswith("second.txt")] | any' > /dev/null
+  # The human reason carries both too - it is what the orchestrator surfaces.
+  echo "$output" | jq -e '.reason | contains("first.txt") and contains("second.txt")' > /dev/null
+  [ ! -d "$PROJ/.epic/archive/005-many" ]
+}
+
+@test "2.1: each violation carries the offending file's size and its reason" {
+  # R1.2 asks for the size AND the reason per offender. As a NUMBER in a field,
+  # not a figure a consumer has to fish back out of a prose sentence.
+  make_story 005-sized complete
+  yes 'padding line for the weight guard fixture' \
+    | head -c 10485761 > "$PROJ/.epic/stories/005-sized/big.txt"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-sized
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.guard.violations[0]
+    | has("file") and has("size") and has("reason")' > /dev/null
+  echo "$output" | jq -e '.guard.violations[0].size == 10485761' > /dev/null
+  echo "$output" | jq -e '.guard.violations[0].size | type == "number"' > /dev/null
+  echo "$output" | jq -e '.guard.violations[0].reason | test("larger than")' > /dev/null
+  # The prose list states the size as well, so a human reading only `reason`
+  # learns by how much the file missed.
+  echo "$output" | jq -e '.reason | contains("10485761")' > /dev/null
+}
+
+@test "2.1: a file inside .draft/ is scanned like any other" {
+  # The guard walks the whole story tree: a blob is no lighter for sitting one
+  # directory down, and .draft/ is exactly where the corpus put its evidence.
+  make_story 005-draftblob complete
+  mkdir -p "$PROJ/.epic/stories/005-draftblob/.draft/logs"
+  printf 'core\0dump' > "$PROJ/.epic/stories/005-draftblob/.draft/logs/crash.dump"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-draftblob
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked"' > /dev/null
+  echo "$output" | jq -e '[.guard.violations[].file
+    | endswith(".draft/logs/crash.dump")] | any' > /dev/null
+  [ -d "$PROJ/.epic/stories/005-draftblob" ]
+  [ ! -d "$PROJ/.epic/archive/005-draftblob" ]
+}
+
+@test "2.1: a UTF-16 text artifact is blocked as non-text, with --allow-heavy as the escape" {
+  # THE RISK NAMED IN THE PARENT TASK, pinned as a decision rather than left to
+  # be rediscovered: a UTF-16 file is real text, and it IS reported as binary,
+  # because every ASCII-range character it holds carries a NUL byte.
+  # Kept deliberately. A BOM exemption would miss BOM-less UTF-16 anyway AND
+  # hand any 2.3 GB blob a two-byte prefix that buys it a free pass - the exact
+  # hole this guard exists to close. So the verdict has to EXPLAIN itself, and
+  # --allow-heavy is the recorded escape.
+  make_story 005-utf16 complete
+  python3 -c '
+import sys
+open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le"))
+' "$PROJ/.epic/stories/005-utf16/notes-utf16.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-utf16
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked"' > /dev/null
+  echo "$output" | jq -e '[.guard.violations[].file
+    | endswith("notes-utf16.md")] | any' > /dev/null
+  # The reason names the edge, so nobody has to guess why a text file is binary.
+  echo "$output" | jq -e '.guard.violations[0].reason | test("UTF-16")' > /dev/null
+  # ...and the documented way out works, recorded as an override.
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-utf16 --allow-heavy
+  [ "$status" -eq 0 ]
+  [ -d "$PROJ/.epic/archive/005-utf16" ]
+  grep -q 'allow-heavy' "$MANIFEST"
+}
+
+@test "2.1: an empty file and a newline-only file are text, not binary" {
+  # `grep -qI .` finds no character on either of them, so reading its exit code
+  # as "binary" would block a clean story over an empty placeholder - the guard
+  # failing in the direction that costs trust rather than safety.
+  make_story 005-emptyish complete
+  : > "$PROJ/.epic/stories/005-emptyish/.gitkeep"
+  printf '\n\n\n' > "$PROJ/.epic/stories/005-emptyish/blank-lines.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-emptyish
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '(.guard.violations | length) == 0' > /dev/null
+  [ -d "$PROJ/.epic/archive/005-emptyish" ]
+}
+
+@test "2.1: a blocked story leaves no manifest entry and no archive directory" {
+  # The step order, asserted from the outside: the guard runs BEFORE the append
+  # (step 5) and the move (step 6). A blocked story that had already been
+  # written into the permanent record would be a record of an archive that
+  # never happened - and .epic/archive/ is deliberately hard to repair.
+  make_story 005-nowrite complete
+  printf 'ab\0cd' > "$PROJ/.epic/stories/005-nowrite/blob.dat"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-nowrite
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
+  echo "$output" | jq -e '.manifest_entry == {}' > /dev/null
+  [ ! -e "$MANIFEST" ]
+  [ ! -d "$PROJ/.epic/archive" ]
+  [ -f "$PROJ/.epic/stories/005-nowrite/story.md" ]
+  [ -f "$PROJ/.epic/stories/005-nowrite/blob.dat" ]
+}
+
+@test "2.1: a file the guard cannot read is a reported verdict, not a silent abort" {
+  # `[[ -f ]]` says a file EXISTS, not that it opens. A `grep` that fails on an
+  # unreadable file exits 2, and taking that for "no match, therefore text"
+  # would clear a file nobody inspected; letting it abort under `set -e` would
+  # end the run with zero bytes on stdout, which the output contract promises
+  # never happens. Fail closed, with JSON, naming the file.
+  make_story 005-opaque complete
+  printf 'plain readable text\n' > "$PROJ/.epic/stories/005-opaque/opaque.txt"
+  chmod 000 "$PROJ/.epic/stories/005-opaque/opaque.txt"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-opaque
+  # `|| true`: if the guard ever stops blocking, the story is MOVED and this
+  # path is gone - and the case must then fail on its assertion, not die here
+  # on the fixture cleanup. (teardown chmods the whole work tree anyway.)
+  chmod 644 "$PROJ/.epic/stories/005-opaque/opaque.txt" 2> /dev/null || true
+  [ "$status" -eq 1 ]
+  [ -n "$output" ]
+  echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
+  echo "$output" | jq -e '[.guard.violations[].file | endswith("opaque.txt")] | any' > /dev/null
+  echo "$output" | jq -e '.guard.violations[0].reason | test("cannot be read")' > /dev/null
+  [ -d "$PROJ/.epic/stories/005-opaque" ]
+  [ ! -d "$PROJ/.epic/archive/005-opaque" ]
+}
+
+@test "2.1: a tree the guard cannot fully enumerate blocks instead of passing" {
+  # The quiet way for a guard to fail is to pass on a tree it never saw: a
+  # directory it cannot descend into makes `find` exit non-zero AFTER printing
+  # the files it did reach, and a scan that reads only the output would clear a
+  # story on the strength of a partial list. Same rule as everywhere else here -
+  # what the guard cannot see, it cannot clear.
+  make_story 005-locked complete
+  mkdir -p "$PROJ/.epic/stories/005-locked/.draft/locked"
+  printf 'ab\0cd' > "$PROJ/.epic/stories/005-locked/.draft/locked/hidden.dat"
+  chmod 000 "$PROJ/.epic/stories/005-locked/.draft/locked"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-locked
+  chmod 755 "$PROJ/.epic/stories/005-locked/.draft/locked" 2> /dev/null || true
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
+  echo "$output" | jq -e '[.guard.violations[].reason
+    | test("cannot enumerate")] | any' > /dev/null
+  [ -d "$PROJ/.epic/stories/005-locked" ]
+  [ ! -d "$PROJ/.epic/archive/005-locked" ]
+}
+
+@test "2.1: a 2 GB-class binary is blocked with the offender and its size listed" {
+  # story.md's success metric, in the shape the corpus actually produced: zeo-002
+  # archived a 2.3 GB binary. The fixture is sparse, so it costs no disk - and
+  # the guard must not have to READ it to refuse it (size first, then text).
+  make_story 005-zeo complete
+  truncate -s 2469606195 "$PROJ/.epic/stories/005-zeo/vendor-blob.bin"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-zeo
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked"' > /dev/null
+  echo "$output" | jq -e '.guard.violations[0].size == 2469606195' > /dev/null
+  echo "$output" | grep -q 'vendor-blob.bin'
+  # It is refused for its WEIGHT, and that assertion is what makes this case a
+  # discriminator: a sparse file is all NUL bytes, so a guard that read it first
+  # would block it as "non-text" and look just as correct while the 10 MB rule
+  # sat broken. The size test runs first precisely so 2.3 GB is never read.
+  echo "$output" | jq -e '.guard.violations[0].reason | test("larger than")' > /dev/null
+  [ -d "$PROJ/.epic/stories/005-zeo" ]
+  [ ! -d "$PROJ/.epic/archive/005-zeo" ]
+}
+
 # --- 2.2 Secrets guard (R1.3, R1.4, R1.8) ---
 # Gated on gitleaks presence; the fixture key is a FAKE pattern (not a real
 # credential) that the gitleaks aws rule detects.
@@ -891,6 +1337,300 @@ open(p, "wb").write(d)
   [ -d "$PROJ/.epic/archive/005-noscan" ]
   # The skipped scan is noted in the structured output.
   printf '%s\n%s\n' "$output" "$stderr" | grep -qi 'gitleaks'
+}
+
+# ADDITIVE 2.2 cases appended at execution time. Each pins behavior the ToDo
+# mandates that the three authored cases above leave unpinned. No assertion
+# above was modified, weakened or deleted, and every case below was
+# mutation-checked (break the fix -> the case fails).
+
+# gl_shim_path <exit-code> - a PATH directory mirroring /usr/bin with a FAKE
+# `gitleaks` that exits with the given code and writes NO report. Same mirroring
+# trick the 1.2 clock case uses; a shim is the only honest way to produce a scan
+# failure, since the real binary cannot be made to fail on demand.
+#
+# The shim's diagnostic is deliberately NASTY - ANSI escapes (which gitleaks
+# really does emit, even into a pipe), a double quote, DEL and a C1 byte. That
+# text is external data spliced into the JSON `secrets.error`, so it exercises
+# the union escaper on the one path where arbitrary bytes from another program
+# reach this script's output.
+gl_shim_path() {
+  local code="$1" dir="$WORK/glshim-$1" t
+  mkdir -p "$dir"
+  for t in /usr/bin/*; do ln -s "$t" "$dir/${t##*/}" 2> /dev/null || true; done
+  # rm first: writing THROUGH the symlink would try to overwrite /usr/bin/gitleaks.
+  rm -f "$dir/gitleaks"
+  {
+    echo '#!/bin/sh'
+    printf 'printf %s >&2\n' "'FTL \\033[1mboom\\033[0m \"quoted\" del=\\177 c1=\\302\\206\\n'"
+    printf 'exit %s\n' "$code"
+  } > "$dir/gitleaks"
+  chmod +x "$dir/gitleaks"
+  printf '%s' "$dir"
+}
+
+@test "2.2: a scan that exits neither 0 nor 1 blocks instead of passing" {
+  # THE difference between "scanned and clean" and "never actually scanned".
+  # A scanner that RAN and could not answer is a guard hit like any other -
+  # only an ABSENT scanner is the documented degradation (R1.8). Collapsing the
+  # two turns every broken gitleaks on every machine into a silent free pass.
+  make_story 005-scanfail complete
+  local p
+  p=$(gl_shim_path 7)
+  run --separate-stderr env PATH="$p" bash "$ARCHIVE_SH" .epic/stories/005-scanfail
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
+  # Not a clean scan, and not findings either - the report says which.
+  echo "$output" | jq -e '.secrets.scanned == false' > /dev/null
+  echo "$output" | jq -e '.secrets.findings == null' > /dev/null
+  echo "$output" | jq -e '.secrets.error | test("exited 7")' > /dev/null
+  echo "$output" | jq -e '.reason | test("FAILED")' > /dev/null
+  # The size census runs BEFORE the scan, so this one is a real measurement
+  # (no oversized file in the fixture) rather than the untaken-count null below.
+  echo "$output" | jq -e '.secrets.unscanned_files == 0' > /dev/null
+  # The scanner's own diagnostic is arbitrary bytes from another program spliced
+  # into a JSON string. stdout must still parse, and round-trip what went in.
+  echo "$output" | jq -e . > /dev/null
+  echo "$output" | jq -e '.secrets.error | contains("[1mboom")' > /dev/null
+  echo "$output" | jq -e '.secrets.error | contains("\"quoted\"")' > /dev/null
+  echo "$output" | jq -e '.secrets.error | contains("del=")' > /dev/null
+  echo "$output" | jq -e '.secrets.error | contains("c1=")' > /dev/null
+  # Fail-closed: nothing moved, nothing recorded.
+  [ -d "$PROJ/.epic/stories/005-scanfail" ]
+  [ ! -d "$PROJ/.epic/archive/005-scanfail" ]
+  [ ! -e "$MANIFEST" ]
+}
+
+@test "2.2: gitleaks' own fatal exit 1 is a scan failure, not a findings count" {
+  # gitleaks exits 1 for FINDINGS *and* for its own fatal errors - an
+  # unparseable config, an unwritable report path, a target that does not exist.
+  # So the exit code alone cannot tell "found something" from "never looked",
+  # and the naive reading of `--exit-code 1` reports a scan that never ran as
+  # `findings: 0`. The REPORT is the discriminator: gitleaks writes it only
+  # after a scan that actually ran.
+  make_story 005-fatal complete
+  local p
+  p=$(gl_shim_path 1)
+  run --separate-stderr env PATH="$p" bash "$ARCHIVE_SH" .epic/stories/005-fatal
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
+  echo "$output" | jq -e '.secrets.scanned == false' > /dev/null
+  # The one assertion that matters: it is NOT reported as a clean scan.
+  echo "$output" | jq -e '.secrets.findings == null' > /dev/null
+  echo "$output" | jq -e '.secrets.error | test("without writing a readable JSON report")' > /dev/null
+  [ -d "$PROJ/.epic/stories/005-fatal" ]
+  [ ! -e "$MANIFEST" ]
+  # No report survives this path, so none is named: pointing an operator at a
+  # file the run has just deleted is the same mistake as a false "nothing moved".
+  echo "$output" | jq -e '.secrets.report == null' > /dev/null
+  echo "$output" | jq -e '.secrets.error | test("/tmp/") | not' > /dev/null
+}
+
+@test "2.2: exit 0 without a report is a scanner that answered without looking" {
+  # The mirror of the exit-1 fatal above, and the branch no shim reached until
+  # now: a CLEAN exit is trusted only when a report proves a scan happened.
+  # gitleaks writes the report after the scan, so exit 0 with nothing on disk
+  # is an answer with no scan behind it — which must not become `findings: 0`.
+  # Found by the orchestrator: mutating this check away left every existing
+  # 2.2 case green, so the branch was implemented but pinned by nothing.
+  make_story 005-noreport complete
+  local p
+  p=$(gl_shim_path 0)
+  run --separate-stderr env PATH="$p" bash "$ARCHIVE_SH" .epic/stories/005-noreport
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
+  echo "$output" | jq -e '.secrets.scanned == false' > /dev/null
+  # The assertion that carries the whole case: a scan that did not happen is
+  # never reported as a scan that found nothing.
+  echo "$output" | jq -e '.secrets.findings == null' > /dev/null
+  echo "$output" | jq -e '.secrets.error | test("exited 0 but wrote no readable JSON report")' > /dev/null
+  # No surviving report, so none is named (same rule as the exit-1 fatal case).
+  echo "$output" | jq -e '.secrets.report == null' > /dev/null
+  # Fail-closed: the guard precedes the append and the move.
+  [ -d "$PROJ/.epic/stories/005-noreport" ]
+  [ ! -d "$PROJ/.epic/archive/005-noreport" ]
+  [ ! -e "$MANIFEST" ]
+}
+
+@test "2.2: the absent-scanner note says WHAT was skipped, not just the scanner's name" {
+  # The authored case greps stdout+stderr for 'gitleaks' - which the constant
+  # `"scanner": "gitleaks"` key satisfies ON ITS OWN, so it cannot tell a real
+  # note from no note at all (mutation-checked: strip both notes and it still
+  # reports ok). R1.8 asks for the SKIPPED SCAN to be noted, so that is what
+  # this pins, in both registers.
+  mkdir "$WORK/nobin2"
+  local t
+  for t in /usr/bin/*; do ln -s "$t" "$WORK/nobin2/${t##*/}" 2> /dev/null || true; done
+  rm -f "$WORK/nobin2/gitleaks"
+  make_story 005-nonote complete
+  run --separate-stderr env PATH="$WORK/nobin2" bash "$ARCHIVE_SH" .epic/stories/005-nonote
+  [ "$status" -eq 0 ]
+  # Structurally on stdout, where the orchestrator's jq can see it...
+  echo "$output" | jq -e '.secrets.scanned == false' > /dev/null
+  echo "$output" | jq -e '.secrets.skipped == "gitleaks not installed"' > /dev/null
+  echo "$output" | jq -e '.secrets.findings == null' > /dev/null
+  # ...and in prose on stderr, in the guard's key=value shape, for the human.
+  echo "$stderr" | grep -q 'guard=secrets verdict=skipped'
+  echo "$stderr" | grep -q 'reason=gitleaks-not-installed'
+  echo "$stderr" | grep -q 'UNSCANNED'
+}
+
+@test "2.2: a clean story reports a scan that RAN, and silence still means not-run" {
+  command -v gitleaks > /dev/null || skip "gitleaks not installed"
+  # `secrets: {}` used to be the only value there was, so every consumer had to
+  # read silence as safety. A clean archive must now say so POSITIVELY...
+  make_story 005-clean complete
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-clean
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.secrets.scanned == true' > /dev/null
+  echo "$output" | jq -e '.secrets.findings == 0' > /dev/null
+  echo "$output" | jq -e '.secrets.skipped == null and .secrets.error == null' > /dev/null
+  # ...and `{}` keeps its own meaning, which is the other half of the pair: a
+  # story blocked at step 2 never reaches the scanner, so it must not read as
+  # clean either.
+  make_story 005-cleanbin complete
+  printf 'ab\0cd' > "$PROJ/.epic/stories/005-cleanbin/blob.dat"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-cleanbin
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.secrets == {}' > /dev/null
+}
+
+@test "2.2: --skip-secrets on a story that really holds a secret archives, and the skip shows" {
+  command -v gitleaks > /dev/null || skip "gitleaks not installed"
+  # R1.4 on the path that actually exercises the override: the authored case
+  # asserts the exit code and the manifest, but a skip that LOOKS like a clean
+  # scan in the report is worse than no scan at all.
+  make_story 005-leakskip complete
+  printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
+    > "$PROJ/.epic/stories/005-leakskip/notes-creds.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-leakskip --skip-secrets
+  [ "$status" -eq 0 ]
+  [ -d "$PROJ/.epic/archive/005-leakskip" ]
+  echo "$output" | jq -e '.secrets.scanned == false' > /dev/null
+  echo "$output" | jq -e '.secrets.findings == null' > /dev/null
+  echo "$output" | jq -e '.secrets.skipped == "--skip-secrets"' > /dev/null
+  # Nothing was measured on this path, so no count claims to be one.
+  echo "$output" | jq -e '.secrets.unscanned_files == null' > /dev/null
+  # R1.4: recorded in the entry, on stdout and in the permanent record.
+  echo "$output" | jq -e '.manifest_entry.overrides_used | index("skip-secrets") != null' > /dev/null
+  grep -q 'skip-secrets' "$MANIFEST"
+  # Archive does not scrub: the file travels as it is...
+  grep -q 'AKIAQWERTYUIOPASDFGH' "$PROJ/.epic/archive/005-leakskip/notes-creds.md"
+  # ...but the secret is never copied into the manifest. (`[[ != ]]` rather than
+  # `! grep`: see the note in the no-secret-material case - a `!` that is not
+  # the last line of the body can never fail a bats test.)
+  [[ "$(cat "$MANIFEST")" != *AKIAQWERTYUIOPASDFGH* ]]
+}
+
+@test "2.2: the findings count is the real count, not a boolean" {
+  command -v gitleaks > /dev/null || skip "gitleaks not installed"
+  # R1.3 says "reporting the findings count". A guard that answers 1 for any
+  # number of leaks tells the operator nothing about the size of the clean-up.
+  make_story 005-two complete
+  printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
+    > "$PROJ/.epic/stories/005-two/creds-a.md"
+  printf 'aws_access_key_id = "AKIAZXCVBNMASDFGHJKL"\n' \
+    > "$PROJ/.epic/stories/005-two/creds-b.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-two
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.secrets.findings == 2' > /dev/null
+  echo "$output" | jq -e '.secrets.findings | type == "number"' > /dev/null
+  # The human reason carries the count too - it is what the orchestrator surfaces.
+  echo "$output" | jq -e '.reason | contains("2 secret")' > /dev/null
+}
+
+@test "2.2: no secret material reaches stdout, stderr or the permanent record" {
+  command -v gitleaks > /dev/null || skip "gitleaks not installed"
+  # A guard that quotes the leak into its own diagnostics copies it into every
+  # log that captures the run - CI output, shell history, an orchestrator
+  # transcript. The count and the report PATH are what leave this process.
+  make_story 005-quiet complete
+  printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
+    > "$PROJ/.epic/stories/005-quiet/notes-creds.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-quiet
+  [ "$status" -eq 1 ]
+  # `[[ != ]]`, NOT `! grep -q ...`: bash exempts a `!`-inverted command from
+  # `set -e`, so a `! cmd` anywhere but the LAST line of a bats test body is a
+  # no-op that can never fail the case. Mutation-checked - with the secret
+  # deliberately spliced into the block reason, the `!` form still reported ok.
+  [[ "$output" != *AKIAQWERTYUIOPASDFGH* ]]
+  [[ "$stderr" != *AKIAQWERTYUIOPASDFGH* ]]
+  [ ! -e "$MANIFEST" ]
+  # The report path IS reported, so the operator can go and read it.
+  echo "$output" | jq -e '.secrets.report | test("gitleaks-report.json")' > /dev/null
+}
+
+@test "2.2: a story blocked on secrets leaves no manifest entry and no archive directory" {
+  command -v gitleaks > /dev/null || skip "gitleaks not installed"
+  # The step order, asserted from the outside: the secrets guard runs BEFORE the
+  # prune (step 4), the append (step 5) and the move (step 6). A blocked story
+  # already written into the permanent record would be a record of an archive
+  # that never happened, under a tree that is deliberately hard to repair.
+  make_story 005-order complete
+  printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
+    > "$PROJ/.epic/stories/005-order/notes-creds.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-order
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
+  echo "$output" | jq -e '.manifest_entry == {}' > /dev/null
+  [ ! -e "$MANIFEST" ]
+  [ ! -d "$PROJ/.epic/archive" ]
+  [ -f "$PROJ/.epic/stories/005-order/notes-creds.md" ]
+  [ -f "$PROJ/.epic/stories/005-order/story.md" ]
+}
+
+@test "2.2: the scan report lives outside the project and never rides into the archive" {
+  command -v gitleaks > /dev/null || skip "gitleaks not installed"
+  # gitleaks' JSON report holds the MATCHED SECRET, the file and the line. Two
+  # places it must never be: world-readable in a shared temp directory, and
+  # inside the story - where it would travel into .epic/archive/ with the move
+  # and become a permanent copy of exactly what the guard just objected to.
+  make_story 005-reportpath complete
+  printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
+    > "$PROJ/.epic/stories/005-reportpath/notes-creds.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-reportpath
+  [ "$status" -eq 1 ]
+  local rp
+  rp=$(echo "$output" | jq -r '.secrets.report')
+  [ -n "$rp" ] && [ "$rp" != "null" ]
+  [[ "$rp" != "$PROJ"/* ]]
+  [ -f "$rp" ]
+  grep -q 'AKIAQWERTYUIOPASDFGH' "$rp"
+  [ "$(stat -c %a "$rp")" = "600" ]
+  [ "$(stat -c %a "$(dirname "$rp")")" = "700" ]
+  rm -rf "$(dirname "$rp")"
+  # A CLEAN scan keeps nothing: `[]` is not evidence, and nothing gitleaks-shaped
+  # may end up in the archived story.
+  make_story 005-reportgone complete
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-reportgone
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.secrets.report == null' > /dev/null
+  [ -z "$(find "$PROJ/.epic/archive/005-reportgone" -name '*gitleaks*' -print -quit)" ]
+}
+
+@test "2.2: a file over the scanner's size limit is reported as unscanned, not as clean" {
+  command -v gitleaks > /dev/null || skip "gitleaks not installed"
+  # PINNED AS A DECISION, not left to be rediscovered: --max-target-megabytes 15
+  # makes gitleaks skip any file over 15,000,000 bytes (decimal MB, probed
+  # exactly: 15000000 is scanned, 15000001 is not) WITHOUT saying so - it exits
+  # 0 and reports "no leaks found". A scanner that silently skips the biggest
+  # file in the tree while reporting clean is the exact failure R1.3 exists to
+  # prevent. Step 2 blocks anything over 10 MB, so only --allow-heavy can bring
+  # a file this size to the scanner at all - and when it does, the archive says
+  # what the pass does NOT cover.
+  make_story 005-toobig complete
+  {
+    printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n'
+    head -c 15000001 /dev/zero | tr '\0' 'a'
+  } > "$PROJ/.epic/stories/005-toobig/huge-notes.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-toobig --allow-heavy
+  [ "$status" -eq 0 ]
+  # The scan passes with a plaintext key sitting in the story...
+  echo "$output" | jq -e '.secrets.scanned == true and .secrets.findings == 0' > /dev/null
+  # ...so it must not be allowed to imply the file was looked at.
+  echo "$output" | jq -e '.secrets.unscanned_files == 1' > /dev/null
+  echo "$stderr" | grep -q 'huge-notes.md'
+  echo "$stderr" | grep -qi 'skips'
 }
 
 # --- 3.1 Log pruning (R2.1, R2.3) ---
