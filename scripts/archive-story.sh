@@ -30,10 +30,12 @@
 #   5. manifest append .......... sub-task 1.2  (implemented — before the move, R3.4)
 #   6. move ..................... sub-task 1.3  (implemented — git mv / mv, R6.1/R6.2)
 #   7. status: archived ......... sub-task 1.3  (implemented)
-#   8. index regeneration ....... sub-tasks 4.1 / 4.2 (stub)
-# Step 8 is not implemented yet and is a marked stub below. Step 4 is the FIRST
-# DESTRUCTIVE STEP, and its position is asserted in the script (GUARDS_PASSED,
-# read by BOTH of its halves), not only stated here.
+#   8. index regeneration ....... sub-tasks 4.1 / 4.2 (implemented — R5.2)
+# Step 4 is the FIRST DESTRUCTIVE STEP, and its position is asserted in the
+# script (GUARDS_PASSED, read by BOTH of its halves), not only stated here.
+# Step 8 is LAST, and it is the one step that never rolls back: the index is a
+# RENDERING of the move, so a failure there warns (`index: "regen-failed"`) and
+# the archive still stands.
 
 set -euo pipefail
 
@@ -87,6 +89,10 @@ MOVED=false            # JSON boolean literal — true only after a completed mo
 PRUNED_LOGS_KB=0
 PRUNED_COPIES=0
 INDEX_STATE="skipped"  # ok | regen-failed | skipped (step 8 never ran)
+                       # `skipped` is the INITIAL value and it means exactly
+                       # that: a refusal or a guard block exited before step 8,
+                       # so the index still matches the disk. It is never
+                       # written by step 8 itself — see regenerate_index.
 SECRETS_JSON='{}'      # filled by the secrets guard (sub-task 2.2)
 MANIFEST_JSON='{}'     # filled by the manifest step (sub-task 1.2)
 # guard.violations[] holds RENDERED JSON OBJECTS — {file, size, reason} — not
@@ -2442,6 +2448,90 @@ apply_archived_status() {
   [[ -z "$STATUS_FAILED_TEXT" ]]
 }
 
+# --- Index regeneration (step 8) --------------------------------------------
+# R5.2: after a story is archived, its row in `.epic/EPIC.md` must resolve into
+# `.epic/archive/`. The row is not rewritten in place — scripts/epic-index.sh
+# REGENERATES the whole managed block from disk state, which is what makes the
+# link correct by construction (design.md, component 3: the clubedavoz frozen
+# index is the failure mode a hand-maintained one produced).
+#
+# WHICH IS WHY THIS STEP IS LAST, and not merely by convention: the row is
+# derived from where the directory IS (step 6) and from what its frontmatter
+# SAYS (step 7). Regenerate before either and the block describes the story as
+# it was a moment ago — a freshly generated stale index, which is worse than no
+# index at all because it looks current.
+#
+# A FAILURE HERE NEVER ROLLS BACK (design.md, Error Handling — "Move succeeded,
+# index regen failed: warn + manifest already correct; next LIST retries
+# regeneration (idempotent)"). The move and the manifest entry ARE the archive;
+# the index is a rendering of them. Undoing a completed, recorded move because a
+# markdown table could not be rewritten would trade a stale rendering for a
+# destroyed archive — and since the generator is idempotent and reads only disk,
+# the next regeneration repairs it with no state to reconcile. So this step
+# warns, reports `index: "regen-failed"`, and the run still exits 0.
+#
+# `index` HONESTY — the distinction sub-task 1.1 recorded, which this step must
+# not blur:
+#   ok            the generator ran and returned 0
+#   regen-failed  the generator ran and did not return 0, or could not be run
+#   skipped       THIS STEP NEVER RAN — a refusal or a guard block exited first
+# `skipped` is NOT a synonym for "no regeneration happened". It says the archive
+# never got this far, so nothing moved and the index still agrees with the disk.
+# After a completed move that would be a lie in the dangerous direction, because
+# the row then points at a `stories/` path that no longer exists. That is why a
+# MISSING generator is reported as `regen-failed`, not as `skipped`.
+
+# Resolved from THIS script's own location, not from PATH and not from the cwd:
+# the generator is a sibling shipped with the plugin, and archive-story.sh is
+# invoked from wherever the operator happens to be. Computed at load time,
+# before anything could change directory, and reported instead of fatal — a
+# `VAR=$(cmd)` that fails under `set -e` would end the run with no JSON at all.
+INDEX_SCRIPT=""
+INDEX_ERR=""
+_epic_script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd -P) || _epic_script_dir=""
+[[ -n "$_epic_script_dir" ]] && INDEX_SCRIPT="$_epic_script_dir/epic-index.sh"
+unset _epic_script_dir
+
+# regenerate_index — step 8 itself. It always returns 0: this step reaches no
+# verdict of its own, it only decides between `ok` and `regen-failed` and says
+# which, in INDEX_STATE (structurally, on stdout) and INDEX_ERR (for the human).
+#
+# The generator is run through `${BASH:-bash}` rather than executed. It carries
+# a shebang but is not required to be executable — the test suite invokes it the
+# same way — and naming the interpreter also runs the child under the SAME bash
+# that is running this script, instead of whatever `bash` PATH resolves to.
+#
+# BOTH of the child's streams are captured into a variable and replayed on
+# STDERR. epic-index.sh's contract is that its stdout is empty (every diagnostic
+# it has goes to stderr, precisely so it can be called from here) — but THIS
+# script's stdout is reserved for one JSON object that a consumer pipes straight
+# into jq, so the guarantee is enforced at the call site instead of trusted:
+# whatever the child prints, none of it can reach our stdout.
+regenerate_index() {
+  local out rc
+  INDEX_ERR=""
+  # `[[ -f ]]` says the file EXISTS, not that it opens — so this check is only
+  # here to name the ordinary case (an older install, or someone deleted it)
+  # with a message that helps. A file that exists and cannot be read still fails
+  # below, where bash's own diagnostic is captured.
+  if [[ -z "$INDEX_SCRIPT" || ! -f "$INDEX_SCRIPT" ]]; then
+    INDEX_STATE="regen-failed"
+    INDEX_ERR="the index generator is not there (looked for '${INDEX_SCRIPT:-<the sibling epic-index.sh of this script>}')"
+    return 0
+  fi
+  out=$("${BASH:-bash}" "$INDEX_SCRIPT" --epic-dir "$EPIC_DIR" 2>&1) && rc=0 || rc=$?
+  if [[ -n "$out" ]]; then
+    printf '%s\n' "$out" >&2
+  fi
+  if [[ $rc -eq 0 ]]; then
+    INDEX_STATE="ok"
+    return 0
+  fi
+  INDEX_STATE="regen-failed"
+  INDEX_ERR="'$INDEX_SCRIPT' exited $rc${out:+ — it said: ${out//$'\n'/; }}"
+  return 0
+}
+
 # --- Flag parsing -----------------------------------------------------------
 # Unknown flag => exit 2 (invalid input), before anything is read or resolved.
 # Every override used is collected for the manifest entry (R1.4, R1.6, R2.3).
@@ -2904,14 +2994,37 @@ elif [[ -n "$STATUS_SKIPPED_TEXT" ]]; then
     "$STATUS_SKIPPED_TEXT" "$STORY_ID" "$STATUS_APPLIED" >&2
 fi
 
-# ============================================================================
-# STUB — STEP 8: INDEX REGENERATION (sub-tasks 4.1, 4.2)
-# ============================================================================
-# Step 8 regenerates the .epic/EPIC.md index block. Until it lands, `index`
-# stays "skipped" — a regeneration that never ran must never report "ok".
-
+# The archive is complete HERE: the story is moved, recorded and consistent with
+# its own frontmatter. Everything after this point is a rendering of that fact,
+# and nothing after this point may change the verdict.
 STATUS="archived"
 printf 'archive-story: status=archived artifacts_updated=%d\n' "$STATUS_APPLIED" >&2
+
+# ============================================================================
+# STEP 8 — INDEX REGENERATION (R5.2)
+# ============================================================================
+# LAST, so the regenerated row reflects the archived state: the link comes from
+# where the directory now is (step 6) and the status cell from what its
+# frontmatter now says (step 7). The verdict line above is printed BEFORE this
+# step, so the ordering is assertable from stderr and not merely stated here.
+regenerate_index
+
+if [[ "$INDEX_STATE" != "ok" ]]; then
+  # A WARNING, NOT A VERDICT — STATUS stays `archived` and the exit stays 0.
+  # It is carried on stdout as well as on stderr because the orchestrator pipes
+  # stdout into jq: a note only a human can see is invisible to the consumer
+  # that would act on it (the same two-register rule step 3 follows for R1.8).
+  REASON="'$STORY_ID' IS archived and recorded, but the managed index block in '$EPIC_DIR/EPIC.md' could not be regenerated, so its row still points at the story's old location — $INDEX_ERR. NOTHING WAS ROLLED BACK: the move and the manifest entry stand, and the index is generated from disk state, so re-running 'epic-index.sh' (or the next LIST, which regenerates opportunistically) repairs the row with nothing to reconcile"
+fi
+
+# ONE line, one field list, two verdict words — the convention prune_copies_step
+# records: a second printf is a second copy of the same key list, and the next
+# field added to one of them would be silently missing from the other. So
+# `grep 'archive-story: index='` answers with one shape whatever happened.
+printf 'archive-story: index=%s generator=%s epic_dir=%s%s\n' \
+  "$INDEX_STATE" "${INDEX_SCRIPT:-(not found)}" "$EPIC_DIR" \
+  "${INDEX_ERR:+ reason=$INDEX_ERR (the move STANDS — the block is regenerated from disk state, so the next run repairs it)}" >&2
+
 printf 'Archived: %s -> %s\n' "$STORY_PATH" "$ARCHIVE_DIR/$STORY_ID" >&2
 emit_report
 exit 0
