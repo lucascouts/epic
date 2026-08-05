@@ -1250,6 +1250,7 @@ prune_logs_write() {
   # invented.
   derive_archived_at && gen="$ARCHIVED_AT" || gen=""
 
+  # shellcheck disable=SC2016  # backticks here are markdown code spans, not expansions
   {
     printf '# Log summary — %s\n\n' "$STORY_ID"
     printf 'This story was archived with `.draft/logs/` present, and those log files\n'
@@ -2946,6 +2947,7 @@ if ! move_story "$ARCHIVE_DIR/$STORY_ID"; then
   # preflight refuses the re-run as already archived.
   if [[ -d "$ARCHIVE_DIR/$STORY_ID" ]]; then
     MOVED=true
+    # shellcheck disable=SC2016  # the single quotes are display punctuation; the paths inside them do expand
     block "${MOVE_ERR:-cannot move '$STORY_PATH' to '$ARCHIVE_DIR/$STORY_ID'} — but '$STORY_ID' IS now at '$ARCHIVE_DIR/$STORY_ID': the rename completed and the step after it did not (git stages the rename only after moving the files). Do NOT re-run — preflight would refuse it as already archived. Finish by hand: 'git add -A' the two paths so the rename is recorded, and set 'status: archived' in the moved artifacts' frontmatter"
   fi
   # The entry is already in the manifest, and that is the direction R3.4
@@ -2954,6 +2956,7 @@ if ! move_story "$ARCHIVE_DIR/$STORY_ID"; then
   # loses the story's record with nothing left to reconstruct it from.
   # mv's / git mv's own message already names both paths and the errno, so it
   # IS the reason; the fallback covers a move that fails without saying why.
+  # shellcheck disable=SC2016  # the single quotes are display punctuation; the paths inside them do expand
   block "${MOVE_ERR:-cannot move '$STORY_PATH' to '$ARCHIVE_DIR/$STORY_ID'} — nothing was moved; $RESUME_HINT"
 fi
 

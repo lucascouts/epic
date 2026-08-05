@@ -151,7 +151,7 @@ TAB=$'\t'
 
 TMP_BUILD=""
 TMP_SWAP=""
-# shellcheck disable=SC2329  # invoked by the EXIT trap below
+# shellcheck disable=SC2329,SC2317  # invoked by the EXIT trap below (SC2317 is older shellcheck's spelling)
 cleanup() {
   if [[ -n "$TMP_BUILD" ]]; then rm -f "$TMP_BUILD"; fi
   if [[ -n "$TMP_SWAP" ]]; then rm -f "$TMP_SWAP"; fi
@@ -245,6 +245,7 @@ yaml_unquote() {
     return 0
   fi
   out=""
+  # shellcheck disable=SC1003  # '\' is a literal backslash being unescaped, not a quoting mistake
   for (( i = 0; i < ${#s}; i++ )); do
     c="${s:i:1}"
     if [[ "$c" != '\' ]]; then
