@@ -22,21 +22,21 @@
 #   jq -r '.[].Fingerprint' h.json w.json | sort -u
 #
 # --- history (gitleaks detect) ---
-270357377abe1ece53c5c73e686d3ce0adeed481:tests/archive-story.bats:aws-access-token:856
-270357377abe1ece53c5c73e686d3ce0adeed481:tests/archive-story.bats:aws-access-token:869
-29d130fde9cf0a653241ca78f9de02c79bbae1ad:tests/archive-story.bats:aws-access-token:1718
-75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1504
-75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1518
-75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1522
-75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1530
-75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1532
-75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1548
-75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1556
-75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1557
-75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1570
-75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1589
-75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1598
-75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1623
+6ac5b1bf5cce44e153b18268773862694a6a0ee5:tests/archive-story.bats:aws-access-token:1718
+99fd6d3265671f1bc11f3a265ac7b062ca696e7e:tests/archive-story.bats:aws-access-token:1504
+99fd6d3265671f1bc11f3a265ac7b062ca696e7e:tests/archive-story.bats:aws-access-token:1518
+99fd6d3265671f1bc11f3a265ac7b062ca696e7e:tests/archive-story.bats:aws-access-token:1522
+99fd6d3265671f1bc11f3a265ac7b062ca696e7e:tests/archive-story.bats:aws-access-token:1530
+99fd6d3265671f1bc11f3a265ac7b062ca696e7e:tests/archive-story.bats:aws-access-token:1532
+99fd6d3265671f1bc11f3a265ac7b062ca696e7e:tests/archive-story.bats:aws-access-token:1548
+99fd6d3265671f1bc11f3a265ac7b062ca696e7e:tests/archive-story.bats:aws-access-token:1556
+99fd6d3265671f1bc11f3a265ac7b062ca696e7e:tests/archive-story.bats:aws-access-token:1557
+99fd6d3265671f1bc11f3a265ac7b062ca696e7e:tests/archive-story.bats:aws-access-token:1570
+99fd6d3265671f1bc11f3a265ac7b062ca696e7e:tests/archive-story.bats:aws-access-token:1589
+99fd6d3265671f1bc11f3a265ac7b062ca696e7e:tests/archive-story.bats:aws-access-token:1598
+99fd6d3265671f1bc11f3a265ac7b062ca696e7e:tests/archive-story.bats:aws-access-token:1623
+adea7273c69c55618c335fce5686cb000eeb9d00:tests/archive-story.bats:aws-access-token:856
+adea7273c69c55618c335fce5686cb000eeb9d00:tests/archive-story.bats:aws-access-token:869
 
 # --- working tree (gitleaks dir .) ---
 .epic/stories/005-archive-in-the-flow/.draft/authored-tests/tests/archive-story.bats:aws-access-token:276
