@@ -1,0 +1,58 @@
+# gitleaks allowlist — deliberate test fixtures, not credentials.
+#
+# Every entry below is an AWS-access-key-SHAPED STRING that story 005's secrets
+# guard needs in order to be testable at all. `archive-story.sh` blocks an
+# archive when gitleaks reports a finding (R1.3), and the only honest way to
+# prove that is a fixture gitleaks genuinely detects. A fake key that the
+# scanner ignores would turn those tests into tautologies.
+#
+# None of these is, or ever was, a real credential:
+#   * they are AKIA-prefixed literals typed into bats fixtures;
+#   * they authenticate against nothing;
+#   * they live only in test files and in the story's authored-test copy.
+#
+# Fingerprints are pinned per commit:file:rule:line (history) and
+# file:rule:line (working tree), so a NEW finding anywhere — including a real
+# one in these same files — is still reported. This file suppresses exactly
+# these occurrences and nothing else.
+#
+# Regenerate after touching the secrets-guard fixtures:
+#   gitleaks detect --report-format json --report-path h.json
+#   gitleaks dir . --report-format json --report-path w.json
+#   jq -r '.[].Fingerprint' h.json w.json | sort -u
+#
+# --- history (gitleaks detect) ---
+270357377abe1ece53c5c73e686d3ce0adeed481:tests/archive-story.bats:aws-access-token:856
+270357377abe1ece53c5c73e686d3ce0adeed481:tests/archive-story.bats:aws-access-token:869
+29d130fde9cf0a653241ca78f9de02c79bbae1ad:tests/archive-story.bats:aws-access-token:1718
+75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1504
+75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1518
+75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1522
+75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1530
+75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1532
+75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1548
+75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1556
+75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1557
+75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1570
+75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1589
+75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1598
+75717993ccbfd40b84124f0b33af89c8cdccfdd2:tests/archive-story.bats:aws-access-token:1623
+
+# --- working tree (gitleaks dir .) ---
+.epic/stories/005-archive-in-the-flow/.draft/authored-tests/tests/archive-story.bats:aws-access-token:276
+.epic/stories/005-archive-in-the-flow/.draft/authored-tests/tests/archive-story.bats:aws-access-token:289
+tests/archive-story.bats:aws-access-token:1302
+tests/archive-story.bats:aws-access-token:1315
+tests/archive-story.bats:aws-access-token:1504
+tests/archive-story.bats:aws-access-token:1518
+tests/archive-story.bats:aws-access-token:1522
+tests/archive-story.bats:aws-access-token:1530
+tests/archive-story.bats:aws-access-token:1532
+tests/archive-story.bats:aws-access-token:1548
+tests/archive-story.bats:aws-access-token:1556
+tests/archive-story.bats:aws-access-token:1557
+tests/archive-story.bats:aws-access-token:1570
+tests/archive-story.bats:aws-access-token:1589
+tests/archive-story.bats:aws-access-token:1598
+tests/archive-story.bats:aws-access-token:1623
+tests/archive-story.bats:aws-access-token:1718
