@@ -13,6 +13,11 @@
 # hand-maintained index produced (a frozen index became the reason archives
 # stopped happening).
 #
+# Three sources, in this order of authority: stories/, archive/, and
+# archive/manifest.yaml. The first two are the live filesystem and always win.
+# The manifest is the permanent record of what LEFT, so a story whose archived
+# directory has since been pruned keeps its row — linkless, and saying so.
+#
 # Usage: epic-index.sh [--epic-dir <dir>] [--help]
 #
 # Exit codes:
@@ -40,7 +45,8 @@ Usage: epic-index.sh [--epic-dir <dir>] [--help]
 
 Regenerates the managed story-index block in <epic-dir>/EPIC.md from disk
 state: one table row per story directory found under stories/ and archive/,
-with a link resolving to the story's CURRENT location.
+with a link resolving to the story's CURRENT location — plus one row per story
+recorded in archive/manifest.yaml whose directory is no longer on disk.
 
 Options:
   --epic-dir <dir>   Path to the .epic directory. Default: the nearest .epic
@@ -50,6 +56,11 @@ Options:
 Behavior:
   * Only the block between <!-- epic:index:start --> and
     <!-- epic:index:end --> is rewritten; every byte outside it is preserved.
+  * A story recorded in archive/manifest.yaml that neither directory holds is
+    still listed, from the record derived at archive time, with NO link and an
+    "archived (directory removed)" location. An absent, unreadable or truncated
+    manifest simply contributes no such rows: the index is a rendering, never a
+    gate.
   * Index file absent -> created (with the markers) only when the project has
     at least one story, so an empty repository stays quiet.
   * Index file present with NO markers -> the block is appended, existing
@@ -132,6 +143,7 @@ fi
 INDEX_FILE="$EPIC_DIR/EPIC.md"
 STORIES_DIR="$EPIC_DIR/stories"
 ARCHIVE_DIR="$EPIC_DIR/archive"
+MANIFEST_FILE="$ARCHIVE_DIR/manifest.yaml"
 
 MARK_START='<!-- epic:index:start -->'
 MARK_END='<!-- epic:index:end -->'
@@ -193,6 +205,85 @@ url_escape() {
       '>') out+='%3E' ;;
       '|') out+='%7C' ;;
       *)   out+="$c" ;;
+    esac
+  done
+  printf '%s' "$out"
+}
+
+# yaml_unquote <token> — the inverse of archive-story.sh's `quote_scalar`, the
+# one function that wrote every scalar in the manifest. It emits ONE token that
+# is simultaneously a valid JSON string and a valid YAML double-quoted scalar,
+# using only escapes both formats decode identically: \\ \" \b \f \n \r \t, and
+# \uXXXX for everything else it escapes (the C0 block, DEL, and C1).
+#
+# Stripping the quotes is NOT enough. A slug or a status carrying a backslash or
+# a quote would come back with the escape still in it, and an escaped control
+# character would render as its six literal source characters — inside a
+# cell md_cell then re-escapes, so the damage would be silent and permanent
+# in the rendered index.
+#
+# Two deliberate limits, both of which fail towards showing the raw text rather
+# than inventing one:
+#   * a token that is NOT double-quoted is returned as it is. A hand-written
+#     manifest is still worth rendering, and re-implementing YAML's plain-scalar
+#     rules here would be a second parser to keep in sync with nothing.
+#   * \uXXXX is decoded only for U+0000-U+009F, which is the entire set
+#     quote_scalar can produce. A higher code point (only a hand-edited file can
+#     hold one) is copied through verbatim rather than re-encoded to UTF-8.
+yaml_unquote() {
+  local s out c n i hex code ch
+  s=$(trim "$1")
+  if [[ ${#s} -lt 2 || "${s:0:1}" != '"' || "${s: -1}" != '"' ]]; then
+    printf '%s' "$s"
+    return 0
+  fi
+  s="${s:1:${#s}-2}"
+  # No backslash, nothing to decode: the overwhelmingly common case skips the
+  # per-byte loop entirely.
+  if [[ "$s" != *\\* ]]; then
+    printf '%s' "$s"
+    return 0
+  fi
+  out=""
+  for (( i = 0; i < ${#s}; i++ )); do
+    c="${s:i:1}"
+    if [[ "$c" != '\' ]]; then
+      out+="$c"
+      continue
+    fi
+    n="${s:i+1:1}"
+    case "$n" in
+      '"') out+='"'; i=$((i + 1)) ;;
+      '\') out+='\'; i=$((i + 1)) ;;
+      '/') out+='/'; i=$((i + 1)) ;;
+      'b') out+=$'\b'; i=$((i + 1)) ;;
+      'f') out+=$'\f'; i=$((i + 1)) ;;
+      'n') out+=$'\n'; i=$((i + 1)) ;;
+      'r') out+=$'\r'; i=$((i + 1)) ;;
+      't') out+=$'\t'; i=$((i + 1)) ;;
+      'u')
+        hex="${s:i+2:4}"
+        if [[ "$hex" =~ ^[0-9A-Fa-f]{4}$ ]]; then
+          code=$((16#$hex))
+          ch=""
+          # U+0000 is dropped: a bash string cannot hold a NUL, so there is no
+          # value to put here — and quote_scalar cannot have written one either.
+          if [[ "$code" -gt 0 && "$code" -lt 128 ]]; then
+            printf -v ch '%b' "$(printf '\\x%02x' "$code")"
+          elif [[ "$code" -ge 128 && "$code" -le 159 ]]; then
+            # The C1 block, as the UTF-8 pair quote_scalar escaped away.
+            printf -v ch '%b' "$(printf '\\xc2\\x%02x' "$code")"
+          else
+            ch="\\u$hex"
+          fi
+          out+="$ch"
+          i=$((i + 5))
+        else
+          out+="$c"
+        fi
+        ;;
+      # An escape neither format defines: keep the backslash, drop nothing.
+      *) out+="$c" ;;
     esac
   done
   printf '%s' "$out"
@@ -324,6 +415,52 @@ census() {
   return $rc
 }
 
+# --- Spike verdict (story 007 grammar) ---
+# A `scale: spike` story concludes through a mandatory section, not through a
+# lifecycle status:
+#   ## Verdict
+#   - status: open | promote | wont-do
+#   - conclusion: <what was learned>
+#   - promoted-to: NNN   # required when status: promote
+# Only the first value of each key inside the section is read. `promoted-to`
+# must start with a digit — that is what "the target is recorded" means, and it
+# rejects the unfilled `NNN` placeholder of the template (fail-closed).
+#
+# The GRAMMAR — these four regexes — is shared VERBATIM with archive-story.sh's
+# parse_verdict, exactly as the checkbox census above shares its grammar with
+# validate-story.sh and hook-precompact.sh. If 007 ever amends it, both
+# consumers move together. The AGGREGATION is per-consumer and differs on
+# purpose: archive-story.sh turns the verdict into a completion verdict
+# (may this story be archived?), this script RENDERS it for a human.
+VERDICT_STATUS=""
+VERDICT_PROMOTED_TO=""
+parse_verdict() {
+  local file="$1" line in_verdict=false
+  local heading_re='^#{2,}[[:space:]]'
+  local verdict_re='^#{2,}[[:space:]]+[Vv]erdict([[:space:]].*)?$'
+  local status_re='^[[:space:]]*(-[[:space:]]+)?status:[[:space:]]*([^[:space:]|]+)'
+  local promoted_re='^[[:space:]]*(-[[:space:]]+)?promoted-to:[[:space:]]*([0-9][^[:space:]#]*)'
+  VERDICT_STATUS=""
+  VERDICT_PROMOTED_TO=""
+  [[ -f "$file" ]] || return 0
+  {
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      if [[ "$line" =~ $heading_re ]]; then
+        if [[ "$line" =~ $verdict_re ]]; then in_verdict=true; else in_verdict=false; fi
+        continue
+      fi
+      [[ "$in_verdict" == true ]] || continue
+      if [[ -z "$VERDICT_STATUS" && "$line" =~ $status_re ]]; then
+        VERDICT_STATUS="${BASH_REMATCH[2]}"
+      elif [[ -z "$VERDICT_PROMOTED_TO" && "$line" =~ $promoted_re ]]; then
+        VERDICT_PROMOTED_TO="${BASH_REMATCH[2]}"
+      fi
+    done
+    :
+  } 2>/dev/null < "$file" || return 1
+  return 0
+}
+
 # --- Scan: one pass to enumerate, one to render ---
 # Two passes because a `superseded-by: MMM` pointer can only be resolved once
 # every story number in the project is known.
@@ -368,24 +505,260 @@ scan_area "$ARCHIVE_DIR" archive
 
 STORY_COUNT=${#S_DIR[@]}
 
+# --- The third source: .epic/archive/manifest.yaml ---
+# The index scans stories/ + archive/ + THE MANIFEST (design.md:67). The first
+# two are the filesystem; the manifest is the PERMANENT RECORD of every story
+# that ever left stories/, and it outlives the directory it names. Prune an
+# archived story's files and the row must not vanish with them — the archive's
+# whole promise is that the number was used and by what.
+#
+# Four properties this reader owes its caller:
+#
+#  1. NOTHING IS RECOMPUTED. Number, slug, status and progress are read from the
+#     entry, which archive-story.sh DERIVED from the story's own artifacts at
+#     move time. There are no files left to recount, and a row assembled from
+#     guesses would be exactly the hand-declared record the manifest exists to
+#     replace.
+#
+#  2. THE DISK ALWAYS WINS. A recorded story that either scan already found is
+#     NOT emitted here: the directory is the live truth, the manifest only the
+#     record of what left. That covers the interrupted archive too — the entry
+#     is appended BEFORE the move (R3.4), so a run that died in between leaves a
+#     story that is recorded AND still in stories/, and it must render once,
+#     from disk. Identity is checked two ways, because claiming "directory
+#     removed" about a directory that is right there is worse than a duplicate
+#     row: the recorded story id against the scanned basenames, and the recorded
+#     number against the numbers already scanned (numbers are never recycled —
+#     the manifest's own policy header says so — so a number match is the same
+#     story under a renamed directory).
+#
+#  3. A TORN LAST ENTRY IS SKIPPED, NOT AN ERROR. archive-story.sh's append lock
+#     serializes WRITERS, NOT READERS, and the append is still one write(2) per
+#     line, so a reader running during an archive can observe the final entry
+#     half-written. Only the LAST one can ever be torn (the lock is what keeps
+#     two appends from interleaving), and a torn entry is a strict PREFIX of the
+#     writer's lines — so requiring `overrides_used`, the last key it emits, is
+#     what tells a finished entry from a truncated one. Blocking instead would
+#     hand any concurrent archive the power to break the index.
+#
+#  4. NOTHING HERE IS EVER FATAL. No manifest, an unreadable one, a mangled one:
+#     no manifest rows, exit 0, every other row still renders. The index is a
+#     rendering, never a gate.
+#
+# NOT done here, deliberately: these numbers are NOT added to KNOWN_NUMS, so a
+# `superseded-by: MMM` pointing at a manifest-only story still renders
+# `(missing)`. Widening that resolution would change rows this sub-task is not
+# about; it is noted for whoever owns supersede semantics.
+MAN_ROWS=()
+
+# manifest_row <story> <number> <slug> <status> <total> <closed> <deferred>
+#              <complete>
+# Appends ONE row for a completed entry the disk does not already show. Every
+# rejection is silent by design (property 4).
+manifest_row() {
+  local story="$1" number="$2" slug="$3" status="$4"
+  local total="$5" closed="$6" deferred="$7" complete="$8"
+  local cls sort_num cell_num cell_story cell_status prog keyname row d norm
+
+  [[ -n "$story" ]] || return 0
+  [[ "$complete" == true ]] || return 0
+  # A hand-mangled count must not render as a measurement. Digits only: the
+  # writer emits %d, so anything else was not written by it.
+  [[ "$total" =~ ^[0-9]+$ && "$closed" =~ ^[0-9]+$ && "$deferred" =~ ^[0-9]+$ ]] || return 0
+
+  for d in ${S_DIR[@]+"${S_DIR[@]}"}; do
+    [[ "$d" == "$story" ]] && return 0
+  done
+  if [[ "$number" =~ ^[0-9]+$ ]]; then
+    norm=$(strip_zeros "$number")
+    case "$KNOWN_NUMS" in
+      *"|$norm|"*) return 0 ;;
+    esac
+    cls=0
+    sort_num="$norm"
+    cell_num=$(md_cell "$number")
+  else
+    # Same rule as an unnumbered directory on disk: no place on the number axis,
+    # so it sorts after everything that has one.
+    cls=1
+    sort_num=0
+    cell_num='—'
+  fi
+
+  # The recorded slug, falling back to the recorded story id — a bare-number
+  # directory archives with an empty slug, and an empty Story cell reads as a
+  # rendering bug rather than as the fact it is.
+  cell_story=$(md_cell "${slug:-$story}")
+  if [[ -n "$status" ]]; then
+    cell_status=$(md_cell "$status")
+  else
+    cell_status='—'
+  fi
+
+  # The manifest partitions the census differently from this index: `closed` is
+  # the [x] boxes and `deferred` is EVERY [~] whatever its qualifier, where a
+  # row built from disk folds a terminally-qualified [~] into closed. So a
+  # waived box reads here as still-owed rather than as settled. That is the
+  # honest direction — the entry does not record which qualifier closed which
+  # box, and overstating what is owed is safer than claiming a completion the
+  # record cannot support.
+  prog="$closed/$total"
+  if [[ "$deferred" -gt 0 ]]; then
+    prog+=" (+$deferred deferred)"
+  fi
+
+  # NO LINK. R5.1 asks for a link resolving to the story's CURRENT location;
+  # this story has none, so the row says so instead of emitting a href that
+  # 404s. Same shape as `superseded by MMM (missing)`: state what is recorded,
+  # then name what could not be resolved.
+  row="| $cell_num | $cell_story | $cell_status | $prog | archived (directory removed) |"
+  row="${row//$'\n'/ }"
+  keyname="${story//$TAB/ }"
+  keyname="${keyname//$'\n'/ }"
+  # Sort field 4 is the area. `manifest` is neither `archive` nor `stories`, so
+  # a manifest row sharing a number with a disk row still orders deterministically.
+  MAN_ROWS+=("$cls$TAB$sort_num$TAB$keyname$TAB""manifest""$TAB$row")
+}
+
+# read_manifest — the entry shape is archive-story.sh's manifest_entry_yaml,
+# parsed by its exact indentation (2 spaces for the `- story:` item, 4 for its
+# scalars), the same contract manifest_read_entry reads it back with. Values
+# arrive as quote_scalar tokens and go through yaml_unquote, never through a
+# bare quote strip.
+read_manifest() {
+  local line rc=0
+  local e_story="" e_number="" e_slug="" e_status=""
+  local e_total="" e_closed="" e_deferred="" e_complete=false
+  [[ -f "$MANIFEST_FILE" ]] || return 0
+  {
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line="${line%$'\r'}"
+      case "$line" in
+        # Any item at the sequence indent ends the previous entry. A 6-space
+        # list item (`deferred_items`, `overrides_used`) does not match, so the
+        # lists are skipped without having to be understood.
+        "  - "*)
+          manifest_row "$e_story" "$e_number" "$e_slug" "$e_status" \
+            "$e_total" "$e_closed" "$e_deferred" "$e_complete"
+          e_story=""; e_number=""; e_slug=""; e_status=""
+          e_total=""; e_closed=""; e_deferred=""; e_complete=false
+          if [[ "$line" == "  - story: "* ]]; then
+            e_story=$(yaml_unquote "${line#"  - story: "}")
+          fi
+          ;;
+        "    number: "*)         e_number=$(yaml_unquote "${line#"    number: "}") ;;
+        "    slug: "*)           e_slug=$(yaml_unquote "${line#"    slug: "}") ;;
+        "    status: "*)         e_status=$(yaml_unquote "${line#"    status: "}") ;;
+        "    tasks_total: "*)    e_total=$(trim "${line#"    tasks_total: "}") ;;
+        "    tasks_closed: "*)   e_closed=$(trim "${line#"    tasks_closed: "}") ;;
+        "    tasks_deferred: "*) e_deferred=$(trim "${line#"    tasks_deferred: "}") ;;
+        # The completeness sentinel. A torn entry is a PREFIX of the writer's
+        # lines, so a key it reached proves every earlier key landed too.
+        #
+        # `overrides_used` is the last UNCONDITIONAL key, not the last key:
+        # manifest_entry_yaml emits `forced_reason` after it, but only when
+        # --force was used. That is deliberate and safe HERE — every field this
+        # row renders (story, number, slug, status, and the three counts)
+        # precedes `overrides_used`, so an entry torn in that one-line window
+        # still renders correctly and completely.
+        #
+        # It is NOT safe for a future reader: any key added after this one, or
+        # any row that starts rendering `forced_reason`, inherits a sentinel
+        # that no longer proves what it claims. Move the sentinel with it.
+        "    overrides_used: []"|"    overrides_used:") e_complete=true ;;
+      esac
+    done
+    :
+  } 2>/dev/null < "$MANIFEST_FILE" || rc=1
+  # A read that died part-way keeps whatever it managed to parse — the rows it
+  # did produce are true, and refusing them all would punish the index for a
+  # file it only reads.
+  manifest_row "$e_story" "$e_number" "$e_slug" "$e_status" \
+    "$e_total" "$e_closed" "$e_deferred" "$e_complete"
+  return $rc
+}
+read_manifest || echo "epic-index manifest=$MANIFEST_FILE note=unreadable-in-part" >&2
+
+MANIFEST_COUNT=${#MAN_ROWS[@]}
+
 # Nothing to index and no file to maintain: stay quiet (design — "no noise in
-# empty repos"). An index that already exists IS maintained even at zero
-# stories, because the user asked for it by creating it.
-if [[ "$STORY_COUNT" -eq 0 && ! -e "$INDEX_FILE" ]]; then
+# empty repos"). A project holding a manifest entry is NOT an empty repo: the
+# story it records is exactly what this block must not erase. An index that
+# already exists IS maintained even at zero stories, because the user asked for
+# it by creating it.
+if [[ "$STORY_COUNT" -eq 0 && "$MANIFEST_COUNT" -eq 0 && ! -e "$INDEX_FILE" ]]; then
   echo "epic-index index=$INDEX_FILE stories=0 action=skipped reason=no-stories" >&2
   exit 0
 fi
 
 # --- Cell renderers ---
 
-# status_cell <story.md> — the Status column: the frontmatter value; an em dash
-# for the 340+ legacy stories that predate the field (an empty cell would read
-# as a rendering bug, and crashing on absence would make the index unusable on
-# exactly the corpus it has to describe); and, for a superseded story, the
-# successor it points at. A pointer that resolves nowhere is SHOWN, not hidden:
-# a dangling supersede is precisely what a reader needs to be told about.
+# verdict_cell <tasks.md> — the Status column for a `scale: spike` story: its
+# `## Verdict`, which is the only conclusion a spike has (007 R1.7).
+#
+# NO VERDICT MEANS THE EM DASH — the very same one a story with no `status:`
+# renders. Falling back to the frontmatter status would print a lifecycle value
+# a spike does not use, and inventing "open" would state a verdict nobody wrote.
+# Absent is absent.
+#
+# `promote` additionally names its target, in the idiom `superseded by MMM`
+# already established below: state what is recorded, then name what could not be
+# resolved. A `promote` with no recorded target renders bare — the same
+# fail-closed reading archive-story.sh's preflight makes of it.
+verdict_cell() {
+  local tasks="$1" cell num
+  # Unreadable and absent both land on the em dash: neither is a verdict.
+  parse_verdict "$tasks" || true
+  if [[ -z "$VERDICT_STATUS" ]]; then
+    printf '%s' '—'
+    return 0
+  fi
+  cell=$(md_cell "$VERDICT_STATUS")
+  if [[ "$VERDICT_STATUS" != "promote" || -z "$VERDICT_PROMOTED_TO" ]]; then
+    printf '%s' "$cell"
+    return 0
+  fi
+  # Resolution is NUMERIC, like the supersede pointer: `promoted-to: 12` finds
+  # `012-slug`, and a promoted-to story that has since been archived resolves
+  # exactly like an active one.
+  num=""
+  if [[ "$VERDICT_PROMOTED_TO" =~ ^([0-9]+) ]]; then
+    num=$(strip_zeros "${BASH_REMATCH[1]}")
+  fi
+  if [[ -n "$num" && "$KNOWN_NUMS" == *"|$num|"* ]]; then
+    printf '%s' "promote to $(md_cell "$VERDICT_PROMOTED_TO")"
+  else
+    printf '%s' "promote to $(md_cell "$VERDICT_PROMOTED_TO") (missing)"
+  fi
+}
+
+# status_cell <story.md> <tasks.md> — the Status column: the frontmatter value;
+# an em dash for the 340+ legacy stories that predate the field (an empty cell
+# would read as a rendering bug, and crashing on absence would make the index
+# unusable on exactly the corpus it has to describe); and, for a superseded
+# story, the successor it points at. A pointer that resolves nowhere is SHOWN,
+# not hidden: a dangling supersede is precisely what a reader needs to be told
+# about.
+#
+# A `scale: spike` story leaves through verdict_cell instead (design.md:67).
+# `scale` is looked up the way archive-story.sh's story_field looks it up —
+# story.md first, then tasks.md — because a spike commonly has NO story.md at
+# all, and a spike whose scale the renderer could not see would silently render
+# as a lifecycle story.
+#
+# NOT reached by a MANIFEST-ONLY row, deliberately: those render the status
+# archive-story.sh RECORDED at move time (see manifest_row), and the manifest
+# does not carry the verdict. Giving it one would mean touching the writer's
+# 16-key entry, its reader's completeness count and the JSON together — for a
+# story whose tasks.md is gone, so the verdict could not be re-read anyway. A
+# manifest-only spike therefore shows its recorded `status`.
 status_cell() {
-  local f="$1" status sup sup_num cell
+  local f="$1" tasks="${2:-}" status sup sup_num cell scale
+  scale=$(front_value "$f" scale) || scale=$(front_value "$tasks" scale) || scale=""
+  if [[ "$scale" == "spike" ]]; then
+    verdict_cell "$tasks"
+    return 0
+  fi
   status=$(front_value "$f" status) || status=""
   if [[ -z "$status" ]]; then
     printf '%s' '—'
@@ -468,7 +841,7 @@ build_rows() {
       link="$area/$(url_escape "$dir")/"
     fi
 
-    cell_status=$(status_cell "$EPIC_DIR/$area/$dir/story.md")
+    cell_status=$(status_cell "$EPIC_DIR/$area/$dir/story.md" "$EPIC_DIR/$area/$dir/tasks.md")
     prog=$(progress_cell "$EPIC_DIR/$area/$dir/tasks.md")
 
     if [[ "$area" == "archive" ]]; then
@@ -486,6 +859,10 @@ build_rows() {
   done
 }
 build_rows
+# The manifest rows were built during the scan (they gate the no-stories exit
+# above). They join the same array, so ONE sort orders disk and record rows
+# together — which is what keeps R5.4 true with manifest rows in play.
+ROWS+=(${MAN_ROWS[@]+"${MAN_ROWS[@]}"})
 
 # --- Render the generated block ---
 render_block() {
@@ -590,7 +967,7 @@ fi
 # R5.4 at its strongest: a second run with no state change does not open the
 # file for writing at all, so neither the bytes nor the mtime move.
 if [[ -f "$INDEX_FILE" ]] && cmp -s "$TMP_BUILD" "$INDEX_FILE"; then
-  echo "epic-index index=$INDEX_FILE stories=$STORY_COUNT action=unchanged" >&2
+  echo "epic-index index=$INDEX_FILE stories=$STORY_COUNT manifest_only=$MANIFEST_COUNT action=unchanged" >&2
   exit 0
 fi
 
@@ -625,5 +1002,5 @@ chmod "$NEW_MODE" "$TMP_SWAP" 2>/dev/null || true
 mv -f "$TMP_SWAP" "$INDEX_FILE" || fail "could not replace $INDEX_FILE"
 TMP_SWAP=""
 
-echo "epic-index index=$INDEX_FILE stories=$STORY_COUNT action=written" >&2
+echo "epic-index index=$INDEX_FILE stories=$STORY_COUNT manifest_only=$MANIFEST_COUNT action=written" >&2
 exit 0

@@ -176,12 +176,16 @@ The story number (`003`) resolves against the nearest `.epic/`; a directory path
 
 `guard.violations[]` holds **objects**, not sentences: `{file, size, reason}` per offender, with `size: null` when it could not be established — a size that was never measured must not read as a measurement that came back zero. `secrets{}` keeps one uniform shape on every path (`scanner`, `scanned`, `findings`, `unscanned_files`, `report`, `skipped`, `error`), because "scanned and clean" and "nobody looked" must never be indistinguishable in a permanent record.
 
+**A `.gitleaksignore` outside the story can disarm the secrets guard.** `gitleaks dir` defaults to `-i .`, so it honours a `.gitleaksignore` in the **caller's** working directory — a file the archive never inspects and never mentions. `secrets.scanned: true, findings: 0` therefore means "the scanner found nothing it was configured to report", not "there is nothing there". Treat the repository's `.gitleaksignore` as part of the guard's configuration, and review it like one.
+
 ### Pruning (after the guards, before the move)
 
 - `.draft/logs/` collapses into a single `.draft/logs-summary.md`; the freed size lands in `pruned.logs_kb`. Override: `--keep-logs`.
 - `.draft/` files **byte-identical** to their promoted sibling are removed; the count lands in `pruned.copies_removed`. Override: `--keep-copies`.
 
 Both are default-on because archived evidence is kept forever: the corpus archived 55 MB of run logs and several exact duplicates of files that were already promoted next to them.
+
+**The summary is written after the secrets scan, so it is never scanned.** Pruning runs at step 4 and the scan at step 3, so `.draft/logs-summary.md` — which carries `tail -40` of the newest log — enters `.epic/archive/` without any guard having read it. This is deliberate (blocking would put a verdict after a destructive step, and every byte of that tail was already in the story when the scanner read it) and every generated summary states its own coverage in a `secrets_scan:` line. But on the three paths where nothing scanned the source either — `--skip-secrets`, no `gitleaks` installed, or a log above the scanner's 15,000,000-byte limit, which it skips *without reporting the skip* — that tail reaches the archive unread. The real defences are upstream: run the scan, and keep credentials out of logs.
 
 ### The manifest entry — derived, never declared
 
