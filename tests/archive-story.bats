@@ -1668,6 +1668,340 @@ gl_shim_path() {
   grep -q 'keep-logs' "$MANIFEST"
 }
 
+# ADDITIVE 3.1 cases appended at execution time. Each pins behavior the ToDo
+# mandates that the two authored cases leave unpinned. No authored assertion was
+# modified, weakened or deleted, and every case below was mutation-checked
+# (break the fix -> the case fails).
+#
+# NOTE ON THE AUTHORED PAIR: `3.1: --keep-logs preserves logs and records the
+# override` was ALREADY GREEN before this sub-task, because nothing pruned at
+# all - it could not tell "the flag was honoured" from "the feature does not
+# exist". It only becomes a discriminator now that the prune exists, which is
+# why `--keep-logs writes no summary at all` sits beside it.
+
+# make_log_story <dir-name> [lines] - a COMPLETE story with .draft/logs/build.log
+make_log_story() {
+  local dir="$PROJ/.epic/stories/$1"
+  make_story "$1" complete
+  mkdir -p "$dir/.draft/logs"
+  seq 1 "${2:-500}" > "$dir/.draft/logs/build.log"
+}
+
+@test "3.1: a story blocked by the weight guard keeps every log file" {
+  # THE STEP ORDER, asserted from outside the script. Prune is the FIRST
+  # destructive step in the pipeline, so it must be unreachable on any path that
+  # can still return `blocked`. A prune that ran before the guards would collapse
+  # these logs and THEN refuse the archive - evidence destroyed for a story that
+  # was never archived at all, and nothing left to re-run against.
+  make_log_story 005-blockedlogs 2000
+  local story="$PROJ/.epic/stories/005-blockedlogs"
+  yes 'padding line for the weight guard fixture' | head -c 10485761 > "$story/big.txt"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-blockedlogs
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
+  # The logs are untouched, byte for byte, and no summary was written...
+  [ -f "$story/.draft/logs/build.log" ]
+  [ "$(wc -l < "$story/.draft/logs/build.log")" -eq 2000 ]
+  [ ! -e "$story/.draft/logs-summary.md" ]
+  echo "$output" | jq -e '.pruned.logs_kb == 0' > /dev/null
+  # ...and the prune never announced itself at all. (`[[ != ]]`, not `! grep`:
+  # an inverted command is exempt from set -e - see the 2.2 discovery.)
+  [[ "$stderr" != *"prune=logs"* ]]
+}
+
+@test "3.1: a story blocked by the secrets guard keeps every log file" {
+  command -v gitleaks > /dev/null || skip "gitleaks not installed"
+  # The same assertion against the OTHER guard, because the two block from
+  # different steps and only running both proves the prune sits after each.
+  make_log_story 005-leakylogs 2000
+  local story="$PROJ/.epic/stories/005-leakylogs"
+  printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' > "$story/notes-creds.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-leakylogs
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
+  [ -f "$story/.draft/logs/build.log" ]
+  [ "$(wc -l < "$story/.draft/logs/build.log")" -eq 2000 ]
+  [ ! -e "$story/.draft/logs-summary.md" ]
+  [[ "$stderr" != *"prune=logs"* ]]
+}
+
+@test "3.1: the prune reports itself after both guards, never before" {
+  # The other half of the pair: the two cases above prove the prune does not run
+  # when a guard blocks; this proves that when it DOES run, it runs last. All
+  # three verdicts are key=value lines on stderr, so the ORDER is readable
+  # without parsing prose - and `guards_passed=true` is the script's own
+  # sequence assertion, stated where a test can see it.
+  make_log_story 005-order31 500
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-order31
+  [ "$status" -eq 0 ]
+  local weight secrets prune
+  weight=$(echo "$stderr" | grep -n 'guard=weight-binary' | head -1 | cut -d: -f1)
+  secrets=$(echo "$stderr" | grep -n 'guard=secrets' | head -1 | cut -d: -f1)
+  prune=$(echo "$stderr" | grep -n 'prune=logs' | head -1 | cut -d: -f1)
+  [ -n "$weight" ]
+  [ -n "$secrets" ]
+  [ -n "$prune" ]
+  [ "$prune" -gt "$weight" ]
+  [ "$prune" -gt "$secrets" ]
+  echo "$stderr" | grep -q 'prune=logs verdict=pruned.*guards_passed=true'
+}
+
+@test "3.1: logs_kb measures what was actually freed, not a constant" {
+  # The sub-task's Validation criterion is "pruned.logs_kb ~ freed size". A
+  # constant, a boolean or a file count would satisfy the authored `> 0` just as
+  # well, so this asserts the EXACT arithmetic on two fixtures whose log sizes
+  # differ by two orders of magnitude. Rounded UP, deliberately: integer division
+  # reports 0 for anything under a kilobyte, and `logs_kb: 0` already means
+  # "nothing was freed".
+  make_story 005-kbsmall complete
+  mkdir -p "$PROJ/.epic/stories/005-kbsmall/.draft/logs"
+  head -c 30000 /dev/zero | tr '\0' 'a' \
+    > "$PROJ/.epic/stories/005-kbsmall/.draft/logs/small.log"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-kbsmall
+  [ "$status" -eq 0 ]
+  # ceil(30000 / 1024) == 30
+  echo "$output" | jq -e '.pruned.logs_kb == 30' > /dev/null
+
+  make_story 005-kbbig complete
+  mkdir -p "$PROJ/.epic/stories/005-kbbig/.draft/logs"
+  head -c 3000000 /dev/zero | tr '\0' 'a' \
+    > "$PROJ/.epic/stories/005-kbbig/.draft/logs/big.log"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-kbbig
+  [ "$status" -eq 0 ]
+  # ceil(3000000 / 1024) == 2930
+  echo "$output" | jq -e '.pruned.logs_kb == 2930' > /dev/null
+  # ...and the measurement reaches the permanent record, not just stdout.
+  grep -Eq 'logs_kb:[[:space:]]*2930' "$MANIFEST"
+}
+
+@test "3.1: the summary records each log's size and last-modified time, not just its name" {
+  # R2.1 asks for the NAME, the SIZE and the LAST-MODIFIED TIME of every log.
+  # The authored case greps for the two names only - which a summary listing
+  # nothing but names would satisfy exactly as well.
+  make_story 005-facts complete
+  local d="$PROJ/.epic/stories/005-facts/.draft/logs"
+  mkdir -p "$d"
+  head -c 4096 /dev/zero | tr '\0' 'x' > "$d/first.log"
+  head -c 8192 /dev/zero | tr '\0' 'y' > "$d/second.log"
+  touch -d '2026-08-01 10:00' "$d/first.log"
+  touch -d '2026-08-02 11:30' "$d/second.log"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-facts
+  [ "$status" -eq 0 ]
+  local s="$PROJ/.epic/archive/005-facts/.draft/logs-summary.md"
+  [ -f "$s" ]
+  grep -q 'size_bytes: 4096' "$s"
+  grep -q 'size_bytes: 8192' "$s"
+  # `touch -d` and `stat %y` both speak local time, so the two agree whatever
+  # TZ the machine running the suite is set to.
+  grep -q '2026-08-01 10:00' "$s"
+  grep -q '2026-08-02 11:30' "$s"
+}
+
+@test "3.1: a single log collapses, and its own tail is the one recorded" {
+  # The degenerate case of "the most recently modified log": one file, which is
+  # both the newest and the oldest. It must not crash and must not skip the tail.
+  make_story 005-onelog complete
+  local d="$PROJ/.epic/stories/005-onelog/.draft/logs"
+  mkdir -p "$d"
+  { seq 1 100; echo 'ONLY LOG MARKER'; } > "$d/only.log"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-onelog
+  [ "$status" -eq 0 ]
+  local s="$PROJ/.epic/archive/005-onelog/.draft/logs-summary.md"
+  [ -f "$s" ]
+  grep -q 'only.log' "$s"
+  grep -q 'ONLY LOG MARKER' "$s"
+  [ ! -e "$PROJ/.epic/archive/005-onelog/.draft/logs/only.log" ]
+  echo "$output" | jq -e '.pruned.logs_kb > 0' > /dev/null
+}
+
+@test "3.1: an empty logs directory produces no summary and reports no prune" {
+  # DECIDED, not left to chance: with no log files there is nothing to record and
+  # nothing to replace, so NO summary is written - a file listing zero logs and
+  # holding no tail would be a permanent record of nothing. It must also not
+  # crash, and must not report a prune that did not happen.
+  make_story 005-emptylogs complete
+  mkdir -p "$PROJ/.epic/stories/005-emptylogs/.draft/logs"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-emptylogs
+  [ "$status" -eq 0 ]
+  [ ! -e "$PROJ/.epic/archive/005-emptylogs/.draft/logs-summary.md" ]
+  echo "$output" | jq -e '.pruned.logs_kb == 0' > /dev/null
+  echo "$stderr" | grep -q 'prune=logs verdict=none'
+}
+
+@test "3.1: a log that cannot be read is reported and kept, never deleted unrecorded" {
+  # A file whose evidence could not be captured must not be destroyed by the step
+  # whose whole purpose is to preserve that evidence. And it must be a REPORTED
+  # verdict with JSON on stdout: a bare `set -e` abort would end the run with
+  # zero bytes on stdout, which the output contract promises never happens.
+  # --allow-heavy is needed to reach step 4 at all - the weight/binary guard
+  # blocks an unreadable file first (2.1), which is the step order doing its job.
+  make_story 005-unreadlog complete
+  local d="$PROJ/.epic/stories/005-unreadlog/.draft/logs"
+  mkdir -p "$d"
+  { seq 1 50; echo 'OLDER READABLE MARKER'; } > "$d/older.log"
+  { seq 1 50; echo 'NEWER UNREADABLE MARKER'; } > "$d/newer.log"
+  touch -d '2026-08-01 10:00' "$d/older.log"
+  touch -d '2026-08-01 12:00' "$d/newer.log"
+  chmod 000 "$d/newer.log"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-unreadlog --allow-heavy
+  # `|| true` on both: whichever side of the move the file ended on, the fixture
+  # cleanup must not kill the case before its assertions run.
+  chmod 644 "$d/newer.log" 2> /dev/null || true
+  chmod 644 "$PROJ/.epic/archive/005-unreadlog/.draft/logs/newer.log" 2> /dev/null || true
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+  echo "$output" | jq -e '.status == "archived"' > /dev/null
+  local arch="$PROJ/.epic/archive/005-unreadlog"
+  # The readable log collapsed...
+  [ ! -e "$arch/.draft/logs/older.log" ]
+  # ...and the one whose tail could not be read is still there, untouched.
+  [ -f "$arch/.draft/logs/newer.log" ]
+  grep -q 'NEWER UNREADABLE MARKER' "$arch/.draft/logs/newer.log"
+  # The summary names it and says why, and stderr carries the same verdict.
+  grep -q 'newer.log' "$arch/.draft/logs-summary.md"
+  grep -q 'could not be read' "$arch/.draft/logs-summary.md"
+  echo "$stderr" | grep -q 'prune=logs verdict=partial'
+}
+
+@test "3.1: a log name with a quote, a space and a newline lands intact in the summary" {
+  # A file name is arbitrary bytes, and it reaches the summary as CONTENT - so it
+  # goes through quote_scalar, the one escaper whose output BOTH JSON and YAML
+  # decode the same way, and never through some second rule invented for this
+  # file. It is also why the log list is a YAML block and not a markdown table:
+  # a name holding `|` would silently grow a column there.
+  make_story 005-oddname complete
+  local d="$PROJ/.epic/stories/005-oddname/.draft/logs"
+  mkdir -p "$d"
+  local odd
+  odd=$(printf 'we"ird na\nme.log')
+  { seq 1 20; echo 'ODD NAME MARKER'; } > "$d/$odd"
+  printf 'plain\n' > "$d/plain.log"
+  touch -d '2026-08-01 10:00' "$d/plain.log"
+  touch -d '2026-08-01 12:00' "$d/$odd"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-oddname
+  [ "$status" -eq 0 ]
+  local s="$PROJ/.epic/archive/005-oddname/.draft/logs-summary.md"
+  [ -f "$s" ]
+  # One line, escaped exactly as both formats decode it.
+  grep -qF 'name: "we\"ird na\nme.log"' "$s"
+  # ...and it round-trips: the block still PARSES as YAML and gives back the
+  # bytes that went in. A grep alone would pass on an escape that is merely
+  # present; this fails on one that is merely plausible.
+  python3 -c '
+import sys, yaml
+txt = open(sys.argv[1]).read()
+block = txt.split("~~~yaml\n", 1)[1].split("\n~~~", 1)[0]
+names = [e["name"] for e in yaml.safe_load(block)["logs"]]
+assert sys.argv[2] in names, (sys.argv[2], names)
+' "$s" "$odd"
+  # The odd-named log is the newest, so the tail is its own - and it is gone.
+  grep -q 'ODD NAME MARKER' "$s"
+  [ ! -e "$PROJ/.epic/archive/005-oddname/.draft/logs/$odd" ]
+}
+
+@test "3.1: --keep-logs writes no summary at all" {
+  # The authored --keep-logs case passed BEFORE this sub-task existed, because
+  # nothing pruned - so it cannot tell "the flag was honoured" from "the feature
+  # is missing". This is the half that can: the flag means keep the logs INSTEAD
+  # of collapsing them, so a run that wrote a summary AND kept the logs would be
+  # honouring neither reading.
+  make_log_story 005-keepnosum 500
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-keepnosum --keep-logs
+  [ "$status" -eq 0 ]
+  local arch="$PROJ/.epic/archive/005-keepnosum"
+  [ -f "$arch/.draft/logs/build.log" ]
+  [ "$(wc -l < "$arch/.draft/logs/build.log")" -eq 500 ]
+  [ ! -e "$arch/.draft/logs-summary.md" ]
+  echo "$output" | jq -e '.pruned.logs_kb == 0' > /dev/null
+  echo "$stderr" | grep -q 'prune=logs verdict=skipped reason=--keep-logs'
+}
+
+@test "3.1: an existing logs-summary.md is never overwritten" {
+  # The summary is the artifact this step produces, so one already sitting there
+  # was written by a hand or by an interrupted run. Replacing a document about
+  # the logs with a generated one - and then deleting the logs it described - is
+  # exactly the quiet loss this step exists to end. Fail-safe: skip, keep the
+  # logs, and say so.
+  make_log_story 005-hassum 300
+  printf '# Hand-written notes about these logs\n' \
+    > "$PROJ/.epic/stories/005-hassum/.draft/logs-summary.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-hassum
+  [ "$status" -eq 0 ]
+  local arch="$PROJ/.epic/archive/005-hassum"
+  grep -q 'Hand-written notes' "$arch/.draft/logs-summary.md"
+  [ -f "$arch/.draft/logs/build.log" ]
+  echo "$output" | jq -e '.pruned.logs_kb == 0' > /dev/null
+  echo "$stderr" | grep -q 'prune=logs verdict=skipped reason=summary-exists'
+}
+
+# --- 3.1 THE CREDENTIAL DECISION (the hand-off sub-task 2.2 recorded) ---
+# Step 3 scans `.draft/logs/*` as they are, and the summary is written
+# AFTERWARDS - so no guard ever looks at it, and 40 lines of arbitrary log
+# output enter the archive unscanned. ACCEPTED, deliberately: the prune only
+# ever REMOVES, so every byte of that tail was already in the story when
+# gitleaks read it and would have travelled into the archive verbatim under
+# --keep-logs. Collapsing a log cannot introduce a credential the archive was
+# not already about to receive - it can only reduce one, and re-scanning would
+# re-read a strict subset (or, where nothing was scanned, scan exactly what the
+# operator chose not to scan). Blocking is worse still: the verdict would land
+# AFTER a destructive step, which is what the step order forbids.
+# What is NOT accepted is silence about the guarantee. These two cases pin that.
+
+@test "3.1: an unscanned story says so in the summary it leaves behind" {
+  make_log_story 005-provenance 300
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-provenance --skip-secrets
+  [ "$status" -eq 0 ]
+  local s="$PROJ/.epic/archive/005-provenance/.draft/logs-summary.md"
+  [ -f "$s" ]
+  grep -q 'secrets_scan:' "$s"
+  grep -q 'NOT SCANNED' "$s"
+  grep -q 'skip-secrets' "$s"
+}
+
+@test "3.1: a scanned story records the scan, and the two summaries differ" {
+  command -v gitleaks > /dev/null || skip "gitleaks not installed"
+  # The pair is what makes either half a discriminator rather than a constant:
+  # in a permanent record, "scanned and clean" and "nobody looked" must not be
+  # the same sentence.
+  make_log_story 005-prov-scanned 300
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-prov-scanned
+  [ "$status" -eq 0 ]
+  make_log_story 005-prov-unscanned 300
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-prov-unscanned --skip-secrets
+  [ "$status" -eq 0 ]
+  local a b
+  a=$(grep 'secrets_scan:' "$PROJ/.epic/archive/005-prov-scanned/.draft/logs-summary.md")
+  b=$(grep 'secrets_scan:' "$PROJ/.epic/archive/005-prov-unscanned/.draft/logs-summary.md")
+  [[ "$a" == *"scanned by gitleaks"* ]]
+  [[ "$b" == *"NOT SCANNED"* ]]
+  [[ "$a" != "$b" ]]
+}
+
+@test "3.1: a log too big for the scanner is recorded as unscanned in its own summary" {
+  command -v gitleaks > /dev/null || skip "gitleaks not installed"
+  # THE one case where `scanned: true, findings: 0` genuinely does NOT cover the
+  # tail: gitleaks silently skips any file over --max-target-megabytes (2.2's
+  # measured residual - no report entry, no exit code, `INF no leaks found`).
+  # Step 2 blocks anything over 10 MB, so only --allow-heavy brings a log this
+  # size to the scanner at all; when it does, the summary refuses to let a clean
+  # verdict stand for lines nothing ever looked at.
+  make_story 005-bigunscanned complete
+  local d="$PROJ/.epic/stories/005-bigunscanned/.draft/logs"
+  mkdir -p "$d"
+  { head -c 15000001 /dev/zero | tr '\0' 'a'; echo; echo 'HUGE LOG MARKER'; } > "$d/huge.log"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-bigunscanned --allow-heavy
+  [ "$status" -eq 0 ]
+  local s="$PROJ/.epic/archive/005-bigunscanned/.draft/logs-summary.md"
+  [ -f "$s" ]
+  grep -q 'HUGE LOG MARKER' "$s"
+  # The scan reported clean, with the file never opened...
+  echo "$output" | jq -e '.secrets.scanned == true and .secrets.findings == 0' > /dev/null
+  echo "$output" | jq -e '.secrets.unscanned_files == 1' > /dev/null
+  # ...and the summary says exactly that, in the artifact that outlives the run.
+  grep -q 'NOT scanned' "$s"
+  grep -q '15000000-byte limit' "$s"
+}
+
 # --- 3.2 Byte-identical draft copies (R2.2, R2.3) ---
 
 @test "3.2: byte-identical draft copy is removed and differing copy kept" {
@@ -1698,4 +2032,308 @@ gl_shim_path() {
   [ -f "$PROJ/.epic/archive/005-keepcopies/.draft/design.md" ]
   # R2.3: the override is recorded.
   grep -q 'keep-copies' "$MANIFEST"
+}
+
+# ADDITIVE 3.2 cases appended at execution time. Each pins behavior the ToDo
+# mandates that the two authored cases leave unpinned, and every one was
+# mutation-checked (break the fix -> the case fails, restore -> it passes). No
+# authored assertion was modified, weakened or deleted.
+#
+# NOTE ON THE AUTHORED PAIR: `3.2: --keep-copies preserves the duplicate` was
+# ALREADY GREEN before this sub-task, vacuously - nothing pruned, so it could not
+# tell "the flag was honoured" from "the feature does not exist". It becomes a
+# real discriminator now that the prune exists, which is the point of keeping it
+# untouched.
+
+# make_copy_story <dir-name> - a COMPLETE story with an empty .draft/ ready for
+# the fixture's own files. Echoes nothing; the caller writes the pairs it needs.
+make_copy_story() {
+  make_story "$1" complete
+  mkdir -p "$PROJ/.epic/stories/$1/.draft"
+}
+
+@test "3.2: a story blocked by the weight guard keeps every .draft copy" {
+  # THE STEP ORDER, asserted from outside the script, for the COPIES half. 3.1
+  # pinned it for the logs half only, and step 4 is destructive on both: a copies
+  # prune that ran before the guards would delete files for a story that is then
+  # refused - and unlike the logs half it writes no summary, so the only record
+  # that the file ever existed would be gone with it.
+  make_copy_story 005-blockedcopies
+  local story="$PROJ/.epic/stories/005-blockedcopies"
+  echo 'promoted design body' > "$story/design.md"
+  cp "$story/design.md" "$story/.draft/design.md"
+  yes 'padding line for the weight guard fixture' | head -c 10485761 > "$story/big.txt"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-blockedcopies
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
+  # The exact copy is still exactly where it was...
+  [ -f "$story/.draft/design.md" ]
+  grep -q 'promoted design body' "$story/.draft/design.md"
+  echo "$output" | jq -e '.pruned.copies_removed == 0' > /dev/null
+  # ...and the copies prune never announced itself at all. (`[[ != ]]`, not
+  # `! grep`: an inverted command is exempt from set -e - see the 2.2 discovery.)
+  [[ "$stderr" != *"prune=copies"* ]]
+}
+
+@test "3.2: the copies prune reports itself after both guards and after the logs prune" {
+  # The other half of the pair: the case above proves the copies prune does not
+  # run when a guard blocks; this proves that when it DOES run, it runs last -
+  # after both guards AND after the logs half, which is the order the summary it
+  # must not delete depends on. All four verdicts are key=value lines on stderr,
+  # so the ORDER is readable without parsing prose, and `guards_passed=true` is
+  # the script's own sequence assertion stated where a test can see it.
+  make_copy_story 005-order32
+  local story="$PROJ/.epic/stories/005-order32"
+  mkdir -p "$story/.draft/logs"
+  seq 1 500 > "$story/.draft/logs/build.log"
+  echo 'promoted design body' > "$story/design.md"
+  cp "$story/design.md" "$story/.draft/design.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-order32
+  [ "$status" -eq 0 ]
+  local weight secrets logs copies
+  weight=$(echo "$stderr" | grep -n 'guard=weight-binary' | head -1 | cut -d: -f1)
+  secrets=$(echo "$stderr" | grep -n 'guard=secrets' | head -1 | cut -d: -f1)
+  logs=$(echo "$stderr" | grep -n 'prune=logs' | head -1 | cut -d: -f1)
+  copies=$(echo "$stderr" | grep -n 'prune=copies' | head -1 | cut -d: -f1)
+  [ -n "$weight" ]
+  [ -n "$secrets" ]
+  [ -n "$logs" ]
+  [ -n "$copies" ]
+  [ "$copies" -gt "$weight" ]
+  [ "$copies" -gt "$secrets" ]
+  [ "$copies" -gt "$logs" ]
+  echo "$stderr" | grep -q 'prune=copies verdict=pruned.*guards_passed=true'
+}
+
+@test "3.2: a near-duplicate survives - one byte, one newline, or the same length" {
+  # THE load-bearing word of R2.2 is "byte-identical". A near-duplicate is a
+  # DIFFERENT DOCUMENT - usually the working draft the promoted artifact grew out
+  # of, which is exactly what a reader opens .draft/ for. Three shapes, because
+  # the plausible wrong implementations each miss a different one: comparing
+  # sizes passes the two same-length pairs, and comparing "the first line" or a
+  # trimmed form passes the trailing-newline pair.
+  make_copy_story 005-near
+  local story="$PROJ/.epic/stories/005-near" d="$PROJ/.epic/stories/005-near/.draft"
+  printf 'duplicate detection\n' > "$story/onebyte.md"
+  printf 'duplicate detectiom\n' > "$d/onebyte.md"        # one byte changed
+  printf 'trailing newline matters\n' > "$story/newline.md"
+  printf 'trailing newline matters' > "$d/newline.md"     # one byte shorter
+  printf 'AAAA\n' > "$story/samesize.md"
+  printf 'BBBB\n' > "$d/samesize.md"                      # same length, other bytes
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-near
+  [ "$status" -eq 0 ]
+  local arch="$PROJ/.epic/archive/005-near"
+  [ -f "$arch/.draft/onebyte.md" ]
+  [ -f "$arch/.draft/newline.md" ]
+  [ -f "$arch/.draft/samesize.md" ]
+  grep -q 'detectiom' "$arch/.draft/onebyte.md"
+  [ "$(cat "$arch/.draft/samesize.md")" = 'BBBB' ]
+  # The trailing newline is the difference, so it must still be absent.
+  [ "$(wc -c < "$arch/.draft/newline.md")" -eq 24 ]
+  echo "$output" | jq -e '.pruned.copies_removed == 0' > /dev/null
+  # `clean` and not `none`: every draft file WAS compared and none matched.
+  echo "$stderr" | grep -q 'prune=copies verdict=clean files_seen=3 compared=3 removed=0'
+}
+
+@test "3.2: identical bytes are a duplicate whatever the permissions and the mtime say" {
+  # R2.2 is about CONTENT. A copy someone chmod'ed or touched is still a copy,
+  # and metadata equality is neither necessary nor sufficient for it - which is
+  # why the comparison is cmp on the bytes and not a stat-based shortcut.
+  make_copy_story 005-meta
+  local story="$PROJ/.epic/stories/005-meta"
+  printf 'promoted body, byte for byte\n' > "$story/design.md"
+  cp "$story/design.md" "$story/.draft/design.md"
+  chmod 600 "$story/.draft/design.md"
+  chmod 644 "$story/design.md"
+  touch -d '2020-01-01 00:00' "$story/.draft/design.md"
+  touch -d '2026-08-01 12:00' "$story/design.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-meta
+  [ "$status" -eq 0 ]
+  [ ! -e "$PROJ/.epic/archive/005-meta/.draft/design.md" ]
+  [ -f "$PROJ/.epic/archive/005-meta/design.md" ]
+  echo "$output" | jq -e '.pruned.copies_removed == 1' > /dev/null
+}
+
+@test "3.2: copies_removed is a real count, not a boolean" {
+  # The authored case removes exactly one copy, so a boolean, a constant 1 or a
+  # "did anything happen" flag satisfies it identically. Three copies is what
+  # tells a count from a flag - and the number has to reach the PERMANENT record,
+  # not just stdout.
+  make_copy_story 005-three
+  local story="$PROJ/.epic/stories/005-three" f
+  for f in design research plan; do
+    printf 'promoted %s body\n' "$f" > "$story/$f.md"
+    cp "$story/$f.md" "$story/.draft/$f.md"
+  done
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-three
+  [ "$status" -eq 0 ]
+  local arch="$PROJ/.epic/archive/005-three"
+  for f in design research plan; do
+    [ ! -e "$arch/.draft/$f.md" ]
+    [ -f "$arch/$f.md" ]
+  done
+  echo "$output" | jq -e '.pruned.copies_removed == 3' > /dev/null
+  grep -Eq 'copies_removed:[[:space:]]*3' "$MANIFEST"
+}
+
+@test "3.2: a .draft file with no promoted sibling is never touched" {
+  # This is MOST of .draft/, and it is the failure mode that would hurt worst:
+  # "prune the drafts" read as "empty .draft/" destroys the working notes the
+  # archive exists to keep. A file that is a copy of nothing can never be a
+  # duplicate of anything.
+  make_copy_story 005-orphan
+  local story="$PROJ/.epic/stories/005-orphan"
+  printf 'scratch thinking nobody promoted\n' > "$story/.draft/scratch.md"
+  printf 'raw interview notes\n' > "$story/.draft/interview.txt"
+  printf 'promoted design body\n' > "$story/design.md"
+  cp "$story/design.md" "$story/.draft/design.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-orphan
+  [ "$status" -eq 0 ]
+  local arch="$PROJ/.epic/archive/005-orphan"
+  [ -f "$arch/.draft/scratch.md" ]
+  grep -q 'scratch thinking' "$arch/.draft/scratch.md"
+  [ -f "$arch/.draft/interview.txt" ]
+  # ...while the one that IS an exact copy went, so this is not "nothing ran".
+  [ ! -e "$arch/.draft/design.md" ]
+  echo "$output" | jq -e '.pruned.copies_removed == 1' > /dev/null
+  # 3 files seen, only 1 of them had a promoted artifact to compare against.
+  echo "$stderr" | grep -q 'prune=copies verdict=pruned files_seen=3 compared=1 removed=1'
+}
+
+@test "3.2: a nested draft copy pairs by relative path, never by basename" {
+  # THE RULE, pinned in both directions, because getting it wrong deletes a file
+  # that was never a duplicate. `.draft/<rel>` pairs with `<story>/<rel>`:
+  #   .draft/adr/002.md vs a top-level 002.md  -> NOT a pair (different document
+  #                                               that happens to share a name)
+  #   .draft/adr/003.md vs adr/003.md          -> a pair, and an exact copy
+  # Both fixtures are byte-identical to their would-be partner, so only the
+  # PAIRING decides the outcome.
+  make_copy_story 005-nested
+  local story="$PROJ/.epic/stories/005-nested"
+  mkdir -p "$story/.draft/adr" "$story/adr"
+  printf 'same bytes, unrelated documents\n' > "$story/002.md"
+  printf 'same bytes, unrelated documents\n' > "$story/.draft/adr/002.md"
+  printf 'promoted adr three\n' > "$story/adr/003.md"
+  cp "$story/adr/003.md" "$story/.draft/adr/003.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-nested
+  [ "$status" -eq 0 ]
+  local arch="$PROJ/.epic/archive/005-nested"
+  [ -f "$arch/.draft/adr/002.md" ]
+  grep -q 'unrelated documents' "$arch/.draft/adr/002.md"
+  [ ! -e "$arch/.draft/adr/003.md" ]
+  [ -f "$arch/adr/003.md" ]
+  echo "$output" | jq -e '.pruned.copies_removed == 1' > /dev/null
+}
+
+@test "3.2: a draft copy that cannot be read is kept, never assumed identical" {
+  # 3.1's rule for the logs half, and it matters more here: `[[ -f ]]` says a
+  # file EXISTS, not that it opens, and reading an unreadable file as a duplicate
+  # deletes the one copy nobody was able to check. cmp answers 0/1/>1 and only 0
+  # deletes. --allow-heavy is needed to reach step 4 at all - the weight/binary
+  # guard blocks an unreadable file first (2.1), which is the step order working.
+  make_copy_story 005-unreadcopy
+  local story="$PROJ/.epic/stories/005-unreadcopy"
+  printf 'promoted design body\n' > "$story/design.md"
+  cp "$story/design.md" "$story/.draft/design.md"
+  chmod 000 "$story/.draft/design.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-unreadcopy --allow-heavy
+  # `|| true` on both: whichever side of the move the file ended on, the fixture
+  # cleanup must not kill the case before its assertions run.
+  chmod 644 "$story/.draft/design.md" 2> /dev/null || true
+  chmod 644 "$PROJ/.epic/archive/005-unreadcopy/.draft/design.md" 2> /dev/null || true
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+  echo "$output" | jq -e '.status == "archived"' > /dev/null
+  local arch="$PROJ/.epic/archive/005-unreadcopy"
+  [ -f "$arch/.draft/design.md" ]
+  grep -q 'promoted design body' "$arch/.draft/design.md"
+  echo "$output" | jq -e '.pruned.copies_removed == 0' > /dev/null
+  # Reported, not silent: the file is named with the reason it was left.
+  echo "$stderr" | grep -q 'prune=copies verdict=partial'
+  echo "$stderr" | grep -q 'design.md'
+}
+
+@test "3.2: a draft file whose promoted counterpart is a directory is not a duplicate" {
+  # A type mismatch is not a comparison. Both directions: a draft FILE whose
+  # promoted path is a DIRECTORY (cmp against a directory is an error, and an
+  # error is never "equal"), and a draft DIRECTORY whose promoted path is a FILE
+  # (nothing under it maps to anything, so nothing is a candidate).
+  make_copy_story 005-typemix
+  local story="$PROJ/.epic/stories/005-typemix"
+  mkdir -p "$story/adr.md" "$story/.draft/notes.md"
+  printf 'promoted adr collection\n' > "$story/adr.md/index.md"
+  printf 'draft file where a directory was promoted\n' > "$story/.draft/adr.md"
+  printf 'promoted notes body\n' > "$story/notes.md"
+  printf 'draft directory where a file was promoted\n' > "$story/.draft/notes.md/inner.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-typemix
+  [ "$status" -eq 0 ]
+  local arch="$PROJ/.epic/archive/005-typemix"
+  [ -f "$arch/.draft/adr.md" ]
+  [ -f "$arch/.draft/notes.md/inner.md" ]
+  [ -f "$arch/adr.md/index.md" ]
+  [ -f "$arch/notes.md" ]
+  echo "$output" | jq -e '.pruned.copies_removed == 0' > /dev/null
+  # `clean`, not `partial`: a type mismatch is not even a comparison, so nothing
+  # was compared and nothing failed to compare.
+  echo "$stderr" | grep -q 'prune=copies verdict=clean files_seen=2 compared=0 removed=0'
+}
+
+@test "3.2: a symlinked draft copy is left as a link, never deleted" {
+  # cmp FOLLOWS symlinks, so a link to the promoted artifact reads as
+  # "identical". It is left alone anyway: it holds no bytes of its own, so
+  # R2.2's "remove the copy" has nothing to remove, and a symlink is how someone
+  # deliberately wrote down "same file". Two layers keep it safe - `find -type f`
+  # never enumerates it, and the loop tests -L again - and only removing BOTH
+  # changes the outcome.
+  make_copy_story 005-linkcopy
+  local story="$PROJ/.epic/stories/005-linkcopy"
+  printf 'promoted design body\n' > "$story/design.md"
+  ln -s ../design.md "$story/.draft/design.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-linkcopy
+  [ "$status" -eq 0 ]
+  local arch="$PROJ/.epic/archive/005-linkcopy"
+  [ -L "$arch/.draft/design.md" ]
+  # ...and it still resolves: -f follows the link.
+  [ -f "$arch/.draft/design.md" ]
+  echo "$output" | jq -e '.pruned.copies_removed == 0' > /dev/null
+}
+
+@test "3.2: a promoted artifact that is a symlink into .draft is never made to dangle" {
+  # THE dangerous direction. cmp follows the promoted link, so the pair reads as
+  # byte-identical - and deleting the .draft file would leave the promoted
+  # artifact pointing at nothing. A removal of a redundant duplicate would have
+  # become the destruction of the story's only copy.
+  make_copy_story 005-linkpromoted
+  local story="$PROJ/.epic/stories/005-linkpromoted"
+  printf 'the only copy of this text\n' > "$story/.draft/design.md"
+  ln -s .draft/design.md "$story/design.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-linkpromoted
+  [ "$status" -eq 0 ]
+  local arch="$PROJ/.epic/archive/005-linkpromoted"
+  [ -f "$arch/.draft/design.md" ]
+  # -f on the link is FALSE when it dangles, so this is the no-dangle assertion.
+  [ -L "$arch/design.md" ]
+  [ -f "$arch/design.md" ]
+  grep -q 'the only copy of this text' "$arch/design.md"
+  echo "$output" | jq -e '.pruned.copies_removed == 0' > /dev/null
+}
+
+@test "3.2: the generated logs summary is not deleted by the copies half" {
+  # Step 4 runs the logs half FIRST, so .draft/logs-summary.md exists by the time
+  # the copies half enumerates the subtree. It has no promoted sibling, so it is
+  # inert - and it must stay that way, because it is now the ONLY record of logs
+  # this same step deleted moments earlier.
+  make_copy_story 005-summarysafe
+  local story="$PROJ/.epic/stories/005-summarysafe"
+  mkdir -p "$story/.draft/logs"
+  { seq 1 300; echo 'SUMMARY SAFE MARKER'; } > "$story/.draft/logs/build.log"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-summarysafe
+  [ "$status" -eq 0 ]
+  local arch="$PROJ/.epic/archive/005-summarysafe"
+  [ -f "$arch/.draft/logs-summary.md" ]
+  grep -q 'SUMMARY SAFE MARKER' "$arch/.draft/logs-summary.md"
+  [ ! -e "$arch/.draft/logs/build.log" ]
+  echo "$output" | jq -e '.pruned.logs_kb > 0 and .pruned.copies_removed == 0' > /dev/null
+  # The copies half DID look at it and decided it was not a copy of anything.
+  echo "$stderr" | grep -q 'prune=copies verdict=clean files_seen=1 compared=0 removed=0'
 }

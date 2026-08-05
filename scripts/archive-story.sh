@@ -25,12 +25,15 @@
 #   1. preflight ................ sub-task 1.1  (implemented)
 #   2. weight/binary guard ...... sub-task 2.1  (implemented — R1.2/R1.4)
 #   3. secrets guard ............ sub-task 2.2  (implemented — R1.3/R1.4/R1.8)
-#   4. prune .draft ............. sub-tasks 3.1 / 3.2 (stub)
+#   4. prune .draft/logs ........ sub-task 3.1  (implemented — R2.1/R2.3)
+#      prune .draft copies ...... sub-task 3.2  (implemented — R2.2/R2.3)
 #   5. manifest append .......... sub-task 1.2  (implemented — before the move, R3.4)
 #   6. move ..................... sub-task 1.3  (implemented — git mv / mv, R6.1/R6.2)
 #   7. status: archived ......... sub-task 1.3  (implemented)
 #   8. index regeneration ....... sub-tasks 4.1 / 4.2 (stub)
-# Steps 4 and 8 are not implemented yet; each is a marked stub below.
+# Step 8 is not implemented yet and is a marked stub below. Step 4 is the FIRST
+# DESTRUCTIVE STEP, and its position is asserted in the script (GUARDS_PASSED,
+# read by BOTH of its halves), not only stated here.
 
 set -euo pipefail
 
@@ -650,6 +653,35 @@ file_size() {
   return 0
 }
 
+# file_times <path> — the same portable pair as file_size, for the LAST-MODIFIED
+# time R2.1 asks the log summary to record (step 4). One stat call yields both
+# forms, split on the first space:
+#   FILE_MTIME       epoch seconds — what "the most recently modified log" is
+#                    decided on. A number, so no date parsing is ever needed.
+#   FILE_MTIME_TEXT  the host's human form, for the summary a person reads.
+# The OUTPUT is validated, not the exit code, for the reason file_size documents:
+# GNU `stat -f` prints a diagnostic AND a block of filesystem information, so a
+# losing form does not always fail silently. Formatting an arbitrary epoch back
+# into a date is NOT portable (`date -d @N` is GNU, `date -r N` is BSD), which is
+# why the display string is taken from stat itself; when stat gives no second
+# field the epoch is shown as `@N` rather than an empty cell.
+FILE_MTIME=""
+FILE_MTIME_TEXT=""
+file_times() {
+  local f="$1" out=""
+  FILE_MTIME=""
+  FILE_MTIME_TEXT=""
+  out=$(stat -c '%Y %y' "$f" 2>/dev/null) || out=""
+  if [[ ! "${out%% *}" =~ ^[0-9]+$ ]]; then
+    out=$(stat -f '%m %Sm' "$f" 2>/dev/null) || out=""
+  fi
+  [[ "${out%% *}" =~ ^[0-9]+$ ]] || return 1
+  FILE_MTIME="${out%% *}"
+  FILE_MTIME_TEXT="${out#* }"
+  [[ "$FILE_MTIME_TEXT" == "$out" ]] && FILE_MTIME_TEXT="@$FILE_MTIME"
+  return 0
+}
+
 # is_text <path> <size> — the design's heuristic, verbatim: `LC_ALL=C grep -qI .`
 # (`-I` = --binary-files=without-match, so grep reports NO MATCH for a file it
 # considers binary). LC_ALL=C is load-bearing: in a UTF-8 locale grep also calls
@@ -817,6 +849,14 @@ SECRETS_TMPDIR=""
 # not read as a measurement that came back empty.
 SECRETS_UNSCANNED=""
 SECRETS_UNSCANNED_TEXT=""
+
+# What this guard established about the story's FILE CONTENTS, in one sentence,
+# for step 4's log summary to carry into the archive. The summary is written
+# AFTER this scan and is therefore never scanned itself (see the note at the
+# prune), so it states what its own contents were cleared by — "scanned and
+# clean" and "nobody looked" must never be indistinguishable in the permanent
+# record. Set on every path that continues past this step.
+SECRETS_COVERAGE=""
 
 # set_secrets_json <scanned> <findings|""> <report|""> <skipped|""> <error|"">
 # The `secrets` key of the report. ONE uniform shape on every path the guard
@@ -996,6 +1036,621 @@ run_secrets_scan() {
       return 2
       ;;
   esac
+}
+
+# --- Evidence pruning: .draft/logs -> summary (step 4) ----------------------
+# R2.1: a story archived with `.draft/logs/` keeps ONE summary — every log's
+# name, size and last-modified time, plus the tail of the most recently modified
+# one — and loses the log files themselves. The corpus archived 55 MB of test
+# logs across two pmg stories wholesale; this is what replaces that.
+# R2.3: `--keep-logs` keeps them exactly as they are, and the override is
+# recorded in the manifest entry.
+#
+# THE STEP ORDER IS THE SAFETY PROPERTY, and it is asserted IN THE SCRIPT rather
+# than only in the comment header: GUARDS_PASSED is set on the one line control
+# reaches after step 3, and prune_logs_step refuses to touch anything while it
+# is false. This is the first destructive step in the pipeline, so "it cannot
+# run before a possible `blocked`" has to be a check, not a convention — and it
+# is stated on stderr too, in the prune's own verdict line, where a test can see
+# both that it ran and that it ran last.
+#
+# NOTHING IS DELETED BEFORE ITS EVIDENCE IS ON DISK. The summary is composed in
+# a temp file BESIDE its destination and renamed into place, and only then are
+# the logs removed. A log whose facts could NOT be captured — stat could not
+# measure it, or the tail could not be read — is never deleted: it travels into
+# the archive as it is, named in the summary and on stderr. Deleting a log while
+# recording nothing about it is the exact inverse of what this step is for.
+#
+# PRUNE NEVER BLOCKS. It runs after every guard has passed, so a failure here
+# leaves the story exactly as the guards cleared it — un-pruned, which is the
+# pre-005 status quo and not a correctness violation. Every outcome is reported
+# on stderr in the same key=value shape the guards use, and `pruned.logs_kb`
+# stays 0, which the report already means as "nothing was freed".
+#
+# THE TAIL AND THE SECRETS GUARD — the hand-off sub-task 2.2 recorded, decided
+# here. Step 3 scans `.draft/logs/*` as they are; this summary is written
+# afterwards, so NO GUARD EVER LOOKS AT IT, and 40 lines of arbitrary log output
+# enter the archive unscanned. That is accepted deliberately, because PRUNE ONLY
+# EVER REMOVES: every byte of the tail was already in the story when gitleaks
+# read it, and every one of them would have travelled into the archive verbatim
+# under --keep-logs. Collapsing a log cannot introduce a credential the archive
+# was not already about to receive — it can only reduce one. Re-scanning would
+# re-read a strict subset of what step 3 just read on the default path, and on
+# the paths where nothing was scanned (--skip-secrets, no scanner installed) it
+# would scan precisely what the operator chose not to scan. Blocking on it is
+# worse than either: the verdict would have to be reached AFTER a destructive
+# step, which is the one thing this step order forbids.
+# What is NOT accepted is silence about the guarantee. Every summary states the
+# scan's coverage of the logs it collapsed, including the single case where
+# `scanned: true, findings: 0` genuinely does NOT cover the tail — a log larger
+# than gitleaks' --max-target-megabytes limit, which it skips without saying so
+# (2.2's recorded residual). That case is detected from the log's own size,
+# which this step has already measured.
+
+PRUNE_TAIL_LINES=40
+
+# The sequence assertion (see above). False until control has passed step 3.
+GUARDS_PASSED=false
+
+# Outcome, for the stderr verdict line and for `pruned.logs_kb`.
+PRUNE_LOGS_SEEN=0        # regular files found under .draft/logs/
+PRUNE_LOGS_REMOVED=0     # of those, the ones actually deleted
+PRUNE_LOGS_FREED=0       # bytes actually freed — measured on the removal, not
+                         # on the intention, so the number is what happened
+PRUNE_LOGS_KEPT=""       # every file deliberately or accidentally left behind
+PRUNE_LOGS_TEXT=""       # why a step failed, for the verdict line
+
+# Collected by prune_logs_collect, consumed by prune_logs_write / _remove.
+# Counters are manual integers, never ${#arr[@]} on a possibly-empty array —
+# the convention the census and the weight guard already follow.
+PRUNE_ROWS=()            # one rendered YAML item per log file
+PRUNE_ROWS_N=0
+PRUNE_REMOVABLE=()       # absolute paths whose facts WERE captured
+PRUNE_REMOVABLE_SIZE=()  # parallel: each one's size, for the freed-bytes sum
+PRUNE_REMOVABLE_N=0
+PRUNE_NEWEST=""          # the most recently modified log — the tail's source
+PRUNE_NEWEST_REL=""
+PRUNE_NEWEST_SIZE=0
+PRUNE_TAIL_STATE="none"  # ok | unreadable | none
+PRUNE_TAIL_TMP=""
+
+# prune_logs_collect <dir> — the per-file facts R2.1 records, and which log is
+# the newest. Returns non-zero when the directory could not be enumerated
+# COMPLETELY: a list that is not known to be complete is not a list to delete
+# from. The enumeration goes through a temp file for the reason the weight guard
+# documents — `while … done < <(find …)` throws find's exit status away, and
+# find exits non-zero AFTER printing whatever it did reach.
+prune_logs_collect() {
+  local dir="$1" tmp f rel newest_epoch=-1
+  local files=()
+  PRUNE_ROWS=()
+  PRUNE_ROWS_N=0
+  PRUNE_REMOVABLE=()
+  PRUNE_REMOVABLE_SIZE=()
+  PRUNE_REMOVABLE_N=0
+  PRUNE_NEWEST=""
+  PRUNE_NEWEST_REL=""
+  PRUNE_NEWEST_SIZE=0
+  PRUNE_LOGS_SEEN=0
+  PRUNE_LOGS_KEPT=""
+  PRUNE_LOGS_TEXT=""
+
+  tmp=$(mktemp "${TMPDIR:-/tmp}/archive-prune.XXXXXX" 2>/dev/null) || {
+    PRUNE_LOGS_TEXT="no temporary file could be created to list '$dir'"
+    return 1
+  }
+  find "$dir" -type f -print0 > "$tmp" 2>/dev/null ||
+    PRUNE_LOGS_TEXT="'find' exited non-zero over '$dir', so the log list may be incomplete"
+  {
+    while IFS= read -r -d '' f; do files+=("$f"); done
+    :
+  } 2>/dev/null < "$tmp" ||
+    PRUNE_LOGS_TEXT="${PRUNE_LOGS_TEXT:+$PRUNE_LOGS_TEXT; }the log list could not be read back"
+  rm -f "$tmp" 2>/dev/null || true
+  [[ -z "$PRUNE_LOGS_TEXT" ]] || return 1
+
+  # Regular files only (`-type f`), and in find's own order: sorting a NUL-
+  # delimited list portably needs `sort -z`, which is GNU-only, and this script
+  # pays its portability taxes deliberately. Ties on mtime keep the FIRST file
+  # seen (strict `-gt`), so a run over an unchanged tree always picks the same
+  # log even though the order itself is the filesystem's.
+  for f in ${files[@]+"${files[@]}"}; do
+    PRUNE_LOGS_SEEN=$((PRUNE_LOGS_SEEN + 1))
+    rel="${f#"$dir"/}"
+    # EVERY string here is a file name, which may legally hold a quote, a
+    # newline, a DEL or a C1 byte — so it goes through quote_scalar, the one
+    # escaper whose output both JSON and YAML accept. That is also why the file
+    # list below is a YAML block and not a markdown table: a name containing `|`
+    # would silently grow a column, and inventing a second, weaker escape to
+    # prevent that is exactly what this script does not do.
+    if ! file_size "$f" || ! file_times "$f"; then
+      PRUNE_ROWS+=("$(printf '  - name: %s\n    size_bytes: null\n    modified: null\n    kept: %s' \
+        "$(quote_scalar "$rel")" \
+        "$(quote_scalar "its size and last-modified time could not be read, so it was left as it is")")")
+      PRUNE_ROWS_N=$((PRUNE_ROWS_N + 1))
+      PRUNE_LOGS_KEPT="${PRUNE_LOGS_KEPT:+$PRUNE_LOGS_KEPT; }$rel (size/mtime unreadable)"
+      continue
+    fi
+    PRUNE_ROWS+=("$(printf '  - name: %s\n    size_bytes: %d\n    modified: %s' \
+      "$(quote_scalar "$rel")" "$FILE_SIZE" "$(quote_scalar "$FILE_MTIME_TEXT")")")
+    PRUNE_ROWS_N=$((PRUNE_ROWS_N + 1))
+    PRUNE_REMOVABLE+=("$f")
+    PRUNE_REMOVABLE_SIZE+=("$FILE_SIZE")
+    PRUNE_REMOVABLE_N=$((PRUNE_REMOVABLE_N + 1))
+    if [[ "$FILE_MTIME" -gt "$newest_epoch" ]]; then
+      newest_epoch="$FILE_MTIME"
+      PRUNE_NEWEST="$f"
+      PRUNE_NEWEST_REL="$rel"
+      PRUNE_NEWEST_SIZE="$FILE_SIZE"
+    fi
+  done
+  [[ "$PRUNE_LOGS_SEEN" -gt 0 ]]
+}
+
+# prune_logs_coverage — the provenance line, built from what step 3 established
+# plus the newest log's own size. The size test is the whole point: gitleaks
+# SILENTLY skips a file over --max-target-megabytes (2.2's measured residual —
+# no report entry, no exit code, `INF no leaks found`), so a story archived with
+# --allow-heavy can report `scanned: true, findings: 0` while the log this tail
+# came from was never opened. Said in the artifact, where it survives.
+prune_logs_coverage() {
+  local note="${SECRETS_COVERAGE:-(the secrets guard did not record its coverage)}"
+  if [[ -n "$PRUNE_NEWEST" && "$PRUNE_NEWEST_SIZE" -gt "$GITLEAKS_SKIP_BYTES" ]] &&
+    [[ "$SECRETS_COVERAGE" == scanned* ]]; then
+    note="$note — BUT the log this tail came from is larger than the scanner's ${GITLEAKS_SKIP_BYTES}-byte limit, which it skips WITHOUT reporting the skip, so these lines were NOT scanned"
+  fi
+  printf '%s' "$note"
+}
+
+# prune_logs_write <summary> — the summary, composed in a temp file beside its
+# destination and renamed into place, so a partial write can never land and the
+# logs are never deleted against half a record.
+#
+# The tail is read into a temp FILE rather than a command substitution: `$( )`
+# cannot hold a NUL byte and would silently truncate a log that reached here
+# through --allow-heavy, and `tail -n N` seeks rather than reading the whole
+# file, so a 55 MB log costs one read of its last page.
+prune_logs_write() {
+  local summary="$1" dir stmp gen="" fence='~~~' i rc=0
+  dir=$(dirname "$summary")
+  PRUNE_TAIL_STATE="none"
+  PRUNE_TAIL_TMP=""
+  if [[ -n "$PRUNE_NEWEST" ]]; then
+    PRUNE_TAIL_TMP=$(mktemp "${TMPDIR:-/tmp}/archive-prune-tail.XXXXXX" 2>/dev/null) || PRUNE_TAIL_TMP=""
+    if [[ -n "$PRUNE_TAIL_TMP" ]] &&
+      tail -n "$PRUNE_TAIL_LINES" -- "$PRUNE_NEWEST" > "$PRUNE_TAIL_TMP" 2>/dev/null; then
+      PRUNE_TAIL_STATE="ok"
+      # A fence long enough that no line of the log can close it early. Tildes,
+      # not backticks: a shell transcript is full of backticks and a fenced
+      # block is how the tail stays readable as preformatted text. Bounded, so
+      # a pathological log cannot spin here — past the bound the fence is only
+      # cosmetically wrong and the bytes are still verbatim.
+      while [[ ${#fence} -lt 20 ]] && grep -q "^$fence" "$PRUNE_TAIL_TMP" 2>/dev/null; do
+        fence="$fence~"
+      done
+    else
+      PRUNE_TAIL_STATE="unreadable"
+    fi
+  fi
+
+  stmp=$(mktemp "$dir/.logs-summary.XXXXXX" 2>/dev/null) || {
+    PRUNE_LOGS_TEXT="the summary file could not be created in '$dir'"
+    rm -f "$PRUNE_TAIL_TMP" 2>/dev/null || true
+    return 1
+  }
+  # A timestamp for the artifact. derive_archived_at reports instead of dying,
+  # and step 5 re-derives it for the manifest entry, so a host whose clock
+  # cannot be read still gets a summary — with the field null rather than
+  # invented.
+  derive_archived_at && gen="$ARCHIVED_AT" || gen=""
+
+  {
+    printf '# Log summary — %s\n\n' "$STORY_ID"
+    printf 'This story was archived with `.draft/logs/` present, and those log files\n'
+    printf 'were replaced by this one: the archive keeps what the logs proved, not the\n'
+    printf 'logs. Re-run with `--keep-logs` to archive them as they are instead.\n\n'
+    printf 'Everything the logs are still known to have contained is below. If they had\n'
+    printf 'been committed before the archive, git history still holds them; if they had\n'
+    printf 'not, this file is all that is left of them.\n\n'
+    printf '%syaml\n' "$fence"
+    printf 'generated_by: "scripts/archive-story.sh"\n'
+    if [[ -n "$gen" ]]; then
+      printf 'generated_at: %s\n' "$(quote_scalar "$gen")"
+    else
+      printf 'generated_at: null\n'
+    fi
+    printf 'source: ".draft/logs/"\n'
+    printf 'files_found: %d\n' "$PRUNE_LOGS_SEEN"
+    printf 'secrets_scan: %s\n' "$(quote_scalar "$(prune_logs_coverage)")"
+    printf 'logs:\n'
+    for ((i = 0; i < PRUNE_ROWS_N; i++)); do
+      printf '%s\n' "${PRUNE_ROWS[i]}"
+    done
+    printf '%s\n\n' "$fence"
+    case "$PRUNE_TAIL_STATE" in
+      ok)
+        printf '## Tail of %s — the most recently modified log, last %d lines\n\n' \
+          "$(quote_scalar "$PRUNE_NEWEST_REL")" "$PRUNE_TAIL_LINES"
+        printf '%stext\n' "$fence"
+        cat -- "$PRUNE_TAIL_TMP"
+        # A log whose last line has no newline would otherwise run straight into
+        # the closing fence. `$( )` strips trailing newlines, so an empty result
+        # from `tail -c 1` IS "the last byte is a newline" — and adding one
+        # unconditionally would leave a blank line inside the block instead.
+        [[ -z "$(tail -c 1 -- "$PRUNE_TAIL_TMP" 2>/dev/null)" ]] || printf '\n'
+        printf '%s\n' "$fence"
+        ;;
+      unreadable)
+        printf '## Tail of %s — NOT RECORDED\n\n' "$(quote_scalar "$PRUNE_NEWEST_REL")"
+        printf 'That log is the most recently modified one, and its last %d lines\n' "$PRUNE_TAIL_LINES"
+        printf 'could not be read. It was therefore NOT deleted: it is still in\n'
+        printf '`.draft/logs/`, exactly as it was.\n'
+        ;;
+      *)
+        printf '## No tail\n\nNo log could be measured, so none was collapsed.\n'
+        ;;
+    esac
+  } > "$stmp" 2>/dev/null || rc=1
+  rm -f "$PRUNE_TAIL_TMP" 2>/dev/null || true
+  PRUNE_TAIL_TMP=""
+
+  # A write that failed, or landed empty, deletes nothing: `[[ -s ]]` is the
+  # cheap re-read that tells "written" from "silently wrote nothing" — the same
+  # lesson step 7 learned from `sed -i`.
+  if [[ $rc -ne 0 || ! -s "$stmp" ]]; then
+    rm -f "$stmp" 2>/dev/null || true
+    PRUNE_LOGS_TEXT="the summary could not be written to '$summary'"
+    return 1
+  fi
+  if ! mv -- "$stmp" "$summary" 2>/dev/null; then
+    rm -f "$stmp" 2>/dev/null || true
+    PRUNE_LOGS_TEXT="the summary could not be moved into place at '$summary'"
+    return 1
+  fi
+  return 0
+}
+
+# prune_logs_remove <dir> — the destructive half, and the only one. It runs
+# ONLY after prune_logs_write has returned 0, so every file it deletes is a file
+# whose name, size and last-modified time are already recorded in the archive.
+#
+# `pruned.logs_kb` is measured HERE, from the files that were actually removed,
+# never from the ones this step meant to remove.
+prune_logs_remove() {
+  local dir="$1" i path size
+  PRUNE_LOGS_REMOVED=0
+  PRUNE_LOGS_FREED=0
+  for ((i = 0; i < PRUNE_REMOVABLE_N; i++)); do
+    path="${PRUNE_REMOVABLE[i]}"
+    size="${PRUNE_REMOVABLE_SIZE[i]}"
+    # The newest log survives when its tail could not be read: the summary then
+    # records its name, size and mtime but nothing of its content, and deleting
+    # it would destroy the only copy of lines nothing recorded.
+    if [[ "$path" == "$PRUNE_NEWEST" && "$PRUNE_TAIL_STATE" != "ok" ]]; then
+      PRUNE_LOGS_KEPT="${PRUNE_LOGS_KEPT:+$PRUNE_LOGS_KEPT; }$PRUNE_NEWEST_REL (its tail could not be read)"
+      continue
+    fi
+    if rm -f -- "$path" 2>/dev/null && [[ ! -e "$path" ]]; then
+      PRUNE_LOGS_REMOVED=$((PRUNE_LOGS_REMOVED + 1))
+      PRUNE_LOGS_FREED=$((PRUNE_LOGS_FREED + size))
+    else
+      PRUNE_LOGS_KEPT="${PRUNE_LOGS_KEPT:+$PRUNE_LOGS_KEPT; }${path#"$STORY_ABS"/} (could not be removed)"
+    fi
+  done
+  # KB, rounded UP. Integer division would report 0 for anything under a
+  # kilobyte, and `logs_kb: 0` already means "nothing was freed" — a prune that
+  # freed bytes must never be indistinguishable from one that freed none.
+  PRUNED_LOGS_KB=$(((PRUNE_LOGS_FREED + 1023) / 1024))
+  # Directories the removal emptied go too: an empty `logs/` in the archive
+  # records nothing, and git does not track it either. `rmdir`, never `rm -r` —
+  # it succeeds ONLY on an empty directory, so anything this step did not list
+  # (a symlink, a socket, a file it deliberately kept) keeps its directory alive
+  # instead of being deleted without ever being named.
+  find "$dir" -depth -type d -exec rmdir {} \; 2>/dev/null || true
+  return 0
+}
+
+# prune_logs_step — step 4's logs half end to end, and the only caller of the
+# three helpers above. Every outcome is one stderr line in the guards' key=value
+# shape (`prune=logs verdict=…`), so `grep 'prune=logs'` answers "what did the
+# prune do, and did it run after the guards" without parsing prose.
+prune_logs_step() {
+  local dir="$1" summary="$2"
+
+  # THE SEQUENCE ASSERTION. Unreachable by construction — every blocking path in
+  # steps 2 and 3 exits — which is exactly why it is worth having: it is what
+  # makes a future re-sequencing fail loudly instead of silently deleting a
+  # story's logs before a guard could refuse it.
+  if [[ "$GUARDS_PASSED" != true ]]; then
+    block "internal error: the prune (step 4) was reached before the guards had passed. Nothing was pruned, moved or recorded — this step is destructive and must never run before a guard can return 'blocked'"
+  fi
+
+  if [[ "$KEEP_LOGS" == true ]]; then
+    printf 'archive-story: prune=logs verdict=skipped reason=--keep-logs guards_passed=%s (the log files are archived as they are; the override is recorded in the manifest entry)\n' \
+      "$GUARDS_PASSED" >&2
+    return 0
+  fi
+  if [[ ! -d "$dir" ]]; then
+    printf 'archive-story: prune=logs verdict=none reason=no-logs-directory guards_passed=%s\n' \
+      "$GUARDS_PASSED" >&2
+    return 0
+  fi
+  # An existing summary is never overwritten. It is the artifact this step
+  # produces, so one already sitting there was written by a hand or by an
+  # interrupted run — and silently replacing a document about the logs with a
+  # generated one is the kind of quiet loss this step exists to end.
+  if [[ -e "$summary" || -L "$summary" ]]; then
+    printf 'archive-story: prune=logs verdict=skipped reason=summary-exists guards_passed=%s (%s is already there, so the logs were left as they are; remove it or pass --keep-logs)\n' \
+      "$GUARDS_PASSED" "$summary" >&2
+    return 0
+  fi
+  if ! prune_logs_collect "$dir"; then
+    if [[ -n "$PRUNE_LOGS_TEXT" ]]; then
+      printf 'archive-story: prune=logs verdict=failed reason=%s guards_passed=%s (the story is archived with its logs as they are)\n' \
+        "$PRUNE_LOGS_TEXT" "$GUARDS_PASSED" >&2
+    else
+      printf 'archive-story: prune=logs verdict=none reason=no-log-files guards_passed=%s\n' \
+        "$GUARDS_PASSED" >&2
+    fi
+    return 0
+  fi
+  if ! prune_logs_write "$summary"; then
+    printf 'archive-story: prune=logs verdict=failed reason=%s guards_passed=%s (nothing was deleted: the story is archived with its logs as they are)\n' \
+      "$PRUNE_LOGS_TEXT" "$GUARDS_PASSED" >&2
+    return 0
+  fi
+  prune_logs_remove "$dir"
+  if [[ -n "$PRUNE_LOGS_KEPT" ]]; then
+    printf 'archive-story: prune=logs verdict=partial files_found=%d files_removed=%d freed_kb=%d guards_passed=%s kept=%s\n' \
+      "$PRUNE_LOGS_SEEN" "$PRUNE_LOGS_REMOVED" "$PRUNED_LOGS_KB" "$GUARDS_PASSED" "$PRUNE_LOGS_KEPT" >&2
+  else
+    printf 'archive-story: prune=logs verdict=pruned files_found=%d files_removed=%d freed_kb=%d guards_passed=%s summary=%s\n' \
+      "$PRUNE_LOGS_SEEN" "$PRUNE_LOGS_REMOVED" "$PRUNED_LOGS_KB" "$GUARDS_PASSED" "$summary" >&2
+  fi
+  return 0
+}
+
+# --- Evidence pruning: byte-identical .draft copies (step 4) ----------------
+# R2.2: a `.draft/` file that is BYTE-IDENTICAL to its promoted sibling is a
+# duplicate and is removed at archive time — 4+ corpus stories carried exact
+# copies of artifacts sitting right beside them. R2.3: `--keep-copies` keeps
+# them exactly as they are, and the override is recorded in the manifest entry.
+#
+# "EXACT" IS THE WHOLE REQUIREMENT. A near-duplicate — one byte changed, one
+# trailing newline, the same length with different content — is a DIFFERENT
+# DOCUMENT, usually the working draft the promoted artifact grew out of, and it
+# is precisely what a reader opens `.draft/` for. So the comparison is `cmp -s`
+# on the bytes and nothing else: never a size, never a hash of some normalized
+# form, never a "looks the same" heuristic. `-s` is also required rather than
+# incidental — without it `cmp` prints "…differ: byte N" on STDOUT, which this
+# script reserves for one JSON object.
+#
+# THE PAIRING RULE. design.md says "promoted sibling"; here that means THE SAME
+# RELATIVE PATH one level up: `.draft/<rel>` pairs with `<story>/<rel>`. So
+# `.draft/design.md` pairs with `design.md`, and `.draft/adr/002.md` pairs with
+# `adr/002.md` and NOT with a top-level `002.md`. Matching on the BASENAME
+# instead would delete `.draft/notes/api.md` because some unrelated `api.md`
+# exists at the top of the story — a file that was never a copy of anything.
+# The path rule is mechanical, it makes "sibling" mean the same thing at every
+# depth, and it can never pair two files the story did not itself put at
+# matching paths.
+#
+# BOTH SIDES MUST BE REGULAR FILES, and the symlink half of that is not
+# pedantry: `cmp` FOLLOWS symlinks. A promoted `design.md` that is a link to
+# `.draft/design.md` therefore reads as "identical", and deleting the draft copy
+# would leave the promoted artifact DANGLING — the removal of a duplicate
+# turning into the destruction of the only copy. The mirror case (a draft entry
+# that is itself a link to the promoted file) is left alone for a quieter
+# reason: it holds no bytes of its own, so R2.2's "remove the copy" has nothing
+# to remove, and a symlink is how someone deliberately wrote down "same file".
+# `find -type f` already excludes both, and the tests repeat it anyway, because
+# a rule that lives only inside a find predicate is one the next reader misses.
+#
+# A COMPARISON THAT COULD NOT RUN IS NEVER "EQUAL" — 3.1's rule for the logs
+# half, applied here for the same reason and with more at stake: `[[ -f ]]` says
+# a file EXISTS, not that it opens, and reading an unreadable file as a
+# duplicate would delete the one copy nobody was able to check. `cmp` answers
+# 0 identical / 1 differs / >1 could not compare, and ONLY 0 deletes.
+#
+# NO SUMMARY ARTIFACT, unlike the logs half, and the asymmetry is the point:
+# what this step removes is BY DEFINITION still in the archive under its
+# promoted name, byte for byte. Nothing is lost, so there is nothing to record
+# beyond the count — which is also why no `.draft/copies-summary.md` exists to
+# collide with anything. `.draft/logs-summary.md` (written moments earlier by
+# the logs half, which runs first) is treated like any other draft file: it
+# becomes a candidate only if the story ALSO carries a top-level
+# `logs-summary.md` with the very same bytes, in which case those bytes survive
+# there and removing the `.draft` copy loses nothing. A summary this run
+# generated carries a `generated_at:` line, so it cannot match one by accident.
+#
+# PRUNE NEVER BLOCKS (3.1's policy, unchanged): any failure leaves the story
+# un-pruned with `verdict=failed`, because this step runs after every guard has
+# passed — un-pruned is the pre-005 status quo, not a correctness violation.
+# And the SEQUENCE ASSERTION is read HERE TOO, not only by the logs half: step 4
+# is destructive on both of its halves, so both must be unable to run before a
+# guard could still return `blocked`.
+
+# Outcome, for the stderr verdict line and for `pruned.copies_removed`.
+PRUNE_COPIES_SEEN=0      # regular files found anywhere under .draft/
+PRUNE_COPIES_PAIRED=0    # of those, the ones actually compared against a
+                         # promoted regular file at the matching path
+PRUNE_COPIES_REMOVED=0   # of those, the exact copies actually deleted
+PRUNE_COPIES_KEPT=""     # every candidate deliberately or accidentally left
+PRUNE_COPIES_TEXT=""     # why a step failed, for the verdict line
+
+# Collected by prune_copies_collect, consumed by prune_copies_remove. Manual
+# integer counter, never ${#arr[@]} on a possibly-empty array — the convention
+# the census, the weight guard and the logs prune all follow.
+PRUNE_COPIES_DUPES=()
+PRUNE_COPIES_DUPES_N=0
+
+# prune_copies_collect <draft-dir> — every `.draft/` file that is an EXACT copy
+# of the promoted artifact at the matching path. Returns non-zero when the
+# subtree could not be enumerated COMPLETELY (a list that is not known to be
+# complete is not a list to delete from) or when it holds no files at all. The
+# enumeration goes through a temp file for the reason the weight guard
+# documents: `while … done < <(find …)` throws find's exit status away, and find
+# exits non-zero AFTER printing whatever it did reach.
+prune_copies_collect() {
+  local dir="$1" tmp f disp promoted rc
+  local files=()
+  PRUNE_COPIES_SEEN=0
+  PRUNE_COPIES_PAIRED=0
+  PRUNE_COPIES_DUPES=()
+  PRUNE_COPIES_DUPES_N=0
+  PRUNE_COPIES_KEPT=""
+  PRUNE_COPIES_TEXT=""
+
+  tmp=$(mktemp "${TMPDIR:-/tmp}/archive-prune-copies.XXXXXX" 2>/dev/null) || {
+    PRUNE_COPIES_TEXT="no temporary file could be created to list '$dir'"
+    return 1
+  }
+  find "$dir" -type f -print0 > "$tmp" 2>/dev/null ||
+    PRUNE_COPIES_TEXT="'find' exited non-zero over '$dir', so the draft file list may be incomplete"
+  {
+    while IFS= read -r -d '' f; do files+=("$f"); done
+    :
+  } 2>/dev/null < "$tmp" ||
+    PRUNE_COPIES_TEXT="${PRUNE_COPIES_TEXT:+$PRUNE_COPIES_TEXT; }the draft file list could not be read back"
+  rm -f "$tmp" 2>/dev/null || true
+  [[ -z "$PRUNE_COPIES_TEXT" ]] || return 1
+
+  for f in ${files[@]+"${files[@]}"}; do
+    PRUNE_COPIES_SEEN=$((PRUNE_COPIES_SEEN + 1))
+    disp="${f#"$STORY_ABS"/}"
+    # `-type f` already excluded symlinks; stated again where the rule belongs.
+    [[ -L "$f" ]] && continue
+    promoted="$STORY_ABS/${f#"$dir"/}"
+    # No promoted artifact at the matching path. This is MOST of `.draft/` —
+    # scratch notes, research, the log summary — and a file that is a copy of
+    # nothing can never be a duplicate of anything.
+    [[ -e "$promoted" ]] || continue
+    # A directory, a device, or a SYMLINK on the promoted side: not a pair. The
+    # symlink case is the dangerous one (see the note above) — cmp would follow
+    # it and call the story's only copy a duplicate of itself.
+    [[ -L "$promoted" || ! -f "$promoted" ]] && continue
+    PRUNE_COPIES_PAIRED=$((PRUNE_COPIES_PAIRED + 1))
+    cmp -s -- "$f" "$promoted" 2>/dev/null && rc=0 || rc=$?
+    case "$rc" in
+      0)
+        PRUNE_COPIES_DUPES+=("$f")
+        PRUNE_COPIES_DUPES_N=$((PRUNE_COPIES_DUPES_N + 1))
+        ;;
+      1)
+        # Differs. A near-duplicate is a different document: untouched, and not
+        # worth a word — this is the ordinary outcome for a live draft.
+        ;;
+      *)
+        # >1 is "could not compare", never "equal". `cmp -s` suppresses its own
+        # message for an unreadable operand, and an errno string would be
+        # localized anyway (a recorded finding of this story), so the reason is
+        # stated here in the script's own words.
+        PRUNE_COPIES_KEPT="${PRUNE_COPIES_KEPT:+$PRUNE_COPIES_KEPT; }$(quote_scalar "$disp") (the comparison could not be run, so it was left as it is)"
+        ;;
+    esac
+  done
+  [[ "$PRUNE_COPIES_SEEN" -gt 0 ]]
+}
+
+# prune_copies_remove — the destructive half, and the only one. Every path it
+# deletes compared byte-identical to a promoted artifact that is staying, so
+# unlike the logs half there is nothing to write down first: the bytes are
+# already in the archive under the other name.
+#
+# `pruned.copies_removed` is measured HERE, from the files that were actually
+# removed, never from the ones this step meant to remove.
+#
+# Deliberately NO `rmdir` sweep, and that is where this half parts company with
+# the logs half: there the whole point is that `logs/` collapses, so an emptied
+# directory is part of the result. Here the removals are scattered single files,
+# an emptied directory is not evidence of anything the step did, and a sweep
+# rooted at `.draft/` would delete `.draft` itself — a directory the operator
+# (and the logs half, which leaves it standing) expects to survive. This step
+# removes exactly the files R2.2 names.
+prune_copies_remove() {
+  local i path disp
+  PRUNE_COPIES_REMOVED=0
+  for ((i = 0; i < PRUNE_COPIES_DUPES_N; i++)); do
+    path="${PRUNE_COPIES_DUPES[i]}"
+    disp="${path#"$STORY_ABS"/}"
+    if rm -f -- "$path" 2>/dev/null && [[ ! -e "$path" ]]; then
+      PRUNE_COPIES_REMOVED=$((PRUNE_COPIES_REMOVED + 1))
+    else
+      PRUNE_COPIES_KEPT="${PRUNE_COPIES_KEPT:+$PRUNE_COPIES_KEPT; }$(quote_scalar "$disp") (could not be removed)"
+    fi
+  done
+  PRUNED_COPIES="$PRUNE_COPIES_REMOVED"
+  return 0
+}
+
+# prune_copies_step — step 4's copies half end to end, and the only caller of
+# the two helpers above. Every outcome is one stderr line in the guards'
+# key=value shape (`prune=copies verdict=…`), so `grep 'prune=copies'` answers
+# "what did it do, and did it run after the guards" without parsing prose. The
+# logs half greps `prune=logs`, so the two never collide.
+#
+# WHY THE VERDICT WORD CARRIES THE ran-vs-not-run DISTINCTION. `copies_removed`
+# cannot: it is rendered with `%d` by both emit_report and entry_json, and
+# manifest_read_entry parses it back as a number and reports any entry whose
+# 16 keys do not all validate as `partial` — which BLOCKS. So there is no `null`
+# to spend here, and no room for a 17th field. Nor is one needed: unlike
+# `secrets.findings: 0` (2.2), which is a SAFETY claim a consumer acts on,
+# `copies_removed: 0` is a housekeeping count whose worst misreading is "I
+# thought the prune ran". The distinction still has to exist somewhere, so it is
+# explicit in the stream that carries every other diagnostic:
+#   skipped  --keep-copies (and `keep-copies` in overrides_used, permanently)
+#   none     nothing to compare — no `.draft/`, or no files in it
+#   clean    every draft file WAS compared and none was an exact copy
+#   pruned   at least one exact copy removed
+#   partial  removed what it could; `kept=` names what it could not
+#   failed   the list could not be trusted, so nothing was deleted
+prune_copies_step() {
+  local dir="$1" verdict
+
+  # THE SEQUENCE ASSERTION, the copies half. Unreachable by construction — every
+  # blocking path in steps 2 and 3 exits — which is exactly why it is worth
+  # having: it makes a future re-sequencing fail loudly instead of silently
+  # deleting a story's draft files before a guard could refuse the archive.
+  if [[ "$GUARDS_PASSED" != true ]]; then
+    block "internal error: the prune (step 4) was reached before the guards had passed. Nothing was pruned, moved or recorded — this step is destructive and must never run before a guard can return 'blocked'"
+  fi
+
+  if [[ "$KEEP_COPIES" == true ]]; then
+    printf 'archive-story: prune=copies verdict=skipped reason=--keep-copies guards_passed=%s (.draft copies identical to a promoted artifact are archived as they are; the override is recorded in the manifest entry)\n' \
+      "$GUARDS_PASSED" >&2
+    return 0
+  fi
+  if [[ ! -d "$dir" ]]; then
+    printf 'archive-story: prune=copies verdict=none reason=no-draft-directory guards_passed=%s\n' \
+      "$GUARDS_PASSED" >&2
+    return 0
+  fi
+  if ! prune_copies_collect "$dir"; then
+    if [[ -n "$PRUNE_COPIES_TEXT" ]]; then
+      printf 'archive-story: prune=copies verdict=failed reason=%s guards_passed=%s (nothing was deleted: the story is archived with its .draft copies as they are)\n' \
+        "$PRUNE_COPIES_TEXT" "$GUARDS_PASSED" >&2
+    else
+      printf 'archive-story: prune=copies verdict=none reason=no-draft-files guards_passed=%s\n' \
+        "$GUARDS_PASSED" >&2
+    fi
+    return 0
+  fi
+  if [[ "$PRUNE_COPIES_DUPES_N" -gt 0 ]]; then
+    prune_copies_remove
+  fi
+  # ONE line, one field list, three verdict words. Rendering each verdict with
+  # its own printf would be three copies of the same key list, and the next
+  # field added to one of them would silently be missing from the other two.
+  verdict="pruned"
+  if [[ -n "$PRUNE_COPIES_KEPT" ]]; then
+    verdict="partial"
+  elif [[ "$PRUNE_COPIES_REMOVED" -eq 0 ]]; then
+    verdict="clean"
+  fi
+  printf 'archive-story: prune=copies verdict=%s files_seen=%d compared=%d removed=%d guards_passed=%s%s\n' \
+    "$verdict" "$PRUNE_COPIES_SEEN" "$PRUNE_COPIES_PAIRED" "$PRUNE_COPIES_REMOVED" \
+    "$GUARDS_PASSED" "${PRUNE_COPIES_KEPT:+ kept=$PRUNE_COPIES_KEPT}" >&2
+  return 0
 }
 
 # --- Manifest (step 5) ------------------------------------------------------
@@ -2018,6 +2673,7 @@ if [[ "$SKIP_SECRETS" == true ]]; then
   # R1.4. Reported as `scanned: false` with the reason, NEVER as `findings: 0`:
   # a skip that looks like a clean scan is worse than no scan at all.
   set_secrets_json false "" "" "--skip-secrets" ""
+  SECRETS_COVERAGE="NOT SCANNED — --skip-secrets was passed, so nothing in this story was scanned for credentials"
   printf 'archive-story: guard=secrets verdict=skipped reason=--skip-secrets (the story is archived WITHOUT a secrets scan; the override is recorded in the manifest entry)\n' >&2
 elif ! command -v gitleaks > /dev/null 2>&1; then
   # R1.8, and the ONE documented degradation in this script (see the note at the
@@ -2026,6 +2682,7 @@ elif ! command -v gitleaks > /dev/null 2>&1; then
   # stdout into jq and a note only on stderr would be invisible to it; and in
   # prose on stderr for the human, where every other diagnostic lives.
   set_secrets_json false "" "" "gitleaks not installed" ""
+  SECRETS_COVERAGE="NOT SCANNED — no secrets scanner was installed on the machine that archived this story (R1.8)"
   printf 'archive-story: guard=secrets verdict=skipped reason=gitleaks-not-installed (no secrets scanner on PATH — the story is archived UNSCANNED; install gitleaks to turn the guard on)\n' >&2
 else
   count_unscanned_large
@@ -2033,6 +2690,7 @@ else
   case "$SECRETS_RC" in
     0)
       set_secrets_json true "$SECRETS_FINDINGS" "" "" ""
+      SECRETS_COVERAGE="scanned by gitleaks before this summary was written — 0 findings"
       if [[ "$SECRETS_UNSCANNED" -gt 0 ]]; then
         # Not a block: R1.3 asks for a scan and a findings count, not for a size
         # policy — step 2 already owns that, and getting here at all means
@@ -2067,13 +2725,26 @@ else
 fi
 
 # ============================================================================
-# STUB — STEP 4: PRUNE .draft (sub-tasks 3.1, 3.2)
+# STEP 4 — PRUNE .draft (R2.1, R2.2, R2.3 — sub-tasks 3.1 and 3.2)
 # ============================================================================
 # It belongs HERE, between the guards and the manifest append: nothing
 # destructive may run before every guard has passed, and pruning must happen
 # before the entry is derived so `pruned {}` reports what actually happened.
-# Until it lands, pruned reports zeroes — which the report says as "not run",
-# never as "clean".
+#
+# THIS LINE IS THE SEQUENCE ASSERTION'S ONE WRITER. Control reaches it only by
+# falling out of the bottom of steps 2 and 3, every blocking branch of which
+# exits through `block`. So GUARDS_PASSED cannot be true unless both guards
+# either passed or were explicitly overridden — and BOTH halves of the first
+# destructive step in the pipeline read it before they touch anything.
+GUARDS_PASSED=true
+
+prune_logs_step "$STORY_ABS/.draft/logs" "$STORY_ABS/.draft/logs-summary.md"
+
+# The logs half runs FIRST, so `.draft/logs-summary.md` already exists when the
+# copies half enumerates the subtree. It is inert there unless the story also
+# carries a top-level `logs-summary.md` with the very same bytes — see the note
+# at prune_copies_collect, which is where that case is reasoned through.
+prune_copies_step "$STORY_ABS/.draft"
 
 # ============================================================================
 # STEP 5 — MANIFEST APPEND (R3.1, R3.2, R3.3, R3.4)
