@@ -121,7 +121,11 @@ Whether a task may *start* is a different question from whether a story is *comp
 - A task is **satisfied** as a dependency when every one of its boxes is `[x]` or **terminal** `[~]` (`waived:`, `n-a:`, `superseded-by:`).
 - A task closed as `[~] (deferred: …)` is **not** satisfied — the plan settled it, the world still owes the work.
 
-This is the **only** place where terminal and deferred `[~]` diverge. Everywhere else — completion, progress, staleness, the `closed` count — both are closed. Note the asymmetry it creates, and that it is intended: a story whose only open boxes are deferred is `done-except-external` (nothing is pending), yet a task depending on one of those boxes must still wait.
+> **Provenance.** This is a normative rule with an acceptance criterion behind it: **R3.6** of Epic's own story 004, the story that introduced the `[~]` grammar. It was written one sub-task *before* that criterion existed, and the deviation register carried it as "a NEW rule, flagged for review" — the review happened, its outcome was the criterion, and the flag is retired.
+
+This is the **strictest** of the places where terminal and deferred `[~]` part ways, not the only one. The two are interchangeable exactly where the question is *"is anything still owed by us?"* — **staleness**, where pending is `[ ]` and only `[ ]`, and the bare **complete** predicate, which asks only that no `[ ]` remains. They diverge wherever the question is whether the work actually happened: the **`closed` count** excludes deferred, **progress** renders it apart as `+D deferred`, **`done`** is blocked by it (a deferred box is not terminal), and, here, a **dependency** on it is not satisfied.
+
+The asymmetry between the last two is real and intended: a story whose only non-`[x]` boxes are deferred is `done-except-external` — nothing here is pending — yet a task depending on one of those boxes must still wait, because the thing it needs does not exist yet.
 
 ### Metadata Line Fields
 

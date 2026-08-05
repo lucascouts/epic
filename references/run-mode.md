@@ -119,19 +119,22 @@ For a **Fast-mode Simple-or-higher** sub-task carrying a `Tests` field, the test
 
 ### Status Transitions
 
-The story's `status:` frontmatter field is **engine-written, never hand-edited**. Run mode owns two of the six values — `in-progress` and `done` — and writes them right after a box in tasks.md is marked. The other four belong elsewhere and Run mode never writes them: `draft` to CREATE, `validated` to VALIDATE, `superseded` to the supersede operation, `archived` to the archive operation. See [SKILL.md](../skills/epic/SKILL.md#lifecycle-status-status) for the full field spec.
+The story's `status:` frontmatter field is **engine-written, never hand-edited**. Run mode owns two of the six values — `in-progress` and `done` — and writes them right after a box in tasks.md is marked. The other four belong elsewhere and Run mode never writes them: `draft` to CREATE, `validated` to VALIDATE, `superseded` to the supersede operation, `archived` to the archive operation. `in-progress` has one further writer, and only for one edge: REFINE mode, when a refinement reopens a story (R1.8) — the table below is the single definition both modes apply. See [SKILL.md](../skills/epic/SKILL.md#lifecycle-status-status) for the full field spec.
 
-**When the check runs:** after **every** marking in tasks.md — each sub-task marking, whichever path executed the sub-task (Trivial inline or Executor, step 7 above), and the end-of-Run quality-gate settlement, which is usually the marking that closes the last box.
+**When the check runs:** after **every** marking in tasks.md — each sub-task marking, whichever path executed the sub-task (Trivial inline or Executor, step 7 above), and the end-of-Run quality-gate settlement, which is usually the marking that closes the last box. Refine mode takes the same census at its own point (see [refine-mode.md](refine-mode.md#status-census)): a refinement does not mark boxes, it **adds** them, which is the one way a story that already reads `done` gains open work.
 
-Census the boxes **as just written** — `open`, `closed` and `deferred` are defined once, in [tasks.md](tasks.md#completion), and the census spans the task list **and** the Quality Gates — then apply the first rule that matches:
+Census the boxes **as they now stand** — `open`, `closed` and `deferred` are defined once, in [tasks.md](tasks.md#completion), and the census spans the task list **and** the Quality Gates — then apply the first rule that matches:
 
-| # | After the marking | Then |
+| # | After the census | Then |
 |---|---|---|
 | 1 | no `[ ]` remains **and** no `[~] (deferred: …)` remains | write `done` (nothing to do if the field already reads `done`) |
-| 2 | rule 1 did not fire, and `status:` is **absent or `draft`** | write `in-progress` |
-| 3 | neither fired | write nothing |
+| 2 | rule 1 did not fire, at least one `[ ]` remains, and `status:` reads **`done` or `validated`** | write `in-progress` — the story was **reopened** (R1.7) |
+| 3 | rules 1–2 did not fire, and `status:` is **absent or `draft`** | write `in-progress` |
+| 4 | none fired | write nothing |
 
-Rule 1 is the canonical **`done`**: "every box is `[x]` or terminal `[~]`" and "no `[ ]` and no deferred `[~]`" are the same condition read from its two ends (see [tasks.md](tasks.md#completion) — do not restate it as a third variant). Rule 2 is the first marking of a story that has not been executed before: absence and `draft` are the two states a run can start from. Rule 3 keeps a story already `in-progress` where it is — the transition is written once, not re-affirmed on every sub-task. A marking that satisfies rule 1 on a story that had reached `validated` writes `done`: work done after a validation is work that validation did not cover, and VALIDATE earns `validated` back on its next pass.
+Rule 1 is the canonical **`done`**: "every box is `[x]` or terminal `[~]`" and "no `[ ]` and no deferred `[~]`" are the same condition read from its two ends (see [tasks.md](tasks.md#completion) — do not restate it as a third variant). Rule 2 is the **reopen** edge, and it sits *below* rule 1 on purpose: a marking that re-completes the story still writes `done`, so reopening is only ever recorded when work is genuinely open again. Rule 3 is the first marking of a story that has not been executed before: absence and `draft` are the two states a run can start from. Rule 4 keeps a story already `in-progress` where it is — the transition is written once, not re-affirmed on every sub-task. A marking that satisfies rule 1 on a story that had reached `validated` writes `done`: work done after a validation is work that validation did not cover, and VALIDATE earns `validated` back on its next pass.
+
+**Reopening is defined by `[ ]`, and only by `[ ]`.** Rule 2 fires on an open box, never on a deferred one — a `done` story that gains a `[~] (deferred: …)` box is not reopened by it, because nobody here owes that work. This is the same reading `validate-story.sh` applies to its ahead-of-checkboxes warning, and it is why the two agree: rule 2 exists precisely so the engine never leaves behind the `done`-with-an-open-box state that warning exists to expose.
 
 **A deferred box blocks `done` — deliberately.** A story whose only remaining non-`[x]` boxes are `[~] (deferred: …)` does **not** get `status: done` from Run mode. Its status stays `in-progress`. Its completeness is visible as the computed condition **`done-except-external`**, which is derived from the boxes at read time and never persisted — LIST renders it `in-progress · done-except-external (N deferred)`. The persisted enum has no value for that condition, and that is deliberate, not an omission: the work is settled in the plan and still owed in the world, so the lifecycle state must not claim the story is finished.
 
@@ -140,7 +143,7 @@ Rule 1 is the canonical **`done`**: "every box is `[x]` or terminal `[~]`" and "
 1. **`Edit` the frontmatter line — never `Write` the file.** The PostToolUse hook in `hooks/hooks.json` matches **`Write` only**: a `Write` under `.epic/**` re-runs `validate-story.sh`. Transitions written with `Write` would fire a full validation pass after every marking — a validation storm on an advisory metadata update. An `Edit` of the single `status:` line does not trigger the hook.
 2. **The same value in every artifact of the story that carries frontmatter** — `story.md`, `design.md`, `tasks.md`, whichever exist (a Fast story has only tasks.md). One story, one lifecycle state: artifacts declaring different values raise a validation warning naming them. An artifact with no frontmatter is skipped — there is no line to edit, and its silence is never counted as divergence.
 3. **Legacy story with no `status:` field — the `Edit` adds it.** Most existing stories predate the field; absence is legal, silent, and never an error. Insert `status: <value>` as a new line inside the frontmatter block, before the closing `---`, in each artifact that has one.
-4. **Add only the state this run observed.** The value added is what the engine just saw: a marking that leaves work open is `in-progress`; a marking that satisfies rule 1 is `done`. Never back-date `draft` onto a story the engine never saw created, and never write an intermediate value the run did not observe — a legacy story whose first marking also completes it goes straight from no field to `done`, in one write. The field is worth having only because it is evidence; a fabricated prior state is exactly the lie it exists to prevent.
+4. **Add only the state this run observed.** The value added is what the engine just saw: a marking that leaves work open is `in-progress`; a marking that satisfies rule 1 is `done`; a census that finds open work on a story reading `done` or `validated` is `in-progress` again. Never back-date `draft` onto a story the engine never saw created, and never write an intermediate value the run did not observe — a legacy story whose first marking also completes it goes straight from no field to `done`, in one write. The field is worth having only because it is evidence; a fabricated prior state is exactly the lie it exists to prevent.
 5. **A failed write is reported, and the run continues.** If an `Edit` cannot be applied — no frontmatter block, the line is not where expected, a concurrent edit conflicts — report it in the Run output and carry on. `status:` is advisory metadata and must never block the run that is producing the actual work.
 
 **Dry run.** `042-legacy-import`: three artifacts (`story.md`, `design.md`, `tasks.md`), none carrying `status:` — a legacy story.
@@ -162,16 +165,17 @@ tasks.md at the start                       status: in all three artifacts
    to back-date: the run has observed nothing, so it records nothing.
 
 2. 1.1 passes its reviews -> mark `- [x] 1.1`.
-   Census: 6 open, 0 deferred -> rule 1 no. status: absent -> RULE 2.
+   Census: 6 open, 0 deferred -> rule 1 no. status: absent -> rule 2 no
+   (nothing to reopen) -> RULE 3.
    Edit story.md, design.md, tasks.md: add `status: in-progress`.
    validate-story.sh -> 0 errors, 0 warnings.
 
 3. 1.2 passes -> mark `- [x] 1.2`, and `- [x] 1` now that its children are closed.
-   Census: 4 open -> rule 1 no. status: in-progress -> rule 2 no.
-   RULE 3: nothing written.
+   Census: 4 open -> rule 1 no. status: in-progress -> rules 2 and 3 no.
+   RULE 4: nothing written.
 
 4. 2.1 passes -> mark `- [x] 2.1`, `- [x] 2`.
-   Census: 2 open (both Quality Gates) -> rule 1 no. RULE 3: nothing written.
+   Census: 2 open (both Quality Gates) -> rule 1 no. RULE 4: nothing written.
 
 5. End-of-Run quality gates settled -> `- [x] Schema diff reviewed by the data owner`,
    `- [~] Load test at 1k rps (waived: no load-test rig on this host — user decision)`.
@@ -190,13 +194,26 @@ The same run, with one box deferred instead:
 
 5'. Quality gates settled exactly as in step 5.
     Census: 0 open, 1 deferred -> rule 1 does NOT fire.
-    status: in-progress -> rule 2 no. RULE 3: nothing written.
+    status: in-progress -> rules 2 and 3 no. RULE 4: nothing written.
     The story stays `in-progress`. LIST renders it
     `in-progress · done-except-external (1 deferred)`.
     validate-story.sh -> 0 errors, 0 warnings.
 ```
 
-Metadata lines and the `Objective`, `Validation`, `Requirements` and `Commit` fields are elided from both listings: they carry no checkbox and never enter the census.
+And the reopen edge, on the story left at `done` by step 5:
+
+```
+6. A Refine adds a task the story did not have:
+   `- [ ] 3 - Backfill the rows the first import dropped`.
+
+   Census (refine-mode, after the merged tasks.md is written):
+   1 open, 0 deferred -> rule 1 no. status: done + an open [ ] -> RULE 2.
+   Edit all three artifacts: status: done -> in-progress.
+   validate-story.sh -> 0 errors, 0 warnings — without this write it would
+   report "status is ahead of the checkboxes".
+```
+
+Metadata lines and the `Objective`, `Validation`, `Requirements` and `Commit` fields are elided from all three listings: they carry no checkbox and never enter the census.
 
 ### Commit Sub-tasks
 
@@ -544,7 +561,7 @@ If confirmed:
 - **Context is fresh** — each Executor reads files directly. The orchestrator passes only metadata (paths, deviations, discoveries) between tasks.
 - **Commit granularity** — follow the Commit fields defined in tasks. Never commit in the middle of a task group unless a Commit sub-task says so.
 - **Completion** — a story is **complete** when **no `[ ]` remains**: it is **`done`** when every box is `[x]` or terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), and **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`. `done-except-external` is computed at read time, never written to a file. Progress reads `closed/total (+D deferred)`. See [tasks.md](tasks.md#completion)
-- **Lifecycle status** — Run mode writes `status: in-progress` when a marking finds the field absent or `draft`, and `status: done` when a marking leaves no `[ ]` and no deferred `[~]`. Always with `Edit` on the frontmatter line, never `Write`; the same value in every artifact that carries frontmatter; on a legacy story the `Edit` adds the field with the state this run observed, never a back-dated one. A failed write is reported and the run continues. See Status Transitions
+- **Lifecycle status** — Run mode writes `status: in-progress` when a census finds the field absent or `draft`, or finds an open `[ ]` on a story reading `done` or `validated` (the reopen edge, R1.7), and `status: done` when a marking leaves no `[ ]` and no deferred `[~]`. Always with `Edit` on the frontmatter line, never `Write`; the same value in every artifact that carries frontmatter; on a legacy story the `Edit` adds the field with the state this run observed, never a back-dated one. A failed write is reported and the run continues. See Status Transitions
 - **Quality gates check** — after all tasks complete (or after the last requested task), run through quality gates and report status. Settling a gate box is a marking like any other: apply the status transition after it, since it is usually the marking that closes the story's last box
 - **Validator integration** — after all requested tasks complete, optionally spawn the Validator sub-agent for verification. Ask: "All tasks completed. Run Validator to verify? (y/n)"
 

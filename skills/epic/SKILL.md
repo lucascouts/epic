@@ -467,8 +467,12 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
   to a story that already exists — an existing story's state is whatever the
   engine observed, and CREATE observed nothing about it. See
   [Lifecycle Status](#lifecycle-status-status) for the full field spec.
-- Refine does not write `status:` — it is not one of the field's writers. A
-  refined story keeps whatever value it already carried, including none.
+- Refine writes `status:` for exactly **one** transition: the reopen edge. A
+  refinement that leaves an open `[ ]` on a story reading `done` or `validated`
+  writes `in-progress` (R1.7, R1.8) — see
+  [Status Census](../../references/refine-mode.md#status-census). It writes no
+  other value: a refinement that does not reopen the story leaves the field
+  exactly as it was, including absent.
 - On Refine, increment version and add history entry:
   ```yaml
   ---
@@ -494,8 +498,8 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
 | Value | Written by |
 |---|---|
 | `draft` | CREATE — when the artifacts are first written |
-| `in-progress` | RUN — when execution of the story starts |
-| `done` | RUN — when the story is complete (no `[ ]` remains) |
+| `in-progress` | RUN — when execution of the story starts; RUN **or** REFINE when a census finds open work on a story reading `done` or `validated` (the reopen edge, R1.7/R1.8) |
+| `done` | RUN — when a marking satisfies rule 1 of the [status transition table](../../references/run-mode.md#status-transitions); a deferred `[~]` blocks it (R1.3) |
 | `validated` | VALIDATE — after Validator and Auditor pass |
 | `superseded` | the supersede operation |
 | `archived` | the archive operation |

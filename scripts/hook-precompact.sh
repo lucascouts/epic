@@ -52,20 +52,43 @@ HEAD_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "(not a git repo)")
     # apart, because that work is settled in the plan but still owed by an
     # external actor — folding it into either number would make this snapshot
     # lie to the model it is injected into. When a line carries both,
-    # `deferred:` wins, matching validate-story.sh's census.
-    # Keep the `[ x~]` class in sync with validate-story.sh,
-    # cross-reference.sh and hook-task-completed.sh; monitor-stale.sh is the
-    # deliberate exception — pending is `[ ]` and only `[ ]` (R4.3).
-    # grep -c already prints 0 on zero matches (while exiting 1); the old
-    # `|| echo 0` appended a SECOND line, yielding "0\n0" as the value.
-    TOTAL=$(grep -cE '^\s*- \[[ x~]\]' "$ACTIVE_STORY/tasks.md" 2>/dev/null || true)
-    DONE_X=$(grep -cE '^\s*- \[x\]' "$ACTIVE_STORY/tasks.md" 2>/dev/null || true)
-    DONE_T=$(grep -E '^\s*- \[~\].*[^[:alnum:]_-](waived|n-a|superseded-by):' "$ACTIVE_STORY/tasks.md" 2>/dev/null \
-      | grep -cvE '[^[:alnum:]_-]deferred:' || true)
-    DEFERRED=$(grep -cE '^\s*- \[~\].*[^[:alnum:]_-]deferred:' "$ACTIVE_STORY/tasks.md" 2>/dev/null || true)
-    TOTAL=${TOTAL:-0}
-    DONE=$(( ${DONE_X:-0} + ${DONE_T:-0} ))
-    DEFERRED=${DEFERRED:-0}
+    # `deferred:` wins (references/tasks.md#checkbox-grammar).
+    #
+    # This script is where the terminal/deferred split is OBSERVABLE — it is
+    # the one that renders it. validate-story.sh deliberately does not split
+    # (see its census comment, sub-task 6.5).
+    #
+    # One census loop with token-anchored qualifiers, the same shape used by
+    # validate-story.sh and hook-post-tool-failure.sh. It replaced a
+    # `grep | grep -cv` pipeline (sub-task 6.5): that pipeline was a second,
+    # independent implementation of one rule, and the two already disagreed —
+    # on `- [~]waived: …` (no space after the box) validate-story counted a
+    # closed box while this script counted neither, so the snapshot under-
+    # reported progress on a line the validator accepted. monitor-stale.sh is
+    # the deliberate exception to the shared grammar: pending is `[ ]` and only
+    # `[ ]` (R4.3).
+    TOTAL=0
+    DONE=0
+    DEFERRED=0
+    box_re='^[[:space:]]*- \[([ x~])\]'
+    deferred_re='(^|[^[:alnum:]_-])deferred:'
+    terminal_re='(^|[^[:alnum:]_-])(waived|n-a|superseded-by):'
+    while IFS= read -r line || [ -n "$line" ]; do
+      [[ "$line" =~ $box_re ]] || continue
+      TOTAL=$((TOTAL + 1))
+      case "${BASH_REMATCH[1]}" in
+        'x') DONE=$((DONE + 1)) ;;
+        '~')
+          if [[ "$line" =~ $deferred_re ]]; then
+            DEFERRED=$((DEFERRED + 1))
+          elif [[ "$line" =~ $terminal_re ]]; then
+            DONE=$((DONE + 1))
+          fi
+          # An unqualified [~] is a grammar error validate-story.sh reports;
+          # here it simply counts in the total and closes nothing.
+          ;;
+      esac
+    done < "$ACTIVE_STORY/tasks.md"
     NEXT=$(grep -nE '^\s*- \[ \]' "$ACTIVE_STORY/tasks.md" 2>/dev/null | head -1 || true)
     echo "## Progress"
     if [ "$DEFERRED" -gt 0 ]; then

@@ -134,17 +134,27 @@ if [[ "$HAS_TASKS" == true ]]; then
   # --- Checkbox census (R3.1, R3.2, R3.5) ---
   # One line grammar, three box states:
   #   - [ ] open   - [x] closed   - [~] closed WITHOUT doing the work.
-  # A `[~]` MUST say why on the same line. Terminal qualifiers (waived:, n-a:,
-  # superseded-by:) end the work for good and count as closed; `deferred:` is
-  # counted apart, because that work is resolved in the plan but still owed by
-  # an external actor — progress then reads "closed/total (+D deferred)"
-  # instead of pretending it happened.
+  # A `[~]` MUST say why on the same line, with one of the four qualifiers —
+  # that check (R3.2) is the whole reason this loop reads qualifiers at all.
+  #
+  # DELIBERATELY NOT SPLIT into terminal vs deferred (sub-task 6.5). The
+  # distinction is real and is defined in references/tasks.md#completion, but
+  # nothing in THIS script consumes it: no check reads a deferred count, and
+  # R5.1 forbids emitting one — a new count key would break every legacy golden,
+  # which design.md §3 records as a settled decision. A split no one reads is
+  # not a distinction, it is an untested claim: while it existed here, swapping
+  # the two branches left the entire suite green. So `closed` below means "not
+  # open, and correctly qualified", and the terminal/deferred split lives where
+  # it is actually rendered — hook-precompact.sh, which prints
+  # `closed/total (+D deferred)` and is pinned by hook-precompact-grammar.bats.
+  #
+  # BOX_OPEN is the counter with a real consumer: the ahead-of-checkboxes
+  # warning (R2.3) counts `[ ]`, and only `[ ]`.
   # Counters are plain integers incremented in the loop, never ${#assoc[@]} on
   # a possibly-empty associative array (that trips set -u on bash 5.3 — the
   # same reason REQ_KEYS exists in cross-reference.sh).
   BOX_OPEN=0         # [ ]
-  BOX_CLOSED=0       # [x] plus terminal [~]
-  BOX_DEFERRED=0     # [~] deferred: — closed in the plan, open in the world
+  BOX_CLOSED=0       # [x] plus every qualified [~], terminal or deferred alike
   BOX_UNQUALIFIED=0  # [~] with no recognized qualifier: a grammar error
   LINE_NO=0
   box_re='^[[:space:]]*- \[([ x~])\]'
@@ -160,9 +170,7 @@ if [[ "$HAS_TASKS" == true ]]; then
       ' ') BOX_OPEN=$((BOX_OPEN + 1)) ;;
       'x') BOX_CLOSED=$((BOX_CLOSED + 1)) ;;
       '~')
-        if [[ "$line" =~ $deferred_re ]]; then
-          BOX_DEFERRED=$((BOX_DEFERRED + 1))
-        elif [[ "$line" =~ $terminal_re ]]; then
+        if [[ "$line" =~ $deferred_re || "$line" =~ $terminal_re ]]; then
           BOX_CLOSED=$((BOX_CLOSED + 1))
         else
           BOX_UNQUALIFIED=$((BOX_UNQUALIFIED + 1))
@@ -176,7 +184,7 @@ if [[ "$HAS_TASKS" == true ]]; then
   # needed by checks inside and outside the HAS_STORY branch below — define
   # once here so set -u doesn't trip Fast mode validation (tasks.md without
   # story.md).
-  TASK_COUNT=$(( ${BOX_OPEN:-0} + ${BOX_CLOSED:-0} + ${BOX_DEFERRED:-0} + ${BOX_UNQUALIFIED:-0} ))
+  TASK_COUNT=$(( ${BOX_OPEN:-0} + ${BOX_CLOSED:-0} + ${BOX_UNQUALIFIED:-0} ))
 
   # A tasks.md with ZERO parseable checkbox tasks must never pass: every
   # downstream check is gated on TASK_COUNT > 0, so an unrecognized dialect

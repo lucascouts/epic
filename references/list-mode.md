@@ -13,7 +13,7 @@ Triggered by `/epic:epic stories`, `/epic:epic stories full`, or `/epic:epic sto
 
 **Status is persisted, conditions are computed.** The status column carries the `status:` frontmatter value verbatim — one of `draft`, `in-progress`, `done`, `validated`, `superseded`, `archived`. When the field is absent, render `—` and say nothing more: most stories predate the field and its absence is neither an error nor a warning.
 
-A computed condition is appended after a `·`. It is derived from the boxes at read time and is never written to a file:
+A computed condition is appended after a `·`. It is derived from the boxes at read time and is never written to a file — the box states it reads are defined once, in [tasks.md](tasks.md#completion):
 
 | Condition | Rendered when | Rendered as |
 |---|---|---|

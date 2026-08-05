@@ -2,16 +2,17 @@
 # Story 004, sub-tasks 2.3 and 5.3/5.4 — cross-regression harness (R4.1, R5.1,
 # R3.3, R3.4).
 # ONE mixed fixture ([x] / [ ] / [~] terminal / [~] deferred) is passed
-# through the FIVE checkbox consumers — validate-story.sh, cross-reference.sh,
-# hook-task-completed.sh, monitor-stale.sh, hook-precompact.sh — asserting they
-# agree on which boxes exist and which work is open. This pins the duplicated
-# regex so one drifted copy cannot silently reopen the false-clean/false-orphan
-# class fixed in e890d02.
+# through the SIX checkbox consumers — validate-story.sh, cross-reference.sh,
+# hook-task-completed.sh, monitor-stale.sh, hook-precompact.sh,
+# hook-post-tool-failure.sh — asserting they agree on which boxes exist and
+# which work is open. This pins the duplicated regex so one drifted copy cannot
+# silently reopen the false-clean/false-orphan class fixed in e890d02.
 #
-# The design originally claimed "6 regex places across 4 scripts"; a fifth
-# script (hook-precompact.sh) was found during Run and is covered here plus in
-# tests/hook-precompact-grammar.bats. If a sixth appears, it belongs here too —
-# that is the whole point of a harness over a per-script suite.
+# Three enumerations of that list have now been wrong: the design said "6 regex
+# places across 4 scripts", sub-task 5.3 raised it to 5 and still missed
+# hook-post-tool-failure.sh, which the second validate-mode pass found (task
+# 6.4). The lesson is the harness itself — a prose list of consumers cannot
+# fail, and this file can. If a seventh appears, it belongs here.
 #
 # Mixed fixture totals (the shared truth all four must agree on):
 #   total = 5 boxes · closed = 3 ([x] 1.1, 1.2 + terminal [~] 1.3)
@@ -199,6 +200,42 @@ EOF
   [ "$output" = "- Tasks: 3/5 completed (+1 deferred)" ]
 }
 
+@test "R4.1: hook-post-tool-failure counts terminal [~] as closed — the reminder still fires" {
+  # The sixth consumer, and the quietest one: its guard needs one closed box and
+  # one open [ ]. Here the finished work was all closed WITHOUT execution — no
+  # [x] anywhere — which the binary guard read as "not mid-run", swallowing the
+  # executor Step-4 reminder on a Bash failure.
+  sed -i 's/^- \[x\] 1.1 - First done/- [~] 1.1 - First done (n-a: covered by construction)/' "$MIXED/tasks.md"
+  sed -i 's/^- \[x\] 1.2 - Second done/- [~] 1.2 - Second done (superseded-by: 011)/' "$MIXED/tasks.md"
+  cd "$WORK/proj"
+  run bash "$PLUGIN_ROOT/scripts/hook-post-tool-failure.sh" <<< '{"tool_name":"Bash"}'
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q 'Per executor Step 4 protocol'
+  echo "$output" | grep -qF '010-mixed'
+  # And it still points at the next OPEN box, never at a [~] one.
+  echo "$output" | grep -qF '1.5 - Still open'
+}
+
+@test "R4.1: hook-post-tool-failure — a deferred box does not close, so nothing is mid-run" {
+  # Every box now open or deferred: this run has produced nothing, so there is
+  # no Step-4 protocol to remind anyone about. Same reading as the closed count.
+  sed -i 's/^- \[x\] 1.1 - First done/- [ ] 1.1 - First done/' "$MIXED/tasks.md"
+  sed -i 's/^- \[x\] 1.2 - Second done/- [ ] 1.2 - Second done/' "$MIXED/tasks.md"
+  sed -i 's/(waived: tool absent)/(deferred: waiting on the vendor)/' "$MIXED/tasks.md"
+  cd "$WORK/proj"
+  run bash "$PLUGIN_ROOT/scripts/hook-post-tool-failure.sh" <<< '{"tool_name":"Bash"}'
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "R5.1: hook-post-tool-failure — the binary [x] + [ ] story behaves exactly as before" {
+  cd "$WORK/proj"
+  run bash "$PLUGIN_ROOT/scripts/hook-post-tool-failure.sh" <<< '{"tool_name":"Bash"}'
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q 'Per executor Step 4 protocol'
+  echo "$output" | grep -qF '1.5 - Still open'
+}
+
 @test "R3.3/R3.4: only-deferred fixture — no work is open, and the deferred box is not hidden" {
   # The scenario task 3.2 claimed was covered and was not. Close the last [ ]:
   # what remains is [x] + terminal [~] + one deferred [~]. By the single
@@ -235,6 +272,26 @@ EOF
   # And nothing is pending: no "Next pending" line is emitted.
   run grep -c '^- Next pending:' "$MIXED/.draft/compact-snapshot.md"
   [ "$output" = "0" ]
+}
+
+@test "R4.1: the malformed-but-qualified shape — validate-story and hook-precompact agree on it" {
+  # `- [~]waived: …` with no space after the box. validate-story read it as a
+  # closed box while hook-precompact's grep pipeline counted it as neither
+  # closed nor deferred (found by the second validate-mode pass, fixed in 6.5).
+  # Replacing the terminal [~] of the mixed fixture with this shape must not
+  # move the census: same 5 boxes, same 3 closed, same 1 deferred.
+  sed -i 's/^- \[~\] 1.3 - Waived gate (waived: tool absent)/- [~]waived: tool absent/' "$MIXED/tasks.md"
+
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$MIXED"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '"errors": 0'
+  refute_grep 'has no qualifier'
+
+  cd "$WORK/proj"
+  run bash "$PLUGIN_ROOT/scripts/hook-precompact.sh"
+  [ "$status" -eq 0 ]
+  run grep '^- Tasks:' "$MIXED/.draft/compact-snapshot.md"
+  [ "$output" = "- Tasks: 3/5 completed (+1 deferred)" ]
 }
 
 @test "R5.1: legacy story — validate-story output is byte-identical to the pre-change golden" {

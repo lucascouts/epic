@@ -90,6 +90,23 @@ EOF
   [ "$output" = "- Tasks: 1/2 completed (+1 deferred)" ]
 }
 
+@test "R4.1: a qualifier with no space after the box still closes — the census loop's reason for being" {
+  # `- [~]waived: …`. validate-story.sh has always read this as a closed box:
+  # its box regex never required the space, and the qualifier is token-anchored,
+  # so `]waived:` qualifies. The `grep | grep -cv` pipeline that used to live
+  # here needed something before the qualifier and counted the line in the total
+  # and in NEITHER closed nor deferred — one rule, two implementations, two
+  # answers. Sub-task 6.5 replaced the pipeline with the shared census loop;
+  # this test is what stops the disagreement coming back.
+  run_census <<'EOF'
+## Task List
+- [x] 1.1 - Done
+- [~]waived: no rig on this host
+- [ ] 1.3 - Open
+EOF
+  [ "$output" = "- Tasks: 2/3 completed" ]
+}
+
 @test "R5.1: a legacy story with no [~] renders exactly as it did pre-change" {
   run_census <<'EOF'
 ## Task List
