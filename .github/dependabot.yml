@@ -1,0 +1,12 @@
+# The only dependency surface of this repo is the actions used by
+# .github/workflows/ — there is no package manifest. Dependabot keeps the
+# pins current and preserves SHA pinning (full hash + version comment).
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Supply-chain cooldown: never take a release younger than 7 days.
+    cooldown:
+      default-days: 7
