@@ -202,3 +202,105 @@ EOF
   [ "$status" -eq 0 ]
   echo "$output" | grep -q 'R2'
 }
+
+@test "--cross-ref: model B group heading is not flagged as orphan" {
+  cat > "$STORY/story.md" <<'EOF'
+---
+story: test-xref-modelb
+type: feature
+scale: standard
+version: 1
+created: 2026-05-18
+---
+
+### R1. First requirement
+
+#### Acceptance Criteria
+
+- R1.1: WHEN x THE SYSTEM SHALL y.
+- R1.2: WHEN a THE SYSTEM SHALL b.
+EOF
+  cat > "$STORY/tasks.md" <<'EOF'
+---
+version: 1
+---
+
+## Task List
+- [ ] 1 - Implement
+  - Requirements: R1.1, R1.2
+  - Validation: `echo ok`
+
+## Quality Gates
+- Done
+EOF
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY" --cross-ref
+  [ "$status" -eq 0 ]
+  ! echo "$output" | grep -q 'Requirement R1 in story.md'
+}
+
+@test "--cross-ref: model B flags an uncovered leaf criterion" {
+  cat > "$STORY/story.md" <<'EOF'
+---
+story: test-xref-leaf
+type: feature
+scale: standard
+version: 1
+created: 2026-05-18
+---
+
+### R1. First requirement
+
+#### Acceptance Criteria
+
+- R1.1: WHEN x THE SYSTEM SHALL y.
+- R1.2: WHEN a THE SYSTEM SHALL b.
+EOF
+  cat > "$STORY/tasks.md" <<'EOF'
+---
+version: 1
+---
+
+## Task List
+- [ ] 1 - Implement
+  - Requirements: R1.1
+  - Validation: `echo ok`
+
+## Quality Gates
+- Done
+EOF
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY" --cross-ref
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q 'Requirement R1.2 in story.md has no matching'
+}
+
+# --- Wave-0 regressions: structural silence and JSON validity ---
+
+@test "tasks.md with zero parseable tasks is an error, not a silent pass" {
+  cat > "$STORY/tasks.md" <<'TASKS'
+---
+version: 1
+created: 2026-07-23
+---
+## T1. Heading-style task
+### T1.1 Do the thing [x]
+- **Covers:** R1.1
+TASKS
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  [ "$status" -eq 1 ]
+  echo "$output" | grep -q 'no parseable checkbox tasks'
+}
+
+@test "JSON output stays valid when a message embeds a double quote" {
+  cat > "$STORY/tasks.md" <<'TASKS'
+---
+version: v1"quoted
+created: 2026-07-23
+---
+- [ ] 1 - One
+  - Requirements: R1
+  - Validation: ok
+TASKS
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e . > /dev/null
+}

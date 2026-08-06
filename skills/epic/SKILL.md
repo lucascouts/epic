@@ -188,7 +188,8 @@ $ARGUMENTS parsing:
   → REFINE mode (delta workflow on story NNN)
 
 "stories archive NNN[-MMM]|--done"
-  → ARCHIVE mode (move completed stories to archive)
+  → ARCHIVE mode (delegates to scripts/archive-story.sh, one call per story;
+    a range or --done is expanded here — the script takes exactly one story)
 
 "stories teams {status|enable|disable}"
   → TEAMS mode (manage experimental agent-teams flag for this project)
@@ -226,7 +227,7 @@ When a command references `NNN`:
 | **Run** | `/epic:epic stories run NNN` or `NNN run N\|all` | Load [run-mode.md](../../references/run-mode.md) |
 | **Validate** | `/epic:epic stories validate NNN` | Load [validate-mode.md](../../references/validate-mode.md) |
 | **Refine** | `/epic:epic stories refine NNN` | Load [refine-mode.md](../../references/refine-mode.md) |
-| **Archive** | `/epic:epic stories archive NNN` | Load [list-mode.md](../../references/list-mode.md) (archive section) |
+| **Archive** | `/epic:epic stories archive NNN[-MMM]\|--done` | Load [list-mode.md](../../references/list-mode.md) (Archive Command) — the mode resolves which stories to archive and calls `scripts/archive-story.sh` once per story; it never moves a directory or writes a manifest entry itself |
 | **Teams** | `/epic:epic stories teams {status\|enable\|disable}` | Load [teams-mode.md](../../references/teams-mode.md) |
 | **Expand** | User says "based on", "extends" existing story | Create new story referencing source |
 | **CI/Headless** | Programmatic invocation via Agent SDK | Load [ci-mode.md](../../references/ci-mode.md) |
@@ -460,8 +461,19 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
   scale: fast | standard | full
   version: 1
   created: <date>
+  status: draft
   ---
   ```
+- `status: draft` applies to **newly created stories only**. Never add the field
+  to a story that already exists — an existing story's state is whatever the
+  engine observed, and CREATE observed nothing about it. See
+  [Lifecycle Status](#lifecycle-status-status) for the full field spec.
+- Refine writes `status:` for exactly **one** transition: the reopen edge. A
+  refinement that leaves an open `[ ]` on a story reading `done` or `validated`
+  writes `in-progress` (R1.7, R1.8) — see
+  [Status Census](../../references/refine-mode.md#status-census). It writes no
+  other value: a refinement that does not reopen the story leaves the field
+  exactly as it was, including absent.
 - On Refine, increment version and add history entry:
   ```yaml
   ---
@@ -479,6 +491,26 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
 - Version is a simple integer, not semver
 - Maximum 10 history entries; older entries: "see git history"
 - All files in a story share the same version number
+
+### Lifecycle Status (`status:`)
+
+`status:` is the story's lifecycle state, carried in the frontmatter of every artifact that has frontmatter. Six values, no others:
+
+| Value | Written by |
+|---|---|
+| `draft` | CREATE — when the artifacts are first written |
+| `in-progress` | RUN — when execution of the story starts; RUN **or** REFINE when a census finds open work on a story reading `done` or `validated` (the reopen edge, R1.7/R1.8) |
+| `done` | RUN — when a marking satisfies rule 1 of the [status transition table](../../references/run-mode.md#status-transitions); a deferred `[~]` blocks it (R1.3) |
+| `validated` | VALIDATE — after Validator and Auditor pass |
+| `superseded` | the supersede operation |
+| `archived` | the archive operation |
+
+- **Engine-written, never hand-edited.** The writer list above is exhaustive — no other mode touches the field. A human editing it is tolerated, not blocked: validation only flags the result. A value outside the six is an **error**; `done` or `validated` while a `[ ]` box is still open is a **warning** (the status is ahead of the checkboxes).
+- **Same value in every artifact** of the story, exactly like `version`. Artifacts declaring **different** values raise a warning naming them. An artifact with no `status:` carries no opinion and is never counted as divergent.
+- **Absence is legal and silent.** A story with no `status:` anywhere is neither an error nor a warning — stories written before the field validate byte-identically. The field is never required by validation.
+- **Persisted values only.** `done-except-external` is not a `status:` value: it is a condition computed from the checkboxes at read time (see [tasks.md](../../references/tasks.md#completion)), never written to a file.
+- **Written with `Edit`, not `Write`** — deliberately. The `hook-validate` PostToolUse matcher in `hooks/hooks.json` is `Write` only, so engine status transitions must not re-trigger a validation pass on every write.
+- **Companion field `superseded-by: MMM`** — optional, written **only** by the supersede operation, next to `status: superseded`. It names the story that took over the scope and is the machine-readable source the story index renders. Nothing else writes it.
 
 ## Language
 
@@ -512,6 +544,8 @@ For cross-reference checks (requirements traceability):
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/cross-reference.sh" <story-directory>
 ```
+
+Its JSON `mapping` field gives the requirement → sub-tasks relation directly — the Traceability Check builds its table from it, never by hand-counting.
 
 - Output is JSON with `errors`, `warnings`, and `status` (pass/fail)
 - Errors must be fixed before considering the story complete

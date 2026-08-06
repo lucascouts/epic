@@ -41,9 +41,32 @@ fi
 ERRORS=()
 WARNINGS=()
 
-# --- Helper ---
+# --- Helpers ---
 add_error() { ERRORS+=("$1"); }
 add_warning() { WARNINGS+=("$1"); }
+
+# Minimal JSON string escape: messages can embed content read from the
+# artifacts (quotes, backslashes, control chars) and must never break the
+# jq consumers downstream (hooks, CI).
+json_escape() {
+  local s="$1"
+  s=${s//\\/\\\\}
+  s=${s//\"/\\\"}
+  s=${s//$'\n'/\\n}
+  s=${s//$'\r'/\\r}
+  s=${s//$'\t'/\\t}
+  printf '%s' "$s"
+}
+
+# xr_in_list <needle> <haystack...> — membership test for the cross-ref check.
+xr_in_list() {
+  local needle="$1" item
+  shift
+  for item in "$@"; do
+    [[ "$item" == "$needle" ]] && return 0
+  done
+  return 1
+}
 
 # --- Detect scale from files present ---
 HAS_STORY=false
@@ -103,15 +126,78 @@ if [[ "$HAS_TASKS" == true ]]; then
   TASKS_FILE="$STORY_DIR/tasks.md"
 
   # Check task title format (new format: - [ ] N - Name)
-  OLD_FORMAT_COUNT=$(grep -cE '^\s*- \[[ x]\].*\*\*\[T[0-9]\]\*\*' "$TASKS_FILE" 2>/dev/null || true)
+  OLD_FORMAT_COUNT=$(grep -cE '^\s*- \[[ x~]\].*\*\*\[T[0-9]\]\*\*' "$TASKS_FILE" 2>/dev/null || true)
   if [[ "$OLD_FORMAT_COUNT" -gt 0 ]]; then
     add_warning "Found $OLD_FORMAT_COUNT tasks using old [T1]/[T2]/[T3] prefix format — use new format: - [ ] N - Name"
   fi
 
-  # Count all tasks (parent + sub-tasks); needed by checks inside and outside
-  # the HAS_STORY branch below — define once here so set -u doesn't trip Fast
-  # mode validation (tasks.md without story.md).
-  TASK_COUNT=$(grep -cE '^\s*- \[[ x]\]' "$TASKS_FILE" 2>/dev/null || true)
+  # --- Checkbox census (R3.1, R3.2, R3.5) ---
+  # One line grammar, three box states:
+  #   - [ ] open   - [x] closed   - [~] closed WITHOUT doing the work.
+  # A `[~]` MUST say why on the same line, with one of the four qualifiers —
+  # that check (R3.2) is the whole reason this loop reads qualifiers at all.
+  #
+  # DELIBERATELY NOT SPLIT into terminal vs deferred (sub-task 6.5). The
+  # distinction is real and is defined in references/tasks.md#completion, but
+  # nothing in THIS script consumes it: no check reads a deferred count, and
+  # R5.1 forbids emitting one — a new count key would break every legacy golden,
+  # which design.md §3 records as a settled decision. A split no one reads is
+  # not a distinction, it is an untested claim: while it existed here, swapping
+  # the two branches left the entire suite green. So `closed` below means "not
+  # open, and correctly qualified", and the terminal/deferred split lives where
+  # it is actually rendered — hook-precompact.sh, which prints
+  # `closed/total (+D deferred)` and is pinned by hook-precompact-grammar.bats.
+  #
+  # BOX_OPEN is the counter with a real consumer: the ahead-of-checkboxes
+  # warning (R2.3) counts `[ ]`, and only `[ ]`.
+  # Counters are plain integers incremented in the loop, never ${#assoc[@]} on
+  # a possibly-empty associative array (that trips set -u on bash 5.3 — the
+  # same reason REQ_KEYS exists in cross-reference.sh).
+  BOX_OPEN=0         # [ ]
+  BOX_CLOSED=0       # [x] plus every qualified [~], terminal or deferred alike
+  BOX_UNQUALIFIED=0  # [~] with no recognized qualifier: a grammar error
+  LINE_NO=0
+  box_re='^[[:space:]]*- \[([ x~])\]'
+  # A qualifier is a token in its own right: `(n-a: ...)` qualifies, the tail
+  # of a word like `man-a:` does not.
+  deferred_re='(^|[^[:alnum:]_-])deferred:'
+  terminal_re='(^|[^[:alnum:]_-])(waived|n-a|superseded-by):'
+  tilde_forms="'deferred: <reason>', 'waived: <reason>', 'n-a: <reason>', 'superseded-by: NNN'"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    LINE_NO=$((LINE_NO + 1))
+    [[ "$line" =~ $box_re ]] || continue
+    case "${BASH_REMATCH[1]}" in
+      ' ') BOX_OPEN=$((BOX_OPEN + 1)) ;;
+      'x') BOX_CLOSED=$((BOX_CLOSED + 1)) ;;
+      '~')
+        if [[ "$line" =~ $deferred_re || "$line" =~ $terminal_re ]]; then
+          BOX_CLOSED=$((BOX_CLOSED + 1))
+        else
+          BOX_UNQUALIFIED=$((BOX_UNQUALIFIED + 1))
+          add_error "tasks.md line $LINE_NO: [~] checkbox has no qualifier — a box closed without doing the work must say why on the same line, one of: $tilde_forms"
+        fi
+        ;;
+    esac
+  done < "$TASKS_FILE" 2>/dev/null || true
+
+  # Count all tasks (parent + sub-tasks) = every box whatever its state;
+  # needed by checks inside and outside the HAS_STORY branch below — define
+  # once here so set -u doesn't trip Fast mode validation (tasks.md without
+  # story.md).
+  TASK_COUNT=$(( ${BOX_OPEN:-0} + ${BOX_CLOSED:-0} + ${BOX_UNQUALIFIED:-0} ))
+
+  # A tasks.md with ZERO parseable checkbox tasks must never pass: every
+  # downstream check is gated on TASK_COUNT > 0, so an unrecognized dialect
+  # used to sail through with "pass, 0 errors". Name the variant when we can.
+  if [[ "$TASK_COUNT" -eq 0 ]]; then
+    VARIANT_HINT=""
+    if grep -qE '^\s*-?\s*\*\*Covers:\*\*|^Covers:' "$TASKS_FILE" 2>/dev/null; then
+      VARIANT_HINT=" (detected 'Covers:' dialect)"
+    elif grep -qE '^#{2,3}\s+T?[0-9]+(\.[0-9]+)?[[:space:]]' "$TASKS_FILE" 2>/dev/null; then
+      VARIANT_HINT=" (detected heading-based task dialect)"
+    fi
+    add_error "tasks.md has no parseable checkbox tasks (- [ ] N - ...)${VARIANT_HINT} — unrecognized format, nothing was validated"
+  fi
 
   # Check Requirements field (only if story.md exists = standard/full)
   if [[ "$HAS_STORY" == true ]]; then
@@ -130,7 +216,7 @@ if [[ "$HAS_TASKS" == true ]]; then
   fi
 
   # Check for metadata lines (italic format)
-  PARENT_TASK_COUNT=$(grep -cE '^\s*- \[[ x]\]\s+[0-9]+\s+-\s+' "$TASKS_FILE" 2>/dev/null || true)
+  PARENT_TASK_COUNT=$(grep -cE '^\s*- \[[ x~]\]\s+[0-9]+\s+-\s+' "$TASKS_FILE" 2>/dev/null || true)
   METADATA_COUNT=$(grep -cE '^\s*- _Complexity:' "$TASKS_FILE" 2>/dev/null || true)
   if [[ "$PARENT_TASK_COUNT" -gt 0 && "$METADATA_COUNT" -eq 0 ]]; then
     add_warning "No metadata lines found (expected _Complexity: ... | Tests: ... | ..._) on parent tasks"
@@ -138,7 +224,7 @@ if [[ "$HAS_TASKS" == true ]]; then
 
   # Check for Commit fields or sub-tasks
   COMMIT_COUNT=$(grep -ci '^\s*- Commit:' "$TASKS_FILE" 2>/dev/null || true)
-  COMMIT_SUBTASK_COUNT=$(grep -ciE '^\s*- \[[ x]\].*[Cc]ommit' "$TASKS_FILE" 2>/dev/null || true)
+  COMMIT_SUBTASK_COUNT=$(grep -ciE '^\s*- \[[ x~]\].*[Cc]ommit' "$TASKS_FILE" 2>/dev/null || true)
   TOTAL_COMMITS=$((COMMIT_COUNT + COMMIT_SUBTASK_COUNT))
   if [[ "$PARENT_TASK_COUNT" -gt 0 && "$TOTAL_COMMITS" -eq 0 ]]; then
     add_warning "No Commit fields or Commit sub-tasks found — every task group should have a commit point"
@@ -151,13 +237,29 @@ if [[ "$HAS_TASKS" == true ]]; then
   fi
 fi
 
-# --- Validate version frontmatter ---
+# --- Validate frontmatter (version, status) ---
+# `status:` is the story's single lifecycle state, shared by every artifact.
+# Grammar rule: fail-CLOSED on a present-but-wrong value (an invented dialect
+# is an error), fail-OPEN on absence (340+ legacy stories have no status: and
+# must validate exactly as before — no error, no warning, no extra line).
+# One source of truth for the enum: the alternation drives both the check and
+# the human-readable message (a `case` pattern cannot — bash does not re-parse
+# `|` from an expanded variable as alternation, only `[[ =~ ]]` does).
+STATUS_ENUM='draft|in-progress|done|validated|superseded|archived'
+STATUS_ENUM_TEXT=${STATUS_ENUM//|/, }
+# The states that claim the work is finished — the ones a leftover `[ ]` box
+# contradicts.
+STATUS_COMPLETE='done|validated'
+STATUS_FILES=()   # basenames of the artifacts that actually carry the field
+STATUS_VALUES=()  # their values, parallel to STATUS_FILES
+
 for f in "$STORY_DIR"/*.md; do
   [[ -f "$f" ]] || continue
   BASENAME=$(basename "$f")
   if head -1 "$f" | grep -q '^---$' 2>/dev/null; then
-    # Check required frontmatter fields
-    FRONT=$(sed -n '2,/^---$/p' "$f" | head -n -1)
+    # Check required frontmatter fields ($d is POSIX; GNU-only `head -n -1`
+    # aborted the whole validation on BSD/macOS under set -e + pipefail)
+    FRONT=$(sed -n '2,/^---$/p' "$f" | sed '$d')
     if ! echo "$FRONT" | grep -q 'version:'; then
       add_warning "$BASENAME frontmatter missing 'version' field"
     fi
@@ -169,10 +271,58 @@ for f in "$STORY_DIR"/*.md; do
     if [[ -n "$VERSION_VAL" ]] && ! [[ "$VERSION_VAL" =~ ^[0-9]+$ ]]; then
       add_error "$BASENAME frontmatter 'version' must be an integer, found: $VERSION_VAL"
     fi
+    # Lifecycle state. Anchored at column 0 like the templates write it, so a
+    # compound or nested key (`review_status:`) can never fake a status value.
+    STATUS_VAL=$(echo "$FRONT" | grep -E '^status:' | head -1 | sed 's/.*status:\s*//' | tr -d '[:space:]' || true)
+    if [[ -n "$STATUS_VAL" ]]; then
+      if ! [[ "$STATUS_VAL" =~ ^($STATUS_ENUM)$ ]]; then
+        add_error "$BASENAME frontmatter 'status' is not a lifecycle state: found '$STATUS_VAL' — must be one of: $STATUS_ENUM_TEXT"
+      fi
+      # An artifact without the field carries no opinion, so it is never
+      # divergent: only artifacts that declare a status are compared.
+      STATUS_FILES+=("$BASENAME")
+      STATUS_VALUES+=("$STATUS_VAL")
+    fi
   else
     add_warning "$BASENAME is missing version frontmatter"
   fi
 done
+
+# --- Story-level status consistency ---
+# Entered only when at least one artifact declared a status: a story with no
+# status: field skips this block whole, which is the fail-open rule made
+# structural (no error, no warning, byte-identical output to pre-change).
+if [[ ${#STATUS_VALUES[@]} -gt 0 ]]; then
+  # BOX_OPEN comes from the checkbox census, which runs only when tasks.md
+  # exists; under set -u a story without tasks.md would abort here without the
+  # ${VAR:-0} guard used throughout this script.
+  OPEN_BOXES=${BOX_OPEN:-0}
+
+  # The status lies about the work: it claims done while `[ ]` boxes remain.
+  # `[~]` boxes are closed by grammar and must NOT count as open here.
+  if [[ "$OPEN_BOXES" -gt 0 ]]; then
+    for st_i in "${!STATUS_VALUES[@]}"; do
+      if [[ "${STATUS_VALUES[$st_i]}" =~ ^($STATUS_COMPLETE)$ ]]; then
+        add_warning "status is ahead of the checkboxes: ${STATUS_FILES[$st_i]} says '${STATUS_VALUES[$st_i]}' but $OPEN_BOXES task checkbox(es) are still open ([ ])"
+        break  # one story, one lie — do not repeat it per artifact
+      fi
+    done
+  fi
+
+  # One story, one status: artifacts declaring different values disagree about
+  # where the story is.
+  STATUS_DIVERGED=false
+  for st_v in "${STATUS_VALUES[@]}"; do
+    [[ "$st_v" == "${STATUS_VALUES[0]}" ]] || STATUS_DIVERGED=true
+  done
+  if [[ "$STATUS_DIVERGED" == true ]]; then
+    STATUS_PAIRS=""
+    for st_i in "${!STATUS_FILES[@]}"; do
+      STATUS_PAIRS+="${STATUS_PAIRS:+, }${STATUS_FILES[$st_i]}=${STATUS_VALUES[$st_i]}"
+    done
+    add_warning "Artifacts of this story declare different 'status' values ($STATUS_PAIRS) — every artifact must carry the same lifecycle state"
+  fi
+fi
 
 # --- Flag parsing ---
 CROSS_REF=false
@@ -183,29 +333,46 @@ for arg in "$@"; do
 done
 
 if [[ "$CROSS_REF" == true && "$HAS_STORY" == true && "$HAS_TASKS" == true ]]; then
-  # Extract R-numbers from story.md (R1, R1.1, R2, etc.)
-  STORY_REQS=$(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' "$STORY_DIR/story.md" 2>/dev/null | sort -u || true)
+  # Requirements are hierarchical: a group header `### Rn.` and its leaf
+  # criteria `Rn.m`. Tasks reference the leaves. A one-level token Rn is a
+  # requirement of its own only when story.md defines no child Rn.m for it;
+  # otherwise Rn is a group header, covered via its leaves. Counting a header
+  # as a leaf produced a false orphan for every `### Rn.` heading.
+  mapfile -t XR_STORY_LEAVES < <(grep -oE '\bR[0-9]+\.[0-9]+\b' "$STORY_DIR/story.md" 2>/dev/null | sort -u || true)
+  mapfile -t XR_STORY_ONELEVEL < <(grep -oE '\bR[0-9]+\b' "$STORY_DIR/story.md" 2>/dev/null | sort -u || true)
+  mapfile -t XR_TASK_TOKENS < <(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' "$STORY_DIR/tasks.md" 2>/dev/null | sort -u || true)
 
-  # Extract R-numbers referenced in tasks.md
-  TASK_REQS=$(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' "$STORY_DIR/tasks.md" 2>/dev/null | sort -u || true)
-
-  if [[ -n "$STORY_REQS" && -n "$TASK_REQS" ]]; then
-    # Requirements in story but not in tasks
-    ORPHAN_REQS=$(comm -23 <(echo "$STORY_REQS") <(echo "$TASK_REQS") 2>/dev/null || true)
-    if [[ -n "$ORPHAN_REQS" ]]; then
-      while IFS= read -r req; do
-        [[ -n "$req" ]] && add_warning "Requirement $req in story.md has no matching reference in tasks.md"
-      done <<< "$ORPHAN_REQS"
+  XR_STORY_REQS=("${XR_STORY_LEAVES[@]}")
+  XR_STORY_GROUPS=()
+  for xr_tok in "${XR_STORY_ONELEVEL[@]}"; do
+    xr_has_child=false
+    for xr_leaf in "${XR_STORY_LEAVES[@]}"; do
+      if [[ "$xr_leaf" == "$xr_tok".* ]]; then
+        xr_has_child=true
+        break
+      fi
+    done
+    if [[ "$xr_has_child" == true ]]; then
+      XR_STORY_GROUPS+=("$xr_tok")
+    else
+      XR_STORY_REQS+=("$xr_tok")
     fi
+  done
 
-    # Requirements in tasks but not in story
-    PHANTOM_REQS=$(comm -13 <(echo "$STORY_REQS") <(echo "$TASK_REQS") 2>/dev/null || true)
-    if [[ -n "$PHANTOM_REQS" ]]; then
-      while IFS= read -r req; do
-        [[ -n "$req" ]] && add_warning "Requirement $req referenced in tasks.md does not exist in story.md"
-      done <<< "$PHANTOM_REQS"
-    fi
-  elif [[ -n "$STORY_REQS" && -z "$TASK_REQS" ]]; then
+  if [[ ${#XR_STORY_REQS[@]} -gt 0 && ${#XR_TASK_TOKENS[@]} -gt 0 ]]; then
+    # Story leaf requirements with no matching task reference (orphans).
+    for xr_req in "${XR_STORY_REQS[@]}"; do
+      if ! xr_in_list "$xr_req" "${XR_TASK_TOKENS[@]}"; then
+        add_warning "Requirement $xr_req in story.md has no matching reference in tasks.md"
+      fi
+    done
+    # Task references matching no story requirement (phantoms).
+    for xr_tok in "${XR_TASK_TOKENS[@]}"; do
+      if ! xr_in_list "$xr_tok" "${XR_STORY_REQS[@]}" && ! xr_in_list "$xr_tok" "${XR_STORY_GROUPS[@]}"; then
+        add_warning "Requirement $xr_tok referenced in tasks.md does not exist in story.md"
+      fi
+    done
+  elif [[ ${#XR_STORY_REQS[@]} -gt 0 && ${#XR_TASK_TOKENS[@]} -eq 0 ]]; then
     add_warning "story.md has requirements but tasks.md has no R-number references"
   fi
 fi
@@ -215,7 +382,7 @@ TOTAL_ERRORS=${#ERRORS[@]}
 TOTAL_WARNINGS=${#WARNINGS[@]}
 
 echo "{"
-echo "  \"story\": \"$STORY_DIR\","
+echo "  \"story\": \"$(json_escape "$STORY_DIR")\","
 echo "  \"errors\": $TOTAL_ERRORS,"
 echo "  \"warnings\": $TOTAL_WARNINGS,"
 
@@ -224,7 +391,7 @@ if [[ $TOTAL_ERRORS -gt 0 ]]; then
   for i in "${!ERRORS[@]}"; do
     COMMA=","
     [[ $i -eq $((TOTAL_ERRORS - 1)) ]] && COMMA=""
-    echo "    \"${ERRORS[$i]}\"$COMMA"
+    echo "    \"$(json_escape "${ERRORS[$i]}")\"$COMMA"
   done
   echo "  ],"
 else
@@ -236,7 +403,7 @@ if [[ $TOTAL_WARNINGS -gt 0 ]]; then
   for i in "${!WARNINGS[@]}"; do
     COMMA=","
     [[ $i -eq $((TOTAL_WARNINGS - 1)) ]] && COMMA=""
-    echo "    \"${WARNINGS[$i]}\"$COMMA"
+    echo "    \"$(json_escape "${WARNINGS[$i]}")\"$COMMA"
   done
   echo "  ],"
 else

@@ -41,7 +41,17 @@ find_stale() {
   for tasks_file in .epic/stories/*/tasks.md; do
     [ -f "$tasks_file" ] || continue
 
-    # Skip stories with no incomplete tasks.
+    # Skip stories with no incomplete tasks. Pending work is `[ ]` and ONLY
+    # `[ ]` (R4.3): a `[~]` box is closed by grammar — the work was waived,
+    # ruled n-a, superseded, or deferred to an external actor — so a story
+    # whose only non-`[x]` boxes are `[~]` is not sitting on pending work and
+    # must never be nagged about.
+    # This is the DELIBERATE EXCEPTION to the `[ x~]` class used by
+    # validate-story.sh, cross-reference.sh and hook-task-completed.sh. Those
+    # ask "is this line a task?" — all three box states are. This one asks
+    # "is work still owed here?" — only `[ ]` is. Do NOT widen it to
+    # `\[[ x~]\]` for the sake of consistency: that resurrects stale
+    # notifications for work that was explicitly closed.
     if ! grep -qE '^\s*- \[ \]' "$tasks_file" 2>/dev/null; then
       continue
     fi

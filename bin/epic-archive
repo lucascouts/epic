@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Thin wrapper over scripts/archive-story.sh exposed on PATH while the
+# Epic plugin is active. Usage is identical to the underlying script.
+#
+# $0 IS RESOLVED THROUGH SYMLINKS before the plugin root is derived. These
+# wrappers reach a user's PATH as a symlink, and a bare `dirname "$0"` then
+# looks for scripts/ next to the LINK instead of next to this file — the audit
+# finding recorded against bin/epic-validate:4. POSIX `readlink` (one argument,
+# one hop, resolved in a loop) is used rather than GNU-only `readlink -f`,
+# which BSD/macOS does not provide.
+
+set -euo pipefail
+
+self=$0
+hops=0
+while [ -L "$self" ]; do
+  if [ "$hops" -ge 40 ]; then
+    printf 'epic-archive: too many symlink hops resolving %s\n' "$0" >&2
+    exit 2
+  fi
+  link=$(readlink "$self")
+  case $link in
+    /*) self=$link ;;
+    *) self="$(dirname "$self")/$link" ;;
+  esac
+  hops=$((hops + 1))
+done
+
+exec bash "$(dirname "$self")/../scripts/archive-story.sh" "$@"

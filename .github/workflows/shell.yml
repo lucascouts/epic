@@ -16,7 +16,7 @@ jobs:
     name: shellcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install shellcheck
         run: sudo apt-get update -qq && sudo apt-get install -y shellcheck
       - name: Lint scripts
@@ -26,17 +26,24 @@ jobs:
     name: bats
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Install bats and jq
-        run: sudo apt-get update -qq && sudo apt-get install -y bats jq
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install bats, jq and PyYAML
+        # python3-yaml: the manifest-parseability assertions import yaml. The
+        # GitHub runner image happens to ship it; declare it so the job also
+        # runs on images that don't (act's medium image, a future slim runner).
+        run: sudo apt-get update -qq && sudo apt-get install -y bats jq python3-yaml
       - name: Run tests
-        run: bats tests/validate-story.bats tests/teams-config.bats
+        # The whole directory, never a hand-maintained list: an enumerated list
+        # silently drops every suite added after it, which is how 6 of 9 suites
+        # went dark here — including the cross-regression harness whose entire
+        # job is to catch checkbox-grammar drift.
+        run: bats tests/
 
   validate-examples:
     name: validate-examples
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install jq
         run: sudo apt-get update -qq && sudo apt-get install -y jq
       - name: Validate each example artifact

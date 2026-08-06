@@ -33,9 +33,9 @@ created: <date>
 
 #### Acceptance Criteria
 
-1. WHEN [trigger event] THE SYSTEM SHALL [expected behavior]
-2. WHEN [error condition] THE SYSTEM SHALL [error handling behavior]
-3. IF [conditional state] THEN THE SYSTEM SHALL [conditional response]
+- R1.1: WHEN [trigger event] THE SYSTEM SHALL [expected behavior]
+- R1.2: WHEN [error condition] THE SYSTEM SHALL [error handling behavior]
+- R1.3: IF [conditional state] THEN THE SYSTEM SHALL [conditional response]
 
 ### R2. [Next Requirement Title]
 
@@ -43,7 +43,7 @@ created: <date>
 
 #### Acceptance Criteria
 
-1. WHEN [trigger] THE SYSTEM SHALL [behavior]
+- R2.1: WHEN [trigger] THE SYSTEM SHALL [behavior]
 
 ## Success Metrics
 
@@ -63,7 +63,7 @@ created: <date>
 
 ## Writing Guidelines
 
-1. **Number hierarchically:** R1, R1.1, R1.2, R2, R2.1 — use sub-requirements for complex areas
+1. **Number hierarchically.** Each requirement is a group header `### Rn.` (`R1`, `R2`…). Each acceptance criterion under it is a leaf, labelled `Rn.m` (`R1.1`, `R1.2`…). Tasks reference the leaf `Rn.m` numbers — so every criterion must carry one.
 2. **One requirement = one testable behavior.** If you can't write a single test for it, split it.
 3. **User stories are optional** for technical/infrastructure requirements. Use them for user-facing features.
 4. **Acceptance criteria use EARS notation.** See `ears-notation.md` for keyword reference.

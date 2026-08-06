@@ -4,7 +4,7 @@ description: >
   Researches codebase patterns and conventions for epic design phase.
   Identifies integration points and implementation gotchas.
 model: inherit
-tools: Read, Glob, Grep
+tools: Read, Glob, Grep, WebFetch, WebSearch
 maxTurns: 20
 effort: high
 ---
@@ -19,7 +19,7 @@ Research the project codebase to provide design context before design.md generat
 
 1. **Search for existing patterns** similar to what this story needs (e.g., existing handlers, models, middleware)
 2. **Identify conventions** the new code should follow (naming, structure, error handling)
-3. **If documentation MCPs are available**, fetch current docs for relevant libraries/frameworks
+3. **Fetch current docs** for relevant libraries/frameworks — via a documentation MCP (e.g. `context7`) if one is available to you, otherwise `WebFetch`/`WebSearch`
 4. **Note integration points** where the new feature connects to existing code
 5. **Implementation gotchas:** For each architectural pattern or library usage identified, research known pitfalls, common misconfiguration, or non-obvious setup steps
 

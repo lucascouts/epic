@@ -6,7 +6,7 @@ description: >
   then a conditional step 5 — Refactor for a sub-task with a pre-authored
   test, Tests for a sub-task without one — and report.
 model: inherit
-tools: Read, Write, Edit, Bash, Glob, Grep
+tools: Read, Write, Edit, Bash, Glob, Grep, WebFetch, WebSearch
 maxTurns: 50
 effort: max
 ---
@@ -37,8 +37,8 @@ You MUST execute these steps IN ORDER. Do not skip any step. Do not proceed to t
 
 For each item in the Context field:
 - **Files:** Read each listed file. Note patterns, conventions, and existing code you must integrate with.
-- **Docs:** Fetch documentation using the specified MCP tool. If the MCP call fails, try an alternative. If no MCP works, note the gap and flag it in your report.
-- **Research:** Query the specified MCP for the research topic.
+- **Docs:** Fetch the documentation — use the MCP named in the Context field if it is available to you, otherwise `WebFetch`/`WebSearch`. Read the result before writing code; if every lookup fails, note the gap and flag it in your report.
+- **Research:** Query the research topic — use the MCP named in the Context field if available to you, otherwise `WebSearch`.
 
 Even if no Context field exists, read any files you will modify (if they already exist).
 

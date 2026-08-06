@@ -60,15 +60,15 @@ run_case() {
       FAILURES=$((FAILURES + 1))
       return
     fi
-    # Validate the story artifact.
-    local story_dir
+    # Validate the story artifact. Capture the real exit status: `$?` right
+    # after `if ! cmd` reads the negated status (always 0) — dead code.
+    local story_dir rc=0
     story_dir=$(find "$workdir/.epic/stories" -mindepth 1 -maxdepth 1 -type d | head -1)
-    if ! bash "$ROOT/scripts/validate-story.sh" "$story_dir" >/dev/null 2>&1; then
-      if [ $? -eq 1 ]; then
-        echo "  FAIL: validate-story.sh reported errors"
-        FAILURES=$((FAILURES + 1))
-        return
-      fi
+    bash "$ROOT/scripts/validate-story.sh" "$story_dir" >/dev/null 2>&1 || rc=$?
+    if [ "$rc" -eq 1 ]; then
+      echo "  FAIL: validate-story.sh reported errors"
+      FAILURES=$((FAILURES + 1))
+      return
     fi
   fi
 
@@ -105,20 +105,23 @@ run_trigger() {
   fi
 }
 
+# Feed the loops via process substitution, not a pipe: the right side of a
+# pipe runs in a subshell, so FAILURES increments there never reached the
+# parent and the suite always exited 0 ("All evals passed").
 if [[ "$MODE" == "all" || "$MODE" == "--cases" ]]; then
   echo "=== evals/evals.json ==="
-  jq -c '.test_cases[]' evals/evals.json | while read -r case_json; do
+  while read -r case_json; do
     id=$(echo "$case_json" | jq -r '.id')
     prompt=$(echo "$case_json" | jq -r '.prompt')
     run_case "$id" "$prompt"
-  done
+  done < <(jq -c '.test_cases[]' evals/evals.json)
 fi
 
 if [[ "$MODE" == "all" || "$MODE" == "--triggers" ]]; then
   echo
   echo "=== evals/trigger-queries.json ==="
-  jq -r '.should_trigger[]'     evals/trigger-queries.json | while read -r p; do run_trigger "$p" true  || true; done
-  jq -r '.should_not_trigger[]' evals/trigger-queries.json | while read -r p; do run_trigger "$p" false || true; done
+  while read -r p; do run_trigger "$p" true  || true; done < <(jq -r '.should_trigger[]' evals/trigger-queries.json)
+  while read -r p; do run_trigger "$p" false || true; done < <(jq -r '.should_not_trigger[]' evals/trigger-queries.json)
 fi
 
 echo
