@@ -12,7 +12,7 @@ description: >
   needs to be done to implement X?", "list stories", "run story",
   "execute tasks", "validate implementation" — even without saying
   "epic" or "story" explicitly.
-argument-hint: "[description] or [stories] or [stories full] or [stories run|validate|refine NNN] or [stories NNN run N|all] or [init]"
+argument-hint: "[description] or [stories] or [stories full] or [stories run|validate|refine NNN] or [stories supersede NNN --by MMM] or [stories NNN run N|all] or [init]"
 allowed-tools:
   - Read
   - Glob
@@ -191,6 +191,9 @@ $ARGUMENTS parsing:
   → ARCHIVE mode (delegates to scripts/archive-story.sh, one call per story;
     a range or --done is expanded here — the script takes exactly one story)
 
+"stories supersede NNN --by MMM"
+  → SUPERSEDE mode (replace story NNN with MMM: banner, status, index, archive offer)
+
 "stories teams {status|enable|disable}"
   → TEAMS mode (manage experimental agent-teams flag for this project)
 
@@ -228,6 +231,7 @@ When a command references `NNN`:
 | **Validate** | `/epic:epic stories validate NNN` | Load [validate-mode.md](../../references/validate-mode.md) |
 | **Refine** | `/epic:epic stories refine NNN` | Load [refine-mode.md](../../references/refine-mode.md) |
 | **Archive** | `/epic:epic stories archive NNN[-MMM]\|--done` | Load [list-mode.md](../../references/list-mode.md) (Archive Command) — the mode resolves which stories to archive and calls `scripts/archive-story.sh` once per story; it never moves a directory or writes a manifest entry itself |
+| **Supersede** | `/epic:epic stories supersede NNN --by MMM` | Load [supersede-mode.md](../../references/supersede-mode.md) |
 | **Teams** | `/epic:epic stories teams {status\|enable\|disable}` | Load [teams-mode.md](../../references/teams-mode.md) |
 | **Expand** | User says "based on", "extends" existing story | Create new story referencing source |
 | **CI/Headless** | Programmatic invocation via Agent SDK | Load [ci-mode.md](../../references/ci-mode.md) |
