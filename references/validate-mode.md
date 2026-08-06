@@ -81,7 +81,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 5. Present combined results to the user
 6. If gaps found, offer to create new tasks to address them
 7. Apply the status transition for this verdict — see Status Transition (`validated`)
-8. On a passing verdict, offer the archive and refresh the index — see Ordering at the pass point, then Archive Offer and Index Refresh
+8. On a passing verdict, surface the integration warning when it applies, offer the archive and refresh the index — see Ordering at the pass point, then Integration Warning, Archive Offer and Index Refresh
 
 ## Status Transition (`validated`)
 
@@ -105,16 +105,46 @@ Apply the first rule that matches:
 
 **design.md's state diagram does not draw that edge** — it shows only `done --> validated`. The edge falls out of the acceptance criteria all the same: R1.3 withholds `done` while a deferred box remains, R1.4 grants `validated` on a passing verdict. It is written down here rather than left implicit because an undocumented edge in a state machine is how the next maintainer gets it wrong.
 
-**Ordering at the pass point.** Four things happen on a passing verdict, in this fixed order. Steps 2, 3 and 4 exist today — step 1 is still a slot, named here so the order is settled before its behavior lands.
+**Ordering at the pass point.** Four things happen on a passing verdict, in this fixed order.
 
 | # | Step | Owner | Why here |
 |---|---|---|---|
-| 1 | Integration warning — validation passed but the story's work is not integrated into the main branch | story 006, **not implemented** | The caveat reaches the user before anything acts on the verdict |
+| 1 | Integration warning — validation passed but the story's work is not integrated into the main branch | Integration Warning, below | The caveat reaches the user before anything acts on the verdict |
 | 2 | The status write above (`validated`) | this section | — |
 | 3 | Archive offer, gated on a status of `done` or `validated` | Archive Offer, below | Its gate is true only once step 2 has written the value — which is why the gate reads `done` or `validated`, and not `done` alone |
 | 4 | Index refresh — regenerate the managed block in `.epic/EPIC.md` | Index Refresh, below | It renders what steps 2 and 3 changed: the new status, and the story's new location when the archive was accepted |
 
-Do not implement step 1 here — story 006 owns that behavior. This section fixes the order and the reason for it.
+This section fixes the order and the reason for it — each step's behavior is defined where its Owner column points.
+
+## Integration Warning
+
+Step 1 of the pass point. A passing verdict says the work is finished; whether it ever reached the main branch is a fact the checkboxes cannot see — the corpus's worst case was a project with every story checkbox-complete and zero merges. The detection is the same live evaluation LIST annotates from, defined in [list-mode.md](list-mode.md#integration-annotation): computed live, stored nowhere, blocking nothing.
+
+On a passing verdict, run the detection for the validated story and read the `integrated` field of its JSON output (`{story, main_branch, integrated, evidence, checked_at}`):
+
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir>
+```
+
+| `integrated` | Then |
+|---|---|
+| `false` | Append the warning below to the presented results |
+| `true` | Nothing — the work is on the main branch |
+| `null` | Nothing at all — no main branch is resolvable, so the fact is unknowable (R1.4) |
+
+Exit 2 — not a git repository, or story not found — also emits nothing at all: degrade silently, the same rule LIST applies (R1.4). "Not computable" must never dress up as a finding, and a failed detection must never delay, dirty or block the verdict it decorates.
+
+The warning, with `<main>` filled from the JSON's `main_branch` and `NNN` with the story's number:
+
+```
+story is done but no evidence of integration to <main> (no merged feat/NNN-* branch, no (NNN) commit)
+```
+
+It names the two evidence kinds the detection looked for and found missing — a merged `feat/NNN-*` branch (`branch-merged`) and a commit subject reachable from main carrying the `(NNN)` token (`message-ref`). Either alone would have flipped `integrated` to `true`.
+
+**A warning, never a verdict (R2.2).** Appending it changes nothing else: not the pass, not step 2's status write, not step 3's offer, not the validation's exit semantics. And it is emitted only where its first three words are true — on a rule-2 partial pass the story is not done, and "story is done" would be exactly the manufactured claim rule 2 exists to refuse.
+
+**It never gates the archive (R2.3).** `archive-story.sh`'s preflight does not consult integration state — an un-integrated story archives exactly like an integrated one. Whether a warned story needs a merge, a cherry-pick or nothing at all is the user's decision; the warning informs that decision and blocks nothing.
 
 ## Archive Offer
 
