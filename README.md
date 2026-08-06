@@ -125,6 +125,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/` (gitignored by default; keep o
 | `/epic:epic stories run NNN --gate=commit` | Gate only at Commit sub-tasks |
 | `/epic:epic stories validate NNN` | Run Validator + Auditor on NNN |
 | `/epic:epic stories refine NNN` | Delta refinement (versioned) |
+| `/epic:epic stories supersede NNN --by MMM` | Replace story NNN with MMM via `references/supersede-mode.md` — supersede banner, per-task remap, `superseded` status in every artifact, archive offer |
 | `/epic:epic stories archive NNN[-MMM]\|--done` | Archive completed stories via `scripts/archive-story.sh` — guarded move, pruned evidence, derived manifest entry |
 | `/epic:epic stories teams {status\|enable\|disable}` | Manage the experimental agent-teams flag (opt-in, per-project) |
 

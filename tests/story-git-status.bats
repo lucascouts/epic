@@ -214,3 +214,36 @@ run_status() {
   porcelain_after=$(git -C "$WORK/r" status --porcelain)
   [ "$porcelain_before" = "$porcelain_after" ]   # no artifact was modified
 }
+
+# =====================================================================
+# Task 4.1 — full C0/C1 escaping in json_escape (R1.7)
+# =====================================================================
+# A control character is legal in a commit message and RFC 8259 forbids it raw
+# inside a JSON string, so a single one in a matching subject used to make the
+# whole document unparseable while the script still exited 0. Both cases assert
+# the pair that matters: the document PARSES, and the escaped detail DECODES
+# back to the original bytes (escaping must not be lossy).
+# --cleanup=verbatim is required: git's default whitespace cleanup is otherwise
+# free to strip or rewrite the very byte under test.
+
+@test "4.1 raw form feed in a matching subject stays parseable JSON (R1.7)" {
+  make_repo "$WORK/r" main
+  subject=$(printf 'feat(006): weird\x0cchar')
+  git -C "$WORK/r" commit --allow-empty -q --cleanup=verbatim -m "$subject" 2>/dev/null
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e .
+  decoded=$(echo "$output" | jq -er '.evidence[] | select(.kind=="message-ref") | .detail')
+  [ "$decoded" = "$subject" ]
+}
+
+@test "4.1 raw ESC in a matching subject stays parseable JSON (R1.7)" {
+  make_repo "$WORK/r" main
+  subject=$(printf 'feat(006): esc\x1b[31mred')
+  git -C "$WORK/r" commit --allow-empty -q --cleanup=verbatim -m "$subject" 2>/dev/null
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e .
+  decoded=$(echo "$output" | jq -er '.evidence[] | select(.kind=="message-ref") | .detail')
+  [ "$decoded" = "$subject" ]
+}

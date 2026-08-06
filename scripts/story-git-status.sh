@@ -23,16 +23,69 @@
 
 set -euo pipefail
 
-# Minimal JSON string escape (same convention as validate-story.sh): values can
-# embed branch/story names with quotes, backslashes or control chars and must
-# never break the jq consumers downstream.
+# --- String quoting (R1.7) --------------------------------------------------
+# `evidence[].detail` carries a commit subject — the rawest externally-authored
+# string this plugin ever handles. A control character is perfectly legal in a
+# commit message, and RFC 8259 §7 forbids U+0000-U+001F raw inside a JSON
+# string, so a single 0x0C in a matching subject makes the WHOLE document
+# unparseable while the script still exits 0 — an undefined caller path, because
+# R1.4's degrade-silently contract only covers exit 2.
+#
+# So this uses the full C0/C1 `\uXXXX` table proven in scripts/archive-story.sh,
+# not the lighter validate-story.sh variant (which covers only \ " \n \r \t).
+# The producer stays dependency-free: consumers parse with jq, this emitter must
+# never need it.
+#
+# Table scope: everything in U+0000-U+001F and U+007F-U+009F that has no short
+# form here. C1 characters are matched as their UTF-8 pair (0xC2 0x80-0x9F),
+# which is byte-identical whether bash runs in a UTF-8 locale (one character) or
+# in C (two bytes) — the substitution is locale-independent either way. NUL needs
+# no entry: a bash string cannot hold one.
+#
+# ONE-LINE DELTA vs archive-story.sh: its loop list excludes 8 and 12 because
+# THAT script also has the short forms \b and \f. This one keeps only \ " \n \r
+# \t, so 8 and 12 MUST stay in the list below and are emitted as \u0008 / \u000c.
+# Copying archive-story.sh's list unchanged would leave 0x0C unescaped — exactly
+# the bug this table exists to close.
+JSON_ESC_RAW=()   # needle: the literal byte sequence to replace
+JSON_ESC_REP=()   # replacement: its \uXXXX form
+# The `printf -v needle "$needle"` pair below is a TWO-STAGE printf and the
+# variable-as-format is the point of it: stage 1 builds the literal text `\x1b`,
+# stage 2 makes printf interpret that escape into the byte itself. Writing the
+# byte directly is not an option — it is what we are trying to produce.
+# shellcheck disable=SC2059
+_json_escape_table() {
+  local i needle rep
+  # C0 minus the three with a short escape (\t \n \r = 9 10 13), plus DEL (127).
+  for i in 1 2 3 4 5 6 7 8 11 12 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 127; do
+    printf -v needle '\\x%02x' "$i"
+    printf -v needle "$needle"
+    printf -v rep '\\u%04x' "$i"
+    JSON_ESC_RAW+=("$needle")
+    JSON_ESC_REP+=("$rep")
+  done
+  # C1: U+0080-U+009F, as their UTF-8 pair.
+  for ((i = 128; i <= 159; i++)); do
+    printf -v needle '\\xc2\\x%02x' "$i"
+    printf -v needle "$needle"
+    printf -v rep '\\u%04x' "$i"
+    JSON_ESC_RAW+=("$needle")
+    JSON_ESC_REP+=("$rep")
+  done
+}
+_json_escape_table
+unset -f _json_escape_table
+
 json_escape() {
-  local s="$1"
+  local s="$1" i
   s=${s//\\/\\\\}
   s=${s//\"/\\\"}
   s=${s//$'\n'/\\n}
   s=${s//$'\r'/\\r}
   s=${s//$'\t'/\\t}
+  for i in "${!JSON_ESC_RAW[@]}"; do
+    s=${s//"${JSON_ESC_RAW[i]}"/"${JSON_ESC_REP[i]}"}
+  done
   printf '%s' "$s"
 }
 

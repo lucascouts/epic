@@ -2337,3 +2337,119 @@ make_copy_story() {
   # The copies half DID look at it and decided it was not a copy of anything.
   echo "$stderr" | grep -q 'prune=copies verdict=clean files_seen=1 compared=0 removed=0'
 }
+
+# --- 4.2 The superseded preflight state (story 006, R3.6) ---
+# `superseded` is the third word in assess_completion's status alternation, and
+# it is the one story 006's supersede op depends on: its step 5 offers the
+# archive by DELEGATING to this script, so the offer is only honest if
+# `superseded` clears the completion gate here. That word shipped with zero
+# coverage - this section is it. Prefixed `4.2:` for `bats --filter '^4\.2:'`.
+#
+# TWO cases, because one cannot do both jobs:
+#   - the canonical post-supersede shape has every box closed, so BOX_OPEN is 0
+#     and the LATER `elif [[ "$BOX_OPEN" -eq 0 ]]` branch would carry it even
+#     with `superseded` deleted from the alternation. It pins the realistic
+#     artifact, not the word.
+#   - the second keeps one box open, so the status branch is the ONLY thing
+#     that can complete it. That is the mutation guard: deleting `superseded`
+#     turns it red (verified - the archive is refused with the open count).
+# The interrupted shape is not contrived: design.md's Error Handling documents a
+# supersede killed after the banner and the status write but before the closures
+# are finished, and archive must still accept it, because the status claims
+# completion (story 004's status-OR-boxes rule) whatever the boxes say.
+
+# make_superseded_story <dir-name> <MMM> [leftover-open-box]
+# The artifacts as the supersede op leaves them (references/supersede-mode.md,
+# Closure + Walkthrough): `status: superseded` plus the machine-readable
+# `superseded-by: MMM` companion in EVERY artifact with frontmatter, and every
+# open sub-task closed on its own line as a terminal `[~] ... (superseded-by:
+# MMM)` - story 004's checkbox grammar, verbatim.
+# A non-empty third argument leaves box 3.1 OPEN: the op wrote the status but
+# died before finishing the closures.
+make_superseded_story() {
+  local dir="$PROJ/.epic/stories/$1" by="$2" leftover="${3:-}"
+  mkdir -p "$dir"
+  {
+    echo '---'
+    echo "story: ${1#*-}"
+    echo 'type: feature'
+    echo 'scale: standard'
+    echo 'version: 1'
+    echo 'created: 2026-05-14'
+    echo 'status: superseded'
+    echo "superseded-by: $by"
+    echo '---'
+    echo
+    echo '# Story - superseded fixture'
+  } > "$dir/story.md"
+  {
+    echo '---'
+    echo 'version: 1'
+    echo 'created: 2026-05-14'
+    echo 'status: superseded'
+    echo "superseded-by: $by"
+    echo '---'
+    echo
+    echo '## Task List'
+    echo '- [x] 1.1 - Parse the legacy CSV export'
+    echo "- [~] 2.1 - Map legacy fields to the new schema (superseded-by: $by)"
+    echo "- [~] 2.2 - Validate mapped rows (superseded-by: $by)"
+    if [ -n "$leftover" ]; then
+      echo '- [ ] 3.1 - Import against the live feed'
+    else
+      echo "- [~] 3.1 - Import against the live feed (superseded-by: $by)"
+    fi
+  } > "$dir/tasks.md"
+  return 0
+}
+
+@test "4.2: a superseded story clears the completion gate and archives" {
+  # The walkthrough's own fixture: 042 superseded by 051, one [x] survivor and
+  # three boxes the op closed. What the step-5 offer actually hands this script.
+  make_superseded_story 042-legacy-import 051
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/042-legacy-import
+  # A REAL archive, not merely a run that did not crash.
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.status == "archived" and .moved == true' > /dev/null
+  [ -d "$PROJ/.epic/archive/042-legacy-import" ]
+  [ ! -d "$PROJ/.epic/stories/042-legacy-import" ]
+  # The entry records the story's OWN pre-archive status, so the manifest says
+  # what the story was when it was archived, never a verdict this script coined.
+  [ -f "$MANIFEST" ]
+  grep -q 'story: "042-legacy-import"' "$MANIFEST"
+  grep -Eq 'status:[[:space:]]*"superseded"' "$MANIFEST"
+  echo "$output" | jq -e '.manifest_entry.status == "superseded"' > /dev/null
+  # 4 boxes, none open: `superseded-by:` is terminal, so nothing stays owed.
+  echo "$output" | jq -e '.tasks == {total: 4, closed: 1, deferred: 3, open: 0}' > /dev/null
+  # The terminal qualifier survives verbatim into the recorded items, which is
+  # what tells a future reader these were remapped, not abandoned.
+  echo "$output" | jq -e '.manifest_entry.deferred_items | length == 3' > /dev/null
+  echo "$output" | jq -e '.manifest_entry.deferred_items[0]
+    | contains("Map legacy fields to the new schema")
+      and contains("(superseded-by: 051)")' > /dev/null
+  grep -q 'superseded-by: 051' "$MANIFEST"
+}
+
+@test "4.2: status superseded archives a story whose closures were interrupted" {
+  # THE MUTATION GUARD. One box is still `[ ]`, so BOX_OPEN is 1 and every other
+  # branch of assess_completion refuses: only `FM_STATUS == "superseded"` can
+  # complete this. Drop that word from the alternation and this case goes red
+  # with "1 task checkbox(es) still open".
+  make_superseded_story 043-interrupted 051 leftover-open-box
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/043-interrupted
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.status == "archived" and .moved == true' > /dev/null
+  [ -d "$PROJ/.epic/archive/043-interrupted" ]
+  [ ! -d "$PROJ/.epic/stories/043-interrupted" ]
+  [ -f "$MANIFEST" ]
+  grep -q 'story: "043-interrupted"' "$MANIFEST"
+  grep -Eq 'status:[[:space:]]*"superseded"' "$MANIFEST"
+  # The open box is REAL and recorded as such - the archive does not launder it.
+  echo "$output" | jq -e '.tasks == {total: 4, closed: 1, deferred: 2, open: 1}' > /dev/null
+  grep -Eq 'tasks_open:[[:space:]]*1' "$MANIFEST"
+  # ...and no escape hatch was used: --force would have recorded both a
+  # `force` override and a `forced_reason`, so their absence proves the status
+  # branch alone carried this through the gate.
+  echo "$output" | jq -e '.manifest_entry.overrides_used == []' > /dev/null
+  echo "$output" | jq -e '.manifest_entry | has("forced_reason") | not' > /dev/null
+}
