@@ -2353,10 +2353,16 @@ make_copy_story() {
 #   - the second keeps one box open, so the status branch is the ONLY thing
 #     that can complete it. That is the mutation guard: deleting `superseded`
 #     turns it red (verified - the archive is refused with the open count).
-# The interrupted shape is not contrived: design.md's Error Handling documents a
-# supersede killed after the banner and the status write but before the closures
-# are finished, and archive must still accept it, because the status claims
-# completion (story 004's status-OR-boxes rule) whatever the boxes say.
+# The interrupted shape is no longer one supersede can WRITE: supersede-mode.md
+# step 3 was reordered to close-then-flip, so the status write is the commit
+# point and an interruption leaves the story visibly unfinished instead. Its
+# Interrupted-Run Recovery says that shape "did not come from this command" -
+# but that is a claim about the WRITER, and this gate is a READER. The shape
+# still arrives: a hand-edited frontmatter, an artifact predating the op.
+# Archive must accept it because assess_completion takes the status OR the
+# boxes, never both (story 004) - a `status:` naming a completion state carries
+# the story through whatever the boxes say. The reorder therefore did not make
+# this case dead, and the guard riding on it stays.
 
 # make_superseded_story <dir-name> <MMM> [leftover-open-box]
 # The artifacts as the supersede op leaves them (references/supersede-mode.md,
@@ -2364,8 +2370,8 @@ make_copy_story() {
 # `superseded-by: MMM` companion in EVERY artifact with frontmatter, and every
 # open sub-task closed on its own line as a terminal `[~] ... (superseded-by:
 # MMM)` - story 004's checkbox grammar, verbatim.
-# A non-empty third argument leaves box 3.1 OPEN: the op wrote the status but
-# died before finishing the closures.
+# A non-empty third argument leaves box 3.1 OPEN - the status-written,
+# closures-unfinished shape described above, however it came to be written.
 make_superseded_story() {
   local dir="$PROJ/.epic/stories/$1" by="$2" leftover="${3:-}"
   mkdir -p "$dir"

@@ -137,6 +137,11 @@ local_branch_exists() {
 # coexist git renders them "heads/origin/x" and "remotes/origin/x", and
 # refs/remotes/origin/HEAD collapses to a bare "origin". The match patterns need
 # one predictable spelling, and one `git branch` call must stay enough.
+# THIS SPELLING IS THE MATCHER'S INPUT AND MUST STAY PLAIN. BRANCH_FEAT_RE is
+# anchored (^feat/0*NNN-), so handing it git's disambiguated "heads/feat/NNN-x"
+# instead would fail the anchor and drop the branch out of evidence altogether —
+# a silent false negative, not a cosmetic one. Disambiguation is therefore
+# confined to the EMITTED DETAIL: see ref_qualified_name and branch_detail.
 ref_short_name() {
   local ref="$1"
   case "$ref" in
@@ -145,6 +150,25 @@ ref_short_name() {
     # Anything else — git emits a "(HEAD detached at ...)" pseudo-entry — is
     # passed through untouched; it matches no evidence pattern either way.
     *)              printf '%s' "$ref" ;;
+  esac
+}
+
+# ref_qualified_name <full-ref>: the longer spelling git falls back to when the
+# short one is ambiguous — refs/heads/origin/x → heads/origin/x,
+# refs/remotes/origin/x → remotes/origin/x. Measured on git 2.55: with both of
+# those refs present, %(refname:short) renders exactly those two strings, and
+# stripping "refs/" reproduces them.
+# Derived here rather than asked of git for the same reason ref_short_name is —
+# git's answer depends on which OTHER refs happen to exist, so it would move
+# under a ref this run never looked at. A prefix strip is deterministic, needs
+# no git call, and this file already holds every ref it cares about.
+ref_qualified_name() {
+  local ref="$1"
+  case "$ref" in
+    refs/*) printf '%s' "${ref#refs/}" ;;
+    # Same passthrough as ref_short_name: a non-refs/ string is not a ref name
+    # and there is nothing to qualify.
+    *)      printf '%s' "$ref" ;;
   esac
 }
 
@@ -163,16 +187,78 @@ ref_is_merged() {
   return 1
 }
 
+# ref_object <full-ref>: the object <full-ref> resolves to, or nothing when it
+# resolves to nothing. TOTAL — it always exits 0, because it is read through a
+# command substitution in an assignment, where a non-zero status WOULD trip
+# `set -e`. `--verify --quiet` is what makes a missing ref an ordinary empty
+# answer (rc 1, no stderr) instead of a fatal.
+# Full refnames only: they stay unambiguous even when refs/heads/origin/x and
+# refs/remotes/origin/x coexist — the same reason this file never asks git for a
+# short name. See ref_short_name.
+ref_object() {
+  local rc=0 oid=""
+  oid=$(git rev-parse --verify --quiet "$1" 2>/dev/null) || rc=$?
+  if [[ "$rc" -eq 0 ]]; then
+    printf '%s' "$oid"
+  fi
+  return 0
+}
+
+# refs_same_object <ref-a> <ref-b>: succeeds when both refs resolve AND land on
+# the same object. The -n guard is not redundant: two refs that both resolve to
+# nothing are not "the same object", they are two absent refs. Objects are
+# compared raw, never peeled with ^{commit} — a branch ref is a commit already,
+# and peeling would only add a failure mode.
+refs_same_object() {
+  local oid_a oid_b
+  oid_a=$(ref_object "$1")
+  oid_b=$(ref_object "$2")
+  [[ -n "$oid_a" && "$oid_a" == "$oid_b" ]]
+}
+
+# ref_mirrors_branch <remote-tracking-ref> <local-ref>: succeeds when the
+# remote-tracking ref really is <local-ref>'s mirror, and not a different branch
+# that merely shares its name (R1.9). A shared name is NECESSARY and not
+# SUFFICIENT; this is the missing conjunct that made fork/x at another tip
+# vanish into refs/heads/x.
+# GOTCHA — BOTH disjuncts are load-bearing, and each one alone is a defect:
+#   * same-object alone: a local branch legitimately AHEAD of its own upstream
+#     sits at a different commit, so it would split into two evidence entries —
+#     re-breaking R1.8, the converse defect.
+#   * upstream alone: a fresh clone or a fixture can have identical tips with no
+#     branch.<x>.remote configured at all, and that pair would split too.
+# R1.8 and R1.9 are converses; a one-sided predicate here just trades one defect
+# for the other. Three consecutive reviews found the bug at exactly this spot —
+# do not "simplify" this back into a single test.
+# `@{upstream}` needs the SHORT branch name (measured: refs/heads/x@{upstream}
+# resolves to nothing) and prints the upstream's FULL refname, directly
+# comparable to the ref in hand. Under `--verify --quiet` every failure mode —
+# no upstream, no such branch, an upstream whose ref is gone, a name git reads
+# as an option — is the same rc 1 with empty stdout, so an unreadable upstream
+# fails CLOSED: it can only refuse a collapse, never invent one.
+ref_mirrors_branch() {
+  local remote_ref="$1" local_ref="$2" upstream="" rc=0
+  upstream=$(git rev-parse --verify --quiet --symbolic-full-name \
+    "${local_ref#refs/heads/}@{upstream}" 2>/dev/null) || rc=$?
+  if [[ "$rc" -eq 0 && "$upstream" == "$remote_ref" ]]; then
+    return 0
+  fi
+  refs_same_object "$local_ref" "$remote_ref"
+}
+
 # branch_identity <full-ref>: the key deciding whether two refs denote the same
-# branch (R1.8). Identity comes from the FULL refname, never the short one:
+# branch (R1.8, R1.9). Identity comes from the FULL refname, never the short
+# one:
 #   refs/heads/x            → itself
-#   refs/remotes/<remote>/x → refs/heads/x when THAT ref is itself merged (the
-#                             remote-tracking ref is then that branch's mirror),
+#   refs/remotes/<remote>/x → refs/heads/x when BOTH hold: that local ref is
+#                             itself in the merged set, AND the remote-tracking
+#                             ref is genuinely its mirror (ref_mirrors_branch);
 #                             otherwise itself
 # refs/heads/x paired with its own remote-tracking ref is the ONLY collapse, so
 # a local branch literally named "origin/x" stays distinct from
 # refs/remotes/origin/x (their short names are identical, their refs are not),
-# and one branch name on two remotes at two different tips stays two branches.
+# and one branch name on two remotes at two different tips stays two branches —
+# the name matching is only half the predicate (R1.9).
 # Returning a key that is always a MERGED ref is what lets the caller name the
 # evidence from the key alone.
 # The remote list is read from git, never a hardcoded "origin", and the split is
@@ -189,10 +275,22 @@ branch_identity() {
   rest="${ref#refs/remotes/}"
   for remote in ${REMOTES+"${REMOTES[@]}"}; do
     [[ "$rest" == "$remote/"* ]] || continue
-    # One remote-tracking ref belongs to exactly one remote, so the first
-    # matching remote settles it — merged counterpart or not.
+    # NOT "the first matching remote settles it": a remote name may itself
+    # contain a slash, so a config holding both "a" and "a/b" makes
+    # refs/remotes/a/b/x genuinely ambiguous — branch x of "a/b", or branch b/x
+    # of "a"? — and this loop takes whichever `git remote` listed first, then
+    # stops. `git remote add` refuses that pair in either order ("subset of
+    # existing remote"), so it only ever arrives from a hand-written config, and
+    # guessing wrong there cannot lose a branch: the collapse below needs BOTH
+    # predicates, and when they do not hold the ref simply keeps its own
+    # identity — at worst one extra evidence entry.
     local_ref="refs/heads/${rest#"$remote"/}"
-    if ref_is_merged "$local_ref"; then
+    # Both rules must hold, cheapest first:
+    #   1. the local counterpart is itself MERGED — membership, never existence,
+    #      or the detail could name a branch that never reached main;
+    #   2. and it is the same BRANCH, not merely the same name (R1.9).
+    # && short-circuits, so a remote-only branch costs no extra git call.
+    if ref_is_merged "$local_ref" && ref_mirrors_branch "$ref" "$local_ref"; then
       printf '%s' "$local_ref"
       return 0
     fi
@@ -202,7 +300,10 @@ branch_identity() {
 }
 
 # branch_already_seen <key>: succeeds when <key> — a branch identity, see
-# branch_identity — was already recorded as branch-merged evidence in this run.
+# branch_identity — was already selected as a surviving identity in this run.
+# SELECTED, not yet emitted: SEEN_BRANCHES is filled by the first pass and only
+# rendered into evidence by the second, so that the second can ask about the
+# whole survivor set (R1.10, see short_name_collides).
 # Linear scan — the list is one entry per matching branch, never a size where a
 # hash would pay for itself.
 branch_already_seen() {
@@ -211,6 +312,52 @@ branch_already_seen() {
     [[ "$seen" == "$key" ]] && return 0
   done
   return 1
+}
+
+# short_name_collides <key>: succeeds when a DIFFERENT surviving identity —
+# another entry of SEEN_BRANCHES — renders the same short name as <key>.
+# SCOPE IS THE POINT. The question is asked of the identities that actually
+# survive into the document, never of every ref in the repo: a ref that matched
+# no evidence pattern, or that branch_identity collapsed into another key,
+# produces no entry a consumer can confuse with anything, so it must not push a
+# lone entry into the qualified spelling. "A different key" is an exact reading
+# of "another identity" because branch_already_seen keeps SEEN_BRANCHES free of
+# duplicates.
+# Pure string work — no git call, so nothing here can fail or need guarding.
+short_name_collides() {
+  local key="$1" name other
+  name=$(ref_short_name "$key")
+  for other in ${SEEN_BRANCHES+"${SEEN_BRANCHES[@]}"}; do
+    if [[ "$other" != "$key" && "$(ref_short_name "$other")" == "$name" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# branch_detail <key>: the string reported as a branch-merged entry's detail.
+# Two entries denoting different branches must not arrive byte-identical, or the
+# guarantee the identity keys give is one no consumer can observe (R1.10):
+# refs/heads/origin/x and refs/remotes/origin/x are two branches whose short
+# names are one string, so a document rendered from short names alone shows two
+# entries a `unique` reduces to one.
+# CONDITIONAL BY DESIGN, and this is the half that is easy to lose. Qualifying
+# every detail would be simpler and would rewrite the detail of every ordinary
+# case — "feat/006-x" becoming "heads/feat/006-x" for consumers that never had
+# an ambiguity to resolve. The collision is what earns the longer spelling.
+# Rule 2 (R1.8: the detail must name a ref that is itself merged) survives
+# untouched because both arms RENDER the key and nothing else, and
+# branch_identity only ever returns a ref of the merged set.
+# TOTAL — it is read through a command substitution in an argument, where a
+# non-zero status would trip `set -e`.
+branch_detail() {
+  local key="$1"
+  if short_name_collides "$key"; then
+    ref_qualified_name "$key"
+  else
+    ref_short_name "$key"
+  fi
+  return 0
 }
 
 # --- Input ---
@@ -340,7 +487,9 @@ if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
   # can see it. Dedupe over the accumulated refs instead, keyed on the FULL
   # refname (branch_identity): the short name cannot tell a local branch named
   # "origin/x" from the remote-tracking ref of "x", and collapsing those two
-  # loses a real branch.
+  # loses a real branch. That same blindness returns at the output edge — two
+  # survivors rendered by short name alone arrive byte-identical — so the detail
+  # of a colliding pair is spelled apart again (R1.10, see branch_detail).
   REMOTES=()
   rc=0
   REMOTES_RAW=$(git remote 2>/dev/null) || rc=$?
@@ -349,6 +498,9 @@ if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
       [[ -n "$REMOTE_NAME" ]] && REMOTES+=("$REMOTE_NAME")
     done <<< "$REMOTES_RAW"
   fi
+  # The surviving identities, in the order they were selected. Two jobs, one
+  # array: the dedupe ledger the first pass tests against, and the render list
+  # the second pass walks.
   SEEN_BRANCHES=()
 
   # Enumerate FULL refnames. The whole set is collected before any of it is
@@ -366,22 +518,38 @@ if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
     done <<< "$MERGED_RAW"
   fi
 
+  # SELECT, then RENDER — two passes, and the split is load-bearing (R1.10).
+  # "Does another survivor render this same short name?" is unanswerable at the
+  # moment the FIRST of a colliding pair is reached: the second has not been
+  # seen yet. Emitting inside the selection loop can therefore only ever
+  # disambiguate the second of the two. The survivor set is a function of
+  # MERGED_REFS and the match patterns, both fully determined before either
+  # pass, so settling it first costs nothing and makes the question answerable.
+  # Pass order is preserved end to end: SEEN_BRANCHES is appended in
+  # MERGED_REFS order and rendered in the same order.
   for BRANCH_REF in ${MERGED_REFS+"${MERGED_REFS[@]}"}; do
+    # The matcher gets the PLAIN short name, always. Its patterns are anchored
+    # at ^feat/ and would not survive a qualified spelling — see ref_short_name.
     BRANCH_NAME=$(ref_short_name "$BRANCH_REF")
     if [[ "$BRANCH_NAME" =~ $BRANCH_FEAT_RE ]] ||
        [[ -n "$STORY_SLUG" && "$BRANCH_NAME" =~ $BRANCH_SLUG_RE ]]; then
       BRANCH_KEY=$(branch_identity "$BRANCH_REF")
       if ! branch_already_seen "$BRANCH_KEY"; then
         SEEN_BRANCHES+=("$BRANCH_KEY")
-        # Name the evidence from the KEY, which branch_identity guarantees is a
-        # ref of the merged set: the local branch's own name only when that
-        # local branch really merged, otherwise the ref as git named it.
-        # Existence is the wrong question — a local feat/NNN-x that diverged and
-        # never merged must not be named merely because its remote-tracking
-        # counterpart reached main.
-        add_evidence "branch-merged" "$(ref_short_name "$BRANCH_KEY")"
       fi
     fi
+  done
+
+  for BRANCH_KEY in ${SEEN_BRANCHES+"${SEEN_BRANCHES[@]}"}; do
+    # Name the evidence from the KEY, which branch_identity guarantees is a ref
+    # of the merged set: the local branch's own name only when that local branch
+    # really merged, otherwise the ref as git named it. Existence is the wrong
+    # question — a local feat/NNN-x that diverged and never merged must not be
+    # named merely because its remote-tracking counterpart reached main.
+    # branch_detail only ever RENDERS that key — plainly, or in git's qualified
+    # spelling when another survivor shares its short name — so which ref gets
+    # named is settled entirely above, and R1.8 is untouched by R1.10.
+    add_evidence "branch-merged" "$(branch_detail "$BRANCH_KEY")"
   done
 
   # Rule 2 — message-ref (R1.2): a commit subject reachable from main carrying

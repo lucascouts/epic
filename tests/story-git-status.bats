@@ -350,6 +350,92 @@ branch_merged_count() {
   echo "$output" | jq -e '[.evidence[] | select(.kind == "branch-merged")][0].detail == "origin/feat/006-widget-flow"'
 }
 
+# =====================================================================
+# Task 7.2 — the same-branch predicate (R1.9)
+# =====================================================================
+# R1.8 and R1.9 are converses: R1.8 forbids reporting one branch twice, R1.9
+# forbids reporting two branches once. Authored from R1.9's text BEFORE the
+# fix, hostile case first (agents/test-advisor.md, Hostile-half rule).
+# A shared NAME is not a shared branch. Collapsing requires the
+# remote-tracking ref to be that branch's mirror — its configured upstream OR
+# the same commit — and NEITHER disjunct is the rule on its own: same-object
+# alone splits a local branch legitimately ahead of its upstream (case 2),
+# name alone swallows a second remote sitting at a different tip (case 1).
+
+@test "7.2 a second remote at a different tip is its own entry (R1.9)" {
+  make_repo "$WORK/r" main
+  commit_msg "$WORK/r" "chore: a second commit so two distinct merged tips exist"
+  git -C "$WORK/r" remote add origin https://example.invalid/widget.git
+  git -C "$WORK/r" remote add fork https://example.invalid/fork.git
+  git -C "$WORK/r" branch feat/006-widget-flow                                # local @A
+  git -C "$WORK/r" update-ref refs/remotes/origin/feat/006-widget-flow HEAD   # @A — the local branch's mirror
+  git -C "$WORK/r" update-ref refs/remotes/fork/feat/006-widget-flow HEAD~1   # @B — a different branch, also merged
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  # origin/x sits on the local branch's own commit and folds into it; fork/x is
+  # neither its upstream nor at its commit, so it survives as its own entry.
+  [ "$(branch_merged_count)" -eq 2 ]
+  echo "$output" | jq -e \
+    '[.evidence[] | select(.kind == "branch-merged").detail] | sort == ["feat/006-widget-flow", "fork/feat/006-widget-flow"]'
+}
+
+@test "7.2 a local branch ahead of its own upstream stays one entry (R1.8)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" remote add origin https://example.invalid/widget.git
+  git -C "$WORK/r" update-ref refs/remotes/origin/feat/006-widget-flow HEAD   # the pushed tip
+  git -C "$WORK/r" checkout -q -b feat/006-widget-flow
+  commit_msg "$WORK/r" "chore: local work not pushed yet"                     # local moves ahead
+  git -C "$WORK/r" branch --set-upstream-to=origin/feat/006-widget-flow \
+    feat/006-widget-flow >/dev/null 2>&1
+  git -C "$WORK/r" checkout -q main
+  git -C "$WORK/r" merge -q --no-ff -m "chore: integrate the branch" feat/006-widget-flow
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  # The converse of case 1: the two objects DIFFER, so a same-object-only
+  # predicate would split one branch into two and re-break R1.8. The upstream
+  # link is what says they are one branch.
+  [ "$(branch_merged_count)" -eq 1 ]
+  echo "$output" | jq -e '[.evidence[] | select(.kind == "branch-merged")][0].detail == "feat/006-widget-flow"'
+}
+
+# =====================================================================
+# Task 7.3 — distinguishable details (R1.10)
+# =====================================================================
+# Identity is computed from the FULL refname; the detail is then rendered as
+# the SHORT name, which throws that distinction away again. A guarantee the
+# consumer cannot observe is not a guarantee: two entries denoting different
+# branches must not arrive byte-identical. Hostile case first — the collision
+# — then the converse: disambiguation fires ON COLLISION ONLY, so a lone
+# identity keeps the plain short name every other case already asserts.
+
+@test "7.3 two identities that share a short name get distinguishable details (R1.10)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" remote add origin https://example.invalid/widget.git
+  git -C "$WORK/r" branch origin/feat/006-widget-flow            # a real LOCAL branch, literally named that
+  git -C "$WORK/r" update-ref refs/remotes/origin/feat/006-widget-flow HEAD
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  [ "$(branch_merged_count)" -eq 2 ]
+  # The guarantee as a consumer observes it: distinct entries, distinct details.
+  echo "$output" | jq -e \
+    '[.evidence[] | select(.kind == "branch-merged").detail] | (unique | length) == length'
+  # Spelled the way git itself disambiguates the same pair.
+  echo "$output" | jq -e \
+    '[.evidence[] | select(.kind == "branch-merged").detail] | sort == ["heads/origin/feat/006-widget-flow", "remotes/origin/feat/006-widget-flow"]'
+}
+
+@test "7.3 a lone identity keeps its plain short name (R1.10)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" remote add origin https://example.invalid/widget.git
+  git -C "$WORK/r" branch origin/feat/006-widget-flow            # same spelling, but nothing to collide with
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  [ "$(branch_merged_count)" -eq 1 ]
+  # Not "heads/origin/...": disambiguating unconditionally would rewrite the
+  # detail of every ordinary case and move assertions this fix must not touch.
+  echo "$output" | jq -e '[.evidence[] | select(.kind == "branch-merged")][0].detail == "origin/feat/006-widget-flow"'
+}
+
 # When the branch exists ONLY as a remote-tracking ref, deduping must not
 # invent a local branch that was never there — the detail keeps the ref name.
 @test "5.1 a remote-only merged branch keeps its ref name in the detail (R1.8)" {

@@ -135,6 +135,7 @@ Fields for an `E2E` entry:
 - If `design.md` defines a testing strategy, ensure all levels (unit, integration, E2E) mentioned there have at least one corresponding task.
 - Be conservative: skip tests for Trivial/Simple complexity tasks that are purely structural; do not over-prescribe tests for trivial structural work.
 - Be exhaustive on state-changing operations and integration boundaries.
+- For every requirement asserting that two things are the SAME or DIFFERENT (identity, uniqueness, deduplication, distinguishability), author the hostile case — the fixture that makes the rule fire wrongly — BEFORE the benign one, in both converse directions; see *Hostile-half rule*.
 - Commit sub-tasks never have tests.
 - Format: `` Type · `path/to/test_file` — scenario1, scenario2, scenario3 ``.
 - Type is always explicit: Unit, Integration, E2E (because test conventions vary across languages).
@@ -158,6 +159,24 @@ When integration tests must exercise the real interaction between components (e.
 If the test setup uses simplified/mocked versions of a dependency (e.g., inline template strings instead of real template files, mock API responses instead of real HTTP calls), flag it with a note: `⚠ Fidelity: uses simplified [dependency] — add at least one scenario with real [dependency] to catch integration mismatches`.
 
 This prevents bugs that only manifest when real components interact (wrong data shapes, misconfigured wiring, incompatible interfaces).
+
+### Hostile-half rule (identity and uniqueness)
+
+For every requirement asserting that two things are the **SAME** or are **DIFFERENT** — identity, uniqueness, deduplication, equality, distinguishability — **author the case that would make the rule fire WRONGLY first**, and only then the case where it correctly holds. Order is the rule, not just coverage: a test authored after the behavior exists asks "what does this do?" and passes; only a test authored from the requirement asks "what does this forbid?" and can fail.
+
+Every such requirement has a **converse**, and both halves MUST be authored. A rule forbidding *two things collapsing into one* has a converse forbidding *one thing splitting into two*. A fix that satisfies one converse by violating the other stays green against a suite that covers only the benign half — so per requirement the suite MUST contain, in this order:
+
+1. the fixture where the rule would **wrongly collapse** — near-identical inputs that denote different things and MUST stay apart;
+2. the fixture where the rule would **wrongly split** — differently-shaped inputs that denote the same thing and MUST come together;
+3. only then, the benign fixture where the rule plainly holds.
+
+Derive both hostile fixtures from the requirement's own prohibition, never from the implementation — the sub-task's `ToDo` stays out of bounds (see *Context boundary*). A suite carrying only (3) is a **half-covered rule** — flag it with: `⚠ Hostile half: [requirement] has no fixture that makes it fire wrongly`.
+
+**Evidence — three shipped instances of exactly this gap** (story `006-git-aware-lifecycle`, three consecutive validates, one defect each):
+
+- **5.1 case 4** — asserted a benign name collision with NO such remote; the hostile half (the same collision *with* that remote present) went unwritten, and that hostile half WAS defect D5.
+- **6.1 case 2** — asserted two remotes but NO local branch; the hostile half (two remotes *and* a like-named local branch, where the collapse predicate merges two distinct branches) is sub-task 7.2.
+- **6.1 case 1** — asserted the entry COUNT but never that the two entries are distinguishable; the hostile half (two entries carrying the same detail) is sub-task 7.3.
 
 ## Output Format
 
