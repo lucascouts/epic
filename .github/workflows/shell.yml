@@ -37,6 +37,15 @@ jobs:
         # silently drops every suite added after it, which is how 6 of 9 suites
         # went dark here — including the cross-regression harness whose entire
         # job is to catch checkbox-grammar drift.
+        #
+        # RUNNING THIS JOB UNDER `act`: expect 14 failures in
+        # tests/archive-story.bats, and they are NOT a regression. act's runner
+        # image executes as root (uid 0); this runner is the non-root `runner`
+        # user. Those 14 cases assert the script refuses when a file or tree
+        # cannot be read — root suffers no denial, so it reads what should have
+        # been unreadable and the refusal never happens. A root run is a false
+        # red here; plain local `bats tests/` as yourself is the faithful
+        # equivalent.
         run: bats tests/
 
   validate-examples:
