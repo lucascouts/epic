@@ -29,11 +29,32 @@ gracefully (see README "Prerequisites").
     shares a name keeps its own entry. The reported detail always names a ref
     that is itself merged, and two entries denoting different branches always
     carry details that can be told apart, so a consumer counting distinct
-    details never reads two branches as one.
+    details never reads two branches as one. And when a ref's remote cannot be
+    told apart from its branch — a repository configuring remotes named both
+    `a` and `a/b` — the detector reports the branches separately rather than
+    guessing where the remote name ends and silently dropping one of them.
+    **The main branch is resolved from the ref's own full path**, never from
+    git's short spelling of it. That short spelling is *ambiguity-aware*: it
+    changes as soon as any unrelated ref claims the same name. So a stray
+    branch or tag called `origin/main` used to corrupt both the reported
+    `main_branch` and the revision the evidence was searched on, reporting an
+    integrated story as un-integrated and putting the mangled name into the
+    validate warning's text. Adding an unrelated ref now changes neither
+    answer.
+    And **"not integrated" is now only ever said about a story that was
+    actually checked.** Resolving the main branch answers two separate
+    questions — what it is *called*, and which revision to search — and a
+    repository can answer the first while the second points at nothing: a
+    `git fetch --prune` that deletes `origin/main` leaves the pointer naming it
+    behind. Both evidence searches then fail, and the empty result used to be
+    reported as a finding, so validate warned about a story nothing had managed
+    to look at. That case now reports the integration as **unknown**, which
+    every consumer passes over in silence, while still reporting the branch
+    name it did resolve.
     Everything is **evaluated live and stored nowhere** — no commit SHA, branch
     name or merge-base is ever written into an artifact, so the answer can never
-    go stale. A project that is not a git repo, or has no main branch, degrades
-    silently: no annotation, no warning, no error.
+    go stale. A project that is not a git repo, or has no main branch that can
+    be searched, degrades silently: no annotation, no warning, no error.
   - **`references/list-mode.md`** and **`references/validate-mode.md`** — the
     signal is **surfaced, never enforced**. LIST annotates the status cell of
     each `done` / `validated` story (skipped above 50 stories unless the command

@@ -436,6 +436,219 @@ branch_merged_count() {
   echo "$output" | jq -e '[.evidence[] | select(.kind == "branch-merged")][0].detail == "origin/feat/006-widget-flow"'
 }
 
+# =====================================================================
+# Task 8.2 — the resolved main name is a function of the ref alone (R1.5, R1.12)
+# =====================================================================
+# `git symbolic-ref --short` renders the AMBIGUITY-AWARE spelling: the answer
+# depends on which OTHER refs happen to exist. Add one decoy ref that also
+# claims the short name "origin/main" and refs/remotes/origin/HEAD stops
+# rendering as "origin/main" and starts rendering as "remotes/origin/main" —
+# a string the fixed `${x#origin/}` strip cannot touch, so the reported
+# main_branch becomes "remotes/origin/main" and the revision every evidence
+# query runs against silently moves from the LOCAL main to the remote-tracking
+# ref. That second effect is why this is the only defect in five reviews that
+# changes `integrated`: an unpushed integration merge lives on local main and
+# vanishes from the query. Hostile half first (agents/test-advisor.md), and
+# the decoy is authored in BOTH of its reachable spellings — a branch and a
+# tag — because the trigger is "another ref claims the name", not "another
+# branch does".
+#
+# make_decoyed_repo <dir>: origin/HEAD → origin/main, plus a local main
+# carrying an unpushed --no-ff merge of the story branch. Everything except
+# the decoy ref itself, which each case adds in its own spelling.
+make_decoyed_repo() {
+  local dir=$1
+  make_repo "$dir" main
+  git -C "$dir" remote add origin https://example.invalid/widget.git
+  # origin/main is pinned at the initial commit BEFORE the merge exists, so
+  # the integration commit below is genuinely unpushed.
+  set_origin_head "$dir" main
+  git -C "$dir" checkout -q -b feat/006-widget-flow
+  commit_msg "$dir" "wip: the widget, subject carrying no story token"
+  git -C "$dir" checkout -q main
+  git -C "$dir" merge -q --no-ff -m "chore: integrate the branch" feat/006-widget-flow
+}
+
+@test "8.2 a decoy BRANCH named origin/<default> changes neither the name nor integrated (R1.5, R1.12)" {
+  make_decoyed_repo "$WORK/r"
+  git -C "$WORK/r" branch origin/main        # refs/heads/origin/main — the decoy
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  # The name comes from refs/remotes/origin/HEAD's own path, so an unrelated
+  # ref cannot move it.
+  echo "$output" | jq -e '.main_branch == "main"'
+  # And because the name is right, the revision is right: the merge that only
+  # ever landed on LOCAL main still counts (R1.11).
+  echo "$output" | jq -e '.integrated == true'
+}
+
+@test "8.2 a decoy TAG named origin/<default> changes neither the name nor integrated (R1.5, R1.12)" {
+  make_decoyed_repo "$WORK/r"
+  git -C "$WORK/r" tag origin/main           # refs/tags/origin/main — same claim, other namespace
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.main_branch == "main"'
+  echo "$output" | jq -e '.integrated == true'
+}
+
+# =====================================================================
+# Task 8.3 — uniqueness over the RENDERED set, not the short names (R1.10)
+# =====================================================================
+# 7.3 asked the right question of the wrong set. Its fix compares SHORT names,
+# and escalates a colliding pair to the qualified spelling — but that spelling
+# is a string the fix itself invented, and nothing asked what could collide
+# with IT. A third branch whose PLAIN short name already reads
+# "remotes/origin/feat/006-widget-flow" is byte-identical to what the colliding
+# pair escalates to, and it had no collision of its own to escalate. The
+# guarantee holds at two and breaks at three: R1.10 constrains the details a
+# consumer reads, so the predicate belongs on the rendered set.
+# This is the derived-value half of the hostile-half rule
+# (agents/test-advisor.md) — hostile case first, converse second.
+
+@test "8.3 three branches colliding pairwise get three distinct details (R1.10)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" remote add origin https://example.invalid/widget.git
+  # Three genuinely different branches. Their short names are, in order:
+  #   origin/feat/…  ·  remotes/origin/feat/…  ·  origin/feat/…
+  # so 1 and 3 collide while 2 does not — and 2's PLAIN name is exactly what
+  # the qualified spelling of 3 renders as.
+  git -C "$WORK/r" branch origin/feat/006-widget-flow                          # refs/heads/origin/…
+  git -C "$WORK/r" branch remotes/origin/feat/006-widget-flow                  # refs/heads/remotes/origin/…
+  git -C "$WORK/r" update-ref refs/remotes/origin/feat/006-widget-flow HEAD    # refs/remotes/origin/…
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  # All three survive identity dedup — no two of them are the same branch.
+  [ "$(branch_merged_count)" -eq 3 ]
+  # The guarantee as a consumer observes it, asked of the whole set rather than
+  # of any pair: three entries, three distinct details.
+  echo "$output" | jq -e \
+    '[.evidence[] | select(.kind == "branch-merged").detail] | (unique | length) == length'
+}
+
+@test "8.3 three branches with distinct short names all keep them (R1.10)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" remote add origin https://example.invalid/widget.git
+  git -C "$WORK/r" branch feat/006-widget-flow
+  git -C "$WORK/r" branch chore/006-widget-flow
+  git -C "$WORK/r" branch origin/feat/006-widget-flow
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  [ "$(branch_merged_count)" -eq 3 ]
+  # The converse of case 1, and the reason the predicate must stay CONDITIONAL:
+  # escalating whenever the set has more than one member would rewrite the
+  # detail of every ordinary multi-branch repository. Nothing collides here,
+  # so nothing moves.
+  echo "$output" | jq -e \
+    '[.evidence[] | select(.kind == "branch-merged").detail] | sort == ["chore/006-widget-flow", "feat/006-widget-flow", "origin/feat/006-widget-flow"]'
+}
+
+# =====================================================================
+# Task 8.4 — an ambiguous remote split does not collapse (R1.9, R1.13)
+# =====================================================================
+# Deciding WHICH remote a refs/remotes/… ref belongs to is not "the first path
+# segment": git accepts a remote name containing a slash. With remotes "a" and
+# "a/b", the ref refs/remotes/a/b/feat/006-widget-flow is genuinely ambiguous —
+# branch feat/006-widget-flow of remote "a/b", or branch b/feat/006-widget-flow
+# of remote "a"? — and taking the first configured match is a GUESS. Guess
+# wrong and both collapse predicates can hold against a branch that is not the
+# one in hand, so a real branch disappears from the evidence. The rule is
+# therefore not a better guess but NO guess.
+# `git remote add` refuses this pair in either order ("subset of existing
+# remote"), so the topology only ever arrives from a hand-written config —
+# which is exactly what add_nested_remotes writes.
+
+# add_nested_remotes <dir>: configure remotes "a" and "a/b", the pair whose
+# names make a remote-tracking refname ambiguous.
+add_nested_remotes() {
+  cat >> "$1/.git/config" <<'EOF'
+[remote "a"]
+	url = https://example.invalid/a.git
+	fetch = +refs/heads/*:refs/remotes/a/*
+[remote "a/b"]
+	url = https://example.invalid/ab.git
+	fetch = +refs/heads/*:refs/remotes/a/b/*
+EOF
+}
+
+@test "8.4 an ambiguous remote split keeps both branches (R1.9, R1.13)" {
+  make_repo "$WORK/r" main
+  add_nested_remotes "$WORK/r"
+  # Branch feat/006-widget-flow of remote "a/b" …
+  git -C "$WORK/r" update-ref refs/remotes/a/b/feat/006-widget-flow HEAD
+  # … and an unrelated LOCAL branch that the wrong reading names instead.
+  git -C "$WORK/r" branch b/feat/006-widget-flow
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  # Read as branch b/feat/… of remote "a", both collapse predicates hold —
+  # merged, same object — and the remote's own branch vanishes. Two branches
+  # are two entries.
+  [ "$(branch_merged_count)" -eq 2 ]
+  echo "$output" | jq -e \
+    '[.evidence[] | select(.kind == "branch-merged").detail] | sort == ["a/b/feat/006-widget-flow", "b/feat/006-widget-flow"]'
+}
+
+@test "8.4 an unambiguous split still collapses its pair (R1.8)" {
+  make_repo "$WORK/r" main
+  add_nested_remotes "$WORK/r"
+  # Same nested-remote config, but only ONE of the two names prefixes this
+  # ref: "a" does, "a/b" does not. Nothing is ambiguous, so the collapse must
+  # still fire — the refusal is scoped to the ambiguity, not to the topology.
+  git -C "$WORK/r" update-ref refs/remotes/a/c/feat/006-widget-flow HEAD
+  git -C "$WORK/r" branch c/feat/006-widget-flow
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  # The converse guard: refusing whenever more than one remote is CONFIGURED —
+  # rather than whenever more than one is a PREFIX — would split this pair and
+  # re-break R1.8.
+  [ "$(branch_merged_count)" -eq 1 ]
+  echo "$output" | jq -e '[.evidence[] | select(.kind == "branch-merged")][0].detail == "c/feat/006-widget-flow"'
+}
+
+# =====================================================================
+# Task 8.6 — a name that resolves over a revision that does not (R1.5)
+# =====================================================================
+# `integrated: false` is a POSITIVE claim: a main branch resolved, evidence was
+# sought, none was found. `null` is the absence of a claim. The two gates that
+# decide this branch on different variables — evidence is sought when MAIN_REF
+# is non-empty, but the true/false-vs-null choice is made on MAIN_BRANCH — and
+# 8.2 made MAIN_REF a full refname at every assignment without ever asking
+# whether that refname RESOLVES. `git symbolic-ref` reads its stored target
+# without requiring the target to exist (measured: rc 0 either way, with and
+# without --short, so this predates 8.2), so a pruned origin/main leaves the
+# name knowable and the revision empty. Both queries then fail into their own
+# guards and the empty evidence list is emitted as a finding.
+# references/validate-mode.md:135 states the rule this breaks verbatim:
+# "Not computable must never dress up as a finding."
+# This is 8.1's derived-value question asked of 8.2's own output — hostile half
+# first, then the converse that keeps honest negatives honest.
+
+@test "8.6 a dangling origin/HEAD is not computable, not a negative (R1.5)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" remote add origin https://example.invalid/widget.git
+  set_origin_head "$WORK/r" main
+  git -C "$WORK/r" branch -m main trunk        # no local main to prefer instead
+  git -C "$WORK/r" update-ref -d refs/remotes/origin/main   # what --prune leaves behind
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  # The NAME is still knowable — origin/HEAD's own path says so.
+  echo "$output" | jq -e '.main_branch == "main"'
+  # The INTEGRATION is not: nothing was queried, so nothing may be claimed.
+  echo "$output" | jq -e '.integrated == null'
+}
+
+@test "8.6 a resolvable main with no evidence is still a negative (R1.5)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" remote add origin https://example.invalid/widget.git
+  set_origin_head "$WORK/r" main
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.main_branch == "main"'
+  # The converse guard: the revision resolves and the queries ran, so "no
+  # evidence" is a measured negative and must NOT be softened into null.
+  echo "$output" | jq -e '.integrated == false'
+  echo "$output" | jq -e '.evidence == []'
+}
+
 # When the branch exists ONLY as a remote-tracking ref, deduping must not
 # invent a local branch that was never there — the detail keeps the ref name.
 @test "5.1 a remote-only merged branch keeps its ref name in the detail (R1.8)" {

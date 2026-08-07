@@ -172,11 +172,20 @@ Every such requirement has a **converse**, and both halves MUST be authored. A r
 
 Derive both hostile fixtures from the requirement's own prohibition, never from the implementation — the sub-task's `ToDo` stays out of bounds (see *Context boundary*). A suite carrying only (3) is a **half-covered rule** — flag it with: `⚠ Hostile half: [requirement] has no fixture that makes it fire wrongly`.
 
-**Evidence — three shipped instances of exactly this gap** (story `006-git-aware-lifecycle`, three consecutive validates, one defect each):
+**The rule extends to the values a fix DERIVES, not only to the requirement that motivated it.** When a fix introduces a **derived value** — a rendered string, a resolved name, a computed key — author the hostile case for that value in its own right. Deriving both halves from the requirement's text is necessary and not sufficient here: the requirement can only name the things it forbids, and a derived value is a spelling the fix itself invented, so no wording in the requirement points at it. A suite that answers the requirement perfectly can therefore leave the new mechanism entirely unexercised.
+
+Ask it of every value a fix derives, in this first form — it is the recurring shape:
+
+> **Can a THIRD element collide with it?**
+
+A uniqueness or identity check written over a **pair** is what every defect in this story has been. The pair is handled; a third input then reaches the same rendered answer by a route the pair never exercised, and the guarantee the pair proved is one the document no longer carries.
+
+**Evidence — four shipped instances of exactly this gap** (story `006-git-aware-lifecycle`, one defect per consecutive validate):
 
 - **5.1 case 4** — asserted a benign name collision with NO such remote; the hostile half (the same collision *with* that remote present) went unwritten, and that hostile half WAS defect D5.
 - **6.1 case 2** — asserted two remotes but NO local branch; the hostile half (two remotes *and* a like-named local branch, where the collapse predicate merges two distinct branches) is sub-task 7.2.
 - **6.1 case 1** — asserted the entry COUNT but never that the two entries are distinguishable; the hostile half (two entries carrying the same detail) is sub-task 7.3.
+- **7.3 case 1 — defect D-2, the derived-value instance.** The only one of the four where the rule above was *followed* and a defect shipped anyway. 7.3 authored R1.10's hostile half honestly — two entries denoting different branches, asserted to carry different details — and the fix answered it by escalating the colliding pair to `heads/origin/x` and `remotes/origin/x`. Those two strings were a spelling 7.3 itself invented, and no case asked what would collide with **them**: a third merged branch whose plain short name already *is* `remotes/origin/x` renders byte-identical to the escalation, and the guarantee breaks at three where it held at two. Sub-task 8.3.
 
 ## Output Format
 

@@ -63,11 +63,13 @@ A run can die between banner and closure. On the next invocation the banner alon
 | Prior run | Found | Response |
 |---|---|---|
 | Complete | banner present, every artifact `status: superseded`, no open sub-task left | refuse — row 4 above |
-| Incomplete | banner present, but status writes or closures missing | offer to complete **only** the remaining steps |
+| Incomplete | banner present **and no `status: superseded` written anywhere yet** — whether the closures are untouched, partial or already complete; or every box closed and the `status:`/`superseded-by:` writes reached only some artifacts | offer to complete **only** the remaining steps |
+
+Those are the only two shapes step 3 can leave, and they are written to be **disjoint**: *Complete* needs every artifact flipped, *Incomplete* needs at least one still unflipped, and no story matches both. Nothing falls between them either — closing precedes flipping, so an interruption is caught mid-closure (no status anywhere) or mid-flip (all boxes closed, some artifacts left).
 
 The R3.5 refusal targets a re-run over a complete prior op; an interrupted op is not a re-run — it is the same operation finishing. Recovery therefore never touches the banner (it is written at most once, ever) and redoes only what is missing, in step 3's order: unclosed sub-tasks first, then the absent `status:`/`superseded-by:` writes, then the index and the archive offer.
 
-**Why `status: superseded` with an open box is not a state recovery has to handle:** step 3 never produces it. Closures precede the status write precisely so that the last thing written is the one that declares the operation finished — an interruption leaves the story visibly unfinished rather than falsely complete. A story found in that shape did not come from this command, and repairing hand-edited frontmatter is not supersede's job.
+**Why `status: superseded` with an open box is not a state recovery has to handle:** step 3 never produces it. Closures precede the status write precisely so that the last thing written is the one that declares the operation finished — an interruption leaves the story visibly unfinished rather than falsely complete. A story found in that shape did not come from this command, and repairing hand-edited frontmatter is not supersede's job. **The *Incomplete* row is narrowed to say exactly that** — a status write anywhere disqualifies the open-box case — so the table does not quietly offer recovery for a state this paragraph declares out of scope. An earlier wording ("banner present, but status writes *or* closures missing") matched it through its second clause and gave one state two answers.
 
 ## Walkthrough
 
