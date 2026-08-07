@@ -121,34 +121,90 @@ add_evidence() {
 
 # local_branch_exists <name>: succeeds when refs/heads/<name> exists. The git
 # call stays guarded so set -e never aborts; only used inside if conditions.
+# SCOPE: main-branch resolution ONLY. Existence is deliberately NOT the
+# predicate anywhere in evidence collection — a branch can exist and never have
+# reached main (R1.8); mergedness is what evidence means. See ref_is_merged.
 local_branch_exists() {
   local rc=0
   git show-ref --verify --quiet "refs/heads/$1" 2>/dev/null || rc=$?
   [[ "$rc" -eq 0 ]]
 }
 
-# strip_remote_prefix <short-ref-name>: drop a leading "<remote>/" segment when
-# that segment names a real remote of this repository. Used ONLY to decide
-# whether two refs denote the same branch (R1.8) — a branch genuinely named
-# "origin/foo" in a repository that has no "origin" remote keeps its full name,
-# which is why the remote list is read from git and never hardcoded.
+# ref_short_name <full-ref>: the name a reader knows a ref by —
+# refs/heads/x → x, refs/remotes/origin/x → origin/x. Derived here instead of
+# asking git for %(refname:short) because that rendering is ambiguity-aware and
+# therefore unstable: when refs/heads/origin/x and refs/remotes/origin/x
+# coexist git renders them "heads/origin/x" and "remotes/origin/x", and
+# refs/remotes/origin/HEAD collapses to a bare "origin". The match patterns need
+# one predictable spelling, and one `git branch` call must stay enough.
+ref_short_name() {
+  local ref="$1"
+  case "$ref" in
+    refs/heads/*)   printf '%s' "${ref#refs/heads/}" ;;
+    refs/remotes/*) printf '%s' "${ref#refs/remotes/}" ;;
+    # Anything else — git emits a "(HEAD detached at ...)" pseudo-entry — is
+    # passed through untouched; it matches no evidence pattern either way.
+    *)              printf '%s' "$ref" ;;
+  esac
+}
+
+# ref_is_merged <full-ref>: succeeds when <full-ref> is in the merged set
+# enumerated for this run. MEMBERSHIP, not existence (R1.8) — the two diverge
+# exactly when a local branch was pushed, then rewritten locally: the ref
+# exists, only its remote-tracking counterpart ever reached main.
 # NB: ${arr+"${arr[@]}"} — under `set -u` an empty array must not be expanded
 # bare. The guard yields nothing when the array is empty and quoted elements
 # otherwise.
-strip_remote_prefix() {
-  local name="$1" remote
-  for remote in ${REMOTES+"${REMOTES[@]}"}; do
-    if [[ "$name" == "$remote/"* ]]; then
-      printf '%s' "${name#"$remote"/}"
-      return 0
-    fi
+ref_is_merged() {
+  local ref="$1" merged
+  for merged in ${MERGED_REFS+"${MERGED_REFS[@]}"}; do
+    [[ "$merged" == "$ref" ]] && return 0
   done
-  printf '%s' "$name"
+  return 1
 }
 
-# branch_already_seen <key>: succeeds when <key> was already recorded as
-# branch-merged evidence in this run. Linear scan — the list is one entry per
-# matching branch, never a size where a hash would pay for itself.
+# branch_identity <full-ref>: the key deciding whether two refs denote the same
+# branch (R1.8). Identity comes from the FULL refname, never the short one:
+#   refs/heads/x            → itself
+#   refs/remotes/<remote>/x → refs/heads/x when THAT ref is itself merged (the
+#                             remote-tracking ref is then that branch's mirror),
+#                             otherwise itself
+# refs/heads/x paired with its own remote-tracking ref is the ONLY collapse, so
+# a local branch literally named "origin/x" stays distinct from
+# refs/remotes/origin/x (their short names are identical, their refs are not),
+# and one branch name on two remotes at two different tips stays two branches.
+# Returning a key that is always a MERGED ref is what lets the caller name the
+# evidence from the key alone.
+# The remote list is read from git, never a hardcoded "origin", and the split is
+# not simply "the first path segment": git accepts a remote name containing a
+# slash, so refs/remotes/a/b/x may be branch x of remote "a/b".
+branch_identity() {
+  local ref="$1" rest remote local_ref
+  # A local branch is always its own identity — nothing collapses INTO a
+  # remote-tracking ref, only the other way round.
+  if [[ "$ref" != refs/remotes/* ]]; then
+    printf '%s' "$ref"
+    return 0
+  fi
+  rest="${ref#refs/remotes/}"
+  for remote in ${REMOTES+"${REMOTES[@]}"}; do
+    [[ "$rest" == "$remote/"* ]] || continue
+    # One remote-tracking ref belongs to exactly one remote, so the first
+    # matching remote settles it — merged counterpart or not.
+    local_ref="refs/heads/${rest#"$remote"/}"
+    if ref_is_merged "$local_ref"; then
+      printf '%s' "$local_ref"
+      return 0
+    fi
+    break
+  done
+  printf '%s' "$ref"
+}
+
+# branch_already_seen <key>: succeeds when <key> — a branch identity, see
+# branch_identity — was already recorded as branch-merged evidence in this run.
+# Linear scan — the list is one entry per matching branch, never a size where a
+# hash would pay for itself.
 branch_already_seen() {
   local key="$1" seen
   for seen in ${SEEN_BRANCHES+"${SEEN_BRANCHES[@]}"}; do
@@ -276,12 +332,15 @@ if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
   BRANCH_SLUG_RE="/0*${STORY_NUM}-${SLUG_RE}"
 
   # Evidence uniqueness (R1.8): one merged branch is one piece of evidence,
-  # however many refs point at it. The duplicate is NOT one rule firing twice —
+  # however many refs point at it, AND the reported detail must name a ref that
+  # is itself merged. The duplicate is NOT one rule firing twice —
   # feat/NNN-slug matches the anchored BRANCH_FEAT_RE while
   # origin/feat/NNN-slug matches only BRANCH_SLUG_RE, so the pair arrives
   # through different branches of the || below and no guard inside either one
-  # can see it. Dedupe over the accumulated names instead, keyed on the name
-  # with any real remote prefix removed.
+  # can see it. Dedupe over the accumulated refs instead, keyed on the FULL
+  # refname (branch_identity): the short name cannot tell a local branch named
+  # "origin/x" from the remote-tracking ref of "x", and collapsing those two
+  # loses a real branch.
   REMOTES=()
   rc=0
   REMOTES_RAW=$(git remote 2>/dev/null) || rc=$?
@@ -292,29 +351,38 @@ if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
   fi
   SEEN_BRANCHES=()
 
+  # Enumerate FULL refnames. The whole set is collected before any of it is
+  # judged, because branch_identity asks whether ANOTHER ref (the local
+  # counterpart of a remote-tracking one) is in the merged set — a question the
+  # ref in hand cannot answer.
+  MERGED_REFS=()
   rc=0
-  MERGED_BRANCHES=$(git branch -a --merged "$MAIN_REF" --format='%(refname:short)' 2>/dev/null) || rc=$?
-  if [[ "$rc" -eq 0 && -n "$MERGED_BRANCHES" ]]; then
+  MERGED_RAW=$(git branch -a --merged "$MAIN_REF" --format='%(refname)' 2>/dev/null) || rc=$?
+  if [[ "$rc" -eq 0 && -n "$MERGED_RAW" ]]; then
     # Herestring, not a pipe: the loop must run in the current shell or the
-    # EVIDENCE appends would die with the subshell.
-    while IFS= read -r BRANCH_NAME; do
-      if [[ "$BRANCH_NAME" =~ $BRANCH_FEAT_RE ]] ||
-         [[ -n "$STORY_SLUG" && "$BRANCH_NAME" =~ $BRANCH_SLUG_RE ]]; then
-        BRANCH_KEY=$(strip_remote_prefix "$BRANCH_NAME")
-        if ! branch_already_seen "$BRANCH_KEY"; then
-          SEEN_BRANCHES+=("$BRANCH_KEY")
-          # Report the truth about which ref exists: the bare name only when a
-          # local branch of that name is really there, otherwise the ref as git
-          # named it. Deduping must not invent a local branch that never existed.
-          if local_branch_exists "$BRANCH_KEY"; then
-            add_evidence "branch-merged" "$BRANCH_KEY"
-          else
-            add_evidence "branch-merged" "$BRANCH_NAME"
-          fi
-        fi
-      fi
-    done <<< "$MERGED_BRANCHES"
+    # array append would die with the subshell.
+    while IFS= read -r MERGED_REF; do
+      [[ -n "$MERGED_REF" ]] && MERGED_REFS+=("$MERGED_REF")
+    done <<< "$MERGED_RAW"
   fi
+
+  for BRANCH_REF in ${MERGED_REFS+"${MERGED_REFS[@]}"}; do
+    BRANCH_NAME=$(ref_short_name "$BRANCH_REF")
+    if [[ "$BRANCH_NAME" =~ $BRANCH_FEAT_RE ]] ||
+       [[ -n "$STORY_SLUG" && "$BRANCH_NAME" =~ $BRANCH_SLUG_RE ]]; then
+      BRANCH_KEY=$(branch_identity "$BRANCH_REF")
+      if ! branch_already_seen "$BRANCH_KEY"; then
+        SEEN_BRANCHES+=("$BRANCH_KEY")
+        # Name the evidence from the KEY, which branch_identity guarantees is a
+        # ref of the merged set: the local branch's own name only when that
+        # local branch really merged, otherwise the ref as git named it.
+        # Existence is the wrong question — a local feat/NNN-x that diverged and
+        # never merged must not be named merely because its remote-tracking
+        # counterpart reached main.
+        add_evidence "branch-merged" "$(ref_short_name "$BRANCH_KEY")"
+      fi
+    fi
+  done
 
   # Rule 2 — message-ref (R1.2): a commit subject reachable from main carrying
   # the story number as a delimited token ONLY — \(0*NNN\) (conventional

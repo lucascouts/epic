@@ -302,6 +302,54 @@ branch_merged_count() {
   [ "$(branch_merged_count)" -eq 2 ]
 }
 
+# =====================================================================
+# Task 6.1/6.2 — the two predicates R1.8 actually rests on
+# =====================================================================
+# Authored from the amended R1.8 text BEFORE the fix, and confirmed Red:
+# "one merged branch ... a single evidence entry, and the reported detail
+# SHALL name a ref that is itself merged into the main branch".
+# Task 5.1's case 4 covered only the benign half of its own rule (a name
+# collision with NO such remote); these cover the hostile halves.
+
+@test "6.1 a local branch named origin/... IS kept when that remote exists (R1.8)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" remote add origin https://example.invalid/widget.git
+  git -C "$WORK/r" branch feat/006-widget-flow
+  git -C "$WORK/r" branch origin/feat/006-widget-flow   # a real, distinct local branch
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  # Two distinct branches: only their SHORT names collide, their refs do not.
+  [ "$(branch_merged_count)" -eq 2 ]
+}
+
+@test "6.1 the same branch name on two remotes at different tips stays two (R1.8)" {
+  make_repo "$WORK/r" main
+  commit_msg "$WORK/r" "chore: a second commit so two distinct merged tips exist"
+  git -C "$WORK/r" remote add origin https://example.invalid/widget.git
+  git -C "$WORK/r" remote add fork https://example.invalid/fork.git
+  git -C "$WORK/r" update-ref refs/remotes/origin/feat/006-widget-flow HEAD
+  git -C "$WORK/r" update-ref refs/remotes/fork/feat/006-widget-flow HEAD~1
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  # Same name, different commits, both merged — one is not the other's mirror.
+  [ "$(branch_merged_count)" -eq 2 ]
+}
+
+@test "6.2 an unmerged local branch is never named as branch-merged evidence (R1.8)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" remote add origin https://example.invalid/widget.git
+  git -C "$WORK/r" update-ref refs/remotes/origin/feat/006-widget-flow HEAD
+  git -C "$WORK/r" checkout -q -b feat/006-widget-flow
+  commit_msg "$WORK/r" "wip: diverged, never merged back"
+  git -C "$WORK/r" checkout -q main
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  [ "$(branch_merged_count)" -eq 1 ]
+  # The merged ref is the remote one. Preferring the local short name here
+  # would name a branch that never reached main.
+  echo "$output" | jq -e '[.evidence[] | select(.kind == "branch-merged")][0].detail == "origin/feat/006-widget-flow"'
+}
+
 # When the branch exists ONLY as a remote-tracking ref, deduping must not
 # invent a local branch that was never there — the detail keeps the ref name.
 @test "5.1 a remote-only merged branch keeps its ref name in the detail (R1.8)" {

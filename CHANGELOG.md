@@ -21,6 +21,10 @@ gracefully (see README "Prerequisites").
     git evidence: a merged `feat/NNN-*` branch (`branch-merged`), and a commit
     subject reachable from the main branch carrying the story's `(NNN)` token or
     its `NNN-slug` (`message-ref`). A bare number never counts as evidence.
+    One merged branch is reported **once**, however many refs point at it — a
+    local branch and its remote-tracking mirror are one piece of work, while two
+    branches that merely render the same short name stay two — and the reported
+    detail always names a ref that is itself merged.
     Everything is **evaluated live and stored nowhere** — no commit SHA, branch
     name or merge-base is ever written into an artifact, so the answer can never
     go stale. A project that is not a git repo, or has no main branch, degrades
