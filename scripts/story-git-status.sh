@@ -302,6 +302,16 @@ branch_identity() {
   # existential so it is untouched either way. That is what turns "never a
   # missing one" from an assertion into a fact.
   #
+  # THE REFUSAL'S OWN SCOPE, named so it is not mistaken for more: it counts
+  # fits among CURRENTLY CONFIGURED remotes, which is exactly what R1.13 says
+  # and exactly where the guarantee stops. If the ref's true owning remote is no
+  # longer configured — a half-finished `git remote rename`, a hand-edited
+  # config, a remote removed while its refs survive — then only one name fits,
+  # this guard stays silent, and the old loss returns through that door.
+  # Recorded, not fixed: judging a ref against remotes that are NOT configured
+  # means guessing again, which is the thing this replaced. Derived from 8.4's
+  # own reproduction with the second remote omitted, NOT measured end to end.
+  #
   # THE FIT IS TESTED AS "<name>/" and must stay that way: a remote named "ab"
   # does not own refs/remotes/a/b/x, and a bare-name test would count it as a
   # second fit and refuse a collapse nothing was ambiguous about.
@@ -635,16 +645,27 @@ fi
 # object is missing it exits 128 while `rev-parse --verify --quiet` prints the
 # name and exits 0, and on a dangling symref inside refs/heads both refuse. One
 # cheap call buys independence from that measurement continuing to hold.
-# THE PREDICATE'S OWN LIMIT, measured and named rather than assumed away:
-# `rev-parse --verify --quiet` accepts a ref whose OBJECT is missing — it prints
-# the stored name and exits 0 — so a ref hand-written at a nonexistent object
-# still passes this gate, still fails both queries, and still lands on `false`.
-# That state is one `git update-ref` REFUSES to create (rc 128, "nonexistent
-# object") and `git fsck` reports as "invalid sha1 pointer": a corrupt
-# repository, where every other git consumer is equally broken. It is out of
-# contract in the same sense entry 18's hand-written symref shape is, and
-# closing it would need a peeled `^{commit}` probe — a different call shape with
-# failure modes of its own. Recorded in .draft/deviations.yaml, not fixed here.
+# THE PREDICATE'S OWN LIMIT — the gate asks whether the ref RESOLVES, never
+# whether it resolves to something queryable, and those are two questions:
+#   * a ref at a NONEXISTENT object: `rev-parse --verify --quiet` prints the
+#     stored name and exits 0. `git update-ref` refuses to create this under
+#     refs/heads (rc 128, "nonexistent object") and `git fsck` calls it an
+#     "invalid sha1 pointer" — a corrupt repository.
+#   * a ref at a NON-COMMIT object: NOT a corrupt repository, and this is the
+#     member of the class an earlier version of this comment wrongly excluded.
+#     Measured on git 2.55: `git update-ref refs/remotes/origin/main <blob>`
+#     exits 0 — the non-commit refusal guards refs/heads only, nothing guards
+#     refs/remotes — and `git fsck --strict` then reports the repo CLEAN. The
+#     gate passes on the blob's sha, `git branch --merged` dies rc 129 ("is a
+#     blob, not a commit") and `git log` returns rc 0 with NO output, both
+#     swallowed by their guards, and `false` is emitted for a story nothing
+#     managed to look at.
+# So the honest statement is the narrow one: this gate closes the pruned-symref
+# case (the reachable one, R1.5) and does not close "resolves to something no
+# query can use". Closing that needs a peeled `^{commit}` probe — a different
+# call shape with failure modes of its own, and one `refs_same_object`'s comment
+# already warns against adding. Recorded in .draft/deviations.yaml, not fixed
+# here; the correction of the earlier claim is recorded there too.
 # `[[ ]]` short-circuits `&&`, so the command substitution never runs — and
 # ref_object never sees an empty ref — when nothing resolved a name at all.
 if [[ -n "$MAIN_REF" && -z "$(ref_object "$MAIN_REF")" ]]; then
