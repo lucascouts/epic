@@ -8,7 +8,8 @@ Triggered by `/epic:epic stories`, `/epic:epic stories full`, or `/epic:epic sto
 2. For each story, read the frontmatter (type, scale, version, status) and parse task checkboxes
 3. Take the checkbox census — `total`, `closed` and `deferred` are defined once, in [tasks.md](tasks.md#completion). Census the task list and the Quality Gates separately: each renders its own pair
 4. Derive the story's computed condition from the census (see Status and Progress)
-5. Refresh the managed index block opportunistically — `bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-index.sh"`; a non-zero exit warns and never blocks the listing (defined once, in [validate-mode.md](validate-mode.md#index-refresh))
+5. For each story whose status is `done` or `validated`, run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir>` and annotate from its `integrated` field (see Integration Annotation) — skipped when the project has more than 50 stories, unless the command is `stories full`
+6. Refresh the managed index block opportunistically — `bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-index.sh"`; a non-zero exit warns and never blocks the listing (defined once, in [validate-mode.md](validate-mode.md#index-refresh))
 
 ## Status and Progress
 
@@ -24,13 +25,31 @@ So `in-progress · done-except-external (2 deferred)` reads: the file says `in-p
 
 **Progress renders as `closed/total`, plus `(+D deferred)` when D > 0** — and only then. By the census in [tasks.md](tasks.md#completion), `closed` is `[x]` plus terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), so a waived gate closes its box and a finished story reads `5/5`, never an eternal `4/5`. Deferred boxes are closed too, but counted apart: that work is settled in the plan and still owed in the world.
 
+## Integration Annotation
+
+**Computed live, stored nowhere, blocking nothing.** A `done` or `validated` status says the work is finished; whether it ever reached the main branch is a separate fact, and this is where the list surfaces it. For each story whose status is `done` or `validated`, run [`scripts/story-git-status.sh`](../scripts/story-git-status.sh) and annotate the status cell from the `integrated` field of its JSON output (`{story, main_branch, integrated, evidence, checked_at}`):
+
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir>
+```
+
+| `integrated` | Rendered as |
+|---|---|
+| `true` | `integrada`, appended after a `·` |
+| `false` | `não-integrada`, appended after a `·` |
+| `null` | nothing |
+
+Exit 2 — not a git repository, or story not found — also renders nothing: degrade silently (R1.4). A workspace without git is legal, and "not computable" must never dress up as a finding — no annotation, no warning, no error. The labels `integrada` and `não-integrada` are contract strings; render them verbatim. The annotation is informational only: it never changes list ordering, filtering, or any verdict — whether a `não-integrada` story needs a merge, a cherry-pick or nothing at all is the user's decision, not this mode's.
+
+**Cost rule (R2.1).** Each annotation is one git evaluation, so when the project has more than 50 stories skip the per-story evaluation — only `/epic:epic stories full` performs the full sweep, regardless of story count.
+
 ## Summary View (`/epic:epic stories`)
 
 ```
 Stories in .epic/stories/:
 
   001-fruit-management-api
-     full | feature | v1 | done | Tasks: 11/11 | Gates: 5/5
+     full | feature | v1 | done · integrada | Tasks: 11/11 | Gates: 5/5
 
   002-user-dashboard
      standard | feature | v1 | in-progress | Tasks: 4/8 (+1 deferred) | Gates: 0/5
@@ -40,16 +59,19 @@ Stories in .epic/stories/:
 
   004-legacy-import
      standard | feature | v1 | — | Tasks: 1/4 | Gates: 0/5
+
+  005-notification-digest
+     standard | feature | v1 | validated · não-integrada | Tasks: 6/6 | Gates: 5/5
 ```
 
-One line per story: scale, type, version, status (with any computed condition), task progress, gate progress.
+One line per story: scale, type, version, status (with any computed condition and integration annotation), task progress, gate progress. Here 001's finished work is on the main branch and 005's is not yet; 002–004, not being `done` or `validated`, are never evaluated.
 
 ## Detailed View (`/epic:epic stories full`)
 
 Same as summary, plus expand each story's task list showing checkbox state, task name, and metadata line. Do not show sub-task content fields (ToDo, Context, etc.) — only titles and status.
 
 ```
-001-fruit-management-api (full, feature, v1) | done | Tasks: 11/11
+001-fruit-management-api (full, feature, v1) | done · integrada | Tasks: 11/11
 
   - [x] 1 - Project Scaffolding
     - [x] 1.1 - Install dependencies

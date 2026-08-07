@@ -770,8 +770,11 @@ status_cell() {
     printf '%s' "$cell"
     return 0
   fi
-  # The companion key is written by story 006; until then no story carries it
-  # and every superseded row simply renders `superseded`.
+  # The companion key is written by the supersede operation
+  # (references/supersede-mode.md), which is its only writer: it lands
+  # `superseded-by: MMM` in every artifact's frontmatter alongside the status.
+  # A story without it — hand-written, or a legacy `superseded` predating the
+  # operation — is not an error here: the row simply renders plain `superseded`.
   sup=$(front_value "$f" superseded-by) || sup=""
   if [[ -z "$sup" ]]; then
     printf '%s' "$cell"

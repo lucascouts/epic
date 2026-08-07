@@ -11,6 +11,46 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Added
+
+- **Git-aware story lifecycle** (story `006-git-aware-lifecycle`). Epic can now
+  tell whether a finished story's work ever reached the main branch, and can
+  retire a story in favour of its replacement as a first-class operation.
+  - **`scripts/story-git-status.sh`** — a new read-only detector. It emits JSON
+    (`{story, main_branch, integrated, evidence, checked_at}`) from two kinds of
+    git evidence: a merged `feat/NNN-*` branch (`branch-merged`), and a commit
+    subject reachable from the main branch carrying the story's `(NNN)` token or
+    its `NNN-slug` (`message-ref`). A bare number never counts as evidence.
+    Everything is **evaluated live and stored nowhere** — no commit SHA, branch
+    name or merge-base is ever written into an artifact, so the answer can never
+    go stale. A project that is not a git repo, or has no main branch, degrades
+    silently: no annotation, no warning, no error.
+  - **`references/list-mode.md`** and **`references/validate-mode.md`** — the
+    signal is **surfaced, never enforced**. LIST annotates the status cell of
+    each `done` / `validated` story (skipped above 50 stories unless the command
+    is `stories full`, since each annotation costs one git evaluation), and a
+    passing validate appends an integration warning before anything acts on the
+    verdict. Neither changes a verdict, a status write or an exit code, and
+    neither gates the archive.
+  - **`/epic:epic stories supersede NNN --by MMM`** — a new first-class
+    operation (**`references/supersede-mode.md`**, routed from
+    **`skills/epic/SKILL.md`**, listed in **`README.md`**). It prepends a
+    standardized ⛔ banner to `NNN` carrying the date, the replacement story, a
+    one-line rationale and one remap row per open sub-task; writes
+    `status: superseded` plus the machine-readable companion
+    `superseded-by: MMM` into every `NNN` artifact; closes each open sub-task as
+    `[~] (superseded-by: MMM)`; regenerates the index; and offers the archive on
+    the spot. `MMM` must already exist, so a typo in `--by` can never mint a
+    story. A re-run over a completed supersede refuses; an interrupted one is
+    offered completion of only its remaining steps, so the banner is written at
+    most once.
+  - **`references/tasks.md`** — commit guidance gains the story anchor the
+    detection reads: `type(NNN): subject` for commits, `feat/NNN-slug` for
+    branches. A recommendation, not an enforcement — nothing gates on the shape.
+  - **`scripts/story-git-status.sh` JSON escaping** — the emitter escapes the
+    full C0/C1 control range as `\uXXXX`, so a control character in a commit
+    subject can no longer make the emitted document unparseable by `jq`.
+
 ## [0.3.1] — 2026-05-17
 
 Patch release. Fixes plugin metadata so the version is shown in the Claude Code
