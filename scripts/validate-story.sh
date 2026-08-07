@@ -163,10 +163,86 @@ if [[ "$HAS_TASKS" == true ]]; then
   deferred_re='(^|[^[:alnum:]_-])deferred:'
   terminal_re='(^|[^[:alnum:]_-])(waived|n-a|superseded-by):'
   tilde_forms="'deferred: <reason>', 'waived: <reason>', 'n-a: <reason>', 'superseded-by: NNN'"
+
+  # --- Group-header consistency, gathered in the same pass ---
+  # A group header is a CLAIM about its own sub-tasks, so it can be wrong in two
+  # ways and both are the same error (see the verdict right after this loop).
+  # Ownership is by NUMBER PREFIX, never by indentation or file order: group 1
+  # owns 1.1 and 1.2, and does NOT own 10.1. These are sparse indexed arrays
+  # keyed by the group number itself — no associative array, per the counter
+  # note above. The key is the arithmetic value (`10#` forces base 10, so a
+  # stray `08` is neither octal nor a second group 8); the MESSAGE quotes the
+  # spelling instead, so grepping the file for the number it names finds the
+  # line it names.
+  GRP_LINES=()  # [n] = header line numbers, space-joined — one token per header
+  GRP_BOX=()    # [n] = FIRST header's box char
+  GRP_LABEL=()  # [n] = FIRST header's number as spelled in the file, e.g. `08`
+  GRP_SUBS=()   # [n] = how many sub-tasks group n owns
+  GRP_OPEN=()   # [n] = how many of those are `[ ]`
+  GRP_BAD=()    # [n] = how many are an unqualified [~], i.e. of unreadable state
+  # ONE regex for both shapes, because they differ by one optional group and the
+  # number that keys them is the same capture: `N - Title` is the header, and
+  # `N.M - Title` is a sub-task of that same N. Splitting it in two duplicated
+  # the digit guard and the `10#` below, and a guard kept in two places is a
+  # guard that eventually gets applied in one. (`1.2.3` matches neither, which
+  # is exactly what it did before: three-level numbering is out of scope here.)
+  task_num_re='^[[:space:]]*- \[([ x~])\][[:space:]]+([0-9]+)(\.[0-9]+)?[[:space:]]+-[[:space:]]'
+  # A digit run longer than this is not a task number. Past 2^63 it wraps to a
+  # NEGATIVE array subscript, which bash treats as fatal — under set -euo
+  # pipefail the script died before reaching the emitter and printed NO JSON AT
+  # ALL, to consumers that all parse that JSON. Guard the digits before they
+  # ever become a subscript; `10#` still handles everything that gets through.
+  GRP_MAX_DIGITS=9
+
+  # Quality Gates share the checkbox grammar by design (references/tasks.md), so
+  # `- [ ] 3 - Coverage >= 80%` is a legal gate AND is shaped exactly like a
+  # group header. Reading the whole document let such a line overwrite a real
+  # header's state: it silenced true violations and invented false ones.
+  #
+  # The exclusion is deliberately NOT section arithmetic. Scoping the gathering
+  # to `## Task List` and ending it at the next heading meant deciding where a
+  # markdown section ENDS, which is genuinely hard and fails silently in every
+  # direction: a decorated or differently-cased heading fell back to the whole
+  # document, a `###` Quality Gates never terminated anything, and a column-0
+  # `#` inside a fenced block truncated the rest of the file — hiding the exact
+  # violation this rule exists to catch. So group state is gathered EVERYWHERE
+  # except two places, each decided by ONE line in isolation:
+  #
+  #   1. from the first `Quality Gates` HEADING onward, to end of file. One way,
+  #      no re-entry, no end to locate. Level-agnostic and case-insensitive so
+  #      it agrees with the validator's own `grep -qi 'Quality Gates'` presence
+  #      check below instead of disagreeing with it.
+  #   2. inside a fenced code block. An illustrative task list in a fence is
+  #      documentation, not a claim — and a `#` in a fence is not a heading.
+  #
+  # Nothing depends on how `## Task List` is spelled, because that dependence
+  # WAS the defect. NOTE the census above is deliberately NOT excluded from
+  # either: it counts every box in the document, exactly as it always has.
+  # Matched against the LOWERCASED line, so the case-insensitivity is exact
+  # rather than a hand-written [Qq] approximation — the presence check below is
+  # `grep -qi`, and the two must not disagree about where the gates section is.
+  gates_re='^#{1,6}.*quality gates'
+  # Column-0 fence, 3+ chars, either flavour. An unclosed fence therefore runs
+  # to end of file, which is what CommonMark says it means, not an oversight.
+  fence_re='^(```|~~~)'
+  in_gates=false
+  in_fence=false
+
   while IFS= read -r line || [[ -n "$line" ]]; do
     LINE_NO=$((LINE_NO + 1))
+    # The two exclusions have to see EVERY line, so they precede the box filter:
+    # a fence and a heading are not checkboxes. A fence line is itself never
+    # content, and a `## Quality Gates` INSIDE a fence is documentation — so the
+    # fence is tested first and wins.
+    if [[ "$line" =~ $fence_re ]]; then
+      if [[ "$in_fence" == true ]]; then in_fence=false; else in_fence=true; fi
+    elif [[ "$in_fence" == false && "$in_gates" == false && "${line,,}" =~ $gates_re ]]; then
+      in_gates=true
+    fi
     [[ "$line" =~ $box_re ]] || continue
-    case "${BASH_REMATCH[1]}" in
+    box_char="${BASH_REMATCH[1]}"
+    box_unknown=false   # an unqualified [~]: a box whose state cannot be read
+    case "$box_char" in
       ' ') BOX_OPEN=$((BOX_OPEN + 1)) ;;
       'x') BOX_CLOSED=$((BOX_CLOSED + 1)) ;;
       '~')
@@ -174,11 +250,114 @@ if [[ "$HAS_TASKS" == true ]]; then
           BOX_CLOSED=$((BOX_CLOSED + 1))
         else
           BOX_UNQUALIFIED=$((BOX_UNQUALIFIED + 1))
+          box_unknown=true
           add_error "tasks.md line $LINE_NO: [~] checkbox has no qualifier — a box closed without doing the work must say why on the same line, one of: $tilde_forms"
         fi
         ;;
     esac
+    # Everything from here is group state, and the two exclusions apply to it
+    # alone — the census above has already counted this box.
+    [[ "$in_gates" == false && "$in_fence" == false ]] || continue
+    if [[ "$line" =~ $task_num_re ]] && (( ${#BASH_REMATCH[2]} <= GRP_MAX_DIGITS )); then
+      grp_n=$((10#${BASH_REMATCH[2]}))       # the key: `08` and `8` are one group
+      grp_spelling="${BASH_REMATCH[2]}"      # what the author actually wrote
+      if [[ -n "${BASH_REMATCH[3]:-}" ]]; then
+        # `N.M` — a sub-task, owned by the number BEFORE the dot, which is why
+        # group 1 owns 1.1 and never owns 10.1.
+        GRP_SUBS[grp_n]=$(( ${GRP_SUBS[grp_n]:-0} + 1 ))
+        # Readability first: a box the census has just rejected cannot be
+        # classified open or closed at all, and it makes its group's verdict not
+        # computable. Only then does `[ ]` mean open — and nothing else does,
+        # since references/tasks.md makes it the only state that counts as
+        # pending.
+        if [[ "$box_unknown" == true ]]; then
+          GRP_BAD[grp_n]=$(( ${GRP_BAD[grp_n]:-0} + 1 ))
+        elif [[ "$box_char" == ' ' ]]; then
+          GRP_OPEN[grp_n]=$(( ${GRP_OPEN[grp_n]:-0} + 1 ))
+        fi
+      else
+        # `N` — the group's own header. The FIRST one wins the box, the spelling
+        # and the reported line, so a later one can no longer overwrite a
+        # violation into silence. Every header still contributes its line
+        # number: more than one token IS the duplicate, and the tokens are the
+        # lines the author has to go and look at.
+        if [[ -z "${GRP_LINES[grp_n]:-}" ]]; then
+          GRP_BOX[grp_n]="$box_char"
+          GRP_LABEL[grp_n]="$grp_spelling"
+          GRP_LINES[grp_n]="$LINE_NO"
+        else
+          GRP_LINES[grp_n]+=" $LINE_NO"
+        fi
+      fi
+    fi
   done < "$TASKS_FILE" 2>/dev/null || true
+
+  # The verdict needs every child of a group, so it can only be reached once the
+  # loop has ended. The rule is an IDENTITY and is therefore enforced in BOTH
+  # directions — half of an identity is not the identity.
+  #   - a `[ ]` header with no open sub-task claims work still owed that none of
+  #     its own sub-tasks still owes;
+  #   - a `[x]` header over ANY open sub-task claims work done that is still
+  #     owed (the shape group 8 of story 006 shipped).
+  # Two states are named, and there are THREE: a `[~]` header is closed without
+  # doing the work, which the grammar allows, and NEITHER direction may touch
+  # it — hence a `case` with no `~` branch rather than an if/else over `[x]`.
+  # Two shapes make the verdict NOT COMPUTABLE and are skipped rather than
+  # guessed, because not-computable must never dress up as a finding
+  # (references/validate-mode.md): a duplicated group number, and a child whose
+  # own box the census has already rejected.
+  # GRP_BOX and GRP_LABEL are written in the same branch that first writes
+  # GRP_LINES, so every key iterated here carries all three. The ${#} guard
+  # keeps the expansion legal under set -u, matching the STATUS_VALUES guard
+  # below.
+  if [[ ${#GRP_LINES[@]} -gt 0 ]]; then
+    for grp_n in "${!GRP_LINES[@]}"; do
+      grp_label=${GRP_LABEL[grp_n]}
+      grp_lines=${GRP_LINES[grp_n]}
+      grp_first=${grp_lines%% *}
+      # One number, one group. Two headers claiming it is an identity violation
+      # in its own right, and it is the mechanism by which a real violation used
+      # to be overwritten into silence — so it is reported, and the consistency
+      # verdict for that number is not attempted.
+      if [[ "$grp_lines" == *' '* ]]; then
+        add_error "tasks.md line $grp_first: group $grp_label has more than one header (lines ${grp_lines// /, }) — a group number names one group, and its state cannot be read while two headers claim it"
+        continue
+      fi
+      # Read both tallies once: a group the loop never saw a sub-task for has
+      # no entry at all, and nothing to be consistent with either.
+      grp_subs=${GRP_SUBS[grp_n]:-0}
+      grp_open=${GRP_OPEN[grp_n]:-0}
+      (( grp_subs > 0 )) || continue
+      # A child whose box is invalid has no readable state, so neither does its
+      # group. An error here would accuse a header that may well be right, and
+      # the accusation would evaporate the moment the author fixed the real
+      # error the honest way, by writing `- [ ] N.M`.
+      (( ${GRP_BAD[grp_n]:-0} == 0 )) || continue
+      case "${GRP_BOX[grp_n]}" in
+        ' ')
+          if (( grp_open == 0 )); then
+            # State the condition that was TESTED. The clause this replaces
+            # inferred the work was "already done", which is exactly backwards
+            # for a deferred child: `[~] deferred:` is nothing pending AND the
+            # work not done. The predicate was right; the justification was not.
+            add_error "tasks.md line $grp_first: group $grp_label is open ([ ]) but no sub-task is still open ([ ]) — a group header must not claim work that none of its sub-tasks still owes; close it with [x], or with [~] and a qualifier if the work was not done"
+          fi
+          ;;
+        'x')
+          if (( grp_open > 0 )); then
+            # The count is 1 far more often than not, so the subject and its
+            # verb are built together rather than hard-coded plural.
+            if (( grp_open == 1 )); then
+              grp_subject="1 of its sub-tasks is"
+            else
+              grp_subject="$grp_open of its sub-tasks are"
+            fi
+            add_error "tasks.md line $grp_first: group $grp_label is closed ([x]) but $grp_subject still open ([ ]) — a group header must not claim work that is still owed"
+          fi
+          ;;
+      esac
+    done
+  fi
 
   # Count all tasks (parent + sub-tasks) = every box whatever its state;
   # needed by checks inside and outside the HAS_STORY branch below — define

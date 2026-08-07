@@ -98,6 +98,15 @@ created: 2026-08-02
 EOF
 }
 
+# Byte-stability is a contract about this fixture's OUTPUT, not a freeze on its
+# input. Story 006 group 10 made a group header that contradicts its own
+# sub-tasks a validation error, and this fixture carried that exact shape:
+# `- [x] 1 - Group` over an open `1.2`. The header is now `- [ ]`, which is the
+# true statement — the alternative, closing `1.2`, would fabricate completion to
+# satisfy the checker, which is the inversion of what the rule is for. Both
+# R5.1 goldens below were verified BYTE-IDENTICAL across the change: neither
+# validate-story.sh nor cross-reference.sh emits a box-state count, so the
+# rendered output never depended on which of the three boxes was open.
 write_legacy_fixture() { # writes $WORK/legacy/story — MUST stay byte-stable
   mkdir -p "$WORK/legacy/story"
   cat > "$WORK/legacy/story/story.md" <<'EOF'
@@ -127,7 +136,7 @@ created: 2026-01-10
 ---
 
 ## Task List
-- [x] 1 - Group
+- [ ] 1 - Group
   - _Complexity: Simple | Tests: none | Risks: none | Dependencies: None_
   - [x] 1.1 - implement first
     - Requirements: R1.1

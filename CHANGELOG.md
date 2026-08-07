@@ -71,15 +71,42 @@ gracefully (see README "Prerequisites").
     `superseded-by: MMM` into every `NNN` artifact; closes each open sub-task as
     `[~] (superseded-by: MMM)`; regenerates the index; and offers the archive on
     the spot. `MMM` must already exist, so a typo in `--by` can never mint a
-    story. A re-run over a completed supersede refuses; an interrupted one is
-    offered completion of only its remaining steps, so the banner is written at
-    most once.
+    story. A story that already carries a banner gets one of three answers, and
+    the banner is written at most once whichever it is: a re-run over a
+    **completed** supersede refuses, an **interrupted** one is offered
+    completion of only its remaining steps, and a story whose frontmatter was
+    written while its scope was still open — a shape this command cannot
+    produce — refuses and says so rather than being offered a completion
+    supersede could not honestly perform.
   - **`references/tasks.md`** — commit guidance gains the story anchor the
     detection reads: `type(NNN): subject` for commits, `feat/NNN-slug` for
     branches. A recommendation, not an enforcement — nothing gates on the shape.
   - **`scripts/story-git-status.sh` JSON escaping** — the emitter escapes the
     full C0/C1 control range as `\uXXXX`, so a control character in a commit
     subject can no longer make the emitted document unparseable by `jq`.
+- **`scripts/validate-story.sh` — a group header can no longer lie about its own
+  sub-tasks.** A task group's checkbox is a claim about the sub-tasks under it,
+  and nothing checked it: a group left `- [ ]` over sub-tasks that are all
+  closed, or marked `- [x]` over a sub-task still open, validated clean. Both
+  are now **errors**, because the rule is an identity and half an identity is
+  not one. `[~]` is untouched — a group closed without doing the work is a
+  legitimate third state and neither direction applies to it — and a group with
+  no sub-tasks has nothing to be consistent with. Sub-tasks belong to a group by
+  their number, so group `1` owns `1.1` and never `10.1`, and a **repeated**
+  group number is its own error rather than one header quietly replacing the
+  other. Two parts of a `tasks.md` are excluded from the check, because a group
+  header is not the only thing shaped like one: **Quality Gates** (which share
+  the checkbox grammar by design, so `- [ ] 3 - Coverage >= 80%` is a legal gate
+  and a plausible header at once) and **fenced code blocks** (where a task list
+  is an illustration, not a claim). Neither exclusion depends on how a heading
+  is spelled or on locating where a section ends. The box counts everything else
+  depends on are unaffected — they still cover the whole file. Where a group's
+  state cannot be read at all — an unqualified
+  `[~]` child, or two headers claiming one number — the check says so instead
+  of guessing. The practical effect is on the archive gate: a group header left
+  open over finished work reads as pending to `archive-story.sh`,
+  `monitor-stale.sh` and the precompact hook alike, and the archive is the one
+  that refuses on it.
 
 ## [0.3.1] — 2026-05-17
 
