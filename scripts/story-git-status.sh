@@ -127,6 +127,36 @@ local_branch_exists() {
   [[ "$rc" -eq 0 ]]
 }
 
+# strip_remote_prefix <short-ref-name>: drop a leading "<remote>/" segment when
+# that segment names a real remote of this repository. Used ONLY to decide
+# whether two refs denote the same branch (R1.8) — a branch genuinely named
+# "origin/foo" in a repository that has no "origin" remote keeps its full name,
+# which is why the remote list is read from git and never hardcoded.
+# NB: ${arr+"${arr[@]}"} — under `set -u` an empty array must not be expanded
+# bare. The guard yields nothing when the array is empty and quoted elements
+# otherwise.
+strip_remote_prefix() {
+  local name="$1" remote
+  for remote in ${REMOTES+"${REMOTES[@]}"}; do
+    if [[ "$name" == "$remote/"* ]]; then
+      printf '%s' "${name#"$remote"/}"
+      return 0
+    fi
+  done
+  printf '%s' "$name"
+}
+
+# branch_already_seen <key>: succeeds when <key> was already recorded as
+# branch-merged evidence in this run. Linear scan — the list is one entry per
+# matching branch, never a size where a hash would pay for itself.
+branch_already_seen() {
+  local key="$1" seen
+  for seen in ${SEEN_BRANCHES+"${SEEN_BRANCHES[@]}"}; do
+    [[ "$seen" == "$key" ]] && return 0
+  done
+  return 1
+}
+
 # --- Input ---
 STORY_ARG="${1:-}"
 if [[ -z "$STORY_ARG" ]]; then
@@ -244,6 +274,24 @@ if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
   # */NNN-<slug>* whose tip is already reachable from main.
   BRANCH_FEAT_RE="^feat/0*${STORY_NUM}-"
   BRANCH_SLUG_RE="/0*${STORY_NUM}-${SLUG_RE}"
+
+  # Evidence uniqueness (R1.8): one merged branch is one piece of evidence,
+  # however many refs point at it. The duplicate is NOT one rule firing twice —
+  # feat/NNN-slug matches the anchored BRANCH_FEAT_RE while
+  # origin/feat/NNN-slug matches only BRANCH_SLUG_RE, so the pair arrives
+  # through different branches of the || below and no guard inside either one
+  # can see it. Dedupe over the accumulated names instead, keyed on the name
+  # with any real remote prefix removed.
+  REMOTES=()
+  rc=0
+  REMOTES_RAW=$(git remote 2>/dev/null) || rc=$?
+  if [[ "$rc" -eq 0 && -n "$REMOTES_RAW" ]]; then
+    while IFS= read -r REMOTE_NAME; do
+      [[ -n "$REMOTE_NAME" ]] && REMOTES+=("$REMOTE_NAME")
+    done <<< "$REMOTES_RAW"
+  fi
+  SEEN_BRANCHES=()
+
   rc=0
   MERGED_BRANCHES=$(git branch -a --merged "$MAIN_REF" --format='%(refname:short)' 2>/dev/null) || rc=$?
   if [[ "$rc" -eq 0 && -n "$MERGED_BRANCHES" ]]; then
@@ -252,7 +300,18 @@ if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
     while IFS= read -r BRANCH_NAME; do
       if [[ "$BRANCH_NAME" =~ $BRANCH_FEAT_RE ]] ||
          [[ -n "$STORY_SLUG" && "$BRANCH_NAME" =~ $BRANCH_SLUG_RE ]]; then
-        add_evidence "branch-merged" "$BRANCH_NAME"
+        BRANCH_KEY=$(strip_remote_prefix "$BRANCH_NAME")
+        if ! branch_already_seen "$BRANCH_KEY"; then
+          SEEN_BRANCHES+=("$BRANCH_KEY")
+          # Report the truth about which ref exists: the bare name only when a
+          # local branch of that name is really there, otherwise the ref as git
+          # named it. Deduping must not invent a local branch that never existed.
+          if local_branch_exists "$BRANCH_KEY"; then
+            add_evidence "branch-merged" "$BRANCH_KEY"
+          else
+            add_evidence "branch-merged" "$BRANCH_NAME"
+          fi
+        fi
       fi
     done <<< "$MERGED_BRANCHES"
   fi

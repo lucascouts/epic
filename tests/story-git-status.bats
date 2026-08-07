@@ -247,3 +247,69 @@ run_status() {
   decoded=$(echo "$output" | jq -er '.evidence[] | select(.kind=="message-ref") | .detail')
   [ "$decoded" = "$subject" ]
 }
+
+# =====================================================================
+# Task 5.1 — evidence uniqueness (R1.8)
+# =====================================================================
+# The duplicate these cases pin is not one rule firing twice:
+# feat/006-widget-flow matches the anchored ^feat/0*006- pattern while
+# origin/feat/006-widget-flow matches only the /0*006-<slug> pattern, so the
+# pair reaches the loop through two different rules.
+
+# branch_merged_count: how many branch-merged entries the last run emitted.
+branch_merged_count() {
+  echo "$output" | jq '[.evidence[] | select(.kind == "branch-merged")] | length'
+}
+
+@test "5.1 one branch under both a local and a remote-tracking ref is one entry (R1.8)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" remote add origin https://example.invalid/widget.git
+  git -C "$WORK/r" branch feat/006-widget-flow
+  git -C "$WORK/r" update-ref refs/remotes/origin/feat/006-widget-flow HEAD
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.integrated == true'
+  [ "$(branch_merged_count)" -eq 1 ]
+  # The survivor names the local branch, not the remote-tracking ref.
+  echo "$output" | jq -e '[.evidence[] | select(.kind == "branch-merged")][0].detail == "feat/006-widget-flow"'
+}
+
+@test "5.1 two genuinely distinct merged branches still yield two entries (R1.8)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" branch feat/006-widget-flow
+  git -C "$WORK/r" branch feat/006-widget-flow-followup
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  [ "$(branch_merged_count)" -eq 2 ]
+}
+
+@test "5.1 the remote list comes from git, not a hardcoded origin (R1.8)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" remote add upstream https://example.invalid/widget.git
+  git -C "$WORK/r" branch feat/006-widget-flow
+  git -C "$WORK/r" update-ref refs/remotes/upstream/feat/006-widget-flow HEAD
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  [ "$(branch_merged_count)" -eq 1 ]
+}
+
+@test "5.1 a local branch literally named origin/... is not stripped without that remote (R1.8)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" branch feat/006-widget-flow
+  git -C "$WORK/r" branch origin/feat/006-widget-flow   # no remote named origin
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  [ "$(branch_merged_count)" -eq 2 ]
+}
+
+# When the branch exists ONLY as a remote-tracking ref, deduping must not
+# invent a local branch that was never there — the detail keeps the ref name.
+@test "5.1 a remote-only merged branch keeps its ref name in the detail (R1.8)" {
+  make_repo "$WORK/r" main
+  git -C "$WORK/r" remote add origin https://example.invalid/widget.git
+  git -C "$WORK/r" update-ref refs/remotes/origin/feat/006-widget-flow HEAD
+  run_status "$WORK/r"
+  [ "$status" -eq 0 ]
+  [ "$(branch_merged_count)" -eq 1 ]
+  echo "$output" | jq -e '[.evidence[] | select(.kind == "branch-merged")][0].detail == "origin/feat/006-widget-flow"'
+}
