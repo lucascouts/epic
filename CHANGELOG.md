@@ -84,6 +84,21 @@ gracefully (see README "Prerequisites").
   - **`scripts/story-git-status.sh` JSON escaping** — the emitter escapes the
     full C0/C1 control range as `\uXXXX`, so a control character in a commit
     subject can no longer make the emitted document unparseable by `jq`.
+- **Supersede and the integration surfacing gained entry points**
+  (**`scripts/supersede-story.sh`**, **`scripts/render-integration.sh`**). Both
+  operations were specified as orchestrator prose, which meant no test could
+  drive them and every claim about their behaviour rested on reading. The steps
+  that **write to artifacts** — the refusal matrix, the banner and its
+  idempotence, the remap rows, the sub-task closures, the `status:` /
+  `superseded-by:` writes, and the interrupted-run classification — now live in
+  a script with the same conventions as `archive-story.sh`: one JSON object on
+  stdout, diagnostics on stderr, `0` superseded, `1` refused, `2` invalid input.
+  The steps that are **decisions** stay a conversation: the rationale, the remap
+  targets and the archive offer are inputs, not behaviour. The LIST annotation
+  and the validate warning are a pure function of the detector's JSON, so they
+  are a script too — one that exits `0` on every path, because a renderer that
+  can fail lets a caller turn a warning into a verdict. Nothing a user does
+  changes; what changes is that the behaviour can now be tested, and it is.
 - **`scripts/validate-story.sh` — a group header can no longer lie about its own
   sub-tasks.** A task group's checkbox is a claim about the sub-tasks under it,
   and nothing checked it: a group left `- [ ]` over sub-tasks that are all
