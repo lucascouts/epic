@@ -81,7 +81,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 5. Present combined results to the user
 6. If gaps found, offer to create new tasks to address them
 7. Apply the status transition for this verdict — see Status Transition (`validated`)
-8. On a passing verdict, surface the integration warning when it applies, offer the archive and refresh the index — see Ordering at the pass point, then Integration Warning, Archive Offer and Index Refresh
+8. On a passing verdict, surface the integration warning when it applies — `story-git-status.sh` piped into `bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --validate <NNN>`, which writes the sentence or nothing — then offer the archive and refresh the index. See Ordering at the pass point, then Integration Warning, Archive Offer and Index Refresh
 
 ## Status Transition (`validated`)
 
@@ -120,29 +120,34 @@ This section fixes the order and the reason for it — each step's behavior is d
 
 Step 1 of the pass point. A passing verdict says the work is finished; whether it ever reached the main branch is a fact the checkboxes cannot see — the corpus's worst case was a project with every story checkbox-complete and zero merges. The detection is the same live evaluation LIST annotates from, defined in [list-mode.md](list-mode.md#integration-annotation): computed live, stored nowhere, blocking nothing.
 
-On a passing verdict, run the detection for the validated story and read the `integrated` field of its JSON output (`{story, main_branch, integrated, evidence, checked_at}`):
+**The warning is rendered by the same script LIST annotates from** — [`scripts/render-integration.sh`](../scripts/render-integration.sh), asked for a different rendering of the same JSON — so the sentence the user reads is the sentence the test suite pins. On a passing verdict, pipe the detector into its `--validate` mode and append whatever comes back to the presented results:
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir>
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir> \
+  | bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --validate <NNN>
 ```
 
-| `integrated` | Then |
+`<NNN>` is the story number **as the reader knows it** and is interpolated verbatim — pass `006`, not `6`. What the script writes, per the `integrated` field of the detector's JSON (`{story, main_branch, integrated, evidence, checked_at}`), **documents its three arms rather than prescribing a rendering to perform by hand**:
+
+| `integrated` | The script writes |
 |---|---|
-| `false` | Append the warning below to the presented results |
-| `true` | Nothing — the work is on the main branch |
-| `null` | Nothing at all — no main branch is resolvable, so the fact is unknowable (R1.4) |
+| `false` | the warning below, appended to the presented results |
+| `true` | nothing — the work is on the main branch |
+| `null` | nothing at all — no main branch is resolvable, so the fact is unknowable (R1.4) |
 
-Exit 2 — not a git repository, or story not found — also emits nothing at all: degrade silently, the same rule LIST applies (R1.4). "Not computable" must never dress up as a finding, and a failed detection must never delay, dirty or block the verdict it decorates.
+Exit 2 from the detector — not a git repository, or story not found — also emits nothing at all: nothing reaches the pipe and `--validate` degrades silently, the same rule LIST applies (R1.4). "Not computable" must never dress up as a finding, and a failed detection must never delay, dirty or block the verdict it decorates.
 
-The warning, with `<main>` filled from the JSON's `main_branch` and `NNN` with the story's number:
+The sentence, spelled once in the script and reproduced here verbatim, with `<main>` filled from the JSON's `main_branch` and `NNN` the number passed on the command line:
 
 ```
 story is done but no evidence of integration to <main> (no merged feat/NNN-* branch, no (NNN) commit)
 ```
 
-It names the two evidence kinds the detection looked for and found missing — a merged `feat/NNN-*` branch (`branch-merged`) and a commit subject reachable from main carrying the `(NNN)` token (`message-ref`). Either alone would have flipped `integrated` to `true`.
+`<main>` is read out of the report and never assumed: the detector resolves the default branch through four ordered candidates and it is regularly not named `main`, so a hard-coded name would print a branch the reader does not have. The sentence names the two evidence kinds the detection looked for and found missing — a merged `feat/NNN-*` branch (`branch-merged`) and a commit subject reachable from main carrying the `(NNN)` token (`message-ref`). Either alone would have flipped `integrated` to `true`.
 
-**A warning, never a verdict (R2.2).** Appending it changes nothing else: not the pass, not step 2's status write, not step 3's offer, not the validation's exit semantics. And it is emitted only where its first three words are true — on a rule-2 partial pass the story is not done, and "story is done" would be exactly the manufactured claim rule 2 exists to refuse.
+**A warning, never a verdict (R2.2).** Appending it changes nothing else: not the pass, not step 2's status write, not step 3's offer, not the validation's exit semantics. The script holds its half by construction: **every rendering path exits 0**, warning or no warning, so there is no exit status to read and nothing here to branch on — a caller that checked `$?` would turn the warning into the verdict R2.2 forbids. The one non-zero exit that is not the cost decision (`--should-annotate`, see [list-mode.md](list-mode.md#integration-annotation)) is exit 2, an unknown or missing mode: a caller error, unreachable from a well-formed call.
+
+**When to ask is this mode's half, and the script cannot check it.** The warning's first three words are a precondition — "story is done" is true only on a passing verdict with no `[ ]` left — and the renderer renders whatever JSON it is handed. Rule 2's partial pass must therefore not call it at all: there the sentence would manufacture the very claim rule 2 exists to refuse.
 
 **It never gates the archive (R2.3).** `archive-story.sh`'s preflight does not consult integration state — an un-integrated story archives exactly like an integrated one. Whether a warned story needs a merge, a cherry-pick or nothing at all is the user's decision; the warning informs that decision and blocks nothing.
 

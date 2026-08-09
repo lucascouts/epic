@@ -91,14 +91,45 @@ gracefully (see README "Prerequisites").
   that **write to artifacts** — the refusal matrix, the banner and its
   idempotence, the remap rows, the sub-task closures, the `status:` /
   `superseded-by:` writes, and the interrupted-run classification — now live in
-  a script with the same conventions as `archive-story.sh`: one JSON object on
-  stdout, diagnostics on stderr, `0` superseded, `1` refused, `2` invalid input.
-  The steps that are **decisions** stay a conversation: the rationale, the remap
-  targets and the archive offer are inputs, not behaviour. The LIST annotation
-  and the validate warning are a pure function of the detector's JSON, so they
-  are a script too — one that exits `0` on every path, because a renderer that
-  can fail lets a caller turn a warning into a verdict. Nothing a user does
-  changes; what changes is that the behaviour can now be tested, and it is.
+  a script with `archive-story.sh`'s exit conventions — `0` superseded, `1`
+  refused, `2` invalid input — and one JSON object on stdout on every path that
+  reaches a verdict. It is **silent on stderr** wherever it emits JSON, unlike
+  `archive-story.sh`: a diagnostic beside the object breaks any caller that
+  pipes stdout into `jq`, and the supersede *conversation* belongs to the
+  orchestrator, which reads `reason` out of the report and says it in the
+  session's own voice. The steps that are **decisions** stay a conversation: the
+  rationale, the remap targets and the archive offer are inputs, not behaviour.
+  The LIST annotation and the validate warning are a pure function of the
+  detector's JSON, so they are a script too — one that exits `0` on every path,
+  because a renderer that can fail lets a caller turn a warning into a verdict.
+- **Those entry points are now on the path the commands take.** They shipped
+  wired to nothing: `references/supersede-mode.md`, `references/list-mode.md`
+  and `references/validate-mode.md` still described the behaviour in prose, so
+  the copy the suite exercised was not the copy the command ran. All three now
+  **invoke** the scripts, and the prose tables they used to render from are
+  demoted to documentation of what the scripts emit. **One user-visible
+  behaviour changes with it, and it is a loss:** completing an interrupted
+  supersede used to be offered, because the orchestrator performed those steps
+  by hand; the script completes unconditionally on re-invocation instead, and
+  has no prompt anywhere. Re-running the command is now the acceptance. The
+  requirement still says the system SHALL *offer* — that gap is recorded, not
+  papered over, and is owed a fix rather than an amendment.
+- **`scripts/validate-story.sh` — a status can no longer lag its checkboxes in
+  silence.** The validator already warned when a story claimed `done` over an
+  open box; the converse was *prevented* by Run mode rather than *detected* by
+  anything, so when the prevention failed to fire nothing reported it — and a
+  story that has finished every task while still reading `in-progress` is never
+  offered the archive. A story whose census shows no open `[ ]` **and no
+  deferred `[~]`** while its status reads `draft` or `in-progress` now warns. A
+  **deferred** box deliberately blocks `done`, so a story resting over one is
+  correct and stays silent; `superseded` and `archived` are terminal and are
+  exempt for the same reason. Warning, never error.
+- **`skills/epic/SKILL.md` — the 10-entry history cap no longer applies to
+  artifacts that are not in git.** The rule relegates older entries to "see git
+  history", and relegation needs a destination. Where `.epic/` is gitignored —
+  the default this plugin ships — dropping the eleventh entry destroys it, so
+  the cap is lifted there and holds unchanged wherever the artifacts are
+  tracked.
 - **`scripts/validate-story.sh` — a group header can no longer lie about its own
   sub-tasks.** A task group's checkbox is a claim about the sub-tasks under it,
   and nothing checked it: a group left `- [ ]` over sub-tasks that are all

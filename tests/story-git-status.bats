@@ -617,8 +617,9 @@ EOF
 # without --short, so this predates 8.2), so a pruned origin/main leaves the
 # name knowable and the revision empty. Both queries then fail into their own
 # guards and the empty evidence list is emitted as a finding.
-# references/validate-mode.md:135 states the rule this breaks verbatim:
-# "Not computable must never dress up as a finding."
+# references/validate-mode.md:138 states the rule this breaks verbatim, in the
+# paragraph that opens `Exit 2 from the detector`:
+# "Not computable" must never dress up as a finding
 # This is 8.1's derived-value question asked of 8.2's own output — hostile half
 # first, then the converse that keeps honest negatives honest.
 

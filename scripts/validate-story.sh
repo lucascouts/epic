@@ -137,24 +137,34 @@ if [[ "$HAS_TASKS" == true ]]; then
   # A `[~]` MUST say why on the same line, with one of the four qualifiers —
   # that check (R3.2) is the whole reason this loop reads qualifiers at all.
   #
-  # DELIBERATELY NOT SPLIT into terminal vs deferred (sub-task 6.5). The
-  # distinction is real and is defined in references/tasks.md#completion, but
-  # nothing in THIS script consumes it: no check reads a deferred count, and
+  # BOX_CLOSED IS NOT SPLIT into terminal vs deferred, and that half of
+  # sub-task 6.5's decision still holds: `closed` below means "not open, and
+  # correctly qualified", because no check reads a closed-by-kind breakdown and
   # R5.1 forbids emitting one — a new count key would break every legacy golden,
-  # which design.md §3 records as a settled decision. A split no one reads is
-  # not a distinction, it is an untested claim: while it existed here, swapping
-  # the two branches left the entire suite green. So `closed` below means "not
-  # open, and correctly qualified", and the terminal/deferred split lives where
-  # it is actually rendered — hook-precompact.sh, which prints
-  # `closed/total (+D deferred)` and is pinned by hook-precompact-grammar.bats.
+  # which design.md §3 records as a settled decision. That constraint is on the
+  # JSON, not on this script's internals: BOX_DEFERRED below is never emitted.
   #
-  # BOX_OPEN is the counter with a real consumer: the ahead-of-checkboxes
-  # warning (R2.3) counts `[ ]`, and only `[ ]`.
+  # WHAT CHANGED, AND WHY THE COUNTER IS BACK (sub-task 12.3). 6.5 removed the
+  # deferred count on the ground that "nothing in THIS script consumes it", and
+  # proved the point by measurement: while it existed here, swapping the two
+  # branches left the entire suite green — a split no one reads is not a
+  # distinction, it is an untested claim. The status-behind-the-checkboxes
+  # warning below is that missing consumer. It cannot be written without the
+  # count, because rule 1 of references/run-mode.md makes `done` conditional on
+  # "no `[ ]` AND no deferred `[~]`" — a deferred box blocks `done` deliberately,
+  # so a story resting at `in-progress` with deferred work owed is CORRECT and
+  # must not be warned about. Fold deferred into closed and that story warns
+  # falsely; the hostile case in tests/validate-story-status.bats reddens on
+  # exactly that fold, which is what 6.5's green mutation could not do.
+  #
+  # BOX_OPEN counts `[ ]`, and only `[ ]`. It has two consumers: the
+  # ahead-of-checkboxes warning (R2.3) and, with BOX_DEFERRED, its converse.
   # Counters are plain integers incremented in the loop, never ${#assoc[@]} on
   # a possibly-empty associative array (that trips set -u on bash 5.3 — the
   # same reason REQ_KEYS exists in cross-reference.sh).
   BOX_OPEN=0         # [ ]
   BOX_CLOSED=0       # [x] plus every qualified [~], terminal or deferred alike
+  BOX_DEFERRED=0     # the deferred SUBSET of BOX_CLOSED — internal, never emitted
   BOX_UNQUALIFIED=0  # [~] with no recognized qualifier: a grammar error
   LINE_NO=0
   box_re='^[[:space:]]*- \[([ x~])\]'
@@ -248,6 +258,16 @@ if [[ "$HAS_TASKS" == true ]]; then
       '~')
         if [[ "$line" =~ $deferred_re || "$line" =~ $terminal_re ]]; then
           BOX_CLOSED=$((BOX_CLOSED + 1))
+          # `deferred:` WINS over a terminal qualifier on the same line, which is
+          # the same precedence references/supersede-mode.md gives it: a line
+          # carrying both stays owed. Tested as its own case — a `[~] (deferred:
+          # …) (superseded-by: NNN)` line is deferred, not terminal.
+          # Written as a plain `if`, not `[[ … ]] && …`: a trailing AND-list that
+          # fails hands its non-zero status up to the enclosing `case`, and this
+          # script runs under `set -e`.
+          if [[ "$line" =~ $deferred_re ]]; then
+            BOX_DEFERRED=$((BOX_DEFERRED + 1))
+          fi
         else
           BOX_UNQUALIFIED=$((BOX_UNQUALIFIED + 1))
           box_unknown=true
@@ -429,6 +449,11 @@ STATUS_ENUM_TEXT=${STATUS_ENUM//|/, }
 # The states that claim the work is finished — the ones a leftover `[ ]` box
 # contradicts.
 STATUS_COMPLETE='done|validated'
+# The states that claim the work is UNFINISHED — the ones an empty box census
+# contradicts. `superseded` and `archived` are deliberately in NEITHER set: both
+# are terminal, both legitimately sit over a fully-closed census, and neither is
+# a state rule 1 would overwrite with `done`.
+STATUS_BEHIND='draft|in-progress'
 STATUS_FILES=()   # basenames of the artifacts that actually carry the field
 STATUS_VALUES=()  # their values, parallel to STATUS_FILES
 
@@ -484,6 +509,44 @@ if [[ ${#STATUS_VALUES[@]} -gt 0 ]]; then
       if [[ "${STATUS_VALUES[$st_i]}" =~ ^($STATUS_COMPLETE)$ ]]; then
         add_warning "status is ahead of the checkboxes: ${STATUS_FILES[$st_i]} says '${STATUS_VALUES[$st_i]}' but $OPEN_BOXES task checkbox(es) are still open ([ ])"
         break  # one story, one lie — do not repeat it per artifact
+      fi
+    done
+  fi
+
+  # The converse: the work is finished and the status has not caught up. Rule 1
+  # of references/run-mode.md writes `done` when a marking leaves "no `[ ]` and
+  # no deferred `[~]`" — so a story satisfying that condition while still
+  # declaring `draft` or `in-progress` is a rule-1 write that never happened.
+  #
+  # WHY THIS EXISTS AT ALL (sub-task 12.3, finding F2). The condition above was
+  # PREVENTED by rule 1 rather than DETECTED by anything, and when the
+  # prevention silently failed to fire nothing reported it: story
+  # 006-git-aware-lifecycle sat at 64 boxes, all `[x]`, zero `[ ]`, zero
+  # deferred, with all three artifacts reading `in-progress` — through a whole
+  # validate that passed. The archive offer gated on "rule 1 wrote it in this
+  # run" never fires there either, so the story is not merely mislabelled: it
+  # falls out of the lifecycle.
+  #
+  # A WARNING, NOT AN ERROR, and the severity is measured rather than chosen.
+  # Swept across all seven stories in .epic/stories/ at the time it shipped, it
+  # fires on ZERO of them, so it is not paying for itself with a backlog of
+  # violations — but neither is it costing anything, and it is the only thing
+  # that can see the state it names. Warning matches its two siblings in this
+  # block (ahead-of-checkboxes, divergent-status), and a legitimate transient
+  # exists: a validate run between the last checkbox marking and rule 1's status
+  # write lands exactly here, and should say so rather than fail.
+  #
+  # THE DEFERRED ARM IS THE HOSTILE HALF, not a refinement. references/run-mode.md
+  # is explicit that a deferred box BLOCKS `done` — a story whose only remaining
+  # non-`[x]` boxes are `[~] (deferred: …)` stays `in-progress` on purpose, and
+  # its completeness surfaces as the computed condition `done-except-external`,
+  # which is never persisted. Warning there would tell the author to write a
+  # status the state machine forbids.
+  if [[ "$OPEN_BOXES" -eq 0 && "${BOX_DEFERRED:-0}" -eq 0 && "${TASK_COUNT:-0}" -gt 0 ]]; then
+    for st_i in "${!STATUS_VALUES[@]}"; do
+      if [[ "${STATUS_VALUES[$st_i]}" =~ ^($STATUS_BEHIND)$ ]]; then
+        add_warning "status is behind the checkboxes: ${STATUS_FILES[$st_i]} says '${STATUS_VALUES[$st_i]}' but no task checkbox is still open and none is deferred — run-mode rule 1 writes 'done' at that point"
+        break  # one story, one lag — do not repeat it per artifact
       fi
     done
   fi
