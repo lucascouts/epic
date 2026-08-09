@@ -13,6 +13,30 @@ gracefully (see README "Prerequisites").
 
 ### Fixed
 
+- **The interrupted-run completion is offered again, instead of just happening**
+  (`scripts/supersede-story.sh`, `references/supersede-mode.md`). Wiring
+  supersede behind a script had traded a prompt for an assumption: re-invoking
+  `supersede NNN --by MMM` over a run that died mid-write finished it
+  unconditionally, while the requirement says the system SHALL *offer* to
+  complete. An operator who re-ran the command might not know a prior run was
+  interrupted at all, so the second invocation carried no informed consent to
+  finish a half-applied write.
+  - The script now **classifies and stops**: a finishable interrupted state
+    returns exit 1 with `status: "recovery-offer"`, a `reason` naming exactly
+    what remains, and `banner_written: false`, `closed_subtasks: 0`,
+    `artifacts_flipped: []`. **Nothing is written** — the artifacts are
+    byte-identical across the offering run, which is the whole content of
+    "offer".
+  - **`--complete-interrupted`** authorizes the completion, and unlocks that one
+    arm only: on a fresh story it changes nothing, and it can never turn a
+    refusal into a completion or write a second banner.
+  - The `[y/n]` and its headless branch live with the caller, exactly as the
+    archive offer does. A headless session logs the offer and stops rather than
+    answering on the user's behalf.
+  - Exit 1 has always been documented as "refused (matrix) or **recovery
+    declined**". There was no declined path until now; declining is simply not
+    re-invoking with the flag, so that contract is accurate for the first time.
+
 - **A sub-task added by `stories refine` never reached the step that records its
   Red.** Phase 3 is where the Test Advisor authors a test per `Unit`/
   `Integration`/`E2E` sub-task, confirms it fails, and records that in
@@ -151,10 +175,11 @@ gracefully (see README "Prerequisites").
   demoted to documentation of what the scripts emit. **One user-visible
   behaviour changes with it, and it is a loss:** completing an interrupted
   supersede used to be offered, because the orchestrator performed those steps
-  by hand; the script completes unconditionally on re-invocation instead, and
-  has no prompt anywhere. Re-running the command is now the acceptance. The
-  requirement still says the system SHALL *offer* — that gap is recorded, not
-  papered over, and is owed a fix rather than an amendment.
+  by hand; the script completed unconditionally on re-invocation instead, and
+  had no prompt anywhere. **That loss is repaired below in this same release —
+  see "The interrupted-run completion is offered again" under Fixed.** The gap
+  was recorded rather than papered over, and it was owed a fix rather than an
+  amendment; it got one.
 - **`scripts/validate-story.sh` — a status can no longer lag its checkboxes in
   silence.** The validator already warned when a story claimed `done` over an
   open box; the converse was *prevented* by Run mode rather than *detected* by

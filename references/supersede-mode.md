@@ -12,7 +12,7 @@ Three steps: **ask**, **call**, **surface and offer**. The mechanical half — t
 2. **Call** — one invocation, which performs the whole mechanical sequence:
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/supersede-story.sh" <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=target>]...
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/supersede-story.sh" <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=target>]... [--complete-interrupted]
 ```
 
 3. **Surface, then offer** — report the verdict out of the JSON ([Output and exit codes](#output-and-exit-codes)), then, on exit 0 only, make [the archive offer](#the-archive-offer).
@@ -113,10 +113,20 @@ A run can die between banner and closure. On the next invocation the banner alon
 | Prior run | Found | Response |
 |---|---|---|
 | Complete | banner present, every artifact `status: superseded`, no open sub-task left | refuse — row 4 above |
-| Incomplete | banner present **and no `status: superseded` written anywhere yet** — whether the closures are untouched, partial or already complete; or every box closed and the `status:`/`superseded-by:` writes reached only some artifacts | complete **only** the remaining steps |
+| Incomplete | banner present **and no `status: superseded` written anywhere yet** — whether the closures are untouched, partial or already complete; or every box closed and the `status:`/`superseded-by:` writes reached only some artifacts | **offer** completion (exit 1, `recovery-offer`, nothing written); on `y`, re-invoke with `--complete-interrupted` to redo **only** the remaining steps |
 | Not from this command | banner present, **some or every** artifact `status: superseded`, **and at least one sub-task still open** | refuse: `story NNN carries a supersede banner in a state this command cannot produce (status written with scope still open) — repair the frontmatter by hand, then re-run` |
 
-**Re-running the same command is how an interrupted run is completed.** There is no separate mode and no second prompt: `supersede NNN --by MMM` again redoes only what is missing, in the same order (unclosed sub-tasks first, then the absent `status:` / `superseded-by:` writes, then the index), and returns exit 0 with `status: completed`, `banner_written: false`, `remap_rows: 0`. The re-invocation is the acceptance — the user asked for the same operation a second time, and an interrupted op is not a re-run but the same operation finishing.
+**Completion is OFFERED, and the offer is the orchestrator's — R3.5's second half, implemented rather than assumed.** Re-invoking `supersede NNN --by MMM` over an interrupted run does **not** finish it. The script classifies the state, finds it finishable, **writes nothing**, and returns exit 1 with `status: recovery-offer`, `banner_written: false`, `closed_subtasks: 0`, `artifacts_flipped: []`, and a `reason` naming what remains. Surface that reason and ask:
+
+> `Story NNN carries the supersede banner from an interrupted run — <what remains>. Complete the remaining steps? [y/n]`
+
+- **`y`** → re-invoke with `--complete-interrupted`. The script redoes only what is missing, in the same order (unclosed sub-tasks first, then the absent `status:` / `superseded-by:` writes, then the index), and returns exit 0 with `status: completed`, `banner_written: false`, `remap_rows: 0`.
+- **`n`** → nothing happens, which is already true: the offering run wrote nothing, so declining needs no undo. Report the story as left unfinished.
+- **Headless** → do not pause. Log the offer and stop, exactly as the archive offer does (R3.6). A session with nobody to ask must not answer on the user's behalf, and completion rewrites artifacts.
+
+**This is a `[y/n]`, not a second confirmation of the same intent.** The earlier revision of this section argued the opposite — "the re-invocation is the acceptance" — and that argument was written at group 12 to describe the script as built, not before it. What the requirement says is that an interrupted run SHALL be *offered* completion, and an offer that completes anyway is not an offer. The distinction is real rather than ceremonial: the operator who re-runs the command may not know a prior run was interrupted at all, so the second invocation carries no informed consent to finish a half-applied write.
+
+**`--complete-interrupted` unlocks exactly one arm and nothing else.** On a fresh story it changes nothing. On the *Complete* and *Not from this command* rows it changes nothing — authorization is not a matrix override, and it can never write a second banner.
 
 The three rows are **disjoint AND exhaustive over every banner-bearing state**, and both halves are load-bearing. Disjoint: *Complete* needs every artifact flipped and no box open, *Incomplete* needs either no status anywhere or no box open, *Not from this command* needs a status write **and** an open box — no story matches two. Exhaustive: enumerate `status ∈ {none, some, all} × open-box ∈ {yes, no}` and every cell lands in exactly one row.
 

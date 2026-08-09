@@ -65,7 +65,7 @@
 
 set -euo pipefail
 
-USAGE='Usage: supersede-story.sh <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=target>]...'
+USAGE='Usage: supersede-story.sh <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=target>]... [--complete-interrupted]'
 
 print_help() {
   cat <<'HELP'
@@ -90,6 +90,13 @@ Flags:
   --remap <N.N=t>   Where sub-task N.N's scope went. Repeatable. The default is
                     `MMM / re-scoped`; `--remap 1.2=dropped: reason` records
                     scope that dies with the story.
+  --complete-interrupted
+                    Authorize completion of an INTERRUPTED prior run. Without
+                    it, such a run is reported as `recovery-offer` and NOTHING
+                    is written, so the caller can offer the completion to the
+                    user (R3.5) or decline it by not re-invoking. It has no
+                    effect on a fresh run or on any refusal — the offer is the
+                    one thing it unlocks, and it can never create a banner.
   --help, -h        Show this help
 
 Output: JSON on stdout — {story, path, by, status, reason, banner_written,
@@ -97,7 +104,7 @@ remap_rows, closed_subtasks, artifacts_flipped[], index, index_error}.
 
 Exit codes:
   0  Superseded (fresh run), or completed (an interrupted run finished)
-  1  Refused — nothing was written
+  1  Refused, or an unauthorized recovery offered — nothing was written
   2  Invalid input (unknown flag, missing --by, unresolvable story)
 HELP
 }
@@ -246,6 +253,24 @@ finish() {
   STATUS="$1"
   emit_report
   exit 0
+}
+
+# offer_recovery: an interrupted prior run was found and completing it was NOT
+# authorized. R3.5 says the system SHALL *offer* to complete — an offer is a
+# question, so the script's half is to report what remains and write nothing;
+# the `[y/n]` and its headless branch belong to the caller, exactly as the
+# archive offer does (R3.6). Raised at the ONE point where the recovery arms
+# have already refused everything they refuse and no write has yet happened
+# this run, so the report's banner_written/closed_subtasks/artifacts_flipped are
+# all empty by construction rather than by promise. Exit 1 is deliberate and is
+# what finally makes design.md's Interface sentence true: it defines exit 1 as
+# "refused (matrix) or recovery declined", and until this path existed there
+# was no declined arm anywhere in the script.
+offer_recovery() {
+  STATUS="recovery-offer"
+  REASON="$1"
+  emit_report
+  exit 1
 }
 
 # --- Artifact readers -------------------------------------------------------
@@ -835,6 +860,10 @@ TARGET=""
 BY_RAW=""
 RATIONALE=""
 RATIONALE_GIVEN=false
+# Recovery is OFFERED, not taken (R3.5). Default false: the safe default is the
+# one that writes nothing, because the caller can always re-invoke, and a run
+# that completed without being asked cannot be un-completed.
+COMPLETE_AUTHORIZED=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -857,6 +886,10 @@ while [[ $# -gt 0 ]]; do
       fi
       RATIONALE="$1"
       RATIONALE_GIVEN=true
+      shift
+      ;;
+    --complete-interrupted)
+      COMPLETE_AUTHORIZED=true
       shift
       ;;
     --remap)
@@ -1098,6 +1131,24 @@ if banner_present "$BANNER_FILE"; then
   # Falling through means the prior run was INCOMPLETE. Recovery never touches
   # the banner — it is written at most once, ever — and redoes only what is
   # missing, in step 3's order.
+  #
+  # R3.5 makes that completion an OFFER rather than an assumption, and this is
+  # where the offer is raised. Everything above has already refused every state
+  # that cannot be honestly finished, so reaching here means "finishable" — not
+  # "authorized". Completing rewrites artifacts; only the caller knows whether a
+  # human asked for it. An unauthorized run therefore reports what remains and
+  # writes nothing, which is also why this sits BEFORE step 3 rather than inside
+  # it: after the closures there would be something to undo.
+  if [[ "$COMPLETE_AUTHORIZED" != true ]]; then
+    case "$STATUS_STATE:$OPEN_STATE" in
+      none:yes) PENDING="its sub-tasks are still open and no artifact carries the status pair" ;;
+      none:no) PENDING="every sub-task is closed but no artifact carries the status pair" ;;
+      some:no) PENDING="every sub-task is closed and only some artifacts carry the status pair" ;;
+      n/a:yes) PENDING="its sub-tasks are still open" ;;
+      *) PENDING="it stopped between its closures and its status writes" ;;
+    esac
+    offer_recovery "story $STORY_ID carries the supersede banner from an INTERRUPTED prior run — $PENDING. Nothing was written by this run. Re-run with --complete-interrupted to finish the remaining steps; the banner is never written a second time (R3.5)"
+  fi
   BANNER_WRITTEN=false
   FINAL_STATUS="completed"
 else

@@ -160,7 +160,9 @@ T
   sed -i 's/^  - \[~\] 1\.\(.\) - \(.*\) (superseded-by: 012)$/  - [ ] 1.\1 - \2/' "$d/tasks.md"
   [ "$(grep -c '^  - \[ \]' "$d/tasks.md")" -eq 2 ]
 
-  run_supersede 006 --by 012 --rationale "recovery"
+  # Completion is now AUTHORIZED, not assumed (R3.5). The unauthorized arm is
+  # the case below this one; here the caller has already said yes.
+  run_supersede 006 --by 012 --rationale "recovery" --complete-interrupted
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "completed"' > /dev/null
   # The banner is never touched by recovery.
@@ -169,6 +171,70 @@ T
   # And the remaining steps really were done.
   [ "$(grep -c 'superseded-by: 012' "$d/tasks.md")" -ge 2 ]
   grep -q '^status: superseded$' "$d/story.md"
+}
+
+@test "R3.5 hostile: an INTERRUPTED run is OFFERED completion, and writes nothing until authorized" {
+  # The hostile half of the case above, authored against the requirement rather
+  # than against the code (7.1). R3.5 says the system SHALL *offer* to complete;
+  # an offer that completes anyway is not an offer, so the discriminating
+  # assertion is not the exit code — it is that the artifacts are BYTE-IDENTICAL
+  # across the unauthorized run. Delete the authorization guard and this reddens
+  # while every other case in the file stays green.
+  mk_story 006-widget-flow
+  mk_story 012-successor
+  mk_tasks 006-widget-flow <<'T'
+- [ ] 1 - Group
+  - [ ] 1.1 - open
+  - [ ] 1.2 - also open
+T
+  run_supersede 006 --by 012 --rationale "first run"
+  [ "$status" -eq 0 ]
+
+  local d="$PROJ/.epic/stories/006-widget-flow"
+  sed -i 's/^status: superseded$/status: in-progress/' "$d"/*.md
+  sed -i '/^superseded-by:/d' "$d"/*.md
+  sed -i 's/^  - \[~\] 1\.\(.\) - \(.*\) (superseded-by: 012)$/  - [ ] 1.\1 - \2/' "$d/tasks.md"
+
+  local before; before=$(cat "$d"/*.md | sha256sum)
+
+  run_supersede 006 --by 012 --rationale "unauthorized"
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "recovery-offer"' > /dev/null
+  echo "$output" | jq -e '.reason | test("--complete-interrupted")' > /dev/null
+  echo "$output" | jq -e '.banner_written == false' > /dev/null
+  echo "$output" | jq -e '.closed_subtasks == 0' > /dev/null
+  echo "$output" | jq -e '.artifacts_flipped | length == 0' > /dev/null
+
+  # NOTHING was written — the whole content of "offer".
+  [ "$(cat "$d"/*.md | sha256sum)" = "$before" ]
+  [ "$(banner_count 006-widget-flow)" -eq 1 ]
+  [ "$(grep -c '^  - \[ \]' "$d/tasks.md")" -eq 2 ]
+}
+
+@test "R3.5 third element: the authorization flag can never create a banner or unlock a refusal" {
+  # 8.1's question asked of the value THIS fix introduced. --complete-interrupted
+  # is a new authorization, and a new authorization is only safe if it unlocks
+  # exactly one thing. Two ways it could over-reach, both asserted here.
+  mk_story 006-widget-flow
+  mk_story 012-successor
+  mk_tasks 006-widget-flow <<'T'
+- [ ] 1 - Group
+  - [ ] 1.1 - open
+T
+  # (a) On a FRESH story the flag changes nothing: one banner, not two, and the
+  #     verdict is still `superseded` rather than `completed`.
+  run_supersede 006 --by 012 --rationale "fresh with flag" --complete-interrupted
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.status == "superseded"' > /dev/null
+  echo "$output" | jq -e '.banner_written == true' > /dev/null
+  [ "$(banner_count 006-widget-flow)" -eq 1 ]
+
+  # (b) On a COMPLETE prior supersede — recovery table row 1 — the flag must NOT
+  #     turn a refusal into a completion. Authorization is not a matrix override.
+  run_supersede 006 --by 012 --rationale "re-run with flag" --complete-interrupted
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "refused"' > /dev/null
+  [ "$(banner_count 006-widget-flow)" -eq 1 ]
 }
 
 @test "R3.5: a status write over open scope is refused, not offered completion" {
@@ -204,8 +270,18 @@ T
   # Disjointness alone is half a table — that is the lesson b317d1d recorded.
   # Every cell of status x open-box must reach a VERDICT; none may fall through
   # to a second banner. Driven through the script rather than read off the doc.
+  # R3.5's authorization is a SECOND AXIS, added when the offer was implemented,
+  # so exhaustiveness is now over status x open-box x authorized. A table that
+  # was exhaustive before a new input was added is not exhaustive after it —
+  # that is 8.1's question asked of this fix's own derived value.
   mk_story 012-successor
-  local st box d n
+  local st box d n auth
+  local -a authflag
+  for auth in unauthorized authorized; do
+    case "$auth" in
+      unauthorized) authflag=() ;;
+      authorized) authflag=(--complete-interrupted) ;;
+    esac
   for st in none some all; do
     for box in yes no; do
       rm -rf "$PROJ/.epic/stories/006-widget-flow"
@@ -230,12 +306,18 @@ T
         sed -i 's/^  - \[~\] 1\.2 - \(.*\) (superseded-by: 012)$/  - [ ] 1.2 - \1/' "$d/tasks.md"
       fi
 
-      run_supersede 006 --by 012 --rationale "probe"
+      run_supersede 006 --by 012 --rationale "probe" "${authflag[@]}"
       # A verdict, whichever it is — and never a second banner.
-      echo "$output" | jq -e '.status | test("^(refused|completed|superseded)$")' > /dev/null
+      echo "$output" | jq -e '.status | test("^(refused|completed|superseded|recovery-offer)$")' > /dev/null
       n=$(banner_count 006-widget-flow)
-      [ "$n" -eq 1 ] || { echo "state st=$st box=$box produced $n banners"; false; }
+      [ "$n" -eq 1 ] || { echo "state st=$st box=$box auth=$auth produced $n banners"; false; }
+      # An unauthorized run never reaches `completed`: that is the arm R3.5
+      # turns into an offer, and it is the only cell the axis can move.
+      if [ "$auth" = unauthorized ]; then
+        echo "$output" | jq -e '.status != "completed"' > /dev/null
+      fi
     done
+  done
   done
 }
 
@@ -377,7 +459,7 @@ T
   sed -i '/^superseded-by:/d' "$d/design.md" "$d/tasks.md"
   [ "$(grep -c '^superseded-by:' "$d/story.md")" -eq 1 ]
 
-  run_supersede 006 --by 012 --rationale "recovery"
+  run_supersede 006 --by 012 --rationale "recovery" --complete-interrupted
   [ "$status" -eq 0 ]
   local f
   for f in story.md design.md tasks.md; do
