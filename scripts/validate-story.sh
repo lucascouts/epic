@@ -58,6 +58,26 @@ json_escape() {
   printf '%s' "$s"
 }
 
+# frontmatter_field <file> <key> — the value of a column-0 frontmatter key, or
+# nothing at all when the file, the frontmatter or the key is absent.
+# Same contract as the version:/status: parsing further down, factored out
+# because the scale is declared in story.md OR in tasks.md and both have to be
+# read: the file must OPEN with a `---` line, the block ends at the next one
+# (`sed '$d'` drops that closing line — GNU-only `head -n -1` aborted the whole
+# validation on BSD/macOS under set -e + pipefail), and the value is squeezed of
+# whitespace. Anchored at column 0 like the templates write it, so a compound or
+# nested key (`review_scale:`) can never fake a value. <key> is a caller-supplied
+# literal, never user input — it is interpolated into the regex as-is.
+frontmatter_field() {
+  local file="$1" key="$2"
+  [[ -f "$file" ]] || return 0
+  head -1 "$file" | grep -q '^---$' 2>/dev/null || return 0
+  # `|| true`: a key that is simply absent makes grep exit 1, and under
+  # pipefail that would abort the caller's command substitution.
+  sed -n '2,/^---$/p' "$file" | sed '$d' | grep -E "^$key:" | head -1 |
+    sed "s/.*$key:\s*//" | tr -d '[:space:]' || true
+}
+
 # xr_in_list <needle> <haystack...> — membership test for the cross-ref check.
 xr_in_list() {
   local needle="$1" item
@@ -68,7 +88,10 @@ xr_in_list() {
   return 1
 }
 
-# --- Detect scale from files present ---
+# --- Infer scale from files present ---
+# The FALLBACK, not the source of truth: a declared `scale:` governs (see the
+# block right below), and this inference is what a story with no such field
+# gets — unchanged, because 340+ legacy stories predate the field.
 HAS_STORY=false
 HAS_TASKS=false
 IS_BUGFIX=false
@@ -85,6 +108,97 @@ if [[ "$HAS_STORY" == true ]]; then
   if head -10 "$STORY_DIR/story.md" | grep -qi 'type:.*bugfix' 2>/dev/null; then
     IS_BUGFIX=true
   fi
+fi
+
+# --- Read the DECLARED scale (R2.1, R2.3) ---
+# Until this block existed the validator only ever inferred the scale from the
+# files present and never read the field, which is how `scale: medium` shipped
+# unnoticed and how a spike would have been mis-validated as Fast.
+#
+# Grammar rule, identical to `status:` below: fail-CLOSED on a present-but-wrong
+# value (an invented scale is an error), fail-OPEN on absence (no field means
+# the file inference above stands alone, with no error, no warning and no extra
+# output line — the pre-change bytes, exactly).
+#
+# One source of truth for the enum: the alternation drives both the `[[ =~ ]]`
+# check and the human-readable message (a `case` pattern cannot — bash does not
+# re-parse `|` from an expanded variable as alternation, only `[[ =~ ]]` does).
+SCALE_ENUM='fast|standard|full|spike'
+SCALE_ENUM_TEXT=${SCALE_ENUM//|/, }
+DECLARED_SCALE=""       # the resolved scale; "" = no artifact declares one
+DECLARED_SCALE_FILE=""  # the artifact it was read from, for the messages
+
+# WHERE the scale is declared depends on the scale itself: a full/standard story
+# declares it in its own story.md, while a fast/spike story is tasks-only and
+# can only declare it in tasks.md. So both are read, story.md FIRST — it is the
+# story's own frontmatter and therefore wins when the two disagree.
+# Every declaration is enum-checked, not just the winning one: a `medium` in
+# tasks.md is the defect this check exists to catch, and it must not be
+# swallowed by a valid value in story.md.
+for SCALE_SRC in story.md tasks.md; do
+  SCALE_VAL=$(frontmatter_field "$STORY_DIR/$SCALE_SRC" scale)
+  if [[ -z "$SCALE_VAL" ]]; then
+    continue
+  fi
+  if ! [[ "$SCALE_VAL" =~ ^($SCALE_ENUM)$ ]]; then
+    add_error "$SCALE_SRC frontmatter 'scale' is not a story scale: found '$SCALE_VAL' — must be one of: $SCALE_ENUM_TEXT"
+    # An invented value resolves to NOTHING: every later check would have to
+    # guess what `medium` meant, and a guess must never dress up as a finding.
+    continue
+  fi
+  if [[ -z "$DECLARED_SCALE" ]]; then
+    DECLARED_SCALE="$SCALE_VAL"
+    DECLARED_SCALE_FILE="$SCALE_SRC"
+  fi
+done
+
+# --- Declared scale vs files present (R2.3) ---
+# Each scale names an artifact set (references/tasks.md): fast and spike are
+# tasks-only, standard adds story.md, full adds design.md on top. A declaration
+# that contradicts the files on disk means ONE of the two sides is wrong, and
+# which one is the author's call — so it is a warning naming BOTH sides, never
+# an error that picks a winner.
+# Skipped whole when nothing was declared, which is the fail-open rule made
+# structural rather than merely restated.
+#
+# scale_mismatch <what the scale implies> <what the files show> <the fix>
+# ONE skeleton for all three shapes, so "names BOTH sides" is guaranteed by
+# construction and not by three authors remembering it: the declaration and the
+# file it lives in on the left, the filesystem on the right, and a fix for each
+# side — the warning deliberately does not pick which one is wrong.
+scale_mismatch() {
+  add_warning "declared scale '$DECLARED_SCALE' (in $DECLARED_SCALE_FILE) contradicts the files present: $1, but $2 — $3, or declare the scale the files actually describe"
+}
+
+if [[ -n "$DECLARED_SCALE" ]]; then
+  # SCALE_ARTIFACT is the file being CONTRADICTED, never the one the
+  # declaration was read from (that is DECLARED_SCALE_FILE).
+  case "$DECLARED_SCALE" in
+    fast|spike)
+      for SCALE_ARTIFACT in story.md design.md; do
+        if [[ -f "$STORY_DIR/$SCALE_ARTIFACT" ]]; then
+          scale_mismatch "a '$DECLARED_SCALE' story is tasks-only" \
+            "$SCALE_ARTIFACT is present" "remove $SCALE_ARTIFACT"
+        fi
+      done
+      ;;
+    standard)
+      # design.md is OPTIONAL at standard scale, so its presence says nothing;
+      # only a missing story.md contradicts the declaration.
+      if [[ ! -f "$STORY_DIR/story.md" ]]; then
+        scale_mismatch "a 'standard' story carries story.md + tasks.md" \
+          "there is no story.md" "add it"
+      fi
+      ;;
+    full)
+      for SCALE_ARTIFACT in story.md design.md; do
+        if [[ ! -f "$STORY_DIR/$SCALE_ARTIFACT" ]]; then
+          scale_mismatch "a 'full' story carries story.md + design.md + tasks.md" \
+            "there is no $SCALE_ARTIFACT" "add it"
+        fi
+      done
+      ;;
+  esac
 fi
 
 # --- Validate story.md ---
