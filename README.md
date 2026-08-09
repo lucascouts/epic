@@ -227,13 +227,16 @@ Configurable via the install wizard or directly through settings. Each option is
 | `artifactLanguage` | `en` | Override only if your organisation mandates non-English artifacts |
 | `enableStaleMonitor` | `false` | Enable the background watcher for stories with no progress past the staleness threshold |
 | `staleThresholdDays` | `7` | Days of inactivity before a story with pending tasks is flagged (only when stale monitor is enabled) |
+| `spikeStaleThresholdDays` | `14` | Days of inactivity before a spike whose Verdict is still `open` is flagged — measured by its Verdict, not its checkboxes |
 | `staleCheckIntervalSeconds` | `3600` | Poll cadence for the stale watcher in seconds (only when stale monitor is enabled) |
 
 ---
 
 ## Background Monitors (optional)
 
-When `enableStaleMonitor=true`, a background script (`monitors/monitors.json` → `scripts/monitor-stale.sh`) starts on the first `/epic:epic` invocation and periodically reports stories with pending tasks untouched for more than 7 days. Stdout lines surface as notifications to the main agent.
+When `enableStaleMonitor=true`, a background script (`monitors/monitors.json` → `scripts/monitor-stale.sh`) starts on the first `/epic:epic` invocation and periodically reports stories with pending tasks untouched for more than 7 days, plus spikes whose `## Verdict` is still `open` after 14 days. Stdout lines surface as notifications to the main agent.
+
+The same script also answers synchronously — `monitor-stale.sh --once` runs a single pass and exits — which is how the story list flags stale spikes. That path ignores `enableStaleMonitor` on purpose: the option governs the background watcher, not a question the list asks while you are looking at it.
 
 Constraints:
 

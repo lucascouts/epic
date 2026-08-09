@@ -550,6 +550,135 @@ if [[ "$HAS_TASKS" == true ]]; then
   fi
 fi
 
+# --- The spike contract: a Verdict, and no requirements chain (R1.2-R1.4) ---
+# A spike is a time-boxed probe whose deliverable is the ANSWER, not shipped
+# code (references/tasks.md, Spike Scale Adaptations). Two consequences, and
+# this section enforces exactly those two, no more:
+#   1. it concludes through a mandatory `## Verdict` section rather than through
+#      a lifecycle status, so a missing or unreadable one is an error — a spike
+#      without a conclusion is the leak this scale exists to prevent;
+#   2. it has no story.md, so every R-number written in it points at nothing —
+#      a dangling pointer wearing traceability's clothes.
+# What it deliberately does NOT enforce: `Tests` and `Acceptance` are optional
+# at spike scale, and `Validation` plus the Quality Gates section are already
+# checked for every scale above.
+#
+# ONE `if` guards the whole thing, which is R2.2 made structural rather than
+# merely promised: a story that declares no scale must produce the pre-change
+# bytes exactly, and a guard satisfiable only by a DECLARED `spike` cannot leak
+# into that path.
+
+# parse_verdict <tasks.md> — the spike's conclusion:
+#   ## Verdict
+#   - status: open | promote | wont-do
+#   - conclusion: <what was learned>
+#   - promoted-to: NNN   # required when status: promote
+# Only the first value of each key inside the section is read. `promoted-to`
+# must start with a digit — that is what "the target is recorded" means, and it
+# rejects the unfilled `NNN` placeholder of the template (fail-closed), which is
+# precisely what makes the R1.3 error fire on a copy-pasted template.
+#
+# The GRAMMAR — these four regexes — is shared VERBATIM with the parse_verdict
+# of archive-story.sh AND of epic-index.sh, exactly as the checkbox census above
+# shares its grammar with epic-index.sh and hook-precompact.sh. THREE full
+# consumers now, plus a PARTIAL fourth — monitor-stale.sh's verdict_status,
+# which copies the first three regexes verbatim and deliberately omits
+# `promoted-to` (staleness keys on the status alone). If 007 ever amends the
+# grammar, all four move together. The AGGREGATION is per-consumer and differs
+# on purpose: archive-story.sh turns the verdict into a completion verdict (may
+# this story be archived?), epic-index.sh RENDERS it for a human,
+# monitor-stale.sh turns it into a deadline (has this probe concluded yet?), and
+# this script turns it into validation errors.
+VERDICT_STATUS=""
+VERDICT_PROMOTED_TO=""
+parse_verdict() {
+  local file="$1" line in_verdict=false
+  local heading_re='^#{2,}[[:space:]]'
+  local verdict_re='^#{2,}[[:space:]]+[Vv]erdict([[:space:]].*)?$'
+  local status_re='^[[:space:]]*(-[[:space:]]+)?status:[[:space:]]*([^[:space:]|]+)'
+  local promoted_re='^[[:space:]]*(-[[:space:]]+)?promoted-to:[[:space:]]*([0-9][^[:space:]#]*)'
+  VERDICT_STATUS=""
+  VERDICT_PROMOTED_TO=""
+  [[ -f "$file" ]] || return 0
+  {
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      if [[ "$line" =~ $heading_re ]]; then
+        if [[ "$line" =~ $verdict_re ]]; then in_verdict=true; else in_verdict=false; fi
+        continue
+      fi
+      [[ "$in_verdict" == true ]] || continue
+      if [[ -z "$VERDICT_STATUS" && "$line" =~ $status_re ]]; then
+        VERDICT_STATUS="${BASH_REMATCH[2]}"
+      elif [[ -z "$VERDICT_PROMOTED_TO" && "$line" =~ $promoted_re ]]; then
+        VERDICT_PROMOTED_TO="${BASH_REMATCH[2]}"
+      fi
+    done
+    :
+  } 2>/dev/null < "$file" || return 1
+  return 0
+}
+
+# The three verdicts, one source of truth for the check and the message, like
+# SCALE_ENUM above and STATUS_ENUM below. `promote` (with its target recorded)
+# and `wont-do` are terminal and make the spike archivable; `open` is not.
+VERDICT_ENUM='open|promote|wont-do'
+VERDICT_ENUM_TEXT=${VERDICT_ENUM//|/, }
+
+# no_r_chain <line number> <what was found> — ONE skeleton for both shapes an
+# R-chain takes, so the sanctioned wording is spelled once, exactly as
+# scale_mismatch above spells its "names BOTH sides" once: R1.4 pins the
+# sentence, and a sentence kept in two places is a sentence that eventually gets
+# edited in one.
+no_r_chain() {
+  add_error "tasks.md line $1: found $2 — spikes have no requirements chain — promote to a story for traceability"
+}
+
+# HAS_TASKS is part of the guard, not an afterthought: a spike with no tasks.md
+# has no Verdict because it has no file, and the missing-tasks.md error above
+# already says the only useful thing there is to say. Piling "no Verdict" on top
+# would report the same absence twice.
+if [[ "$DECLARED_SCALE" == "spike" && "$HAS_TASKS" == true ]]; then
+  SPIKE_TASKS="$STORY_DIR/tasks.md"
+
+  # Unreadable and absent land in the same place, as they do for the other two
+  # consumers: `|| true` keeps a failed read from aborting the run under set -e,
+  # and the empty status below reports it as "no Verdict". Neither is a verdict.
+  parse_verdict "$SPIKE_TASKS" || true
+  if [[ -z "$VERDICT_STATUS" ]]; then
+    add_error "tasks.md has no readable '## Verdict' section with a 'status:' line — a spike concludes through its Verdict, not through a lifecycle status; record one of: $VERDICT_ENUM_TEXT"
+  elif ! [[ "$VERDICT_STATUS" =~ ^($VERDICT_ENUM)$ ]]; then
+    add_error "tasks.md '## Verdict' status is not a spike verdict: found '$VERDICT_STATUS' — must be one of: $VERDICT_ENUM_TEXT"
+  elif [[ "$VERDICT_STATUS" == "promote" && -z "$VERDICT_PROMOTED_TO" ]]; then
+    add_error "tasks.md '## Verdict' says 'promote' with no 'promoted-to:' story recorded — name the follow-up story number; the template's unreplaced 'NNN' is not a number and counts as no target"
+  fi
+
+  # No requirements chain (R1.4). The scan reads the WHOLE file — frontmatter
+  # and fenced blocks included — because that is exactly what the contract
+  # promises ("write no R-number anywhere in the file") and because a dangling
+  # pointer is no less dangling inside a fence. The Verdict's own prose is in
+  # scope for the same reason: `conclusion: pending, see R2.1 upstream` is a
+  # reference to a requirement that does not exist here either.
+  #
+  # ONE error per offending LINE, not per token: the line is what the author
+  # edits, and a line carrying both shapes (`- Requirements: R1.1`) is one
+  # mistake — so the field wins the description and its token is not re-reported.
+  spike_req_re='^[[:space:]]*(-[[:space:]]+)?(\*\*)?[Rr]equirements:'
+  # A token in its own right, with an explicit boundary on each side. Same shape
+  # the cross-reference check below greps for with `\b`, spelled out because
+  # `\b` is a GNU extension and this script also runs on BSD/macOS: `R2D2` is
+  # not an R-token, `see R1.` is one.
+  spike_r_re='(^|[^[:alnum:]_])(R[0-9]+(\.[0-9]+)?)([^[:alnum:]_]|$)'
+  spike_line_no=0
+  while IFS= read -r spike_line || [[ -n "$spike_line" ]]; do
+    spike_line_no=$((spike_line_no + 1))
+    if [[ "$spike_line" =~ $spike_req_re ]]; then
+      no_r_chain "$spike_line_no" "a 'Requirements:' field"
+    elif [[ "$spike_line" =~ $spike_r_re ]]; then
+      no_r_chain "$spike_line_no" "the R-number token '${BASH_REMATCH[2]}'"
+    fi
+  done < "$SPIKE_TASKS" 2>/dev/null || true
+fi
+
 # --- Validate frontmatter (version, status) ---
 # `status:` is the story's single lifecycle state, shared by every artifact.
 # Grammar rule: fail-CLOSED on a present-but-wrong value (an invented dialect

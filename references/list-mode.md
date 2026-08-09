@@ -7,7 +7,7 @@ Triggered by `/epic:epic stories`, `/epic:epic stories full`, or `/epic:epic sto
 1. Glob `.epic/stories/*/tasks.md` to find all stories (exclude `.epic/archive/`)
 2. For each story, read the frontmatter (type, scale, version, status) and parse task checkboxes
 3. Take the checkbox census — `total`, `closed` and `deferred` are defined once, in [tasks.md](tasks.md#completion). Census the task list and the Quality Gates separately: each renders its own pair
-4. Derive the story's computed condition from the census (see Status and Progress)
+4. Derive the story's computed condition from the census (see Status and Progress) — except for a `scale: spike` story, whose condition comes from its `## Verdict` plus one staleness pass for the whole listing (see Spike Lifecycle)
 5. For each story, ask `bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --should-annotate <status> <story-count> <is-stories-full>` whether this story is annotated at all — exit 0 evaluates, exit 1 skips — and on exit 0 pipe `story-git-status.sh` into the same script's `--list` mode and append what it writes (see Integration Annotation). That one decision holds both gates: only `done`/`validated` stories are annotated, and more than 50 stories skips unless the command is `stories full`
 6. Refresh the managed index block opportunistically — `bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-index.sh"`; a non-zero exit warns and never blocks the listing (defined once, in [validate-mode.md](validate-mode.md#index-refresh))
 
@@ -24,6 +24,43 @@ A computed condition is appended after a `·`. It is derived from the boxes at r
 So `in-progress · done-except-external (2 deferred)` reads: the file says `in-progress`, the boxes say nothing is open here and two items are still owed by an actor outside this repo. The pairing is the normal one — Run mode writes `done` only when no `[ ]` and no deferred box remains (R1.3), so a story waiting on an external actor keeps `in-progress` until that work lands. The persisted enum has no value for "done except external"; that is deliberate, and the reason the condition is computed rather than stored.
 
 **Progress renders as `closed/total`, plus `(+D deferred)` when D > 0** — and only then. By the census in [tasks.md](tasks.md#completion), `closed` is `[x]` plus terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), so a waived gate closes its box and a finished story reads `5/5`, never an eternal `4/5`. Deferred boxes are closed too, but counted apart: that work is settled in the plan and still owed in the world.
+
+## Spike Lifecycle
+
+**A spike's status is its Verdict.** A `scale: spike` story is a time-boxed probe whose deliverable is an answer, and the answer lives in the `## Verdict` section of its `tasks.md` — template and grammar defined once, in [tasks.md](tasks.md#spike-scale-adaptations). The status column therefore carries the Verdict **instead of** the frontmatter status, never beside it: a spike's `in-progress` tells a reader nothing they came for, and printing both would put two competing claims in one column.
+
+The arms below **document what [`scripts/epic-index.sh`](../scripts/epic-index.sh)'s `verdict_cell` renders** — the managed index and this listing are two views of one fact, and a second spelling here would be a second thing to keep in step:
+
+| Verdict | Rendered as |
+|---|---|
+| `open`, `wont-do` | the value, verbatim |
+| `promote`, with `promoted-to:` naming a story that exists | `promote to NNN` |
+| `promote`, with `promoted-to:` naming no story on disk | `promote to NNN (missing)` |
+| `promote`, with no target recorded | `promote` |
+| absent, or unreadable | `—` |
+
+`(missing)` is also the interrupted-promote case — the Verdict written, the follow-up story never created (see the offer below). Absent renders the same em dash a story with no `status:` gets: inventing `open` would state a verdict nobody wrote.
+
+**Stale open spikes (R1.5).** A Verdict left `open` is the failure mode this scale exists to prevent, so it expires: **14 days** since the last change to `tasks.md`. **That number is [`scripts/monitor-stale.sh`](../scripts/monitor-stale.sh)'s and so is the measurement** — it owns the threshold (`SPIKE_THRESHOLD_DAYS`, user option `spikeStaleThresholdDays`) and the mtime read. Ask it; never `stat` a file here and never restate the deadline as arithmetic, or the day someone tunes the option this listing keeps quoting 14.
+
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/monitor-stale.sh" --once
+```
+
+One pass over every story, **one invocation for the whole listing** — unlike the per-story git evaluation below, there is no cost rule to apply. `--once` deliberately ignores `enableStaleMonitor`: that option governs the *background watcher*, the thing that speaks unasked, while R1.5 asks for this flag in the story list whether or not anyone opted into being notified in their sleep.
+
+| The script writes | This mode renders |
+|---|---|
+| `Epic spike '031-probe-cache' has an open Verdict untouched for 15 days — promote or close.` | ` · spike open 15 days — promote or close` on that story's row |
+| `Epic story '…' has pending tasks untouched for N days.` | nothing — the generic nag belongs to the background watcher |
+
+The **decision** is the script's; only the shortening is this mode's, like the `·` separators and the column layout. A terminal Verdict never produces a line whatever its boxes say, and an `open` spike inside the deadline produces none either — silence here means "not stale", and it is the only thing that does.
+
+**Promote hands off to CREATE (R1.6).** When a spike's Verdict becomes `promote` in an interactive session — set during a run, or found here as a `promote` row whose target is absent or `(missing)` — **offer** to create the follow-up story, pre-filled with the spike's `conclusion:` as the seed of its problem statement. The conclusion is what the spike learned, and re-typing it into CREATE is how the finding gets quietly rewritten. On acceptance, run CREATE and then write `promoted-to: NNN` back into the spike's Verdict, with the number CREATE actually assigned.
+
+Both halves are load-bearing: **never create the story without asking** (a promote is a decision to open work, and only the user opens work), and **never record `promoted-to:` before the story exists** — a number guessed ahead of CREATE is a pointer to nothing, and the manifest never recycles numbers to make it true later. A run interrupted between the two leaves exactly the `(missing)` row above, which is why the offer is repeated at the next `stories` invocation instead of being made once and forgotten.
+
+**Archive eligibility (R1.7).** A spike is complete for archive purposes when its Verdict is `wont-do`, or `promote` with a `promoted-to:` recorded — and never because of its checkboxes, which are probe steps rather than a contract. This is not a rule to apply by hand: [`scripts/archive-story.sh`](../scripts/archive-story.sh)'s preflight already reads a spike that way and refuses one whose Verdict is `open`, absent or a `promote` with no target, naming the missing piece. What it means for this mode is the `--done` expansion below: a concluded spike belongs in the sweep even with open probe boxes, and an `open` spike stays out of it even with every box ticked.
 
 ## Integration Annotation
 
@@ -173,7 +210,7 @@ Archived stories:
 |---|---|
 | `NNN` | that one story |
 | `NNN-MMM` | every existing story in the inclusive range; a number with no directory is skipped, not an error |
-| `--done` | every story in `.epic/stories/` that is **complete** — no `[ ]` box remains, in the task list or in the Quality Gates. `[x]` and terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`) both close a box; see [tasks.md](tasks.md#completion) |
+| `--done` | every story in `.epic/stories/` that is **complete** — no `[ ]` box remains, in the task list or in the Quality Gates. `[x]` and terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`) both close a box; see [tasks.md](tasks.md#completion). A `scale: spike` story is complete by its **Verdict** instead, never by its boxes (see Spike Lifecycle) |
 
 A `done-except-external` story clears that gate — nothing is open — and is reported with its deferred count, so work owed outside this repo is stated rather than buried. If any `[ ]` remains, the story is **not** `--done`; archiving it anyway is the user's explicit `--force <reason>` decision, never this mode's.
 

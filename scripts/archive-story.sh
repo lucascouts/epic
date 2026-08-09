@@ -482,6 +482,18 @@ collect_deferred_items() {
 # Only the first value of each key inside the section is read. `promoted-to`
 # must start with a digit — that is what "the target is recorded" means, and it
 # rejects the unfilled `NNN` placeholder of the template (fail-closed).
+#
+# The GRAMMAR — these four regexes — is shared VERBATIM with the parse_verdict
+# of epic-index.sh AND of validate-story.sh. THREE full consumers, plus a
+# PARTIAL fourth — monitor-stale.sh's verdict_status, which copies the first
+# three regexes verbatim and deliberately omits `promoted-to` (staleness keys on
+# the status alone). If 007 ever amends the grammar, all four move together. The
+# AGGREGATION is per-consumer and differs on purpose: epic-index.sh RENDERS the
+# verdict for a human, validate-story.sh turns it into validation errors (a
+# spike must HAVE a verdict, and `promote` must name its target),
+# monitor-stale.sh turns it into a deadline (has this probe concluded yet?), and
+# this script turns it into the completion verdict below — may this story be
+# archived?
 VERDICT_STATUS=""
 VERDICT_PROMOTED_TO=""
 parse_verdict() {

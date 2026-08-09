@@ -24,7 +24,7 @@
     "defaultScale": {
       "type": "string",
       "title": "Default scale",
-      "description": "Default scale when triage cannot determine one (fast | standard | full)",
+      "description": "Default scale when triage cannot determine one (fast | standard | full | spike)",
       "default": "standard"
     },
     "artifactLanguage": {
@@ -44,6 +44,12 @@
       "title": "Stale threshold (days)",
       "description": "Days of inactivity before a story with pending tasks is flagged as stale. Only effective when enableStaleMonitor is true.",
       "default": 7
+    },
+    "spikeStaleThresholdDays": {
+      "type": "number",
+      "title": "Spike stale threshold (days)",
+      "description": "Days of inactivity before a spike whose Verdict is still open is flagged as stale. Separate from staleThresholdDays: a spike is measured by its Verdict, not by its checkboxes.",
+      "default": 14
     },
     "staleCheckIntervalSeconds": {
       "type": "number",

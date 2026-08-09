@@ -252,8 +252,11 @@ When a command references `NNN`:
 | **Fast** | Simple change, 1-2 files, no architectural decisions | Tasks only | `tasks.md` |
 | **Standard** | Medium feature, 2-5 files, clear scope | Story + Tasks | `story.md` + `tasks.md` |
 | **Full** | Complex feature, 5+ files, design decisions, integrations | Story + Design + Tasks | `story.md` + `design.md` + `tasks.md` |
+| **Spike** | Time-boxed exploration — the deliverable is a decision, not a shipped change | Tasks only | `tasks.md` (with a mandatory `## Verdict`) |
 
 Fast mode is **test-first at run time**: a sub-task carrying a `Tests` field has its test authored and confirmed failing (Red) before implementation, then Green-then-Refactor. A sub-task with no testable logic carries an optional Fast-only `Acceptance` field instead — 1-3 observable-behavior statements. Every implementing (non-Commit) Fast sub-task carries one or the other (the test-or-Acceptance contract rule). Fast stays single-author: no Test Advisor sub-agent, no `.draft/`, no `story.md`, no gate.
+
+Spike mode is **exploration, not delivery**: the story exists to answer a question, and the answer is the mandatory `## Verdict` section of its `tasks.md`. A spike is tasks-only — no `story.md`, no `design.md`, no `.draft/` — and has **no requirements chain**: an R-reference such as `R1.1` inside a spike is a validation error, because no story.md exists for it to point at. It takes every Fast carve-out in this document (no runtime-dependency precheck, no MCP detection, no drafts, no phase gate) and stays single-author. What makes a spike terminal is the Verdict, not the checkboxes: `promote` (the orchestrator offers CREATE for the follow-up story, pre-filled with the conclusion, and records `promoted-to: NNN`) or `wont-do`. A Verdict left `open` is the failure mode this scale exists to prevent — LIST surfaces stale open spikes so they get promoted or closed. Template and grammar: [tasks.md](../../references/tasks.md#spike-scale-adaptations).
 
 ## Workflow Variants (Full mode, feature only)
 
@@ -293,6 +296,9 @@ Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a 
 | **Simple** | 3-5 files, clear scope | Standard | No design docs; upgrade to Full if architectural decisions appear |
 | **Moderate** | 5-10 files, design decisions | Full | More upfront time, but traceable requirements and documented design |
 | **High** | 10+ files, cross-cutting | Full | Highest upfront cost, but prevents scope drift and design mismatches |
+| **Exploratory** | "probe", "spike", "experiment", "harness", "find out whether" / "descobrir se" — the goal of the request is to learn something; no deliverable is committed to yet | Spike | Tasks-only and time-boxed: no requirements chain, no design doc; ends in a Verdict that promotes to a real story or closes the question |
+
+**Exploratory is a shape, not a size.** Propose Spike only when the request's own goal is to find something out, or when the user asks for one explicitly. A small feature is **Fast**, never Spike — the skill **never auto-downgrades a feature to a spike**: doing so would trade a deliverable for a question the user never asked.
 
 Always explain trade-offs in the triage proposal. Include EARS primer on first story only (see [ears-notation.md](../../references/ears-notation.md)):
 
@@ -462,7 +468,7 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
   ---
   story: <story-name>
   type: feature | bugfix
-  scale: fast | standard | full
+  scale: fast | standard | full | spike
   version: 1
   created: <date>
   status: draft
