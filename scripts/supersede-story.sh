@@ -216,9 +216,23 @@ usage_error() {
   exit 2
 }
 
-# refuse: the matrix said no, or a banner-bearing state cannot be honestly
-# completed. Nothing has been written at this point, by construction — every
-# refusal is raised before step 2's first write.
+# refuse: the matrix said no, a banner-bearing state cannot be honestly
+# completed, or one of step 3's writes failed. WHAT HAS BEEN WRITTEN BY THEN
+# DEPENDS ON WHERE THE REFUSAL IS RAISED — this comment used to claim
+# "nothing, by construction", which two of the call sites below break:
+#   - Story resolution, step 1 and step 2 leave the story untouched by THIS
+#     run, and each of those refusals says so in its own message. The three
+#     recovery arms do refuse over a banner, but it is a PRIOR run's; and
+#     insert_banner writes through rewrite_file, which renames a temp file
+#     into place, so a failed banner write leaves the artifact byte-identical.
+#   - Step 3's two — the closure rewrite and the status flip — run AFTER the
+#     banner is in place, the flip after the closures, and flip_all can have
+#     flipped some artifacts before failing. That is close-then-flip working
+#     as designed (R3.3): the story is left visibly unfinished, never falsely
+#     complete, and a re-run finishes it. Their messages say so as well.
+# The REPORT is what says which of the two happened, not this comment:
+# emit_report runs on every refusal, and its banner_written, closed_subtasks
+# and artifacts_flipped carry exactly what this run wrote.
 refuse() {
   STATUS="refused"
   REASON="$1"
