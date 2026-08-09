@@ -38,7 +38,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/supersede-story.sh" <NNN|story-dir> --by <MM
 |---|---|---|
 | 0 | `superseded` | A fresh run. Report `remap_rows`, `closed_subtasks` and `artifacts_flipped[]` — what this run wrote — then offer the archive |
 | 0 | `completed` | An **interrupted** prior run was carried over the line. `banner_written: false` with `remap_rows: 0` is the proof no second banner was written; say what was finished, then offer the archive |
-| 1 | `refused` | Nothing finished, so no archive offer. Report `reason` **verbatim**; `banner_written`, `closed_subtasks` and `artifacts_flipped[]` say what this run wrote before it stopped |
+| 1 | `refused` | Nothing finished, so no archive offer. Report `reason` **verbatim** — a `Refused: ` lead-in and a closing full stop are the session's own presentation and are the only additions permitted; every word between them is the script's, the story slug included (see The verbatim rule); `banner_written`, `closed_subtasks` and `artifacts_flipped[]` say what this run wrote before it stopped |
 | 2 | — | Invalid input, and **no JSON is printed at all**. Report the stderr message: this is a bad invocation, not a user decision |
 
 **The script is silent on stderr wherever it emits JSON, so the verdict reaches the user in your voice and in no other.** `archive-story.sh` prints `Refused: …` for the human and the same fact in JSON; this one prints nothing beside the object. A consumer piping stdout into `jq` — and bats' `run`, which merges the streams — would otherwise find a diagnostic in the middle of the object it is parsing. Read `reason` and `index_error` out of the report and say them in the session's own voice; a second, differently-worded copy of the same sentence is a second author for it. Exit 2 is the one path that speaks on stderr: it reaches no verdict and emits no JSON, so there is nothing to parse and nothing to duplicate.
@@ -51,7 +51,13 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/supersede-story.sh" <NNN|story-dir> --by <MM
 
 ## Refusal Matrix (R3.4, R3.5)
 
-What the script refuses, and why. Rows 1-3 are decided in its step 1, row 4 in its step 2. Every refusal is hard: exit 1, nothing written by this run, and the one-line message in `reason`. Surface it verbatim.
+What the script refuses, and why. Rows 1-3 are decided in its step 1, row 4 in its step 2. Every refusal is hard: exit 1, nothing written by this run, and the one-line message in `reason`. Surface it verbatim, under the rule below.
+
+### The verbatim rule
+
+**Two additions are yours; nothing else is.** A `Refused: ` lead-in labels the verdict, and a closing full stop ends the sentence — both are presentation, and both are what the worked example at the end of this file shows. Everything between them is the script's text, reproduced unchanged.
+
+**The story slug is not presentation.** `reason` names the story as `042-legacy-import`, never as `042`, because a bare number cannot tell two directories apart that share one — the same ambiguity `scripts/story-git-status.sh` spends a whole design bullet refusing to guess at, one layer down. Shortening it inside a message the user is meant to act on discards exactly the token that identifies the target. Trim nothing; a reason that is too long to read is a reason to change the script, not the retelling.
 
 | # | Cause | `reason` |
 |---|---|---|
@@ -62,7 +68,7 @@ What the script refuses, and why. Rows 1-3 are decided in its step 1, row 4 in i
 
 **Row 4 is one row, not two, and that is the fix for a real collision.** Earlier revisions listed *"`NNN` is already `superseded`"* and *"already carries the banner"* as separate causes, both hard refusals, the first checked in step 1. But a run interrupted between its status write and its closures satisfies the first while still owing work — so the story was refused in step 1 before recovery could ever be offered, and the only command that produces that state could not repair it. The two causes describe the same thing (a supersede that *finished*), so they are one row, evaluated once, in the step that can tell finished from interrupted. R3.4 carries the same guard in its own text: *"NNN carries a complete prior supersede"*.
 
-**Not every exit 1 is the matrix.** The script also refuses when it cannot proceed honestly: a `tasks.md` it cannot read (the remap rows and the closures are both derived from those checkboxes, so it would have to invent the scope it claims moved), a story directory that is a symlink pointing out of the project, a banner-bearing state it cannot classify, or a failed write in close-then-flip. Those messages are equally verbatim-surfaceable, and the report — not an assumption — is what says whether anything was written before the stop: read `banner_written`, `closed_subtasks` and `artifacts_flipped[]`.
+**Not every exit 1 is the matrix.** The script also refuses when it cannot proceed honestly: a `tasks.md` it cannot read (the remap rows and the closures are both derived from those checkboxes, so it would have to invent the scope it claims moved), a story directory that is a symlink pointing out of the project, a banner-bearing state it cannot classify, or a failed write in close-then-flip. Those messages are equally verbatim-surfaceable under the same rule, and the report — not an assumption — is what says whether anything was written before the stop: read `banner_written`, `closed_subtasks` and `artifacts_flipped[]`.
 
 ## Banner Template
 
@@ -208,6 +214,6 @@ And the report, on stdout, exit 0:
 }
 ```
 
-which reaches the user in the session's own voice, once:
+which reaches the user in the session's own voice, once — the `Refused: ` lead-in and the full stop added, the `reason` itself reproduced whole, slug and all, per The verbatim rule:
 
-> Refused: story 042 already carries the supersede banner — re-running would duplicate it (R3.5).
+> Refused: story 042-legacy-import already carries the supersede banner — re-running would duplicate it (R3.5).

@@ -78,6 +78,15 @@ gracefully (see README "Prerequisites").
     written while its scope was still open — a shape this command cannot
     produce — refuses and says so rather than being offered a completion
     supersede could not honestly perform.
+    - **The verbatim rule is stated rather than assumed** (`references/supersede-mode.md`,
+      new *The verbatim rule* section). The mode tells the session to surface a
+      refusal's `reason` verbatim; it now says what "verbatim" permits — a
+      `Refused: ` lead-in and a closing full stop are the session's own
+      presentation, and everything between them is the script's text, the story
+      slug included. The worked example previously rendered `story 042` where
+      the JSON says `story 042-legacy-import`, dropping exactly the token that
+      distinguishes two story directories sharing a number; the example now
+      quotes the reason whole.
   - **`references/tasks.md`** — commit guidance gains the story anchor the
     detection reads: `type(NNN): subject` for commits, `feat/NNN-slug` for
     branches. A recommendation, not an enforcement — nothing gates on the shape.
