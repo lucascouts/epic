@@ -125,7 +125,7 @@ Sub-agents with specialized roles. Scale determines which personas are activated
 |---|---|---|---|
 | **Analyst** | Context discovery, domain research, checklist generation | standard + full | `agents/analyst.md` |
 | **Architect** | Codebase pattern research, design context gathering | full only | `agents/architect.md` |
-| **Test Advisor** | Authors one failing test per Unit/Integration sub-task during Phase 3, runs Red verification, records red-evidence | standard + full (Phase 3) | `agents/test-advisor.md` |
+| **Test Advisor** | Authors one failing test per Unit/Integration sub-task during Phase 3, runs Red verification, records red-evidence | standard + full (Phase 3, and per added sub-task in Refine) | `agents/test-advisor.md` |
 | **Reviewer** | Cross-artifact review, gap detection, consistency check | full only | `agents/reviewer.md` |
 
 ### Execution Personas (task implementation)

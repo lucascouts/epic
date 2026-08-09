@@ -27,7 +27,24 @@ Triggered by `/epic:epic stories refine NNN`.
 4. Delta shown for approval before merging into original
 5. Propagation: story change > update design > update tasks. Design change > update tasks. Tasks change > no propagation.
 6. Original files untouched until all gates pass
-7. After the merged tasks.md is written, take the checkbox census and apply the status transition — see [Status Census](#status-census)
+7. If the merged `tasks.md` gained a sub-task whose `Tests:` field is not `None`, author its test and record its Red **before** the census — see [Red Evidence for Added Sub-tasks](#red-evidence-for-added-sub-tasks)
+8. After the merged tasks.md is written, take the checkbox census and apply the status transition — see [Status Census](#status-census)
+
+## Red Evidence for Added Sub-tasks
+
+**Standard and Full only.** Refine is the one mode that can add a sub-task to a story whose Phase 3 has already run. Phase 3 is where the Test Advisor authors a test per `Unit`/`Integration`/`E2E` sub-task, confirms it Red, and records that in `.draft/red-evidence.yaml` ([phase-gates.md](phase-gates.md#phase-3)). A refinement that adds a task and stops at propagation produces a sub-task that **carries a `Tests:` field and has no authored test and no Red entry** — and nothing downstream notices, because every consumer was written assuming Phase 3 ran for the whole task list.
+
+That assumption is stated as an absolute in two places: [validate-mode.md](validate-mode.md) and [auditor.md](../agents/auditor.md) both say *"every sub-task with a pre-authored test has an entry in `.draft/red-evidence.yaml` with `failed: true`; a missing entry is reported as a finding."* The finding is only ever reported for a sub-task that **has** a pre-authored test. A refine-added sub-task has none, so it is not missing evidence — it is invisible to the check, which is a different and quieter failure.
+
+So, for **each** sub-task the merge adds whose `Tests:` field is not `None`:
+
+1. Spawn the Test Advisor for that sub-task alone, with the same contract Phase 3 uses — it writes **only** inside `.draft/` (the authored test under `.draft/authored-tests/` at its mirrored path, and its `.draft/red-evidence.yaml` entry) and touches no project file.
+2. `Unit` and `Integration` tests are confirmed Red now, exactly as in Phase 3. An `E2E` test records `red_deferred: true` and has its Red confirmed at run time, exactly as in Phase 3 — refine changes *when the authoring happens*, never *what the evidence means*.
+3. **Append** to `.draft/red-evidence.yaml`; never rewrite it. The existing entries are dated records of runs that happened, and a refinement is not entitled to restate them.
+
+**If the Test Advisor cannot establish Red** — the behaviour already exists, the test cannot be run, the sub-task turns out not to be testable — do not invent an entry and do not silently drop the `Tests:` field. Record the reason in `.draft/deviations.yaml` and surface it with the delta, so the gap is a decision someone made rather than an absence nobody saw.
+
+**Why this is a step and not a gotcha.** It was measured, not anticipated: story 006's sub-task 12.3 was added by a refinement, shipped seven bats cases, and carries no `12.x` entry in its Red register at all. The story's own audit had enumerated "every sub-task carrying a non-`None` `Tests:` field" one group earlier and closed the one gap it found — a dated sweep with nothing to re-run it, which is why the next added sub-task reopened the class in silence.
 
 ## Status Census
 

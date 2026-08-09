@@ -11,6 +11,38 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Fixed
+
+- **A sub-task added by `stories refine` never reached the step that records its
+  Red.** Phase 3 is where the Test Advisor authors a test per `Unit`/
+  `Integration`/`E2E` sub-task, confirms it fails, and records that in
+  `.draft/red-evidence.yaml`. Refine is the only mode that can add a sub-task to
+  a story whose Phase 3 has already run, and it stopped at propagation — so a
+  refinement could ship a sub-task carrying a `Tests:` field with no authored
+  test and no Red entry, and every consumer downstream was written assuming
+  Phase 3 had covered the whole task list.
+  - `references/refine-mode.md` gains the producing step: each added sub-task
+    with a non-`None` `Tests:` field goes through the Test Advisor before the
+    status census, appending to `.draft/red-evidence.yaml` rather than
+    rewriting it, with `E2E` deferring its Red exactly as in Phase 3. A Red
+    that cannot be established is recorded as a deviation instead of being
+    invented or silently dropped.
+  - `references/run-mode.md`'s materialization step gains the guard: a pending
+    sub-task with a non-`None` `Tests:` field, no file under
+    `.draft/authored-tests/` and no Red entry stops the Run by number rather
+    than executing as if it were test-first. Copying what exists cannot see
+    what is absent, so the check is stated over the plan, not over the tree.
+  - `agents/auditor.md` and `references/validate-mode.md` had both phrased the
+    invariant as *"every sub-task **with a pre-authored test** has an
+    entry"* — a quantifier over the artifacts, which excludes precisely the
+    sub-task that has no artifact. Both now quantify over the `Tests:` field
+    and report a missing authored test as a finding distinct from a missing
+    entry.
+
+  Found by measurement rather than review: story `006`'s sub-task 12.3 was
+  refine-added, shipped seven bats cases, and carries no `12.x` entry in its Red
+  register at all.
+
 ### Added
 
 - **Git-aware story lifecycle** (story `006-git-aware-lifecycle`). Epic can now

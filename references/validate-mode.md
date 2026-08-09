@@ -60,7 +60,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 > 7. No scope creep — nothing implemented that wasn't in the story or confirmed during clarify
 > 8. If deviations.yaml exists: for each deviation, verify the stated impact is accurate and no downstream breakage occurred. For each deviation marked with limited impact, check actual callers of the deviated component to confirm.
 > 9. If deviations.yaml has discoveries: verify each discovery was addressed in subsequent tasks (e.g., if a template engine gotcha was found, check that later tasks using templates account for it)
-> 10. Red precedence: every sub-task with a pre-authored test has an entry in `.draft/red-evidence.yaml` with `failed: true`; a missing entry is reported as a finding. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction.
+> 10. Red precedence: every sub-task whose `Tests:` field is **not `None`** has both a pre-authored test and an entry in `.draft/red-evidence.yaml` with `failed: true` (or `red_deferred: true` for `E2E`); a missing entry is reported as a finding. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction. Quantify over the `Tests:` field, never over the set of authored tests — a sub-task added by a refinement after Phase 3 ran has no authored test, so "every sub-task with a pre-authored test" excludes the very sub-task that is broken. Report a non-`None` `Tests:` field with no authored test as its own finding.
 >
 > Return:
 > - List of gaps found (cite requirement numbers, component names, file paths)
@@ -68,6 +68,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 > - List of unverified or inaccurate deviations (if any)
 > - List of scope creep items (if any)
 > - List of sub-tasks with a pre-authored test missing a Red-evidence entry in `.draft/red-evidence.yaml` (if any)
+> - List of sub-tasks whose `Tests:` field is not `None` but which have no pre-authored test at all (if any) — the refine-added case, reported separately
 > - 'All checks passed' if clean
 >
 > Do NOT modify any files. Only report results."
