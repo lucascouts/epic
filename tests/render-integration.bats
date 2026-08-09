@@ -14,6 +14,15 @@
 # BEHAVIOUR IS REMOVED. The `null` arm is the one to watch: it is the arm 8.6
 # made reachable, and `references/validate-mode.md` states the rule it must
 # obey in as many words — "Not computable must never dress up as a finding".
+#
+# THE VERSION DECLARATION BELOW IS LOAD-BEARING, not boilerplate. The R2.3 case
+# drives `archive-story.sh` with `run --separate-stderr`, and flags on `run`
+# require bats 1.5.0; without this line bats emits BW02 on every run of the
+# whole suite and the guarantee is only incidental. `epic-index.bats` and
+# `archive-story.bats` already declare it — this file used the feature without
+# joining the convention. Added at story 006's tenth validate.
+
+bats_require_minimum_version 1.5.0
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
