@@ -161,6 +161,25 @@ tracked-md
 | `false` | `null` | Append the rule |
 | — | absent (`git: false`) | Append the rule. It costs nothing and takes effect the moment the directory becomes a repository |
 
+**Before appending, disclose what the rule would strand (R3.3).** The append writes a rule; it untracks nothing, and git will not untrack anything either. So in a repository that already tracks artifacts the rule leaves those files committed under a line saying they never are — `verdict: contradiction`, the lint's first arm, kpranois's 47 files exactly, this time manufactured by the wizard that exists to prevent them. Read `tracked_md` from the step 5.1 measurement already in hand — only when `git` is `true`, per the read-order contract there — and add `tracked_draft` to it when that is non-zero, because the arm counts both. At `0`, append with no prompt: nothing can be stranded, and a question that always answers itself is one people learn to click through. Above `0`, ask first, quoting the count:
+
+```
+This repository already tracks 23 .epic artifacts.
+
+Local-only adds .epic/ to the root .gitignore. Git will not untrack those 23
+files, so they stay committed under a rule that says they never are — the
+policy lint calls that `contradiction`. Add the rule anyway?
+  [y] add it — the 23 files stay tracked, and the lint reports `contradiction`
+      until you untrack them yourself with `git rm -r --cached .epic`;
+      init never runs that command
+  [n] skip the rule — local-only is still recorded, and the lint reports
+      `partial`: declared local-only, artifacts tracked anyway
+```
+
+Default is **no**, and `[n]` still runs step b. The declaration is the user's answer to step 5.2 and is recorded either way; what `[n]` declines is the *rule*, leaving a `partial` that names the disagreement rather than a `contradiction` that adds one. Where the root file already carries the rule, init appends nothing and never reaches this prompt. Where `gitignore_source` is `.git/info/exclude` or a global file, the `contradiction` predates init — step 5.1 has already shown it and `[n]` cannot lower it — but the prompt still fires, because appending to the *root* file is what makes that state travel to every clone.
+
+**This is step 5.5's reasoning on the other path.** A headless run must not reverse a declaration nobody watched it reverse; an interactive one must not strand the files a declaration is being made about. Both refuse to manufacture the same shape — one by declining to act, the other by asking first.
+
 Appended block, when the file already exists:
 
 ```gitignore

@@ -512,8 +512,42 @@ if [[ "$HAS_TASKS" == true ]]; then
     add_error "tasks.md has no parseable checkbox tasks (- [ ] N - ...)${VARIANT_HINT} — unrecognized format, nothing was validated"
   fi
 
-  # Check Requirements field (only if story.md exists = standard/full)
-  if [[ "$HAS_STORY" == true ]]; then
+  # Check Requirements field — only when story.md exists AND the declared scale
+  # is not `spike`.
+  #
+  # THE TWO GATES USED TO DISAGREE, and the author paid for it (story 007,
+  # R1.4). This check infers the scale from FILE PRESENCE — a story.md means
+  # there is a requirements chain to point at — while the spike R-chain check
+  # further down reads the DECLARED scale. A spike carrying a leftover story.md
+  # satisfies both, so it was told HERE to add `Requirements:` fields and told
+  # THERE that a `Requirements:` field is an error. Obeying either instruction
+  # broke the other, and nothing in the output said which one was the bug.
+  #
+  # What goes away is the ADVICE, not the finding: that story is still
+  # malformed, and the R2.3 scale-mismatch warning above still reports it —
+  # naming both sides and leaving the author to decide which is wrong (remove
+  # story.md, or declare the scale the files actually describe).
+  #
+  # TWO NON-STRICT GATES DID GET QUIETER, and saying otherwise would be the
+  # defect this comment is standing next to. Measured: the shape went from
+  # `errors: 1, exit 1` to `errors: 0, warnings: 6, exit 0`, so
+  # hook-task-completed.sh (which blocks on exit 1, extracts .error_details[]
+  # only, and has no warning branch) now lets it through in silence, and the
+  # CI loop references/ci-mode.md documents runs without --strict and now
+  # passes it. Under --strict the mismatch warning still fails the run.
+  # That trade is deliberate: R2.3 classifies scale-vs-files as a WARNING
+  # because which side is wrong is the author's call, and the error that was
+  # blocking said something R1.4 makes an error to obey. A gate that blocks on
+  # advice you must not follow is not a gate worth keeping.
+  #
+  # Gated on the DECLARED scale and never on the absence of the field itself: a
+  # standard story that simply forgot its `Requirements:` fields is precisely
+  # what this check exists to catch, so reading "no fields" as "no chain wanted"
+  # would silence its real job. fast, standard, full and an undeclared legacy
+  # story (DECLARED_SCALE == "") keep the check unchanged — R2.2's golden in
+  # tests/scale-validation.bats pins that last one, and the spike+story.md shape
+  # is pinned in tests/spike-validation.bats.
+  if [[ "$HAS_STORY" == true && "$DECLARED_SCALE" != "spike" ]]; then
     # Accept both old format (Requirements Coverage) and new format (Requirements:)
     COVERAGE_COUNT_NEW=$(grep -ci '^\s*- Requirements:' "$TASKS_FILE" 2>/dev/null || true)
     COVERAGE_COUNT_OLD=$(grep -ci 'Requirements Coverage' "$TASKS_FILE" 2>/dev/null || true)
