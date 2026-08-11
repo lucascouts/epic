@@ -263,6 +263,42 @@ if [[ ${#SCALE_VALUES[@]} -gt 0 ]]; then
   fi
 fi
 
+# scale_has_requirements_chain — does the resolved scale owe an R-chain?
+# WRITTEN AS THE FALSE SET ON PURPOSE, and the direction is the whole point
+# because it is the kind of rule that is easy to state backwards. A positive
+# list — `standard|full|"") return 0 ;; *) return 1` — reads identically today
+# and behaves the opposite way tomorrow: every FUTURE enum member would fall
+# through `*` and be classified as carrying NO chain, opted OUT of the coverage
+# gate below in silence. Silence is the failure mode nobody files a bug about.
+#
+# The false set inverts exactly that: a scale this function has never heard of
+# falls to `*`, is treated as CARRYING a chain, and a tasks-only newcomer is
+# told to add `Requirements:` fields on the very first run that validates one.
+# That is a wrong message, loudly, on day one — which someone fixes. Loud and
+# wrong beats quiet and wrong.
+#
+# IT ALSO DECIDES THE LEGACY CASE ON PURPOSE RATHER THAN BY ACCIDENT (R3.3). A
+# story that declares no `scale` in any artifact leaves DECLARED_SCALE empty;
+# the empty string falls to `*` and keeps its requirements chain BECAUSE THE
+# RULE SAYS SO. Under a positive list the same 340+ pre-field stories would be
+# correct only because someone remembered to spell `""` into the list — a
+# contract held up by a habit, and the exact shape story 007's R2.2 golden
+# exists to catch when the habit lapses.
+#
+# A pure function of DECLARED_SCALE and nothing else, named rather than inlined
+# so the question is spelled ONCE and cannot be answered two ways: the argument
+# scale_mismatch below makes for its warning skeleton, and no_r_chain further
+# down makes for its sentence. Answering it from FILE PRESENCE instead is the
+# defect this whole story exists to remove, and two gates answering it
+# differently — one from the files, one from the declaration — is how that
+# defect survived unnoticed (see the coverage gate's own comment).
+scale_has_requirements_chain() {
+  case "$DECLARED_SCALE" in
+    fast | spike) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
 # --- Declared scale vs files present (R2.3) ---
 # Each scale names an artifact set (references/tasks.md): fast and spike are
 # tasks-only, standard adds story.md, full adds design.md on top. A declaration
@@ -623,42 +659,64 @@ if [[ "$HAS_TASKS" == true ]]; then
     add_error "tasks.md has no parseable checkbox tasks (- [ ] N - ...)${VARIANT_HINT} — unrecognized format, nothing was validated"
   fi
 
-  # Check Requirements field — only when story.md exists AND the declared scale
-  # is not `spike`.
+  # Check Requirements field — only when story.md exists AND the resolved scale
+  # is one that owes a requirements chain.
   #
   # THE TWO GATES USED TO DISAGREE, and the author paid for it (story 007,
-  # R1.4). This check infers the scale from FILE PRESENCE — a story.md means
+  # R1.4). This check inferred the scale from FILE PRESENCE — a story.md means
   # there is a requirements chain to point at — while the spike R-chain check
   # further down reads the DECLARED scale. A spike carrying a leftover story.md
   # satisfies both, so it was told HERE to add `Requirements:` fields and told
   # THERE that a `Requirements:` field is an error. Obeying either instruction
   # broke the other, and nothing in the output said which one was the bug.
   #
-  # What goes away is the ADVICE, not the finding: that story is still
-  # malformed, and the R2.3 scale-mismatch warning above still reports it —
-  # naming both sides and leaving the author to decide which is wrong (remove
-  # story.md, or declare the scale the files actually describe).
+  # STORY 007 PATCHED THAT WITH A LITERAL `!= "spike"`, WHICH FIXED ONE SCALE
+  # AND LEFT ITS TWIN (story 008, R3.1). `fast` is tasks-only for exactly the
+  # same reason a spike is, references/tasks.md tells a fast author to omit the
+  # `Requirements:` field, and this gate reported that omission as an error the
+  # moment any story.md sat on disk — the same contradiction in a second
+  # vocabulary. The literal is now the predicate scale_has_requirements_chain
+  # above, so the answer comes from the DECLARATION for every scale at once and
+  # a future scale is classified in ONE place. Note what that does and does not
+  # buy: a NEW tasks-only scale is still not exempt automatically — the
+  # predicate's `*` arm demands a chain from anything it has not been taught,
+  # loudly, on the first run. That is the deliberate direction, not an oversight;
+  # the argument is above the function.
   #
-  # TWO NON-STRICT GATES DID GET QUIETER, and saying otherwise would be the
-  # defect this comment is standing next to. Measured: the shape went from
-  # `errors: 1, exit 1` to `errors: 0, warnings: 6, exit 0`, so
-  # hook-task-completed.sh (which blocks on exit 1, extracts .error_details[]
-  # only, and has no warning branch) now lets it through in silence, and the
-  # CI loop references/ci-mode.md documents runs without --strict and now
-  # passes it. Under --strict the mismatch warning still fails the run.
+  # What goes away is the ADVICE, not the finding: those stories are still
+  # malformed, and the R2.3 scale-mismatch warning above still reports each of
+  # them — naming both sides and leaving the author to decide which is wrong
+  # (remove story.md, or declare the scale the files actually describe).
+  #
+  # TWO NON-STRICT GATES DID GET QUIETER — FOR `spike` IN 007 AND NOW FOR `fast`
+  # TOO — and saying otherwise would be the defect this comment is standing next
+  # to. It is the same movement for both, measured on this story's
+  # leftover-artifact fixture (tests/scale-resolution.bats): `errors: 1, exit 1`
+  # became `errors: 0, exit 0`, with the R2.3 mismatch warning present and
+  # unchanged. So hook-task-completed.sh — which blocks on exit 1, extracts
+  # .error_details[] only, and has no warning branch — now lets BOTH shapes
+  # through in silence, and the CI loop references/ci-mode.md documents runs
+  # without --strict and now passes both. Under --strict the mismatch warning
+  # still fails the run, for both.
   # That trade is deliberate: R2.3 classifies scale-vs-files as a WARNING
   # because which side is wrong is the author's call, and the error that was
-  # blocking said something R1.4 makes an error to obey. A gate that blocks on
-  # advice you must not follow is not a gate worth keeping.
+  # blocking said something R1.4 (for spike) and references/tasks.md (for fast)
+  # make wrong to obey. A gate that blocks on advice you must not follow is not
+  # a gate worth keeping.
+  # (007 recorded `warnings: 6` here for the spike. That count came from its own
+  # richer reproduction, not this fixture, which reports 3 for either shape — the
+  # COUNT is a property of the fixture, so the claim above is the movement.)
   #
   # Gated on the DECLARED scale and never on the absence of the field itself: a
   # standard story that simply forgot its `Requirements:` fields is precisely
   # what this check exists to catch, so reading "no fields" as "no chain wanted"
-  # would silence its real job. fast, standard, full and an undeclared legacy
-  # story (DECLARED_SCALE == "") keep the check unchanged — R2.2's golden in
-  # tests/scale-validation.bats pins that last one, and the spike+story.md shape
-  # is pinned in tests/spike-validation.bats.
-  if [[ "$HAS_STORY" == true && "$DECLARED_SCALE" != "spike" ]]; then
+  # would silence its real job. standard, full and an undeclared legacy story
+  # (DECLARED_SCALE == "", which the predicate routes through `*`) keep the
+  # check unchanged — R2.2's golden in tests/scale-validation.bats pins that
+  # last one, the spike+story.md shape is pinned in
+  # tests/spike-validation.bats, and the fast+story.md shape in
+  # tests/scale-resolution.bats.
+  if [[ "$HAS_STORY" == true ]] && scale_has_requirements_chain; then
     # Accept both old format (Requirements Coverage) and new format (Requirements:)
     COVERAGE_COUNT_NEW=$(grep -ci '^\s*- Requirements:' "$TASKS_FILE" 2>/dev/null || true)
     COVERAGE_COUNT_OLD=$(grep -ci 'Requirements Coverage' "$TASKS_FILE" 2>/dev/null || true)
@@ -962,7 +1020,37 @@ for arg in "$@"; do
   [[ "$arg" == "--strict" ]] && STRICT=true
 done
 
-if [[ "$CROSS_REF" == true && "$HAS_STORY" == true && "$HAS_TASKS" == true ]]; then
+# --- Cross-reference: the R-numbers on each side, compared (R3.2) ---
+# THE SCALE GATES THE WHOLE BLOCK, not just the `elif` arm at the bottom — one
+# conjunct, but WHERE it goes is the decision. The two loops above that `elif`
+# carry the identical defect on a RICHER fixture: a tasks-only scale whose
+# tasks.md happens to contain R-tokens takes the LOOPS' branch instead of the
+# `elif`, and collects one warning per orphan and one per phantom, each of them
+# advice that the spike's no-requirements-chain rule (story 007, R1.4) makes an
+# ERROR to obey. Measured on this story's spike fixture with a leftover story.md
+# (tests/scale-resolution.bats): two such warnings — orphan R1.2, phantom R9.9 —
+# against the single `elif` warning the reproduction recorded. The reproduction
+# reached the `elif` only because its tasks.md carried no R-token at all, so
+# gating the arm that happened to be measured would have left the larger half of
+# the defect standing.
+#
+# WHAT GOES AWAY IS THE ADVICE, NOT THE FINDING, as at the coverage gate above:
+# the same run still reports the leftover artifact through the R2.3
+# scale-vs-files warning, and still errors on each R-token itself under the spike
+# R-chain rule. This block simply stops being a second, contradicting voice.
+#
+# WHY THE HELPER IS CALLABLE FROM HERE — asked because the flag parsing sitting
+# between its definition and this line makes the call look out of order: a shell
+# function is in scope from the moment its definition is parsed until the end of
+# the script, so parsing CROSS_REF/STRICT this late constrains those VARIABLES
+# and nothing else. scale_has_requirements_chain is defined far above, beside
+# the resolution it reads; the direction it is written in, and why that
+# direction, is argued there and deliberately not repeated.
+#
+# The call sits outside the `[[ ]]` because bash cannot invoke a function inside
+# a conditional expression. The requirements-coverage gate above spells its call
+# the same way, so the predicate's two consumers read alike.
+if [[ "$CROSS_REF" == true && "$HAS_STORY" == true && "$HAS_TASKS" == true ]] && scale_has_requirements_chain; then
   # Requirements are hierarchical: a group header `### Rn.` and its leaf
   # criteria `Rn.m`. Tasks reference the leaves. A one-level token Rn is a
   # requirement of its own only when story.md defines no child Rn.m for it;
