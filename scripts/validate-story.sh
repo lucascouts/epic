@@ -127,16 +127,54 @@ SCALE_ENUM='fast|standard|full|spike'
 SCALE_ENUM_TEXT=${SCALE_ENUM//|/, }
 DECLARED_SCALE=""       # the resolved scale; "" = no artifact declares one
 DECLARED_SCALE_FILE=""  # the artifact it was read from, for the messages
+# Every artifact that declared a VALID scale, and its value — parallel arrays in
+# the shape the `status:` collector below uses, and for the same reason: one
+# story has one scale, so artifacts that disagree about it are worth naming.
+SCALE_FILES=()
+SCALE_VALUES=()
 
-# WHERE the scale is declared depends on the scale itself: a full/standard story
-# declares it in its own story.md, while a fast/spike story is tasks-only and
-# can only declare it in tasks.md. So both are read, story.md FIRST — it is the
-# story's own frontmatter and therefore wins when the two disagree.
-# Every declaration is enum-checked, not just the winning one: a `medium` in
-# tasks.md is the defect this check exists to catch, and it must not be
-# swallowed by a valid value in story.md.
-for SCALE_SRC in story.md tasks.md; do
+# THE SHARED SCALE RULE — `tasks.md` is AUTHORITATIVE for `scale:`, and every
+# reader of a story's scale resolves it that way.
+# WHY tasks.md and not the story's own frontmatter: tasks.md is the one artifact
+# every scale has. A fast or spike story is tasks-only and can declare its scale
+# nowhere else, so a declaration there is never a leftover — whereas a story.md
+# or a design.md surviving an earlier attempt at a differently-shaped story is
+# exactly that, and letting one overrule the live tasks.md is the defect this
+# rule closes.
+#
+# FIVE READERS RESOLVE A STORY'S SCALE AND MOVE TOGETHER, stated here in full as
+# parse_verdict below states its own consumer set — an inventory listing only
+# the movers is the one that goes stale in silence.
+#   1. validate-story.sh (here) — turns the scale into validation findings.
+#   2. archive-story.sh `story_scale` — the archive preflight and the `scale`
+#      recorded in the manifest entry. `story_field` itself is NOT flipped:
+#      `status` and `type` keep reading story.md ahead of tasks.md.
+#   3. cross-reference.sh — decides whether a requirements chain exists to
+#      compare against at all.
+# And the two that deliberately do NOT change, named so the next reader can tell
+# an exception from an oversight:
+#   4. monitor-stale.sh:96 `declares_spike_scale` — already reads tasks.md and
+#      nothing else. It never carried the defect; this rule is the rest of the
+#      codebase agreeing with the precedent it set.
+#   5. epic-index.sh:762-768 `status_cell` — knowingly kept on the older
+#      precedence and out of scope. It renders a row, it gates nothing, and a
+#      renderer that disagrees costs a wrong cell, not a wrong archive.
+#
+# EVERY declaration is enum-checked, not only the winning one: a `medium` in any
+# artifact is the defect this check exists to catch and must not be swallowed by
+# a valid value elsewhere. An invalid value `continue`s, so it never occupies
+# the slot — `story.md: medium` beside `tasks.md: spike` resolves `spike` AND
+# reports the `medium`.
+#
+# design.md is read and enum-checked and paired, but NEVER resolves (R2.4): it
+# describes the SOLUTION, not the shape of the work. It sits in the middle of
+# the loop order so its error is reported in artifact order; the resolution
+# skips it by name.
+for SCALE_SRC in story.md design.md tasks.md; do
   SCALE_VAL=$(frontmatter_field "$STORY_DIR/$SCALE_SRC" scale)
+  # No field at all: the artifact carries no opinion, so it is not paired and
+  # cannot be divergent — the rule the `status:` collector states at its own
+  # append below.
   if [[ -z "$SCALE_VAL" ]]; then
     continue
   fi
@@ -144,13 +182,86 @@ for SCALE_SRC in story.md tasks.md; do
     add_error "$SCALE_SRC frontmatter 'scale' is not a story scale: found '$SCALE_VAL' — must be one of: $SCALE_ENUM_TEXT"
     # An invented value resolves to NOTHING: every later check would have to
     # guess what `medium` meant, and a guess must never dress up as a finding.
+    # It is not paired either, which is the ONE deliberate divergence from the
+    # `status:` collector — that one pairs a value even when it fails its enum.
+    # An invalid scale already has the error above; pairing it would report one
+    # defect twice in two vocabularies.
     continue
   fi
-  if [[ -z "$DECLARED_SCALE" ]]; then
-    DECLARED_SCALE="$SCALE_VAL"
-    DECLARED_SCALE_FILE="$SCALE_SRC"
-  fi
+  SCALE_FILES+=("$SCALE_SRC")
+  SCALE_VALUES+=("$SCALE_VAL")
+  # The resolution: assign unconditionally, so the LAST valid declaration wins,
+  # and tasks.md is last in the loop order. A story declaring in only one of the
+  # two still resolves that one, whichever it is.
+  case "$SCALE_SRC" in
+    story.md|tasks.md)
+      DECLARED_SCALE="$SCALE_VAL"
+      DECLARED_SCALE_FILE="$SCALE_SRC"
+      ;;
+  esac
 done
+
+# --- Artifacts disagreeing about the scale (R2.1, R2.2) ---
+# One story, one scale, so artifacts declaring different values disagree about
+# the SHAPE OF THE WORK — the same defect the `status:` collector below reports
+# for the lifecycle state, reported the same way: compare every collected value
+# against element 0, and name each `file=value` pair.
+#
+# WHAT THIS ONE ADDS to that sibling is the RESOLUTION. There, the artifacts are
+# equals and there is nothing to disclose; here one of the declarations is
+# already in force for every check downstream, and naming the disagreement
+# without naming the value in force tells the author there is a problem but not
+# which half of it is being acted on.
+#
+# It does NOT say which artifact is wrong, and that is the whole reason it is a
+# warning rather than an error: `tasks.md` is authoritative for `scale:`, so its
+# value is the one in force WHENEVER IT DECLARES ONE — but the stale line can
+# just as easily be the one sitting in tasks.md itself. Picking a side would be
+# a guess dressed up as a finding, and the R2.3 mismatch warning right below
+# declines to pick one for exactly the same reason.
+#
+# EMITTED AHEAD OF THAT MISMATCH BLOCK, deliberately: the disagreement is the
+# reason two values exist at all, so it is read before the consequence of the
+# resolved one. That fixes its position in `warning_details[]`.
+#
+# THE ONLY PLACE design.md's declaration IS OBSERVABLE (R2.4): it is compared
+# here like any other declaring artifact and never resolves, so a `design.md:
+# full` beside a `tasks.md: spike` warns naming `design.md=full` while the
+# resolved scale stays `spike`.
+#
+# AGREEMENT IS SILENT (R2.2): three artifacts carrying the same value collect
+# three identical elements and diverge from none of them. That is not a nicety —
+# swept when it shipped, all 8 stories in .epic/stories/ and all 4 examples in
+# assets/examples/ declare one uniform value per story, so the tempting "warn
+# whenever two artifacts declare" variant would have fired on every one of them,
+# this story's own directory included.
+#
+# ${SCALE_VALUES[@]+"${SCALE_VALUES[@]}"} rather than a bare "${SCALE_VALUES[@]}",
+# and the whole block gated on a non-empty array: expanding an empty array —
+# or reading its element 0 — is an unbound-variable abort under `set -u` on
+# bash < 4.4 (macOS ships 3.2), the same hazard archive-story.sh:239 guards. The
+# empty case is the COMMON one here, not the corner: no artifact of a legacy
+# story declares a scale at all.
+if [[ ${#SCALE_VALUES[@]} -gt 0 ]]; then
+  SCALE_DIVERGED=false
+  for sc_v in ${SCALE_VALUES[@]+"${SCALE_VALUES[@]}"}; do
+    [[ "$sc_v" == "${SCALE_VALUES[0]}" ]] || SCALE_DIVERGED=true
+  done
+  if [[ "$SCALE_DIVERGED" == true ]]; then
+    # The `${VAR:+, }` separator idiom of the `status:` sibling: the comma is
+    # written by the element that FOLLOWS one, so no trailing separator exists to
+    # strip and the single-pair case needs no special arm.
+    SCALE_PAIRS=""
+    for sc_i in "${!SCALE_FILES[@]}"; do
+      SCALE_PAIRS+="${SCALE_PAIRS:+, }${SCALE_FILES[$sc_i]}=${SCALE_VALUES[$sc_i]}"
+    done
+    # DECLARED_SCALE is necessarily non-empty on this branch: two differing
+    # values need two declaring artifacts, and design.md — the one artifact that
+    # never resolves — can only ever be one of them, so any divergence contains
+    # a story.md or a tasks.md and that one has resolved.
+    add_warning "Artifacts of this story declare different 'scale' values ($SCALE_PAIRS) — every artifact must declare the same scale; until they do, the resolved scale is '$DECLARED_SCALE' (from $DECLARED_SCALE_FILE)"
+  fi
+fi
 
 # --- Declared scale vs files present (R2.3) ---
 # Each scale names an artifact set (references/tasks.md): fast and spike are
