@@ -19,6 +19,13 @@ bash "$EPIC_PLUGIN_ROOT/scripts/cross-reference.sh" .epic/stories/001-feature-na
 
 Exit codes: 0 = pass, 1 = issues found, 2 = invalid input. Output is always JSON.
 
+`cross-reference.sh` has a fourth `status`, `no-requirements-chain`, reported at **exit 0**: the story's declared scale (`fast` or `spike`) carries no requirements chain, so there was never anything to compare. Exit 0 there means *nothing to measure*, not *measured and clean* — a distinction `0 = pass` alone does not draw.
+
+That object carries `story`, `scale` and `status` and **omits every measurement key**: no `traced`, no `coverage`, no `mapping`, and `orphan_requirements` / `phantom_references` are absent rather than `[]`, because an empty array claims a look was taken. So:
+
+- **Branch on `status`, never on a measurement key being present.** A pipeline reading `.coverage` unconditionally gets `null` on this shape, silently.
+- **`scale` is emitted on every path**, so a consumer can always tell which shape it is holding before it reads further.
+
 ## Generate Stories Programmatically
 
 ```bash

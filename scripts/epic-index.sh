@@ -763,6 +763,13 @@ verdict_cell() {
 # away. It is affordable HERE and nowhere else: this function RENDERS a row and
 # gates nothing, so a disagreement costs one wrong cell, never a wrong archive.
 #
+# TWO FIXTURE COMMENTS RESTATE THIS EXCEPTION AND MOVE WITH IT: tests/epic-index.bats
+# explains the same precedence at its `spike_tasks` helper and at its
+# `003-precedence` case, both pointing back HERE for the reason. They are NOT a
+# sixth reader — nothing in a bats fixture resolves a scale — which is why the
+# five-reader inventory does not and must not list them. They are prose ABOUT
+# this paragraph, so amending it means amending those two.
+#
 # NOT reached by a MANIFEST-ONLY row, deliberately: those render the status
 # archive-story.sh RECORDED at move time (see manifest_row), and the manifest
 # does not carry the verdict. Giving it one would mean touching the writer's
