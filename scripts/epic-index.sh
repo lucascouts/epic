@@ -747,11 +747,21 @@ verdict_cell() {
 # not hidden: a dangling supersede is precisely what a reader needs to be told
 # about.
 #
-# A `scale: spike` story leaves through verdict_cell instead (design.md:67).
-# `scale` is looked up the way archive-story.sh's story_field looks it up —
-# story.md first, then tasks.md — because a spike commonly has NO story.md at
-# all, and a spike whose scale the renderer could not see would silently render
-# as a lifecycle story.
+# A `scale: spike` story leaves through verdict_cell instead — its Status column
+# carries the Verdict rather than the frontmatter status (references/list-mode.md,
+# "Spike Lifecycle"). So this cell has to be able to SEE the scale at all, and a
+# spike commonly has NO story.md: tasks.md is the only artifact it is guaranteed
+# to have. A renderer blind to the scale would print a spike as an ordinary
+# lifecycle story — the single outcome this branch exists to prevent.
+#
+# status_cell therefore keeps its OWN precedence: it reads the row's story.md and
+# falls back to tasks.md. That is a DELIBERATE, REGISTERED EXCEPTION to the shared
+# scale rule — `tasks.md` is authoritative for `scale:` — which is stated in full
+# at validate-story.sh's resolution loop (search it for "THE SHARED SCALE RULE")
+# and which names this function as the fifth of its five readers, so the
+# divergence reads as a decision and not as an oversight waiting to be tidied
+# away. It is affordable HERE and nowhere else: this function RENDERS a row and
+# gates nothing, so a disagreement costs one wrong cell, never a wrong archive.
 #
 # NOT reached by a MANIFEST-ONLY row, deliberately: those render the status
 # archive-story.sh RECORDED at move time (see manifest_row), and the manifest

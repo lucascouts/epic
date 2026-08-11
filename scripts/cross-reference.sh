@@ -162,12 +162,13 @@ frontmatter_field() {
 
 # THE SHARED SCALE RULE — `tasks.md` is AUTHORITATIVE for `scale:`, and every
 # reader of a story's scale resolves it that way. tasks.md is the one artifact
-# every scale has, so a declaration sitting there is never a leftover; a
-# design.md or a story.md surviving an earlier attempt at a differently-shaped
-# story is exactly that, and honouring one of those over the live tasks.md is the
-# defect story 008 removes. THE FULL ARGUMENT IS STATED ONCE, at
-# validate-story.sh's resolution loop (search it for "THE SHARED SCALE RULE") —
-# this is a pointer to it, not a second copy that can drift from it.
+# every scale has, so a declaration sitting there is never a leftover; a story.md
+# or a design.md surviving an earlier attempt at a differently-shaped story is
+# exactly that, and honouring one of those over the live tasks.md is the defect
+# story 008 removes. THE FULL ARGUMENT IS STATED ONCE, at validate-story.sh's
+# resolution loop (search it for "THE SHARED SCALE RULE"), together with the
+# written contract it agrees with — this is a pointer to that, not a second copy
+# that can drift from it.
 #
 # FIVE READERS RESOLVE A STORY'S SCALE AND MOVE TOGETHER. Named in full,
 # including the two that do NOT change, because an inventory listing only the
@@ -175,18 +176,19 @@ frontmatter_field() {
 #   1. validate-story.sh — turns the scale into validation findings.
 #   2. archive-story.sh `story_scale` — the archive preflight and the `scale`
 #      recorded in the manifest entry.
-#   3. cross-reference.sh (HERE) — decides whether there is a requirements chain
+#   3. cross-reference.sh (HERE) — decides whether a requirements chain exists
 #      to compare against at all.
 #   4. monitor-stale.sh:96 `declares_spike_scale` — already reads tasks.md and
 #      nothing else. It never carried the defect; this rule is the rest of the
 #      codebase agreeing with the precedent it set.
-#   5. epic-index.sh:762-768 `status_cell` — knowingly kept on the older
-#      precedence and out of scope. It renders a row, it gates nothing, and a
-#      renderer that disagrees costs a wrong cell, not a wrong archive.
+#   5. epic-index.sh:772-778 `status_cell` — knowingly kept on its own
+#      precedence and out of scope, and it says so at its own definition. It
+#      renders a row, it gates nothing, and a renderer that disagrees costs a
+#      wrong cell, not a wrong archive.
 #
 # There is no shared library to import the rule from: `scripts/` has none, every
 # script here is invoked standalone by path. So it is duplicated, and the five
-# copies move as one.
+# readers move as one.
 #
 # design.md is not read at all. It is enum-checked and compared by
 # validate-story.sh but never resolves (R2.4) — it describes the SOLUTION, not

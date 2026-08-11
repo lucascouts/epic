@@ -63,6 +63,12 @@ created: <date>
 - [ ] Error handling implemented
 ```
 
+## The Declared Scale
+
+**`tasks.md` is authoritative for the declared `scale`.** It is the one artifact every scale has — a fast or spike story is tasks-only and can declare its scale nowhere else — so the value written here is the live one, never a leftover from an earlier shape of the work. Every tool that has to know how a story is shaped resolves the scale from here: validation, the archive preflight and the manifest entry it writes, the traceability cross-reference, and the staleness monitor.
+
+A `story.md` declaring a different `scale` is **reported**, not honoured: validation warns, naming each artifact with the value it declares and the value actually in force, and then proceeds with the one `tasks.md` declares. It does not guess which of the two is stale — that is the author's call, so fix whichever artifact is wrong. The same holds for a `design.md`, which is read and checked and compared but never resolves: it describes the solution, not the shape of the work.
+
 ## Task Format Rules
 
 ### Structure
@@ -262,7 +268,7 @@ When generating tasks for fast scale (no story.md):
 
 A **spike** is a time-boxed probe: it exists to answer a question, and its deliverable is the answer, not shipped code. When generating tasks for spike scale (`tasks.md` only — no story.md, no design.md, no `.draft/`):
 
-- Declare `scale: spike` in the frontmatter. It is the only place a spike can declare it, and validation reads it from there.
+- Declare `scale: spike` in the frontmatter. It is the only place a spike can declare it — there is no other artifact — and that declaration is the authoritative one, exactly as it is for every other scale (see [The Declared Scale](#the-declared-scale)).
 - **No requirements chain.** Omit the `Requirements` field and write no R-number anywhere in the file. With no story.md, an `R1.1` here points at nothing — it is a dangling pointer, not traceability, and validation treats any `Requirements:` field or R-token in a spike as an error. When traceability is what the work needs, promote the spike to a story instead.
 - **Single-author**, like fast scale: no Test Advisor, no sub-agents, no drafts, no phase gate.
 - `Tests` and `Acceptance` are **optional** here (unlike fast scale, where one of the two is mandatory): probe code is throwaway and the Verdict is the deliverable. `Validation` stays required on every sub-task — a probe step must still say what would show it ran.

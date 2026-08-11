@@ -327,6 +327,8 @@ frontmatter_field() {
 
 # story_field <key> — the story's lifecycle fields live in story.md when there
 # is one, and in tasks.md for the tasks-only scales (fast, spike).
+# `scale:` does NOT come through here (008 R1.1) — story_scale below owns it,
+# and its comment says why the two helpers are deliberately near-identical.
 story_field() {
   local key="$1" val
   val=$(frontmatter_field "$STORY_PATH/story.md" "$key")
@@ -334,6 +336,70 @@ story_field() {
     val=$(frontmatter_field "$STORY_PATH/tasks.md" "$key")
   fi
   printf '%s' "$val"
+}
+
+# story_scale — `scale:` is the one field tasks.md owns (008 R1.1), so it is
+# read by this helper and never through story_field above.
+#
+# THE SHARED SCALE RULE — `tasks.md` is AUTHORITATIVE for `scale:`, and every
+# reader of a story's scale resolves it that way. tasks.md is the one artifact
+# every scale has, so a declaration sitting there is never a leftover; a
+# story.md or a design.md surviving an earlier attempt at a differently-shaped
+# story is exactly that, and honouring one of those over the live tasks.md is
+# the defect story 008 removes. THE FULL ARGUMENT IS STATED ONCE, at
+# validate-story.sh's resolution loop (search it for "THE SHARED SCALE RULE"),
+# together with the written contract it agrees with — this is a pointer to that,
+# not a second copy that can drift from it.
+#
+# FIVE READERS RESOLVE A STORY'S SCALE AND MOVE TOGETHER. Named in full,
+# including the two that do NOT change, because an inventory listing only the
+# movers is the one that goes stale in silence:
+#   1. validate-story.sh — turns the scale into validation findings.
+#   2. archive-story.sh (HERE) — the spike preflight in assess_completion and
+#      the `scale` recorded in the manifest entry by derive_entry_fields. BOTH
+#      of those call it: a fix applied to the gate alone refuses the spike
+#      correctly and then files a permanent entry naming a scale the story
+#      never declared.
+#   3. cross-reference.sh — decides whether a requirements chain exists to
+#      compare against at all.
+#   4. monitor-stale.sh:96 `declares_spike_scale` — already reads tasks.md and
+#      nothing else. It never carried the defect; this rule is the rest of the
+#      codebase agreeing with the precedent it set.
+#   5. epic-index.sh:772-778 `status_cell` — knowingly kept on its own
+#      precedence and out of scope, and it says so at its own definition. It
+#      renders a row, it gates nothing, and a renderer that disagrees costs a
+#      wrong cell, not a wrong archive.
+# There is no shared library to import the rule from: `scripts/` has none, every
+# script here is invoked standalone by path. So it is duplicated, and the five
+# readers move as one.
+#
+# WHY story_field WAS NOT FLIPPED, so the near-duplication reads as a decision
+# and not as an oversight waiting to be tidied away. `status` (preflight's
+# `FM_STATUS=$(story_field status)`, :2767) and `type` (`derive_entry_fields`,
+# :1801) still read story.md ahead of tasks.md, and they must: those two are
+# the story's LIFECYCLE, which belongs to story.md whenever there is one, and
+# only `scale` moves. Both are cited by NAME as well as by line because a
+# same-file line number goes stale on the next edit, and NOT EVEN UNIFORMLY:
+# this change pushed `type` down 71 lines (1730 -> 1801) and `status` down 76
+# (2691 -> 2767), because the second call-site comment below sits between them.
+# So there is no single offset a reader could apply to repair a stale citation
+# — only the name survives an edit. Collapsing the two helpers into one — in
+# either direction — would silently change which artifact decides them, and
+# `status` decides both the already-archived refusal and the value persisted in
+# the manifest entry.
+#
+# A REGISTERED GAP, NOT ONE INTRODUCED HERE (design.md §4): this script has no
+# scale enum check, and this change makes that gap REACHABLE. An invalid
+# `scale: medium` in tasks.md beside a valid `spike` in story.md used to resolve
+# `spike` and get the spike preflight; now the `medium` is what resolves, and
+# the preflight is skipped. No requirement asks for an enum here and adding one
+# is out of scope — validate-story.sh still reports the invalid value on the
+# same story. Recorded so it is a known decision rather than a latent surprise.
+story_scale() {
+  local v
+  v=$(frontmatter_field "$STORY_PATH/tasks.md" scale)
+  [[ -n "$v" ]] || v=$(frontmatter_field "$STORY_PATH/story.md" scale)
+  printf '%s' "$v"
 }
 
 # census_tasks <tasks.md> — the checkbox census, in the ONE grammar shared with
@@ -533,7 +599,12 @@ assess_completion() {
   local scale spike_rule
   COMPLETE=false
   INCOMPLETE_REASON=""
-  scale=$(story_field scale)
+  # THE DECLARED scale (story_scale, not story_field) — call site 1 of 2. A
+  # story.md left over from an earlier attempt must not be able to take the
+  # spike contract away from a story whose live tasks.md declares one: that is
+  # how a spike with every probe box closed and no `## Verdict` fell through to
+  # the generic closed-boxes rule below and got archived (008 R4.2).
+  scale=$(story_scale)
 
   # A spike (story 007 R1.7) concludes through its `## Verdict` and only through
   # it: its checkboxes are probe steps, not a contract, so they must not be able
@@ -1728,7 +1799,12 @@ derive_entry_fields() {
     STORY_SLUG="$STORY_ID"
   fi
   STORY_TYPE=$(story_field type)
-  STORY_SCALE=$(story_field scale)
+  # Call site 2 of 2, and the one a test that only checks the refusal cannot
+  # see: this value is DERIVED, never declared, and it is written into the
+  # manifest — the archive's permanent record, which outlives the story
+  # directory it was read from. The gate above and this line must resolve the
+  # scale identically or an archive refuses as a spike and files as a `full`.
+  STORY_SCALE=$(story_scale)
   if ! derive_archived_at; then
     DERIVE_ERR="cannot read the system clock ('date -Iseconds' and 'date -u +%Y-%m-%dT%H:%M:%SZ' both failed)"
     return 1

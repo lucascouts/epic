@@ -139,16 +139,27 @@ SCALE_VALUES=()
 # every scale has. A fast or spike story is tasks-only and can declare its scale
 # nowhere else, so a declaration there is never a leftover — whereas a story.md
 # or a design.md surviving an earlier attempt at a differently-shaped story is
-# exactly that, and letting one overrule the live tasks.md is the defect this
-# rule closes.
+# exactly that, and honouring one of those over the live tasks.md is the defect
+# story 008 removes.
+#
+# THE WRITTEN CONTRACT THIS AGREES WITH is `references/tasks.md`, section "Spike
+# Scale Adaptations": that document always said tasks.md is where a spike
+# declares its scale and where validation reads it from, and it now states the
+# precedence for every scale outright — tasks.md is authoritative, and an
+# artifact that disagrees is reported rather than honoured. The rule is not
+# invented here; this is the code catching up to the contract it was already
+# documented against, which is why 008 is a bugfix and not a change of policy.
+# If code and contract ever part company again, that document is the one to
+# reconcile against.
 #
 # FIVE READERS RESOLVE A STORY'S SCALE AND MOVE TOGETHER, stated here in full as
 # parse_verdict below states its own consumer set — an inventory listing only
 # the movers is the one that goes stale in silence.
-#   1. validate-story.sh (here) — turns the scale into validation findings.
+#   1. validate-story.sh (HERE) — turns the scale into validation findings.
 #   2. archive-story.sh `story_scale` — the archive preflight and the `scale`
 #      recorded in the manifest entry. `story_field` itself is NOT flipped:
-#      `status` and `type` keep reading story.md ahead of tasks.md.
+#      `status` and `type` are the story's LIFECYCLE, which belongs to
+#      story.md whenever there is one, and only `scale` moves.
 #   3. cross-reference.sh — decides whether a requirements chain exists to
 #      compare against at all.
 # And the two that deliberately do NOT change, named so the next reader can tell
@@ -156,9 +167,14 @@ SCALE_VALUES=()
 #   4. monitor-stale.sh:96 `declares_spike_scale` — already reads tasks.md and
 #      nothing else. It never carried the defect; this rule is the rest of the
 #      codebase agreeing with the precedent it set.
-#   5. epic-index.sh:762-768 `status_cell` — knowingly kept on the older
-#      precedence and out of scope. It renders a row, it gates nothing, and a
-#      renderer that disagrees costs a wrong cell, not a wrong archive.
+#   5. epic-index.sh:772-778 `status_cell` — knowingly kept on its own
+#      precedence and out of scope, and it says so at its own definition. It
+#      renders a row, it gates nothing, and a renderer that disagrees costs a
+#      wrong cell, not a wrong archive.
+#
+# There is no shared library to import the rule from: `scripts/` has none, every
+# script here is invoked standalone by path. So it is duplicated, and the five
+# readers move as one.
 #
 # EVERY declaration is enum-checked, not only the winning one: a `medium` in any
 # artifact is the defect this check exists to catch and must not be swallowed by
