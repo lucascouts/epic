@@ -87,7 +87,7 @@ tests/archive-story.bats:aws-access-token:1718
 # authored-test copy. Both are AKIA-SHAPED and detected on purpose: a key
 # gitleaks ignores would make every suppression case in that suite a
 # tautology, which is the reasoning this header already records above.
-.epic/stories/009-root-anchored-secrets-scan/.draft/authored-tests/tests/secrets-allowlist.bats:aws-access-token:33
-.epic/stories/009-root-anchored-secrets-scan/.draft/authored-tests/tests/secrets-allowlist.bats:aws-access-token:34
+.epic/archive/009-root-anchored-secrets-scan/.draft/authored-tests/tests/secrets-allowlist.bats:aws-access-token:33
+.epic/archive/009-root-anchored-secrets-scan/.draft/authored-tests/tests/secrets-allowlist.bats:aws-access-token:34
 tests/secrets-allowlist.bats:aws-access-token:33
 tests/secrets-allowlist.bats:aws-access-token:34
