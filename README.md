@@ -106,7 +106,7 @@ Run `/reload-plugins` after updating plugin files.
 /epic:epic stories archive 001
 ```
 
-Artifacts live in `.epic/stories/NNN-kebab-case/` (gitignored by default; keep or commit depending on your workflow).
+Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an explicit choice the `init` wizard asks for once, per project — see [Versioning policy for `.epic/`](#versioning-policy-for-epic).
 
 ---
 
@@ -115,7 +115,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/` (gitignored by default; keep o
 | Command | Purpose |
 |---|---|
 | `/epic:epic` | Create story from free-text description (triage + clarify + phases) |
-| `/epic:epic init` | Set up `.epic/constitution.md`, `CLAUDE.md`, sub-agents |
+| `/epic:epic init` | Set up `.epic/constitution.md`, `CLAUDE.md`, sub-agents; ask the [versioning policy](#versioning-policy-for-epic) question |
 | `/epic:epic stories` | List all stories (summary) |
 | `/epic:epic stories full` | List all stories with tasks |
 | `/epic:epic stories NNN` | Show one story in detail |
@@ -169,6 +169,33 @@ epic/
 ├── tests/                       # bats unit tests for scripts
 └── .github/workflows/           # shell-ci (shellcheck + bats + example validation)
 ```
+
+---
+
+## Versioning policy for `.epic/`
+
+**`/epic:epic init` asks once, per project, and records the answer.** There is no silent default in an interactive session — the question offers exactly two options and writes the state each one implies.
+
+| Option | What init writes | Recorded in `.epic/.gitpolicy` |
+|---|---|---|
+| **Versioned artifacts** (recommended) | `.epic/.gitignore` with `.draft/` and `*.wip`; offers to remove a root-`.gitignore` rule that ignores `.epic/` — quoting the line, never silently | `tracked-md` |
+| **Local-only** | `.epic/` appended to the root `.gitignore` | `local-only` |
+
+Versioned tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `archive/manifest.yaml`. **`.draft/` is never versioned under either policy** — it is scratch space: run logs, authored tests, phase snapshots, `*.wip`.
+
+**Why it is a question and not a default.** In a 26-project corpus, having no declared policy is what destroyed lifecycle history: a track→untrack transition **wiped 54 stories** in one project, a squash left **9 zombie duplicates** split across `stories/` and `archive/` in another, one project had **47 `.epic` files committed through a `.gitignore` that said they were never committed**, and another **flip-flopped its policy five times**. The three projects with the most auditable lifecycle had all deliberately broken the older "never commit `.epic`" doctrine and converged on the same model — version the `.md` artifacts, ignore `.draft/`. That is why versioned is *recommended*; it is still *asked*, because every failure above came from a policy nobody said out loud.
+
+**Non-interactive runs get local-only, without prompting.** A headless or Agent SDK `init` applies the conservative status quo and never starts committing `.epic` behind your back. It also never overrides a policy already recorded: a workspace that declares `tracked-md` is left exactly as it is.
+
+**A per-project choice — init asks, and it supersedes any global doctrine.** If your global `CLAUDE.md` or personal convention says "never commit `.epic`", the answer recorded for *this* project wins here. Epic never reads or edits your global configuration.
+
+**Checking the state:** `scripts/epic-gitpolicy.sh` is a read-only lint that prints one JSON object comparing the declared policy against what git actually does — `{git, policy, gitignore_ignores_epic, gitignore_source, tracked_md, tracked_draft, verdict}`, where `verdict` is `consistent`, `contradiction` or `partial`. Init runs it before asking, to show you the state you are choosing from.
+
+```bash
+bash "$EPIC_PLUGIN_ROOT/scripts/epic-gitpolicy.sh"   # from the workspace root
+```
+
+Full walkthrough of both branches: [references/init-mode.md](references/init-mode.md#versioning-policy).
 
 ---
 
@@ -227,13 +254,16 @@ Configurable via the install wizard or directly through settings. Each option is
 | `artifactLanguage` | `en` | Override only if your organisation mandates non-English artifacts |
 | `enableStaleMonitor` | `false` | Enable the background watcher for stories with no progress past the staleness threshold |
 | `staleThresholdDays` | `7` | Days of inactivity before a story with pending tasks is flagged (only when stale monitor is enabled) |
+| `spikeStaleThresholdDays` | `14` | Days of inactivity before a spike whose Verdict is still `open` is flagged — measured by its Verdict, not its checkboxes |
 | `staleCheckIntervalSeconds` | `3600` | Poll cadence for the stale watcher in seconds (only when stale monitor is enabled) |
 
 ---
 
 ## Background Monitors (optional)
 
-When `enableStaleMonitor=true`, a background script (`monitors/monitors.json` → `scripts/monitor-stale.sh`) starts on the first `/epic:epic` invocation and periodically reports stories with pending tasks untouched for more than 7 days. Stdout lines surface as notifications to the main agent.
+When `enableStaleMonitor=true`, a background script (`monitors/monitors.json` → `scripts/monitor-stale.sh`) starts on the first `/epic:epic` invocation and periodically reports stories with pending tasks untouched for more than 7 days, plus spikes whose `## Verdict` is still `open` after 14 days. Stdout lines surface as notifications to the main agent.
+
+The same script also answers synchronously — `monitor-stale.sh --once` runs a single pass and exits — which is how the story list flags stale spikes. That path ignores `enableStaleMonitor` on purpose: the option governs the background watcher, not a question the list asks while you are looking at it.
 
 Constraints:
 
@@ -298,7 +328,7 @@ See the [setting reference](https://code.claude.com/docs/en/settings#settings-fi
 - **Hierarchical traceability** — R-numbers flow from story → tasks → code
 - **Test-first at every scale** — Standard and Full author failing tests at plan time (Test Advisor, Phase 3); Fast authors them at run time, single-author. A Fast sub-task without testable logic pins behavior via its `Acceptance` field instead
 - **Fail fast** — executors stop on validation failure, never auto-fix silently
-- **Draft recovery** — each phase approval saves `.draft/` inside the story directory (gitignored) so interrupted sessions resume cleanly. Drafts live in the project, not in `${CLAUDE_PLUGIN_DATA}`, keeping them tied to the repo and visible to teammates inspecting the same checkout.
+- **Draft recovery** — each phase approval saves `.draft/` inside the story directory ([never versioned under either policy](#versioning-policy-for-epic)) so interrupted sessions resume cleanly. Drafts live in the project, not in `${CLAUDE_PLUGIN_DATA}`, keeping them tied to the repo and visible to teammates inspecting the same checkout.
 - **Numbers never recycled** — archived stories keep their numbers permanently
 
 ---

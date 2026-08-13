@@ -8,7 +8,7 @@ Use this template for the `tasks.md` file in all story types and scales.
 ---
 story: <story-name>
 type: feature | bugfix
-scale: fast | standard | full
+scale: fast | standard | full | spike
 version: 1
 created: <date>
 ---
@@ -257,3 +257,34 @@ When generating tasks for fast scale (no story.md):
 - Quality Gates section is still mandatory
 - **Test-or-Acceptance contract rule:** every implementing (non-Commit) sub-task carries either a `Tests` field or an `Acceptance` field — a sub-task with testable logic gets a `Tests` field, a structural sub-task with no testable logic gets an `Acceptance` field. Commit sub-tasks are exempt (they implement nothing).
 - If during generation the scope appears larger than expected, recommend upgrading to standard scale
+
+## Spike Scale Adaptations
+
+A **spike** is a time-boxed probe: it exists to answer a question, and its deliverable is the answer, not shipped code. When generating tasks for spike scale (`tasks.md` only — no story.md, no design.md, no `.draft/`):
+
+- Declare `scale: spike` in the frontmatter. It is the only place a spike can declare it, and validation reads it from there.
+- **No requirements chain.** Omit the `Requirements` field and write no R-number anywhere in the file. With no story.md, an `R1.1` here points at nothing — it is a dangling pointer, not traceability, and validation treats any `Requirements:` field or R-token in a spike as an error. When traceability is what the work needs, promote the spike to a story instead.
+- **Single-author**, like fast scale: no Test Advisor, no sub-agents, no drafts, no phase gate.
+- `Tests` and `Acceptance` are **optional** here (unlike fast scale, where one of the two is mandatory): probe code is throwaway and the Verdict is the deliverable. `Validation` stays required on every sub-task — a probe step must still say what would show it ran.
+- Keep the same structure otherwise (metadata line, content fields). The Quality Gates section is still mandatory; for a spike the gates are about the probe concluding, e.g. `- [ ] Verdict recorded (status no longer open)`.
+- **A `## Verdict` section is mandatory** — a spike without a conclusion is a leak. See the template below.
+- Scope the probe to something that can be concluded. A Verdict left `open` has a deadline of its own and LIST says so once it passes — the number lives in `scripts/monitor-stale.sh` and is stated once, in [list-mode.md](list-mode.md#spike-lifecycle); a spike that never concludes is the failure mode this scale exists to prevent.
+- If the probe turns out to be a feature, do not grow the spike: record `status: promote` and let the follow-up story carry the work. Setting it in an interactive session gets you the offer to create that story pre-filled with the `conclusion:` — see [list-mode.md](list-mode.md#spike-lifecycle) for the handoff and for what makes a spike archivable.
+
+**Verdict template** — the last section of a spike's `tasks.md`:
+
+```markdown
+## Verdict
+- status: open
+- conclusion: <1-5 lines: what was learned>
+- promoted-to: NNN   # required when status: promote
+```
+
+The grammar below is what the shipped parser (`parse_verdict`, shared verbatim by `scripts/epic-index.sh`, `scripts/archive-story.sh` and `scripts/validate-story.sh`) actually accepts. It is fail-closed by design: anything it cannot read counts as not recorded.
+
+- **Heading:** two or more `#`, then the word `Verdict`. Anything after it must be separated by a space — `## Verdict — cache probe` matches, `## Verdict:` does not, and a heading that does not match leaves the section invisible.
+- **Where the section ends:** at the next `##`-or-deeper heading. Put the Verdict last so nothing truncates it.
+- **`status:`** carries exactly **one** value — `open`, `promote`, or `wont-do`. Only the first `status:` line inside the section is read, and the value is cut at the first space or `|`, so a copy-pasted `open | promote | wont-do` reads silently as `open`. Write the value that is true.
+- **`promoted-to:`** must start with a digit (`012`, `12`). The literal `NNN` is rejected on purpose: an unreplaced placeholder counts as **no target recorded**, and `status: promote` with no recorded target is a validation error. A trailing `# comment` after the number is fine.
+- **`conclusion:`** is prose for a human; nothing parses it. Write what was learned, not what was done — it is what pre-fills the follow-up story on promote.
+- Terminal states are `promote` (with a recorded `promoted-to:`) and `wont-do`; both make the spike archivable. `open` is not terminal.

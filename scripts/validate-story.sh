@@ -58,6 +58,26 @@ json_escape() {
   printf '%s' "$s"
 }
 
+# frontmatter_field <file> <key> — the value of a column-0 frontmatter key, or
+# nothing at all when the file, the frontmatter or the key is absent.
+# Same contract as the version:/status: parsing further down, factored out
+# because the scale is declared in story.md OR in tasks.md and both have to be
+# read: the file must OPEN with a `---` line, the block ends at the next one
+# (`sed '$d'` drops that closing line — GNU-only `head -n -1` aborted the whole
+# validation on BSD/macOS under set -e + pipefail), and the value is squeezed of
+# whitespace. Anchored at column 0 like the templates write it, so a compound or
+# nested key (`review_scale:`) can never fake a value. <key> is a caller-supplied
+# literal, never user input — it is interpolated into the regex as-is.
+frontmatter_field() {
+  local file="$1" key="$2"
+  [[ -f "$file" ]] || return 0
+  head -1 "$file" | grep -q '^---$' 2>/dev/null || return 0
+  # `|| true`: a key that is simply absent makes grep exit 1, and under
+  # pipefail that would abort the caller's command substitution.
+  sed -n '2,/^---$/p' "$file" | sed '$d' | grep -E "^$key:" | head -1 |
+    sed "s/.*$key:\s*//" | tr -d '[:space:]' || true
+}
+
 # xr_in_list <needle> <haystack...> — membership test for the cross-ref check.
 xr_in_list() {
   local needle="$1" item
@@ -68,7 +88,10 @@ xr_in_list() {
   return 1
 }
 
-# --- Detect scale from files present ---
+# --- Infer scale from files present ---
+# The FALLBACK, not the source of truth: a declared `scale:` governs (see the
+# block right below), and this inference is what a story with no such field
+# gets — unchanged, because 340+ legacy stories predate the field.
 HAS_STORY=false
 HAS_TASKS=false
 IS_BUGFIX=false
@@ -85,6 +108,97 @@ if [[ "$HAS_STORY" == true ]]; then
   if head -10 "$STORY_DIR/story.md" | grep -qi 'type:.*bugfix' 2>/dev/null; then
     IS_BUGFIX=true
   fi
+fi
+
+# --- Read the DECLARED scale (R2.1, R2.3) ---
+# Until this block existed the validator only ever inferred the scale from the
+# files present and never read the field, which is how `scale: medium` shipped
+# unnoticed and how a spike would have been mis-validated as Fast.
+#
+# Grammar rule, identical to `status:` below: fail-CLOSED on a present-but-wrong
+# value (an invented scale is an error), fail-OPEN on absence (no field means
+# the file inference above stands alone, with no error, no warning and no extra
+# output line — the pre-change bytes, exactly).
+#
+# One source of truth for the enum: the alternation drives both the `[[ =~ ]]`
+# check and the human-readable message (a `case` pattern cannot — bash does not
+# re-parse `|` from an expanded variable as alternation, only `[[ =~ ]]` does).
+SCALE_ENUM='fast|standard|full|spike'
+SCALE_ENUM_TEXT=${SCALE_ENUM//|/, }
+DECLARED_SCALE=""       # the resolved scale; "" = no artifact declares one
+DECLARED_SCALE_FILE=""  # the artifact it was read from, for the messages
+
+# WHERE the scale is declared depends on the scale itself: a full/standard story
+# declares it in its own story.md, while a fast/spike story is tasks-only and
+# can only declare it in tasks.md. So both are read, story.md FIRST — it is the
+# story's own frontmatter and therefore wins when the two disagree.
+# Every declaration is enum-checked, not just the winning one: a `medium` in
+# tasks.md is the defect this check exists to catch, and it must not be
+# swallowed by a valid value in story.md.
+for SCALE_SRC in story.md tasks.md; do
+  SCALE_VAL=$(frontmatter_field "$STORY_DIR/$SCALE_SRC" scale)
+  if [[ -z "$SCALE_VAL" ]]; then
+    continue
+  fi
+  if ! [[ "$SCALE_VAL" =~ ^($SCALE_ENUM)$ ]]; then
+    add_error "$SCALE_SRC frontmatter 'scale' is not a story scale: found '$SCALE_VAL' — must be one of: $SCALE_ENUM_TEXT"
+    # An invented value resolves to NOTHING: every later check would have to
+    # guess what `medium` meant, and a guess must never dress up as a finding.
+    continue
+  fi
+  if [[ -z "$DECLARED_SCALE" ]]; then
+    DECLARED_SCALE="$SCALE_VAL"
+    DECLARED_SCALE_FILE="$SCALE_SRC"
+  fi
+done
+
+# --- Declared scale vs files present (R2.3) ---
+# Each scale names an artifact set (references/tasks.md): fast and spike are
+# tasks-only, standard adds story.md, full adds design.md on top. A declaration
+# that contradicts the files on disk means ONE of the two sides is wrong, and
+# which one is the author's call — so it is a warning naming BOTH sides, never
+# an error that picks a winner.
+# Skipped whole when nothing was declared, which is the fail-open rule made
+# structural rather than merely restated.
+#
+# scale_mismatch <what the scale implies> <what the files show> <the fix>
+# ONE skeleton for all three shapes, so "names BOTH sides" is guaranteed by
+# construction and not by three authors remembering it: the declaration and the
+# file it lives in on the left, the filesystem on the right, and a fix for each
+# side — the warning deliberately does not pick which one is wrong.
+scale_mismatch() {
+  add_warning "declared scale '$DECLARED_SCALE' (in $DECLARED_SCALE_FILE) contradicts the files present: $1, but $2 — $3, or declare the scale the files actually describe"
+}
+
+if [[ -n "$DECLARED_SCALE" ]]; then
+  # SCALE_ARTIFACT is the file being CONTRADICTED, never the one the
+  # declaration was read from (that is DECLARED_SCALE_FILE).
+  case "$DECLARED_SCALE" in
+    fast|spike)
+      for SCALE_ARTIFACT in story.md design.md; do
+        if [[ -f "$STORY_DIR/$SCALE_ARTIFACT" ]]; then
+          scale_mismatch "a '$DECLARED_SCALE' story is tasks-only" \
+            "$SCALE_ARTIFACT is present" "remove $SCALE_ARTIFACT"
+        fi
+      done
+      ;;
+    standard)
+      # design.md is OPTIONAL at standard scale, so its presence says nothing;
+      # only a missing story.md contradicts the declaration.
+      if [[ ! -f "$STORY_DIR/story.md" ]]; then
+        scale_mismatch "a 'standard' story carries story.md + tasks.md" \
+          "there is no story.md" "add it"
+      fi
+      ;;
+    full)
+      for SCALE_ARTIFACT in story.md design.md; do
+        if [[ ! -f "$STORY_DIR/$SCALE_ARTIFACT" ]]; then
+          scale_mismatch "a 'full' story carries story.md + design.md + tasks.md" \
+            "there is no $SCALE_ARTIFACT" "add it"
+        fi
+      done
+      ;;
+  esac
 fi
 
 # --- Validate story.md ---
@@ -398,8 +512,42 @@ if [[ "$HAS_TASKS" == true ]]; then
     add_error "tasks.md has no parseable checkbox tasks (- [ ] N - ...)${VARIANT_HINT} — unrecognized format, nothing was validated"
   fi
 
-  # Check Requirements field (only if story.md exists = standard/full)
-  if [[ "$HAS_STORY" == true ]]; then
+  # Check Requirements field — only when story.md exists AND the declared scale
+  # is not `spike`.
+  #
+  # THE TWO GATES USED TO DISAGREE, and the author paid for it (story 007,
+  # R1.4). This check infers the scale from FILE PRESENCE — a story.md means
+  # there is a requirements chain to point at — while the spike R-chain check
+  # further down reads the DECLARED scale. A spike carrying a leftover story.md
+  # satisfies both, so it was told HERE to add `Requirements:` fields and told
+  # THERE that a `Requirements:` field is an error. Obeying either instruction
+  # broke the other, and nothing in the output said which one was the bug.
+  #
+  # What goes away is the ADVICE, not the finding: that story is still
+  # malformed, and the R2.3 scale-mismatch warning above still reports it —
+  # naming both sides and leaving the author to decide which is wrong (remove
+  # story.md, or declare the scale the files actually describe).
+  #
+  # TWO NON-STRICT GATES DID GET QUIETER, and saying otherwise would be the
+  # defect this comment is standing next to. Measured: the shape went from
+  # `errors: 1, exit 1` to `errors: 0, warnings: 6, exit 0`, so
+  # hook-task-completed.sh (which blocks on exit 1, extracts .error_details[]
+  # only, and has no warning branch) now lets it through in silence, and the
+  # CI loop references/ci-mode.md documents runs without --strict and now
+  # passes it. Under --strict the mismatch warning still fails the run.
+  # That trade is deliberate: R2.3 classifies scale-vs-files as a WARNING
+  # because which side is wrong is the author's call, and the error that was
+  # blocking said something R1.4 makes an error to obey. A gate that blocks on
+  # advice you must not follow is not a gate worth keeping.
+  #
+  # Gated on the DECLARED scale and never on the absence of the field itself: a
+  # standard story that simply forgot its `Requirements:` fields is precisely
+  # what this check exists to catch, so reading "no fields" as "no chain wanted"
+  # would silence its real job. fast, standard, full and an undeclared legacy
+  # story (DECLARED_SCALE == "") keep the check unchanged — R2.2's golden in
+  # tests/scale-validation.bats pins that last one, and the spike+story.md shape
+  # is pinned in tests/spike-validation.bats.
+  if [[ "$HAS_STORY" == true && "$DECLARED_SCALE" != "spike" ]]; then
     # Accept both old format (Requirements Coverage) and new format (Requirements:)
     COVERAGE_COUNT_NEW=$(grep -ci '^\s*- Requirements:' "$TASKS_FILE" 2>/dev/null || true)
     COVERAGE_COUNT_OLD=$(grep -ci 'Requirements Coverage' "$TASKS_FILE" 2>/dev/null || true)
@@ -434,6 +582,135 @@ if [[ "$HAS_TASKS" == true ]]; then
   if [[ "$TASK_COUNT" -gt 0 && "$VALIDATION_COUNT" -eq 0 ]]; then
     add_warning "No 'Validation:' fields found — sub-tasks should have testable validation criteria"
   fi
+fi
+
+# --- The spike contract: a Verdict, and no requirements chain (R1.2-R1.4) ---
+# A spike is a time-boxed probe whose deliverable is the ANSWER, not shipped
+# code (references/tasks.md, Spike Scale Adaptations). Two consequences, and
+# this section enforces exactly those two, no more:
+#   1. it concludes through a mandatory `## Verdict` section rather than through
+#      a lifecycle status, so a missing or unreadable one is an error — a spike
+#      without a conclusion is the leak this scale exists to prevent;
+#   2. it has no story.md, so every R-number written in it points at nothing —
+#      a dangling pointer wearing traceability's clothes.
+# What it deliberately does NOT enforce: `Tests` and `Acceptance` are optional
+# at spike scale, and `Validation` plus the Quality Gates section are already
+# checked for every scale above.
+#
+# ONE `if` guards the whole thing, which is R2.2 made structural rather than
+# merely promised: a story that declares no scale must produce the pre-change
+# bytes exactly, and a guard satisfiable only by a DECLARED `spike` cannot leak
+# into that path.
+
+# parse_verdict <tasks.md> — the spike's conclusion:
+#   ## Verdict
+#   - status: open | promote | wont-do
+#   - conclusion: <what was learned>
+#   - promoted-to: NNN   # required when status: promote
+# Only the first value of each key inside the section is read. `promoted-to`
+# must start with a digit — that is what "the target is recorded" means, and it
+# rejects the unfilled `NNN` placeholder of the template (fail-closed), which is
+# precisely what makes the R1.3 error fire on a copy-pasted template.
+#
+# The GRAMMAR — these four regexes — is shared VERBATIM with the parse_verdict
+# of archive-story.sh AND of epic-index.sh, exactly as the checkbox census above
+# shares its grammar with epic-index.sh and hook-precompact.sh. THREE full
+# consumers now, plus a PARTIAL fourth — monitor-stale.sh's verdict_status,
+# which copies the first three regexes verbatim and deliberately omits
+# `promoted-to` (staleness keys on the status alone). If 007 ever amends the
+# grammar, all four move together. The AGGREGATION is per-consumer and differs
+# on purpose: archive-story.sh turns the verdict into a completion verdict (may
+# this story be archived?), epic-index.sh RENDERS it for a human,
+# monitor-stale.sh turns it into a deadline (has this probe concluded yet?), and
+# this script turns it into validation errors.
+VERDICT_STATUS=""
+VERDICT_PROMOTED_TO=""
+parse_verdict() {
+  local file="$1" line in_verdict=false
+  local heading_re='^#{2,}[[:space:]]'
+  local verdict_re='^#{2,}[[:space:]]+[Vv]erdict([[:space:]].*)?$'
+  local status_re='^[[:space:]]*(-[[:space:]]+)?status:[[:space:]]*([^[:space:]|]+)'
+  local promoted_re='^[[:space:]]*(-[[:space:]]+)?promoted-to:[[:space:]]*([0-9][^[:space:]#]*)'
+  VERDICT_STATUS=""
+  VERDICT_PROMOTED_TO=""
+  [[ -f "$file" ]] || return 0
+  {
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      if [[ "$line" =~ $heading_re ]]; then
+        if [[ "$line" =~ $verdict_re ]]; then in_verdict=true; else in_verdict=false; fi
+        continue
+      fi
+      [[ "$in_verdict" == true ]] || continue
+      if [[ -z "$VERDICT_STATUS" && "$line" =~ $status_re ]]; then
+        VERDICT_STATUS="${BASH_REMATCH[2]}"
+      elif [[ -z "$VERDICT_PROMOTED_TO" && "$line" =~ $promoted_re ]]; then
+        VERDICT_PROMOTED_TO="${BASH_REMATCH[2]}"
+      fi
+    done
+    :
+  } 2>/dev/null < "$file" || return 1
+  return 0
+}
+
+# The three verdicts, one source of truth for the check and the message, like
+# SCALE_ENUM above and STATUS_ENUM below. `promote` (with its target recorded)
+# and `wont-do` are terminal and make the spike archivable; `open` is not.
+VERDICT_ENUM='open|promote|wont-do'
+VERDICT_ENUM_TEXT=${VERDICT_ENUM//|/, }
+
+# no_r_chain <line number> <what was found> — ONE skeleton for both shapes an
+# R-chain takes, so the sanctioned wording is spelled once, exactly as
+# scale_mismatch above spells its "names BOTH sides" once: R1.4 pins the
+# sentence, and a sentence kept in two places is a sentence that eventually gets
+# edited in one.
+no_r_chain() {
+  add_error "tasks.md line $1: found $2 — spikes have no requirements chain — promote to a story for traceability"
+}
+
+# HAS_TASKS is part of the guard, not an afterthought: a spike with no tasks.md
+# has no Verdict because it has no file, and the missing-tasks.md error above
+# already says the only useful thing there is to say. Piling "no Verdict" on top
+# would report the same absence twice.
+if [[ "$DECLARED_SCALE" == "spike" && "$HAS_TASKS" == true ]]; then
+  SPIKE_TASKS="$STORY_DIR/tasks.md"
+
+  # Unreadable and absent land in the same place, as they do for the other two
+  # consumers: `|| true` keeps a failed read from aborting the run under set -e,
+  # and the empty status below reports it as "no Verdict". Neither is a verdict.
+  parse_verdict "$SPIKE_TASKS" || true
+  if [[ -z "$VERDICT_STATUS" ]]; then
+    add_error "tasks.md has no readable '## Verdict' section with a 'status:' line — a spike concludes through its Verdict, not through a lifecycle status; record one of: $VERDICT_ENUM_TEXT"
+  elif ! [[ "$VERDICT_STATUS" =~ ^($VERDICT_ENUM)$ ]]; then
+    add_error "tasks.md '## Verdict' status is not a spike verdict: found '$VERDICT_STATUS' — must be one of: $VERDICT_ENUM_TEXT"
+  elif [[ "$VERDICT_STATUS" == "promote" && -z "$VERDICT_PROMOTED_TO" ]]; then
+    add_error "tasks.md '## Verdict' says 'promote' with no 'promoted-to:' story recorded — name the follow-up story number; the template's unreplaced 'NNN' is not a number and counts as no target"
+  fi
+
+  # No requirements chain (R1.4). The scan reads the WHOLE file — frontmatter
+  # and fenced blocks included — because that is exactly what the contract
+  # promises ("write no R-number anywhere in the file") and because a dangling
+  # pointer is no less dangling inside a fence. The Verdict's own prose is in
+  # scope for the same reason: `conclusion: pending, see R2.1 upstream` is a
+  # reference to a requirement that does not exist here either.
+  #
+  # ONE error per offending LINE, not per token: the line is what the author
+  # edits, and a line carrying both shapes (`- Requirements: R1.1`) is one
+  # mistake — so the field wins the description and its token is not re-reported.
+  spike_req_re='^[[:space:]]*(-[[:space:]]+)?(\*\*)?[Rr]equirements:'
+  # A token in its own right, with an explicit boundary on each side. Same shape
+  # the cross-reference check below greps for with `\b`, spelled out because
+  # `\b` is a GNU extension and this script also runs on BSD/macOS: `R2D2` is
+  # not an R-token, `see R1.` is one.
+  spike_r_re='(^|[^[:alnum:]_])(R[0-9]+(\.[0-9]+)?)([^[:alnum:]_]|$)'
+  spike_line_no=0
+  while IFS= read -r spike_line || [[ -n "$spike_line" ]]; do
+    spike_line_no=$((spike_line_no + 1))
+    if [[ "$spike_line" =~ $spike_req_re ]]; then
+      no_r_chain "$spike_line_no" "a 'Requirements:' field"
+    elif [[ "$spike_line" =~ $spike_r_re ]]; then
+      no_r_chain "$spike_line_no" "the R-number token '${BASH_REMATCH[2]}'"
+    fi
+  done < "$SPIKE_TASKS" 2>/dev/null || true
 fi
 
 # --- Validate frontmatter (version, status) ---

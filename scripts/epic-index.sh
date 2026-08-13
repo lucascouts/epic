@@ -427,12 +427,18 @@ census() {
 # must start with a digit — that is what "the target is recorded" means, and it
 # rejects the unfilled `NNN` placeholder of the template (fail-closed).
 #
-# The GRAMMAR — these four regexes — is shared VERBATIM with archive-story.sh's
-# parse_verdict, exactly as the checkbox census above shares its grammar with
-# validate-story.sh and hook-precompact.sh. If 007 ever amends it, both
-# consumers move together. The AGGREGATION is per-consumer and differs on
-# purpose: archive-story.sh turns the verdict into a completion verdict
-# (may this story be archived?), this script RENDERS it for a human.
+# The GRAMMAR — these four regexes — is shared VERBATIM with the parse_verdict
+# of archive-story.sh AND of validate-story.sh, exactly as the checkbox census
+# above shares its grammar with validate-story.sh and hook-precompact.sh. THREE
+# full consumers, plus a PARTIAL fourth — monitor-stale.sh's verdict_status,
+# which copies the first three regexes verbatim and deliberately omits
+# `promoted-to` (staleness keys on the status alone). If 007 ever amends the
+# grammar, all four move together. The AGGREGATION is per-consumer and differs
+# on purpose: archive-story.sh turns the verdict into a completion verdict (may
+# this story be archived?), validate-story.sh turns it into validation errors (a
+# spike must HAVE a verdict, and `promote` must name its target),
+# monitor-stale.sh turns it into a deadline (has this probe concluded yet?), and
+# this script RENDERS it for a human.
 VERDICT_STATUS=""
 VERDICT_PROMOTED_TO=""
 parse_verdict() {

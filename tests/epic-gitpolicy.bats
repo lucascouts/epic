@@ -1,0 +1,451 @@
+#!/usr/bin/env bats
+# Story 007, Task 3.1 — scripts/epic-gitpolicy.sh contradiction lint.
+# Contract (design §2, R4.1/R4.3): read-only script, run from the workspace
+# root, emitting JSON:
+#   {policy: tracked-md|local-only|undeclared, gitignore_ignores_epic: bool,
+#    tracked_md: N, tracked_draft: N, verdict: consistent|contradiction|partial}
+# Verdicts:
+#   consistent    — reality matches the declared policy (or undeclared+untracked)
+#   contradiction — tracked .epic files under an ignoring gitignore (kpranois),
+#                   or tracked-md declared but gitignore blocks tracking
+#   partial       — .draft/ files tracked, or subset tracking
+# Non-git workspace: {git: false, verdict: "consistent"} and nothing else.
+# Exit 0 always (except usage errors, 2). Uses real temp git repos — no
+# mocked git state (fidelity: the lint's whole job is reading git reality).
+
+setup() {
+  PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  WORK=$(mktemp -d)
+}
+
+teardown() {
+  rm -rf "$WORK"
+}
+
+init_repo() {
+  cd "$WORK"
+  git init -q
+  git config user.email "test@example.com"
+  git config user.name "Test"
+  git config commit.gpgsign false
+}
+
+make_epic_artifacts() {
+  mkdir -p "$WORK/.epic/stories/001-sample/.draft"
+  cat > "$WORK/.epic/stories/001-sample/story.md" <<'EOF'
+---
+story: sample
+version: 1
+created: 2026-08-02
+---
+# Story
+EOF
+  cat > "$WORK/.epic/stories/001-sample/tasks.md" <<'EOF'
+---
+version: 1
+created: 2026-08-02
+---
+- [ ] 1 - Do it
+EOF
+  echo "wip note" > "$WORK/.epic/stories/001-sample/.draft/notes.md"
+}
+
+run_lint() {
+  cd "$WORK"
+  run bash "$PLUGIN_ROOT/scripts/epic-gitpolicy.sh"
+}
+
+@test "local-only policy with ignoring gitignore and nothing tracked is consistent" {
+  init_repo
+  make_epic_artifacts
+  echo ".epic/" > "$WORK/.gitignore"
+  echo "local-only" > "$WORK/.epic/.gitpolicy"
+  git add .gitignore
+  git commit -qm "init"
+  run_lint
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e . > /dev/null
+  [ "$(echo "$output" | jq -r '.policy')" = "local-only" ]
+  [ "$(echo "$output" | jq -r '.verdict')" = "consistent" ]
+}
+
+@test "tracked-md policy with tracked artifacts and .draft ignored is consistent" {
+  init_repo
+  make_epic_artifacts
+  echo "tracked-md" > "$WORK/.epic/.gitpolicy"
+  printf '.draft/\n*.wip\n' > "$WORK/.epic/.gitignore"
+  git add .epic/.gitignore .epic/.gitpolicy .epic/stories/001-sample/story.md .epic/stories/001-sample/tasks.md
+  git commit -qm "track epic artifacts"
+  run_lint
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq -r '.policy')" = "tracked-md" ]
+  [ "$(echo "$output" | jq -r '.verdict')" = "consistent" ]
+  [ "$(echo "$output" | jq -r '.tracked_md')" -gt 0 ]
+  [ "$(echo "$output" | jq -r '.tracked_draft')" = "0" ]
+}
+
+@test "kpranois shape: tracked .epic files under an ignoring gitignore is a contradiction" {
+  init_repo
+  make_epic_artifacts
+  echo ".epic/" > "$WORK/.gitignore"
+  git add .gitignore
+  git add -f .epic/stories/001-sample/story.md .epic/stories/001-sample/tasks.md
+  git commit -qm "tracked through an ignoring gitignore"
+  run_lint
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq -r '.verdict')" = "contradiction" ]
+  [ "$(echo "$output" | jq -r '.gitignore_ignores_epic')" = "true" ]
+  [ "$(echo "$output" | jq -r '.tracked_md')" -gt 0 ]
+}
+
+@test "tracked .draft files yield verdict partial" {
+  init_repo
+  make_epic_artifacts
+  echo "tracked-md" > "$WORK/.epic/.gitpolicy"
+  git add .epic/.gitpolicy .epic/stories/001-sample/story.md \
+    .epic/stories/001-sample/tasks.md .epic/stories/001-sample/.draft/notes.md
+  git commit -qm "over-tracked: .draft in history"
+  run_lint
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq -r '.verdict')" = "partial" ]
+  [ "$(echo "$output" | jq -r '.tracked_draft')" -gt 0 ]
+}
+
+@test "undeclared policy with nothing tracked is consistent" {
+  init_repo
+  make_epic_artifacts
+  git commit -q --allow-empty -m "no epic tracking, no policy"
+  run_lint
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq -r '.policy')" = "undeclared" ]
+  [ "$(echo "$output" | jq -r '.verdict')" = "consistent" ]
+}
+
+@test "non-git workspace reports git:false, verdict consistent, exit 0" {
+  mkdir -p "$WORK/.epic"
+  echo "tracked-md" > "$WORK/.epic/.gitpolicy"
+  run_lint
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e . > /dev/null
+  [ "$(echo "$output" | jq -r '.git')" = "false" ]
+  [ "$(echo "$output" | jq -r '.verdict')" = "consistent" ]
+}
+
+# --- Appended at story 007, task 4.1 -----------------------------------------
+# WHAT THE SIX CASES ABOVE LEAVE UNPINNED, AND WHY IT MATTERED. A tech review of
+# task 3.1 found two contract gaps, and BOTH FIXES ADDED A JSON KEY AFTER THIS
+# FILE WAS FROZEN — `gitignore_source` on the git path, `policy` on the non-git
+# one. Nothing above holds either. Until the four cases below, deleting either
+# key left `bats tests/` entirely green while two reference documents went on
+# instructing agents to read it. That is orphan wiring, and an untested claim is
+# what story 004 measured and rejected.
+#
+# 1. `gitignore_source` (R4.1) answers WHICH exclude file matched, which the
+#    boolean beside it cannot. Git consults three sources and
+#    `gitignore_ignores_epic: true` fires for any of them, but only the
+#    workspace-root `.gitignore` is a file init may offer to edit:
+#    references/init-mode.md gates its removal offer on
+#    `gitignore_source == ".gitignore"`, reports `.git/info/exclude` as a file
+#    local to the clone that it does not touch, and treats anything else as the
+#    user's global core.excludesFile, which governs every repository on the
+#    machine. references/list-mode.md prints the same field verbatim in its
+#    notice. So the first two cases pin the two answers the boolean conflates,
+#    and each is written to stay GREEN under the other's regression — a pair
+#    that dies together pins one fact, not two.
+#
+# 2. The `null` case asserts the jq TYPE, and that is the whole case.
+#    `jq -r .gitignore_source` prints the same four letters for a JSON null, for
+#    the STRING "null" — a path named "null", which a consumer's `!= null` test
+#    would miss, and precisely why the script emits the literal bare — and for a
+#    key that is not in the document at all. Three different objects, one
+#    identical line of output, so the obvious assertion cannot tell the contract
+#    from two regressions. `| type` separates the string from the other two and
+#    `has()` separates absent from present; both are asserted.
+#
+# 3. `policy` on the non-git object (R4.3) is the one key the two specs
+#    disagreed about — the task ToDo said `{git: false, verdict: "consistent"}`
+#    "and nothing else", design.md's error-handling note also sketched `policy`
+#    — and the script resolved it in design.md's favour, because the declared
+#    policy is read from a plain file that needs no repository and withholding
+#    it would force init, whose defining workspace is a folder nobody has
+#    `git init`-ed yet, to grow a second parser for `.epic/.gitpolicy`.
+#    "Nothing else" still governs the four MEASUREMENT keys, which stay absent
+#    because nobody measured them and because a consumer reading one there
+#    aborts under `set -u`. That case therefore pins the exact key SET, not just
+#    the one key.
+#
+# FIXTURE ISOLATION, and why only these cases carry it. A global
+# core.excludesFile ignoring `.epic` — or an XDG `~/.config/git/ignore`, which
+# git reads with no config entry at all, and which is where this machine keeps
+# its global rules — turns the "nothing ignores it" case into `true` with the
+# developer's own home directory as the source, on one machine and not another.
+# Measured: with a hostile `$XDG_CONFIG_HOME/git/ignore` the identical fixture
+# reports `gitignore_source: "/…/home/.config/git/ignore"`. `isolate_git_env`
+# points every exclude source git can consult at a directory that DOES NOT
+# EXIST:
+#   HOME + XDG_CONFIG_HOME  the global config, and the ignore file git finds at
+#                           $XDG_CONFIG_HOME/git/ignore or $HOME/.config/git/
+#                           ignore even when core.excludesFile is unset
+#   GIT_CONFIG_NOSYSTEM     /etc/gitconfig, which may set core.excludesFile
+#   GIT_TEMPLATE_DIR=       the init template, whose info/exclude is copied into
+#                           every new repository
+# GIT_CONFIG_GLOBAL is the more obvious spelling and is deliberately NOT used:
+# redirecting HOME and XDG_CONFIG_HOME already covers every global config path,
+# while GIT_CONFIG_GLOBAL would put a git >= 2.32 floor on this file for
+# nothing. The directory is never created — git treats an absent HOME as an
+# empty one, silently, measured — so the worktree under test stays pristine and
+# the frozen `teardown` still reclaims everything under $WORK. The empty
+# template is why the `.git/info/exclude` case creates that directory itself.
+
+isolate_git_env() {
+  export HOME="$WORK/.fixture-home"
+  export XDG_CONFIG_HOME="$WORK/.fixture-home/.config"
+  export GIT_CONFIG_NOSYSTEM=1
+  export GIT_TEMPLATE_DIR=
+}
+
+init_isolated_repo() {
+  isolate_git_env
+  init_repo
+}
+
+@test "gitignore_source names the root .gitignore when the rule lives there" {
+  init_isolated_repo
+  make_epic_artifacts
+  echo ".epic/" > "$WORK/.gitignore"
+  git add .gitignore
+  git commit -qm "root gitignore ignores .epic"
+  run_lint
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e . > /dev/null
+  [ "$(echo "$output" | jq -r '.gitignore_ignores_epic')" = "true" ]
+  # The one source init may offer to edit, and the only value that unlocks the
+  # removal offer in references/init-mode.md step 5.3b.
+  [ "$(echo "$output" | jq -r '.gitignore_source')" = ".gitignore" ]
+}
+
+@test "gitignore_source names .git/info/exclude when the rule lives there and the root .gitignore is innocent" {
+  init_isolated_repo
+  make_epic_artifacts
+  # The root file EXISTS and says nothing about .epic. That is the shape a
+  # consumer assuming ".gitignore" gets wrong: it would quote a line that is not
+  # there, or delete one that is not the rule.
+  printf 'node_modules/\n*.log\n' > "$WORK/.gitignore"
+  # GIT_TEMPLATE_DIR is empty, so `git init` created no .git/info; a real
+  # repository always has one, so the fixture makes it the way git would.
+  mkdir -p "$WORK/.git/info"
+  printf '.epic/\n' >> "$WORK/.git/info/exclude"
+  git add .gitignore
+  git commit -qm "the exclude rule is local to this clone"
+  run_lint
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq -r '.gitignore_ignores_epic')" = "true" ]
+  [ "$(echo "$output" | jq -r '.gitignore_source')" = ".git/info/exclude" ]
+}
+
+@test "gitignore_source is JSON null, not the string 'null', when nothing ignores .epic" {
+  init_isolated_repo
+  make_epic_artifacts
+  git commit -q --allow-empty -m "no exclude rule in any source"
+  run_lint
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq -r '.gitignore_ignores_epic')" = "false" ]
+  # NOT `jq -r .gitignore_source`: that prints `null` for the contract, for a
+  # quoted "null" string and for a deleted key alike. `type` rejects the string;
+  # `has` rejects the deletion. The key is emitted on every git path, present
+  # and null, which is what makes init's `null` row reachable.
+  [ "$(echo "$output" | jq -r '.gitignore_source | type')" = "null" ]
+  [ "$(echo "$output" | jq -r 'has("gitignore_source")')" = "true" ]
+}
+
+@test "non-git workspace reports the declared policy, and only the three total keys" {
+  isolate_git_env
+  mkdir -p "$WORK/.epic"
+  # local-only, deliberately not the tracked-md the frozen case above writes:
+  # the value has to be READ FROM THE FILE, and a hardcoded constant would
+  # satisfy a fixture that reused the same spelling.
+  echo "local-only" > "$WORK/.epic/.gitpolicy"
+  run_lint
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e . > /dev/null
+  [ "$(echo "$output" | jq -r '.git')" = "false" ]
+  [ "$(echo "$output" | jq -r '.policy')" = "local-only" ]
+  [ "$(echo "$output" | jq -r '.verdict')" = "consistent" ]
+  # "Show nothing" is R4.3's other half: the four measurement keys stay absent
+  # because nothing measured them. `keys` is sorted, so this pins the SET rather
+  # than the emission order, which is the emitter's business and not a contract
+  # any consumer reads.
+  [ "$(echo "$output" | jq -r 'keys | join(",")')" = "git,policy,verdict" ]
+}
+
+# --- Appended at story 007, sub-task 5.3 -------------------------------------
+# THREE OF THE FIVE VERDICT ARMS WERE REACHABLE BY NOTHING. Every case above
+# lands on arm 1 (kpranois: artifacts tracked under an ignoring rule), on arm 3
+# (tracked .draft/) or on `consistent`. Arms 2, 4 and 5 shipped, and two
+# reference documents instruct an agent to render a row for each of them, while
+# no test in this repository could tell whether any of the three still fired.
+#
+# The chain's own comment says why that is worse than an ordinary coverage hole:
+# reordering the arms "would keep every current test green and quietly downgrade
+# the one verdict this script was written to produce". An ordered chain whose
+# arms cannot be reached one at a time has an order that nothing enforces — the
+# specification then lives in the comment alone, which is the state story 004
+# measured and rejected.
+#
+# EACH CASE PINS AN ARM *AND* ITS NEIGHBOURS. Two arms answer `contradiction`
+# and three answer `partial`, so the verdict string alone never says WHICH arm
+# produced it: every case below also asserts the fields that separate it from
+# the arm next door — `tracked_draft` (rules out arm 3), `policy` (rules out
+# arms 4 and 5), `gitignore_ignores_epic` (rules out arms 1 and 2). "It returned
+# partial" is not evidence about where it came from.
+#
+# All four characterize behaviour that ALREADY SHIPPED, so Red could not come
+# from absent behaviour. Each was instead proved able to fail by mutating
+# scripts/epic-gitpolicy.sh, watching that one case redden, and reverting —
+# recorded in the story 007 red evidence as `red_via: mutation`.
+#
+# All four use init_isolated_repo, and not one of them could use init_repo:
+# every one asserts `gitignore_ignores_epic` (three of them assert `false`), and
+# a developer whose global core.excludesFile carries the old "never commit
+# .epic" rule would flip that field — and with it the arm — on their machine and
+# not on the next one.
+
+@test "tracked-md declared while an exclude rule blocks .epic, with nothing tracked, is a contradiction" {
+  # ARM 2 — the kpranois contradiction's silent twin, and the one no case above
+  # reaches. Arm 1 needs a file to have got into the index anyway; here nothing
+  # did, and nothing ever will: the policy file says track, the exclude rules
+  # forbid it, and every future `git add .epic` will report success while adding
+  # nothing at all. Git will never mention it, which is the whole reason this
+  # script exists.
+  # Delete this case and arm 2 can be dropped as "redundant with arm 1" with the
+  # suite fully green — after which this workspace reads `consistent`, i.e. the
+  # lint blesses a declaration it can prove is unreachable.
+  # references/list-mode.md:77 is the row an agent is instructed to render for
+  # it, and the sole consumer of the "no artifact can be committed" wording.
+  init_isolated_repo
+  make_epic_artifacts
+  echo ".epic/" > "$WORK/.gitignore"
+  echo "tracked-md" > "$WORK/.epic/.gitpolicy"
+  git add .gitignore
+  git commit -qm "declared tracked-md, but the root gitignore forbids it"
+  run_lint
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e . > /dev/null
+  [ "$(echo "$output" | jq -r '.verdict')" = "contradiction" ]
+  # THE TWO ZEROES ARE WHAT SAY "ARM 2" RATHER THAN ARM 1, which answers with
+  # the same word: arm 1 fires only when tracked_md + tracked_draft > 0, so a
+  # fixture that accidentally tracked one artifact would return an identical
+  # verdict from the wrong arm and prove nothing about this one. They are also
+  # what selects list-mode.md's row 77 over row 76.
+  [ "$(echo "$output" | jq -r '.tracked_md')" = "0" ]
+  [ "$(echo "$output" | jq -r '.tracked_draft')" = "0" ]
+  [ "$(echo "$output" | jq -r '.policy')" = "tracked-md" ]
+  [ "$(echo "$output" | jq -r '.gitignore_ignores_epic')" = "true" ]
+  # Row 77 prints <source> verbatim; the row's fallback wording ("an exclude
+  # rule") is for a null that this arm must never produce.
+  [ "$(echo "$output" | jq -r '.gitignore_source')" = ".gitignore" ]
+}
+
+@test "tracked-md declared with the artifacts still untracked and nothing blocking is partial" {
+  # ARM 4, AND THE MOST REACHABLE NON-CONSISTENT VERDICT IN THE PRODUCT.
+  # references/init-mode.md:209 tells EVERY user who picks the recommended
+  # option that this is the state they will be in the moment init finishes: init
+  # records the intent and stages nothing, so the very next run of the lint
+  # reports `partial` until one commit settles it. Until this case, the state the
+  # documentation promises to every versioned workspace was pinned by no test.
+  # Delete it and arm 4 can quietly collapse into `consistent`; the promise at
+  # init-mode.md:209 and the `→` row at references/list-mode.md:79 — the one row
+  # in that table that is a next step and not a warning — would then render for
+  # nobody, and the follow-up commit would never be suggested.
+  init_isolated_repo
+  make_epic_artifacts
+  echo "tracked-md" > "$WORK/.epic/.gitpolicy"
+  # The declaration exists, the artifacts are on disk, the index is empty of
+  # them, and no exclude rule is in the way. That is the entire state, and it is
+  # exactly what `/epic:epic init` leaves behind.
+  git commit -q --allow-empty -m "policy recorded; first artifact commit not made yet"
+  run_lint
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq -r '.verdict')" = "partial" ]
+  # FOUR FIELDS, EACH RULING OUT ONE NEIGHBOUR:
+  #   tracked_draft 0   arm 3 needs it > 0 and answers `partial` too
+  #   policy tracked-md arm 5 needs local-only and answers `partial` too
+  #   ignores false     arm 2 matches this same policy+count pair and would have
+  #                     claimed the fixture FIRST, returning contradiction
+  #   tracked_md 0      the arm's own first guard, and the reason the `→` row
+  #                     may print the literal "0 tracked"
+  [ "$(echo "$output" | jq -r '.tracked_md')" = "0" ]
+  [ "$(echo "$output" | jq -r '.tracked_draft')" = "0" ]
+  [ "$(echo "$output" | jq -r '.policy')" = "tracked-md" ]
+  [ "$(echo "$output" | jq -r '.gitignore_ignores_epic')" = "false" ]
+}
+
+@test "tracked-md declared in a workspace with no artifacts at all stays consistent" {
+  # THE GUARD, NOT THE ARM — and it needs its own case because the difference is
+  # invisible in the JSON. Arm 4 carries two conjuncts and the case above
+  # satisfies both, so it stays green if either is deleted. This fixture differs
+  # from that one in a single fact: there is nothing under .epic/ to add. That
+  # fact appears in NO reported field — both objects read `tracked_md: 0`,
+  # `tracked_draft: 0`, `policy: tracked-md`, `gitignore_ignores_epic: false`,
+  # `gitignore_source: null`, and differ ONLY in the verdict. The pair is
+  # therefore the one way to pin epic_has_untracked_artifacts(), whose only
+  # caller in the whole script is that arm.
+  # Delete this and "there is something to add" can be dropped from arm 4 with
+  # the suite green — after which every freshly initialised workspace, before it
+  # has written a single story, is told on every listing to
+  # `git add .epic && git commit` (references/list-mode.md:79) a directory with
+  # nothing in it to add. That is the false positive the guard was written to
+  # prevent, and a banner that fires on healthy workspaces is precisely how a
+  # true signal teaches people to skip the line.
+  init_isolated_repo
+  mkdir -p "$WORK/.epic"
+  echo "tracked-md" > "$WORK/.epic/.gitpolicy"
+  # No make_epic_artifacts: the declaration, and not one story behind it.
+  git commit -q --allow-empty -m "initialised workspace, no stories written yet"
+  run_lint
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq -r '.verdict')" = "consistent" ]
+  # Both of arm 4's other conditions ARE met here, which is what makes the
+  # missing artifacts the only possible explanation for the silence.
+  [ "$(echo "$output" | jq -r '.policy')" = "tracked-md" ]
+  [ "$(echo "$output" | jq -r '.tracked_md')" = "0" ]
+  [ "$(echo "$output" | jq -r '.gitignore_ignores_epic')" = "false" ]
+}
+
+@test "local-only declared with artifacts tracked anyway is partial" {
+  # ARM 5, the last arm and the last one nothing reached. The bentoolkit shape:
+  # no exclude rule is being fought and git reports a perfectly clean tree — the
+  # user simply changed their mind about tracking and never said so in the policy
+  # file. Only the declaration and the index disagree, and this is the one place
+  # that says so.
+  # Delete this case and arm 5 can go; every workspace that reversed its own
+  # local-only declaration then reads `consistent`, which is exactly the reading
+  # under which the corpus accumulated its zombie artifacts.
+  # references/list-mode.md:80 renders it, and it is the only row that prints
+  # <tracked_md> against a declared local-only.
+  init_isolated_repo
+  make_epic_artifacts
+  echo "local-only" > "$WORK/.epic/.gitpolicy"
+  # The nested ignore is what keeps .draft/ out of the index, as a real
+  # workspace's does. Without it a broad `git add .epic` would track notes.md,
+  # tracked_draft would go > 0, and ARM 3 — a different arm, with the same
+  # verdict and a different rendered row — would answer first.
+  printf '.draft/\n' > "$WORK/.epic/.gitignore"
+  git add .epic/.gitignore .epic/.gitpolicy \
+    .epic/stories/001-sample/story.md .epic/stories/001-sample/tasks.md
+  git commit -qm "local-only declared, artifacts committed anyway"
+  run_lint
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq -r '.verdict')" = "partial" ]
+  # policy local-only + tracked_md > 0 is arm 5 and no other arm; tracked_draft 0
+  # rules out arm 3, and `ignores false` rules out arm 1, which would have turned
+  # this very same tracked set into a contradiction.
+  [ "$(echo "$output" | jq -r '.policy')" = "local-only" ]
+  [ "$(echo "$output" | jq -r '.tracked_md')" -gt 0 ]
+  [ "$(echo "$output" | jq -r '.tracked_draft')" = "0" ]
+  [ "$(echo "$output" | jq -r '.gitignore_ignores_epic')" = "false" ]
+  # The policy file and the nested .gitignore are tracked here too and are
+  # deliberately NOT counted (is_md_artifact excludes them): counting them would
+  # report a contradiction against the very file that declares the policy.
+  [ "$(echo "$output" | jq -r '.tracked_md')" = "2" ]
+}

@@ -51,7 +51,7 @@ Results are saved to `.draft/meta.yaml` under `analyst_output` key and passed as
 
 ## Completeness Checklist
 
-For **standard and full scales**, spawn the **Analyst** sub-agent to generate a context-specific checklist. For **fast scale**, ask 1-2 inline questions only.
+For **standard and full scales**, spawn the **Analyst** sub-agent to generate a context-specific checklist. For **fast and spike scales**, ask 1-2 inline questions only — both are single-author scales, with no sub-agents and no `.draft/meta.yaml` to cache an Analyst's output in, and a probe whose whole point is to be time-boxed is not improved by a 10-question intake.
 
 **Analyst sub-agent prompt (uses cached output from Codebase Analysis):**
 
@@ -79,4 +79,4 @@ For **standard and full scales**, spawn the **Analyst** sub-agent to generate a 
 **Rules:**
 - Present all questions to the user in a single numbered list
 - If the user answers "out of scope", add to Out of Scope in story.md
-- For Fast mode: skip sub-agent, ask 1-2 inline questions only if needed
+- For fast and spike scales: skip the sub-agent, ask 1-2 inline questions only if needed

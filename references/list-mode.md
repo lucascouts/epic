@@ -5,11 +5,109 @@ Triggered by `/epic:epic stories`, `/epic:epic stories full`, or `/epic:epic sto
 ## Procedure
 
 1. Glob `.epic/stories/*/tasks.md` to find all stories (exclude `.epic/archive/`)
-2. For each story, read the frontmatter (type, scale, version, status) and parse task checkboxes
-3. Take the checkbox census — `total`, `closed` and `deferred` are defined once, in [tasks.md](tasks.md#completion). Census the task list and the Quality Gates separately: each renders its own pair
-4. Derive the story's computed condition from the census (see Status and Progress)
-5. For each story, ask `bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --should-annotate <status> <story-count> <is-stories-full>` whether this story is annotated at all — exit 0 evaluates, exit 1 skips — and on exit 0 pipe `story-git-status.sh` into the same script's `--list` mode and append what it writes (see Integration Annotation). That one decision holds both gates: only `done`/`validated` stories are annotated, and more than 50 stories skips unless the command is `stories full`
-6. Refresh the managed index block opportunistically — `bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-index.sh"`; a non-zero exit warns and never blocks the listing (defined once, in [validate-mode.md](validate-mode.md#index-refresh))
+2. Run the workspace policy lint — `bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-gitpolicy.sh"` from the workspace root — and render the header notice it decides, before the first story row (see Policy Notice). **One invocation for the whole listing, before the per-story loop below**: it measures the workspace, not a story, so its cost is the same at 4 stories and at 400 and there is no gate to apply
+3. For each story, read the frontmatter (type, scale, version, status) and parse task checkboxes
+4. Take the checkbox census — `total`, `closed` and `deferred` are defined once, in [tasks.md](tasks.md#completion). Census the task list and the Quality Gates separately: each renders its own pair
+5. Derive the story's computed condition from the census (see Status and Progress) — except for a `scale: spike` story, whose condition comes from its `## Verdict` plus one staleness pass for the whole listing (see Spike Lifecycle)
+6. For each story, ask `bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --should-annotate <status> <story-count> <is-stories-full>` whether this story is annotated at all — exit 0 evaluates, exit 1 skips — and on exit 0 pipe `story-git-status.sh` into the same script's `--list` mode and append what it writes (see Integration Annotation). That one decision holds both gates: only `done`/`validated` stories are annotated, and more than 50 stories skips unless the command is `stories full`
+7. Refresh the managed index block opportunistically — `bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-index.sh"`; a non-zero exit warns and never blocks the listing (defined once, in [validate-mode.md](validate-mode.md#index-refresh))
+
+## Policy Notice
+
+**One line, and only when the workspace contradicts itself (R4.2).** A project's declared `.epic` versioning policy and what git actually does can disagree for months without git ever mentioning it: the corpus's `kpranois` had **47 `.epic` files committed through a `.gitignore` that said they were never committed**. Nothing was broken in any way a git command reports — the workspace was merely arguing with itself. This is the line that says so, in the one place the user is already looking.
+
+**The decision is the script's; only the wording is this mode's.** [`scripts/epic-gitpolicy.sh`](../scripts/epic-gitpolicy.sh) measures and prints `{git, policy, gitignore_ignores_epic, gitignore_source, tracked_md, tracked_draft, verdict}`, and **the notice fires on exactly one condition — `verdict != "consistent"` — which is read from that JSON and never re-derived here.** No `grep` over `.gitignore` to decide whether `.epic` is ignored, no `git ls-files` to decide whether anything is tracked, no reading of the index at all: the script already asked git, with `--no-index`, which is the only way "tracked *through* an ignoring `.gitignore`" answers truthfully, and a second reading of the same facts would be a second thing to keep in step. Unlike the Integration Annotation below there is no rendering script, so the *sentences* here are this mode's own — which is exactly why the *trigger* must not be.
+
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-gitpolicy.sh"
+```
+
+Run it from the **workspace root** — it resolves `.epic/` against `$PWD`. Every measurement path exits 0; exit 2 is a usage error only (the script takes no arguments), so a non-zero exit is a bug in the call and never a finding about the workspace. **A failed call, absent `jq`, or output that does not parse all render nothing and never block the listing** — the same silent degradation the annotation takes (R1.4). "Not computable" must not dress up as a finding.
+
+**One invocation per listing, never one per story.** The Cost rule (R2.1) below exists because each *annotation* is a git evaluation and a 400-story project would otherwise pay for 400 of them. This lint has no such gate and needs none: it answers a question about the workspace, not about a story, so it is one call whatever the story count. Procedure step 2 is where it runs — **before** the per-story loop, so the header can be printed before the first row. Read its JSON once and hold it; re-running it per story would be exactly the cost the rule below forbids.
+
+### Where the notice renders
+
+| Command | Verdict notice | `undeclared` line |
+|---|---|---|
+| `/epic:epic stories` | yes | no |
+| `/epic:epic stories full` | yes | yes |
+| `/epic:epic stories NNN` | yes | no |
+| `/epic:epic archive` | no | no |
+
+It is the **first line of the output**, followed by a blank line, above `Stories in .epic/stories/:` — a state line printed under the story rows is a footnote, and R4.2 exists so the state is seen before the list is read. `/epic:epic archive` renders the archive manifest rather than the workspace's stories and carries neither line.
+
+```
+⚠ .epic git state is self-contradictory (contradiction: 47 files tracked while .gitignore ignores .epic/)
+
+Stories in .epic/stories/:
+
+  001-fruit-management-api
+     full | feature | v1 | done · integrada | Tasks: 11/11 | Gates: 5/5
+```
+
+### Read order is a contract, and getting it wrong aborts the listing
+
+`git`, `policy` and `verdict` are **total** — present on every path the script takes, safe to read unconditionally. The other four (`gitignore_ignores_epic`, `gitignore_source`, `tracked_md`, `tracked_draft`) are **absent when `git` is `false`**, and `jq -r` renders an absent key as the literal text `null`, not as `false`, `""` or `0`. Under `set -u` a `-gt` against that word aborts with `null: unbound variable` — measured, bash 5.3. **Read a measurement key only inside the `verdict != "consistent"` branch**, which is where every arm of the table below already lives.
+
+That is safe today by an invariant of the *script* rather than of the JSON, and it is stated here so a later edit cannot lose it: the non-git object always reports `verdict: "consistent"`, so the gate is never open on the one path where those four keys are missing. **If a future line ever needs a measurement key outside that branch, gate it on `git == true` instead** — the script's own stated consumer requirement, in [`scripts/epic-gitpolicy.sh`](../scripts/epic-gitpolicy.sh)'s header, and the same contract [init-mode.md](init-mode.md#step-51--measure-before-asking) reads it under.
+
+```bash
+lint=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-gitpolicy.sh" 2>/dev/null) || lint=''
+verdict=$(jq -r '.verdict' <<<"$lint" 2>/dev/null); verdict=${verdict:-consistent}
+policy=$(jq -r '.policy' <<<"$lint" 2>/dev/null);   policy=${policy:-undeclared}
+
+# The four measurement keys are read HERE and nowhere else:
+if [ "$verdict" != consistent ]; then
+  tracked_md=$(jq -r '.tracked_md' <<<"$lint")
+  tracked_draft=$(jq -r '.tracked_draft' <<<"$lint")
+  ignore_source=$(jq -r '.gitignore_source' <<<"$lint")
+fi
+```
+
+The two `${…:-}` defaults are what make an unreadable answer silent rather than fatal: no `jq`, a parse error or an empty capture all leave `verdict` at `consistent`, and `consistent` renders nothing.
+
+### The arms
+
+Reached **only** when `verdict != "consistent"`. The five rows are the script's five non-`consistent` verdict arms, one each, and they are mutually exclusive: `verdict` chooses the pair, then one further field — read from the same JSON, never from git — chooses the row.
+
+| The lint says | This mode renders, verbatim |
+|---|---|
+| `contradiction`, `tracked_md + tracked_draft > 0` | `⚠ .epic git state is self-contradictory (contradiction: <N> files tracked while <source> ignores .epic/)` |
+| `contradiction`, `tracked_md + tracked_draft == 0` | `⚠ .epic git state is self-contradictory (contradiction: tracked-md declared, but <source> ignores .epic/ — no artifact can be committed)` |
+| `partial`, `tracked_draft > 0` | `⚠ .epic tracks scratch space (partial: <tracked_draft> .draft/ files tracked — .draft/ is in no policy's tracked set)` |
+| `partial`, `tracked_draft == 0` and `policy: tracked-md` | `→ .epic artifacts are declared tracked-md but not committed yet (partial: 0 tracked) — git add .epic && git commit` |
+| `partial`, `tracked_draft == 0` and `policy: local-only` | `⚠ .epic tracking does not match declared policy (partial: local-only declared, <tracked_md> artifacts tracked)` |
+
+`<N>` is `tracked_md + tracked_draft`; `<source>` is the `gitignore_source` field — the `ignore_source` capture above, sanitised as the next section requires. Filled in, they read:
+
+```
+⚠ .epic git state is self-contradictory (contradiction: 47 files tracked while .gitignore ignores .epic/)
+⚠ .epic git state is self-contradictory (contradiction: tracked-md declared, but .git/info/exclude ignores .epic/ — no artifact can be committed)
+⚠ .epic tracks scratch space (partial: 3 .draft/ files tracked — .draft/ is in no policy's tracked set)
+→ .epic artifacts are declared tracked-md but not committed yet (partial: 0 tracked) — git add .epic && git commit
+⚠ .epic tracking does not match declared policy (partial: local-only declared, 12 artifacts tracked)
+```
+
+**No head claims a declaration that may not exist.** `undeclared` is not a quiet verdict — kpranois's own shape was 47 files tracked through an ignoring `.gitignore` with no `.gitpolicy` at all — and a `.draft/` file in the index is wrong under every policy and under none. So rows 1–3 name the measured facts and nothing else; only rows 4 and 5, whose arms require a declaration, mention one. **If some future arm produces a combination no row matches, render the generic form** — `⚠ .epic tracking does not match declared policy (<verdict>: policy=<policy>, tracked_md=<n>, tracked_draft=<n>)` — rather than inventing a sentence. Naming the numbers is always true; a guessed diagnosis is not.
+
+**Two markers, and the difference is load-bearing.** `⚠` (U+26A0, bare — no U+FE0F variation selector) means the workspace state is wrong: two settings fighting each other, or files where no policy puts them. `→` (U+2192) means nothing is wrong and there is a next step. Row 4 is the whole reason the distinction exists: it is what a project reports on its **very next listing after choosing the recommended option at init** — `tracked-md` declared, first commit not made yet — and [init-mode.md](init-mode.md#after-init--making-a-tracked-md-declaration-real) already documents that state as *correct*, with this same command to close it. Do not invent a second explanation for it, and do not warn a user about the correct choice they just made: a true signal that fires on healthy workspaces is how people learn to skip the line. Row 3 is the damaging partial it must never be confused with — run logs, phase snapshots and authored tests in the index, travelling with the repository forever.
+
+### Naming the real ignore source, never assuming `.gitignore`
+
+Both `contradiction` rows print `<source>` = the `gitignore_source` field **verbatim**. Git consults three exclude sources and the verdict fires for any of them: the root `.gitignore`, `.git/info/exclude` (local to this clone, and it travels with nothing), or the user's global `core.excludesFile` (an absolute path anywhere on the machine — a large population has `.epic` in it, from the older "never commit `.epic`" doctrine). Writing "gitignore" for the second and third would send the user to open a file that has nothing in it, which is worse than saying nothing. The script guarantees the field is non-null exactly when `gitignore_ignores_epic` is `true`, which both rows require; if it ever arrives `null` anyway, write the words `an exclude rule` — never the text `null`, and never `.gitignore` on a guess.
+
+**`gitignore_source` is untrusted text.** It is the one externally-authored string in the object: a filesystem path git hands over, which may be absolute, may point outside the workspace, and may legitimately contain control bytes (the script escapes them for JSON transport; `jq -r` hands them back raw). Before printing, **replace every character below U+0020 and U+007F with a single space.** The notice is exactly one line, and a raw newline in a directory name would split it in two — the second half reading like a finding of its own. Print it as plain text; never as a link, and never as anything a renderer would interpret.
+
+### `undeclared` is a second signal, and it is not this notice
+
+A workspace that never answered init's question reports `policy: "undeclared"`, and with nothing tracked its `verdict` is **`consistent`** — the ordinary state of a fresh workspace, and of this plugin's own repository. It therefore produces no notice at all by the rule above. That is deliberate: a line on every listing of every undeclared project is precisely the noise the lint was weighed against. Under `/epic:epic stories full`, and there only, add one further line:
+
+```
+→ No .epic versioning policy declared — run /epic:epic init to choose one (tracked-md or local-only).
+```
+
+Its condition is `policy == "undeclared"` read on its own; it does not consult `verdict`, and it is **not** R4.2's notice. When a verdict notice is showing too, the two are separate lines and the verdict comes first — R4.2 asks for one line naming the contradiction, and this is a different sentence about a different fact. `policy` is total, so this line needs no `git` gate: a declaration is valid before `git init` and takes effect the moment the directory becomes a repository ([init-mode.md](init-mode.md#versioning-policy)).
 
 ## Status and Progress
 
@@ -24,6 +122,43 @@ A computed condition is appended after a `·`. It is derived from the boxes at r
 So `in-progress · done-except-external (2 deferred)` reads: the file says `in-progress`, the boxes say nothing is open here and two items are still owed by an actor outside this repo. The pairing is the normal one — Run mode writes `done` only when no `[ ]` and no deferred box remains (R1.3), so a story waiting on an external actor keeps `in-progress` until that work lands. The persisted enum has no value for "done except external"; that is deliberate, and the reason the condition is computed rather than stored.
 
 **Progress renders as `closed/total`, plus `(+D deferred)` when D > 0** — and only then. By the census in [tasks.md](tasks.md#completion), `closed` is `[x]` plus terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), so a waived gate closes its box and a finished story reads `5/5`, never an eternal `4/5`. Deferred boxes are closed too, but counted apart: that work is settled in the plan and still owed in the world.
+
+## Spike Lifecycle
+
+**A spike's status is its Verdict.** A `scale: spike` story is a time-boxed probe whose deliverable is an answer, and the answer lives in the `## Verdict` section of its `tasks.md` — template and grammar defined once, in [tasks.md](tasks.md#spike-scale-adaptations). The status column therefore carries the Verdict **instead of** the frontmatter status, never beside it: a spike's `in-progress` tells a reader nothing they came for, and printing both would put two competing claims in one column.
+
+The arms below **document what [`scripts/epic-index.sh`](../scripts/epic-index.sh)'s `verdict_cell` renders** — the managed index and this listing are two views of one fact, and a second spelling here would be a second thing to keep in step:
+
+| Verdict | Rendered as |
+|---|---|
+| `open`, `wont-do` | the value, verbatim |
+| `promote`, with `promoted-to:` naming a story that exists | `promote to NNN` |
+| `promote`, with `promoted-to:` naming no story on disk | `promote to NNN (missing)` |
+| `promote`, with no target recorded | `promote` |
+| absent, or unreadable | `—` |
+
+`(missing)` is also the interrupted-promote case — the Verdict written, the follow-up story never created (see the offer below). Absent renders the same em dash a story with no `status:` gets: inventing `open` would state a verdict nobody wrote.
+
+**Stale open spikes (R1.5).** A Verdict left `open` is the failure mode this scale exists to prevent, so it expires: **14 days** since the last change to `tasks.md`. **That number is [`scripts/monitor-stale.sh`](../scripts/monitor-stale.sh)'s and so is the measurement** — it owns the threshold (`SPIKE_THRESHOLD_DAYS`, user option `spikeStaleThresholdDays`) and the mtime read. Ask it; never `stat` a file here and never restate the deadline as arithmetic, or the day someone tunes the option this listing keeps quoting 14.
+
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/monitor-stale.sh" --once
+```
+
+One pass over every story, **one invocation for the whole listing** — unlike the per-story git evaluation below, there is no cost rule to apply. `--once` deliberately ignores `enableStaleMonitor`: that option governs the *background watcher*, the thing that speaks unasked, while R1.5 asks for this flag in the story list whether or not anyone opted into being notified in their sleep.
+
+| The script writes | This mode renders |
+|---|---|
+| `Epic spike '031-probe-cache' has an open Verdict untouched for 15 days — promote or close.` | ` · spike open 15 days — promote or close` on that story's row |
+| `Epic story '…' has pending tasks untouched for N days.` | nothing — the generic nag belongs to the background watcher |
+
+The **decision** is the script's; only the shortening is this mode's, like the `·` separators and the column layout. A terminal Verdict never produces a line whatever its boxes say, and an `open` spike inside the deadline produces none either — silence here means "not stale", and it is the only thing that does.
+
+**Promote hands off to CREATE (R1.6).** When a spike's Verdict becomes `promote` in an interactive session — set during a run, or found here as a `promote` row whose target is absent or `(missing)` — **offer** to create the follow-up story, pre-filled with the spike's `conclusion:` as the seed of its problem statement. The conclusion is what the spike learned, and re-typing it into CREATE is how the finding gets quietly rewritten. On acceptance, run CREATE and then write `promoted-to: NNN` back into the spike's Verdict, with the number CREATE actually assigned.
+
+Both halves are load-bearing: **never create the story without asking** (a promote is a decision to open work, and only the user opens work), and **never record `promoted-to:` before the story exists** — a number guessed ahead of CREATE is a pointer to nothing, and the manifest never recycles numbers to make it true later. A run interrupted between the two leaves exactly the `(missing)` row above, which is why the offer is repeated at the next `stories` invocation instead of being made once and forgotten.
+
+**Archive eligibility (R1.7).** A spike is complete for archive purposes when its Verdict is `wont-do`, or `promote` with a `promoted-to:` recorded — and never because of its checkboxes, which are probe steps rather than a contract. This is not a rule to apply by hand: [`scripts/archive-story.sh`](../scripts/archive-story.sh)'s preflight already reads a spike that way and refuses one whose Verdict is `open`, absent or a `promote` with no target, naming the missing piece. What it means for this mode is the `--done` expansion below: a concluded spike belongs in the sweep even with open probe boxes, and an `open` spike stays out of it even with every box ticked.
 
 ## Integration Annotation
 
@@ -173,7 +308,7 @@ Archived stories:
 |---|---|
 | `NNN` | that one story |
 | `NNN-MMM` | every existing story in the inclusive range; a number with no directory is skipped, not an error |
-| `--done` | every story in `.epic/stories/` that is **complete** — no `[ ]` box remains, in the task list or in the Quality Gates. `[x]` and terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`) both close a box; see [tasks.md](tasks.md#completion) |
+| `--done` | every story in `.epic/stories/` that is **complete** — no `[ ]` box remains, in the task list or in the Quality Gates. `[x]` and terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`) both close a box; see [tasks.md](tasks.md#completion). A `scale: spike` story is complete by its **Verdict** instead, never by its boxes (see Spike Lifecycle) |
 
 A `done-except-external` story clears that gate — nothing is open — and is reported with its deferred count, so work owed outside this repo is stated rather than buried. If any `[ ]` remains, the story is **not** `--done`; archiving it anyway is the user's explicit `--force <reason>` decision, never this mode's.
 
