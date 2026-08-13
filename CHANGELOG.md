@@ -11,6 +11,17 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-08-13
+
+Feature release. Adds a **git-aware story lifecycle** — Epic can now tell
+whether a finished story's work ever reached the main branch, and can retire a
+story in favour of its replacement as a first-class operation — and moves
+**supersede** and the **integration surfacing** out of orchestrator prose into
+scripts a test suite can drive. Also tightens `validate` with two consistency
+checks that had no detector at all.
+
+**Minimum Claude Code:** unchanged from 0.2.0.
+
 ### Fixed
 
 - **The interrupted-run completion is offered again, instead of just happening**
@@ -540,7 +551,10 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/lucascouts/epic/releases/tag/v0.4.0
+[0.3.1]: https://github.com/lucascouts/epic/releases/tag/v0.3.1
+[0.3.0]: https://github.com/lucascouts/epic/releases/tag/v0.3.0
 [0.2.0]: https://github.com/lucascouts/epic/releases/tag/v0.2.0
 [0.1.5]: https://github.com/lucascouts/epic/releases/tag/v0.1.5
 [0.1.4]: https://github.com/lucascouts/epic/releases/tag/v0.1.4
