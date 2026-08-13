@@ -3158,6 +3158,42 @@ fi
 # .epic/archive/ would send its reader looking in the wrong place.
 MOVED=true
 
+# THE MOVE JUST ORPHANED EVERY ALLOWLIST ENTRY THAT POINTED INTO THIS STORY.
+# A gitleaks working-tree fingerprint is `<path>:<rule>:<line>`, so it pins a
+# PATH — and the path just changed. Nothing repoints it, and until this it
+# failed in SILENCE: the entry simply stopped matching, and the symptom arrived
+# later and elsewhere, as a repository-wide scan reporting fixtures somebody
+# classified long ago and nobody investigates any more. A guard that cries wolf
+# ends up where a guard that was switched off ends up.
+#
+# Measured, not predicted: this happened on EVERY story archived since the
+# secrets guard existed that carried classified fixtures — 2 of 2.
+#
+# THIS REPORTS, IT DOES NOT REWRITE. `.gitleaksignore` is a security control,
+# and handing a script that otherwise only reads it a write path — on the far
+# side of an irreversible move, where a bad edit is discovered late — buys a
+# convenience nobody asked for at a price nobody priced. The defect is the
+# silence, so the fix is to end the silence and hand over the exact repair.
+report_orphaned_allowlist_entries() {
+  local old_abs=$1 new_abs=$2 root list old_rel new_rel hits
+  root=$(secrets_project_root "$new_abs") || return 0
+  [ -n "$root" ] || return 0
+  list="$root/.gitleaksignore"
+  [ -r "$list" ] || return 0
+  old_rel=${old_abs#"$root"/}
+  new_rel=${new_abs#"$root"/}
+  # Unchanged prefix means the path is not expressed relative to this root, so
+  # no entry here could have pinned it — nothing to report, and nothing wrong.
+  [ "$old_rel" = "$old_abs" ] && return 0
+  hits=$(grep -c -- "^${old_rel}/" "$list" 2>/dev/null) || hits=0
+  [ "${hits:-0}" -gt 0 ] || return 0
+  printf 'archive-story: %d allowlist entr%s in %s still point at %s/, which no longer exists — a gitleaks fingerprint pins a PATH and the move just changed it, so those entries have stopped suppressing anything and a repository scan will report those fixtures again. Repoint them:\n' \
+    "$hits" "$([ "$hits" -eq 1 ] && echo 'y' || echo 'ies')" "$list" "$old_rel" >&2
+  printf "  sed -i 's|^%s/|%s/|' %s\n" "$old_rel" "$new_rel" "$list" >&2
+  return 0
+}
+report_orphaned_allowlist_entries "$STORY_ABS" "$ARCHIVE_DIR/$STORY_ID"
+
 # ============================================================================
 # STEP 7 — STATUS: ARCHIVED (R1.1)
 # ============================================================================
