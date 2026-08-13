@@ -110,13 +110,21 @@ EOF
 @test "R5.1: a legacy story with no [~] renders exactly as it did pre-change" {
   run_census <<'EOF'
 ## Task List
-- [x] 1 - Group
+- [ ] 1 - Group
   - [x] 1.1 - implement first
   - [ ] 1.2 - implement second
 EOF
   # Pre-change: TOTAL counted `[ x]`, DONE counted `[x]` — same three boxes,
-  # same two closed, and no suffix because no deferred box can exist.
-  [ "$output" = "- Tasks: 2/3 completed" ]
+  # one closed, and no suffix because no deferred box can exist.
+  #
+  # The header read `- [x] 1 - Group` until story 006 group 10, which made a
+  # group header that contradicts its own sub-tasks a validation error. `1.2`
+  # is open, so `[x]` was a false claim, and the golden `2/3` was reachable
+  # ONLY through that falsehood — the honest fixture is one box closed of
+  # three. What R5.1 pins is that the census is a pure function of the boxes
+  # on disk, and that is unchanged: this is the same arithmetic on a corrected
+  # input, not a different rule. `hook-precompact.sh` is untouched.
+  [ "$output" = "- Tasks: 1/3 completed" ]
 }
 
 @test "no .epic directory: the hook exits 0 and writes nothing" {

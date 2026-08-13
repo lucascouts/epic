@@ -125,7 +125,7 @@ Sub-agents with specialized roles. Scale determines which personas are activated
 |---|---|---|---|
 | **Analyst** | Context discovery, domain research, checklist generation | standard + full | `agents/analyst.md` |
 | **Architect** | Codebase pattern research, design context gathering | full only | `agents/architect.md` |
-| **Test Advisor** | Authors one failing test per Unit/Integration sub-task during Phase 3, runs Red verification, records red-evidence | standard + full (Phase 3) | `agents/test-advisor.md` |
+| **Test Advisor** | Authors one failing test per Unit/Integration sub-task during Phase 3, runs Red verification, records red-evidence | standard + full (Phase 3, and per added sub-task in Refine) | `agents/test-advisor.md` |
 | **Reviewer** | Cross-artifact review, gap detection, consistency check | full only | `agents/reviewer.md` |
 
 ### Execution Personas (task implementation)
@@ -493,7 +493,7 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
   ---
   ```
 - Version is a simple integer, not semver
-- Maximum 10 history entries; older entries: "see git history"
+- Maximum 10 history entries; older entries: "see git history" — **unless the artifacts are not in git, in which case the cap does not apply.** The rule relegates old entries, and relegation needs somewhere to relegate them *to*. Where `.epic/` is gitignored — the default this plugin ships, and verifiable with `git ls-files .epic/` returning nothing — dropping the eleventh entry destroys it instead of moving it, and the escape hatch the rule names does not exist. Check before trimming; a story that has genuinely been refined eleven times keeps eleven entries, and that is not a violation. Where the artifacts *are* tracked, the cap holds as written
 - All files in a story share the same version number
 
 ### Lifecycle Status (`status:`)

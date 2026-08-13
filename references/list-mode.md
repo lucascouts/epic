@@ -8,7 +8,7 @@ Triggered by `/epic:epic stories`, `/epic:epic stories full`, or `/epic:epic sto
 2. For each story, read the frontmatter (type, scale, version, status) and parse task checkboxes
 3. Take the checkbox census — `total`, `closed` and `deferred` are defined once, in [tasks.md](tasks.md#completion). Census the task list and the Quality Gates separately: each renders its own pair
 4. Derive the story's computed condition from the census (see Status and Progress)
-5. For each story whose status is `done` or `validated`, run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir>` and annotate from its `integrated` field (see Integration Annotation) — skipped when the project has more than 50 stories, unless the command is `stories full`
+5. For each story, ask `bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --should-annotate <status> <story-count> <is-stories-full>` whether this story is annotated at all — exit 0 evaluates, exit 1 skips — and on exit 0 pipe `story-git-status.sh` into the same script's `--list` mode and append what it writes (see Integration Annotation). That one decision holds both gates: only `done`/`validated` stories are annotated, and more than 50 stories skips unless the command is `stories full`
 6. Refresh the managed index block opportunistically — `bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-index.sh"`; a non-zero exit warns and never blocks the listing (defined once, in [validate-mode.md](validate-mode.md#index-refresh))
 
 ## Status and Progress
@@ -27,21 +27,43 @@ So `in-progress · done-except-external (2 deferred)` reads: the file says `in-p
 
 ## Integration Annotation
 
-**Computed live, stored nowhere, blocking nothing.** A `done` or `validated` status says the work is finished; whether it ever reached the main branch is a separate fact, and this is where the list surfaces it. For each story whose status is `done` or `validated`, run [`scripts/story-git-status.sh`](../scripts/story-git-status.sh) and annotate the status cell from the `integrated` field of its JSON output (`{story, main_branch, integrated, evidence, checked_at}`):
+**Computed live, stored nowhere, blocking nothing.** A `done` or `validated` status says the work is finished; whether it ever reached the main branch is a separate fact, and this is where the list surfaces it.
+
+**The annotation is one script, never a prose rendering.** [`scripts/story-git-status.sh`](../scripts/story-git-status.sh) measures and prints `{story, main_branch, integrated, evidence, checked_at}`; [`scripts/render-integration.sh`](../scripts/render-integration.sh) turns that JSON into the label. This mode pipes one into the other and appends what comes back — it never derives the label itself. A rendering rule written down twice is two things to keep in step, and the copy the test suite exercises must be the copy the command runs.
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir>
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir> \
+  | bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --list
 ```
 
-| `integrated` | Rendered as |
+`--list` reads the detector's JSON on **stdin** and writes the bare label; the separator is the list's business, so append it after a ` · `. What it writes, per the `integrated` field, **documents the script's arms — it is not an instruction to render them by hand**:
+
+| `integrated` | The script writes |
 |---|---|
-| `true` | `integrada`, appended after a `·` |
-| `false` | `não-integrada`, appended after a `·` |
-| `null` | nothing |
+| `true` | `integrada` |
+| `false` | `não-integrada` |
+| `null` | nothing — no main branch was queryable, so no search happened and there is no answer to report |
 
-Exit 2 — not a git repository, or story not found — also renders nothing: degrade silently (R1.4). A workspace without git is legal, and "not computable" must never dress up as a finding — no annotation, no warning, no error. The labels `integrada` and `não-integrada` are contract strings; render them verbatim. The annotation is informational only: it never changes list ordering, filtering, or any verdict — whether a `não-integrada` story needs a merge, a cherry-pick or nothing at all is the user's decision, not this mode's.
+`null` and `false` are opposite claims and the script keeps them apart: `false` says a search ran and came back empty, `null` says no search was possible. Even a neutral "unknown" in the `null` row would be read as a finding by someone scanning the column.
 
-**Cost rule (R2.1).** Each annotation is one git evaluation, so when the project has more than 50 stories skip the per-story evaluation — only `/epic:epic stories full` performs the full sweep, regardless of story count.
+Exit 2 from the detector — not a git repository, or story not found — also renders nothing: nothing reaches the pipe and `--list` degrades silently (R1.4). A workspace without git is legal, and "not computable" must never dress up as a finding — no annotation, no warning, no error. Unparseable JSON, a missing `integrated` key and a machine without `jq` all mean the same thing and take that same silent path.
+
+**Every rendering path exits 0**, so a label that was produced and one that deliberately was not carry the same exit status: there is nothing here to branch on. That is a contract rather than a convenience — R2.2 requires this signal to inform and never to gate, and a caller reading `$?` would turn it into a verdict. The one non-zero exit that is not `--should-annotate` is exit 2, an unknown or missing mode: a caller error, unreachable from a well-formed call.
+
+The labels `integrada` and `não-integrada` are contract strings, spelled once in the script (`ANNOTATION_INTEGRATED`, `ANNOTATION_NOT_INTEGRATED`) and reproduced here verbatim — Portuguese and accented on purpose, the `ã` being U+00E3 (UTF-8 `0xC3 0xA3`), so a file re-saved in another encoding breaks the contract without breaking the syntax. The annotation is informational only: it never changes list ordering, filtering, or any verdict — whether a `não-integrada` story needs a merge, a cherry-pick or nothing at all is the user's decision, not this mode's.
+
+**Cost rule (R2.1) — a decision, not a rendering.** Each annotation is one git evaluation, so this is where a 400-story project stops paying for 400 of them. The rule is the script's third mode: it reads no stdin, writes no output, and **its exit code is the answer**.
+
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --should-annotate <status> <story-count> <is-stories-full>
+```
+
+| Exit | Means |
+|---|---|
+| 0 | evaluate this story — run the pipe above |
+| 1 | skip it — no git call, no annotation |
+
+**This is the only non-zero exit a well-formed call can produce** — the exit 2 above answers a caller that called the script wrong, never a question about a story — and it is the reason the two renderings can afford to be exit-code-free. `<is-stories-full>` is `true` only for `/epic:epic stories full`. Three gates answer in this order: `status` — only `done`/`validated` stories are ever annotated, which is not a cost control and no sweep flag overrides it; then the full sweep, which answers before the count is looked at; then the count — **more than** 50 skips, so a project with exactly 50 stories is still evaluated.
 
 ## Summary View (`/epic:epic stories`)
 
