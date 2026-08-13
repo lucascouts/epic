@@ -304,3 +304,58 @@ require_gitleaks() {
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.secrets == {}' > /dev/null
 }
+
+# ---------------------------------------------------------------------------
+# Orphaned allowlist entries — the move changes the path a fingerprint pins
+# ---------------------------------------------------------------------------
+
+@test "orphans: archiving a story with classified fixtures names the entries the move just broke" {
+  require_gitleaks
+  make_story 010-orphaning
+  put_secret 010-orphaning creds.md "$FIXTURE_KEY_A"
+  classify 010-orphaning creds.md 1
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-orphaning
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.status == "archived"' > /dev/null
+  # The diagnostic must name the dead path AND hand over the repair — a warning
+  # that says "something is wrong" without saying what to type is a warning
+  # people learn to scroll past.
+  echo "$stderr" | grep -q '\.epic/stories/010-orphaning'
+  echo "$stderr" | grep -q '\.epic/archive/010-orphaning'
+  echo "$stderr" | grep -q 'sed -i'
+}
+
+@test "orphans: an allowlist that pins nothing in this story triggers no report" {
+  require_gitleaks
+  # The allowlist EXISTS and holds an entry — just not one pointing into this
+  # story — so the report is reached and must decline. An empty project would
+  # have proved nothing: the function returns before its guard when there is no
+  # allowlist to read, so the case would pass against code that reports
+  # unconditionally.
+  #
+  # Noise is how a real report gets ignored, which is the same failure this
+  # whole feature exists to prevent, one level up.
+  make_story 010-quiet
+  printf 'some/other/path/file.md:aws-access-token:1\n' > "$PROJ/.gitleaksignore"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-quiet
+  [ "$status" -eq 0 ]
+  # `! grep -q`, never `grep -qv`: -v succeeds when ANY line fails to match,
+  # which is true of almost any output and asserts nothing.
+  ! echo "$stderr" | grep -q 'allowlist entr'
+}
+
+@test "orphans: the report never edits the allowlist it reports on" {
+  require_gitleaks
+  # .gitleaksignore is a security control. This step runs on the far side of an
+  # irreversible move, where a bad edit is discovered late — so it reads and
+  # says, and never writes. Byte-identical is the assertion.
+  make_story 010-readonly
+  put_secret 010-readonly creds.md "$FIXTURE_KEY_A"
+  classify 010-readonly creds.md 1
+  local before after
+  before=$(sha256sum < "$PROJ/.gitleaksignore")
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-readonly
+  [ "$status" -eq 0 ]
+  after=$(sha256sum < "$PROJ/.gitleaksignore")
+  [ "$before" = "$after" ]
+}
