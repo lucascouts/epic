@@ -327,6 +327,8 @@ frontmatter_field() {
 
 # story_field <key> — the story's lifecycle fields live in story.md when there
 # is one, and in tasks.md for the tasks-only scales (fast, spike).
+# `scale:` does NOT come through here (008 R1.1) — story_scale below owns it,
+# and its comment says why the two helpers are deliberately near-identical.
 story_field() {
   local key="$1" val
   val=$(frontmatter_field "$STORY_PATH/story.md" "$key")
@@ -334,6 +336,70 @@ story_field() {
     val=$(frontmatter_field "$STORY_PATH/tasks.md" "$key")
   fi
   printf '%s' "$val"
+}
+
+# story_scale — `scale:` is the one field tasks.md owns (008 R1.1), so it is
+# read by this helper and never through story_field above.
+#
+# THE SHARED SCALE RULE — `tasks.md` is AUTHORITATIVE for `scale:`, and every
+# reader of a story's scale resolves it that way. tasks.md is the one artifact
+# every scale has, so a declaration sitting there is never a leftover; a
+# story.md or a design.md surviving an earlier attempt at a differently-shaped
+# story is exactly that, and honouring one of those over the live tasks.md is
+# the defect story 008 removes. THE FULL ARGUMENT IS STATED ONCE, at
+# validate-story.sh's resolution loop (search it for "THE SHARED SCALE RULE"),
+# together with the written contract it agrees with — this is a pointer to that,
+# not a second copy that can drift from it.
+#
+# FIVE READERS RESOLVE A STORY'S SCALE AND MOVE TOGETHER. Named in full,
+# including the two that do NOT change, because an inventory listing only the
+# movers is the one that goes stale in silence:
+#   1. validate-story.sh — turns the scale into validation findings.
+#   2. archive-story.sh (HERE) — the spike preflight in assess_completion and
+#      the `scale` recorded in the manifest entry by derive_entry_fields. BOTH
+#      of those call it: a fix applied to the gate alone refuses the spike
+#      correctly and then files a permanent entry naming a scale the story
+#      never declared.
+#   3. cross-reference.sh — decides whether a requirements chain exists to
+#      compare against at all.
+#   4. monitor-stale.sh:96 `declares_spike_scale` — already reads tasks.md and
+#      nothing else. It never carried the defect; this rule is the rest of the
+#      codebase agreeing with the precedent it set.
+#   5. epic-index.sh:772-778 `status_cell` — knowingly kept on its own
+#      precedence and out of scope, and it says so at its own definition. It
+#      renders a row, it gates nothing, and a renderer that disagrees costs a
+#      wrong cell, not a wrong archive.
+# There is no shared library to import the rule from: `scripts/` has none, every
+# script here is invoked standalone by path. So it is duplicated, and the five
+# readers move as one.
+#
+# WHY story_field WAS NOT FLIPPED, so the near-duplication reads as a decision
+# and not as an oversight waiting to be tidied away. `status` (preflight's
+# `FM_STATUS=$(story_field status)`, :2767) and `type` (`derive_entry_fields`,
+# :1801) still read story.md ahead of tasks.md, and they must: those two are
+# the story's LIFECYCLE, which belongs to story.md whenever there is one, and
+# only `scale` moves. Both are cited by NAME as well as by line because a
+# same-file line number goes stale on the next edit, and NOT EVEN UNIFORMLY:
+# this change pushed `type` down 71 lines (1730 -> 1801) and `status` down 76
+# (2691 -> 2767), because the second call-site comment below sits between them.
+# So there is no single offset a reader could apply to repair a stale citation
+# — only the name survives an edit. Collapsing the two helpers into one — in
+# either direction — would silently change which artifact decides them, and
+# `status` decides both the already-archived refusal and the value persisted in
+# the manifest entry.
+#
+# A REGISTERED GAP, NOT ONE INTRODUCED HERE (design.md §4): this script has no
+# scale enum check, and this change makes that gap REACHABLE. An invalid
+# `scale: medium` in tasks.md beside a valid `spike` in story.md used to resolve
+# `spike` and get the spike preflight; now the `medium` is what resolves, and
+# the preflight is skipped. No requirement asks for an enum here and adding one
+# is out of scope — validate-story.sh still reports the invalid value on the
+# same story. Recorded so it is a known decision rather than a latent surprise.
+story_scale() {
+  local v
+  v=$(frontmatter_field "$STORY_PATH/tasks.md" scale)
+  [[ -n "$v" ]] || v=$(frontmatter_field "$STORY_PATH/story.md" scale)
+  printf '%s' "$v"
 }
 
 # census_tasks <tasks.md> — the checkbox census, in the ONE grammar shared with
@@ -482,6 +548,18 @@ collect_deferred_items() {
 # Only the first value of each key inside the section is read. `promoted-to`
 # must start with a digit — that is what "the target is recorded" means, and it
 # rejects the unfilled `NNN` placeholder of the template (fail-closed).
+#
+# The GRAMMAR — these four regexes — is shared VERBATIM with the parse_verdict
+# of epic-index.sh AND of validate-story.sh. THREE full consumers, plus a
+# PARTIAL fourth — monitor-stale.sh's verdict_status, which copies the first
+# three regexes verbatim and deliberately omits `promoted-to` (staleness keys on
+# the status alone). If 007 ever amends the grammar, all four move together. The
+# AGGREGATION is per-consumer and differs on purpose: epic-index.sh RENDERS the
+# verdict for a human, validate-story.sh turns it into validation errors (a
+# spike must HAVE a verdict, and `promote` must name its target),
+# monitor-stale.sh turns it into a deadline (has this probe concluded yet?), and
+# this script turns it into the completion verdict below — may this story be
+# archived?
 VERDICT_STATUS=""
 VERDICT_PROMOTED_TO=""
 parse_verdict() {
@@ -521,7 +599,12 @@ assess_completion() {
   local scale spike_rule
   COMPLETE=false
   INCOMPLETE_REASON=""
-  scale=$(story_field scale)
+  # THE DECLARED scale (story_scale, not story_field) — call site 1 of 2. A
+  # story.md left over from an earlier attempt must not be able to take the
+  # spike contract away from a story whose live tasks.md declares one: that is
+  # how a spike with every probe box closed and no `## Verdict` fell through to
+  # the generic closed-boxes rule below and got archived (008 R4.2).
+  scale=$(story_scale)
 
   # A spike (story 007 R1.7) concludes through its `## Verdict` and only through
   # it: its checkboxes are probe steps, not a contract, so they must not be able
@@ -849,6 +932,12 @@ SECRETS_FINDINGS=0
 SECRETS_REPORT=""      # gitleaks' own JSON report, kept only when it is evidence
 SECRETS_ERR=""
 SECRETS_TMPDIR=""
+# The project root the scan is anchored to, and the story expressed relative to
+# it. Both "" until run_secrets_scan resolves them, which is what makes the two
+# paths that never scan — --skip-secrets and an absent gitleaks — report
+# `allowlist_root: null` without anyone having to remember to clear them.
+SECRETS_ROOT=""
+SECRETS_REL=""
 # "" until count_unscanned_large has actually taken the census, so that a path
 # where it never ran (an absent scanner, --skip-secrets) reports `null` rather
 # than a confident `0`. Same rule as `findings`: a number nobody measured must
@@ -881,16 +970,33 @@ SECRETS_COVERAGE=""
 # came back empty; that is the same mistake as `size: 0` in guard.violations[].
 # `unscanned_files` is the count of files LARGER than the scanner's
 # --max-target-megabytes limit, which it skips without reporting the skip.
+#
+# `allowlist_root` names the project root the scan was anchored to, and is TOTAL
+# — present on every path, `null` when no allowlist governed the scan. Total and
+# not conditional on purpose: `jq -r` renders an absent key and a null key
+# identically, so a consumer that branched on the key's PRESENCE could not tell
+# "no allowlist applied" from "this build predates the key". Branch on the
+# value. `null` means the fingerprints were absolute, so nothing in any
+# .gitleaksignore could have matched them — the findings are unsuppressed, never
+# under-reported.
 set_secrets_json() {
   local scanned="$1" findings="$2" report="$3" skipped="$4" err="$5"
   local f_json="null" r_json="null" s_json="null" e_json="null" u_json="null"
+  local a_json="null"
   [[ "$findings" =~ ^[0-9]+$ ]] && f_json="$findings"
   [[ "$SECRETS_UNSCANNED" =~ ^[0-9]+$ ]] && u_json="$SECRETS_UNSCANNED"
   [[ -n "$report" ]] && r_json=$(quote_scalar "$report")
   [[ -n "$skipped" ]] && s_json=$(quote_scalar "$skipped")
   [[ -n "$err" ]] && e_json=$(quote_scalar "$err")
-  SECRETS_JSON=$(printf '{ "scanner": "gitleaks", "scanned": %s, "findings": %s, "unscanned_files": %s, "report": %s, "skipped": %s, "error": %s }' \
-    "$scanned" "$f_json" "$u_json" "$r_json" "$s_json" "$e_json")
+  # Read from the global, like SECRETS_UNSCANNED and unlike the parameters: it is
+  # the same kind of value — a measurement the scan produced, not a decision the
+  # caller made. So no call site changes, and the two paths that never scan
+  # inherit "" and emit null without anyone having to remember to pass it.
+  # quote_scalar, never printf '"%s"': this reaches a JSON document and a
+  # directory name may legitimately contain a quote or a backslash.
+  [[ -n "$SECRETS_ROOT" ]] && a_json=$(quote_scalar "$SECRETS_ROOT")
+  SECRETS_JSON=$(printf '{ "scanner": "gitleaks", "scanned": %s, "findings": %s, "unscanned_files": %s, "report": %s, "skipped": %s, "error": %s, "allowlist_root": %s }' \
+    "$scanned" "$f_json" "$u_json" "$r_json" "$s_json" "$e_json" "$a_json")
   return 0
 }
 
@@ -958,6 +1064,47 @@ secrets_cleanup_tmp() {
   return 0
 }
 
+# secrets_project_root <story-abs> — the directory the allowlist is anchored to.
+#
+# WHY THIS EXISTS AT ALL. gitleaks composes every Fingerprint by mirroring the
+# SOURCE PATH AS GIVEN, so an absolute source yields an absolute fingerprint,
+# while `.gitleaksignore` pins project-root-relative ones — the form gitleaks
+# documents ("a .gitleaksignore file at the root of your repo"). Compared as
+# opaque strings, the two dialects never match, so before this the guard
+# reported findings a maintainer had already classified, and the only escape
+# was --skip-secrets, which disarms the scan for the WHOLE story.
+#
+# Resolved from the STORY, not from the caller's cwd: the allowlist that governs
+# a story is the one in the story's own project, and a caller may stand anywhere.
+# `.epic/` being gitignored is irrelevant — ignore rules affect tracking, never
+# repository discovery.
+#
+# Git FIRST, `.epic/` second. gitleaks specifies the allowlist at the repository
+# root, and in a monorepo with `.epic/` in a subproject the .gitleaksignore still
+# sits at the git root — anchoring on `.epic/` there would recreate this very bug
+# one level down. The `.epic/` walk exists only for a project git cannot answer
+# for, which Epic supports (see epic-gitpolicy.sh).
+#
+# BOTH candidates are normalised through `cd … && pwd -P` because STORY_ABS is
+# built that way too. `git rev-parse --show-toplevel` may answer with a LOGICAL
+# path; under a symlinked checkout the unnormalised pair disagrees and the prefix
+# strip in the caller then silently fails, degrading a perfectly good project to
+# the unanchored fallback.
+#
+# Echoes the root, or nothing when there is none. NEVER fails its caller: a
+# non-git project is the expected case here, not an error.
+secrets_project_root() {
+  local story_abs=$1 root dir
+  root=$(cd "$story_abs" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null) \
+    && [ -n "$root" ] && (cd "$root" 2>/dev/null && pwd -P) && return 0
+  dir=$story_abs
+  while [ -n "$dir" ] && [ "$dir" != "/" ]; do
+    dir=$(dirname "$dir")
+    [ -d "$dir/.epic" ] && { (cd "$dir" 2>/dev/null && pwd -P); return 0; }
+  done
+  return 0
+}
+
 # run_secrets_scan — the scan itself. Three answers, never two:
 #   0  scanned, clean
 #   1  scanned, SECRETS_FINDINGS > 0, report kept at SECRETS_REPORT
@@ -984,13 +1131,53 @@ run_secrets_scan() {
     return 2
   }
   report="$SECRETS_TMPDIR/gitleaks-report.json"
+
+  # ANCHORING. Express the source RELATIVE to the project root so every emitted
+  # fingerprint is root-relative and a committed .gitleaksignore can match it.
+  SECRETS_ROOT=$(secrets_project_root "$STORY_ABS")
+  SECRETS_REL=${STORY_ABS#"$SECRETS_ROOT"/}
+  # The strip changed nothing and the two are not the same directory, so the
+  # story lies OUTSIDE the root and no relative expression exists. Fall back and
+  # disclose rather than emitting `../../..`, which gitleaks would embed verbatim
+  # into every fingerprint — unmatchable by any allowlist, in a new way.
+  if [ -n "$SECRETS_ROOT" ] && [ "$SECRETS_REL" = "$STORY_ABS" ] \
+     && [ "$STORY_ABS" != "$SECRETS_ROOT" ]; then
+    SECRETS_ROOT=""
+  fi
+  # The story IS the root — a story directory that is itself a git repository
+  # resolves that way — so the strip leaves nothing. Measured on 8.30.1:
+  # `gitleaks dir ""` and `gitleaks dir "."` produce identical findings and
+  # identical fingerprints, so this pins an undocumented equivalence rather than
+  # fixing a live defect. One character is cheaper than depending on it.
+  [ -z "$SECRETS_REL" ] && SECRETS_REL=.
+
   # --no-color is the one flag added to the designed command line: this output
   # is spliced into a JSON `reason` a human reads, and gitleaks colourizes even
   # into a pipe -- raw ANSI escapes there are noise that quote_scalar then has
   # to encode one byte at a time into a message nobody can read.
-  out=$(gitleaks dir "$STORY_ABS" --no-banner --no-color --exit-code 1 \
-    --max-target-megabytes "$GITLEAKS_MAX_MB" \
-    --report-format json --report-path "$report" 2>&1) && rc=0 || rc=$?
+  #
+  # -i is passed EXPLICITLY rather than left to its "." default. That default
+  # made the effective allowlist a property of wherever the caller happened to
+  # stand — which list-mode.md recorded as a way to disarm this guard — instead
+  # of a property of the project. The `cd` lives inside the command substitution,
+  # so the caller's working directory never moves, and --report-path stays
+  # absolute (a private mktemp -d) so it is unaffected by it.
+  #
+  # NOT A FAIL-OPEN, and this is the failure mode that would look like success:
+  # `gitleaks dir` does NOT honour .gitignore, so re-rooting does not make it
+  # skip a gitignored `.epic/`. Measured — both forms read ~185801 bytes of
+  # story 005 — and pinned by tests/secrets-allowlist.bats rather than left to
+  # this comment.
+  if [ -n "$SECRETS_ROOT" ]; then
+    out=$(cd "$SECRETS_ROOT" && gitleaks dir "$SECRETS_REL" --no-banner --no-color \
+      --exit-code 1 --gitleaks-ignore-path "$SECRETS_ROOT" \
+      --max-target-megabytes "$GITLEAKS_MAX_MB" \
+      --report-format json --report-path "$report" 2>&1) && rc=0 || rc=$?
+  else
+    out=$(gitleaks dir "$STORY_ABS" --no-banner --no-color --exit-code 1 \
+      --max-target-megabytes "$GITLEAKS_MAX_MB" \
+      --report-format json --report-path "$report" 2>&1) && rc=0 || rc=$?
+  fi
   chmod 600 "$report" 2>/dev/null || true
   out=${out//$'\n'/; }
 
@@ -1716,7 +1903,12 @@ derive_entry_fields() {
     STORY_SLUG="$STORY_ID"
   fi
   STORY_TYPE=$(story_field type)
-  STORY_SCALE=$(story_field scale)
+  # Call site 2 of 2, and the one a test that only checks the refusal cannot
+  # see: this value is DERIVED, never declared, and it is written into the
+  # manifest — the archive's permanent record, which outlives the story
+  # directory it was read from. The gate above and this line must resolve the
+  # scale identically or an archive refuses as a spike and files as a `full`.
+  STORY_SCALE=$(story_scale)
   if ! derive_archived_at; then
     DERIVE_ERR="cannot read the system clock ('date -Iseconds' and 'date -u +%Y-%m-%dT%H:%M:%SZ' both failed)"
     return 1
@@ -2965,6 +3157,42 @@ fi
 # actually is; a `moved: false` for a directory demonstrably sitting in
 # .epic/archive/ would send its reader looking in the wrong place.
 MOVED=true
+
+# THE MOVE JUST ORPHANED EVERY ALLOWLIST ENTRY THAT POINTED INTO THIS STORY.
+# A gitleaks working-tree fingerprint is `<path>:<rule>:<line>`, so it pins a
+# PATH — and the path just changed. Nothing repoints it, and until this it
+# failed in SILENCE: the entry simply stopped matching, and the symptom arrived
+# later and elsewhere, as a repository-wide scan reporting fixtures somebody
+# classified long ago and nobody investigates any more. A guard that cries wolf
+# ends up where a guard that was switched off ends up.
+#
+# Measured, not predicted: this happened on EVERY story archived since the
+# secrets guard existed that carried classified fixtures — 2 of 2.
+#
+# THIS REPORTS, IT DOES NOT REWRITE. `.gitleaksignore` is a security control,
+# and handing a script that otherwise only reads it a write path — on the far
+# side of an irreversible move, where a bad edit is discovered late — buys a
+# convenience nobody asked for at a price nobody priced. The defect is the
+# silence, so the fix is to end the silence and hand over the exact repair.
+report_orphaned_allowlist_entries() {
+  local old_abs=$1 new_abs=$2 root list old_rel new_rel hits
+  root=$(secrets_project_root "$new_abs") || return 0
+  [ -n "$root" ] || return 0
+  list="$root/.gitleaksignore"
+  [ -r "$list" ] || return 0
+  old_rel=${old_abs#"$root"/}
+  new_rel=${new_abs#"$root"/}
+  # Unchanged prefix means the path is not expressed relative to this root, so
+  # no entry here could have pinned it — nothing to report, and nothing wrong.
+  [ "$old_rel" = "$old_abs" ] && return 0
+  hits=$(grep -c -- "^${old_rel}/" "$list" 2>/dev/null) || hits=0
+  [ "${hits:-0}" -gt 0 ] || return 0
+  printf 'archive-story: %d allowlist entr%s in %s still point at %s/, which no longer exists — a gitleaks fingerprint pins a PATH and the move just changed it, so those entries have stopped suppressing anything and a repository scan will report those fixtures again. Repoint them:\n' \
+    "$hits" "$([ "$hits" -eq 1 ] && echo 'y' || echo 'ies')" "$list" "$old_rel" >&2
+  printf "  sed -i 's|^%s/|%s/|' %s\n" "$old_rel" "$new_rel" "$list" >&2
+  return 0
+}
+report_orphaned_allowlist_entries "$STORY_ABS" "$ARCHIVE_DIR/$STORY_ID"
 
 # ============================================================================
 # STEP 7 — STATUS: ARCHIVED (R1.1)

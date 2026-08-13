@@ -137,7 +137,7 @@ Every artifact carries a shared frontmatter block. See [`skills/epic/SKILL.md`](
 ---
 story: <story-name>
 type: feature | bugfix
-scale: fast | standard | full
+scale: fast | standard | full | spike
 version: 1
 created: <date>
 # optional on refine:

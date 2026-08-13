@@ -12,7 +12,7 @@ description: >
   needs to be done to implement X?", "list stories", "run story",
   "execute tasks", "validate implementation" — even without saying
   "epic" or "story" explicitly.
-argument-hint: "[description] or [stories] or [stories full] or [stories run|validate|refine NNN] or [stories NNN run N|all] or [init]"
+argument-hint: "[description] or [stories] or [stories full] or [stories run|validate|refine NNN] or [stories supersede NNN --by MMM] or [stories NNN run N|all] or [init]"
 allowed-tools:
   - Read
   - Glob
@@ -125,7 +125,7 @@ Sub-agents with specialized roles. Scale determines which personas are activated
 |---|---|---|---|
 | **Analyst** | Context discovery, domain research, checklist generation | standard + full | `agents/analyst.md` |
 | **Architect** | Codebase pattern research, design context gathering | full only | `agents/architect.md` |
-| **Test Advisor** | Authors one failing test per Unit/Integration sub-task during Phase 3, runs Red verification, records red-evidence | standard + full (Phase 3) | `agents/test-advisor.md` |
+| **Test Advisor** | Authors one failing test per Unit/Integration sub-task during Phase 3, runs Red verification, records red-evidence | standard + full (Phase 3, and per added sub-task in Refine) | `agents/test-advisor.md` |
 | **Reviewer** | Cross-artifact review, gap detection, consistency check | full only | `agents/reviewer.md` |
 
 ### Execution Personas (task implementation)
@@ -191,6 +191,9 @@ $ARGUMENTS parsing:
   → ARCHIVE mode (delegates to scripts/archive-story.sh, one call per story;
     a range or --done is expanded here — the script takes exactly one story)
 
+"stories supersede NNN --by MMM"
+  → SUPERSEDE mode (replace story NNN with MMM: banner, status, index, archive offer)
+
 "stories teams {status|enable|disable}"
   → TEAMS mode (manage experimental agent-teams flag for this project)
 
@@ -228,6 +231,7 @@ When a command references `NNN`:
 | **Validate** | `/epic:epic stories validate NNN` | Load [validate-mode.md](../../references/validate-mode.md) |
 | **Refine** | `/epic:epic stories refine NNN` | Load [refine-mode.md](../../references/refine-mode.md) |
 | **Archive** | `/epic:epic stories archive NNN[-MMM]\|--done` | Load [list-mode.md](../../references/list-mode.md) (Archive Command) — the mode resolves which stories to archive and calls `scripts/archive-story.sh` once per story; it never moves a directory or writes a manifest entry itself |
+| **Supersede** | `/epic:epic stories supersede NNN --by MMM` | Load [supersede-mode.md](../../references/supersede-mode.md) |
 | **Teams** | `/epic:epic stories teams {status\|enable\|disable}` | Load [teams-mode.md](../../references/teams-mode.md) |
 | **Expand** | User says "based on", "extends" existing story | Create new story referencing source |
 | **CI/Headless** | Programmatic invocation via Agent SDK | Load [ci-mode.md](../../references/ci-mode.md) |
@@ -248,8 +252,11 @@ When a command references `NNN`:
 | **Fast** | Simple change, 1-2 files, no architectural decisions | Tasks only | `tasks.md` |
 | **Standard** | Medium feature, 2-5 files, clear scope | Story + Tasks | `story.md` + `tasks.md` |
 | **Full** | Complex feature, 5+ files, design decisions, integrations | Story + Design + Tasks | `story.md` + `design.md` + `tasks.md` |
+| **Spike** | Time-boxed exploration — the deliverable is a decision, not a shipped change | Tasks only | `tasks.md` (with a mandatory `## Verdict`) |
 
 Fast mode is **test-first at run time**: a sub-task carrying a `Tests` field has its test authored and confirmed failing (Red) before implementation, then Green-then-Refactor. A sub-task with no testable logic carries an optional Fast-only `Acceptance` field instead — 1-3 observable-behavior statements. Every implementing (non-Commit) Fast sub-task carries one or the other (the test-or-Acceptance contract rule). Fast stays single-author: no Test Advisor sub-agent, no `.draft/`, no `story.md`, no gate.
+
+Spike mode is **exploration, not delivery**: the story exists to answer a question, and the answer is the mandatory `## Verdict` section of its `tasks.md`. A spike is tasks-only — no `story.md`, no `design.md`, no `.draft/` — and has **no requirements chain**: an R-reference such as `R1.1` inside a spike is a validation error, because no story.md exists for it to point at. It takes every Fast carve-out in this document (no runtime-dependency precheck, no MCP detection, no drafts, no phase gate) and stays single-author. What makes a spike terminal is the Verdict, not the checkboxes: `promote` (the orchestrator offers CREATE for the follow-up story, pre-filled with the conclusion, and records `promoted-to: NNN`) or `wont-do`. A Verdict left `open` is the failure mode this scale exists to prevent — LIST surfaces stale open spikes so they get promoted or closed. Template and grammar: [tasks.md](../../references/tasks.md#spike-scale-adaptations).
 
 ## Workflow Variants (Full mode, feature only)
 
@@ -289,6 +296,9 @@ Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a 
 | **Simple** | 3-5 files, clear scope | Standard | No design docs; upgrade to Full if architectural decisions appear |
 | **Moderate** | 5-10 files, design decisions | Full | More upfront time, but traceable requirements and documented design |
 | **High** | 10+ files, cross-cutting | Full | Highest upfront cost, but prevents scope drift and design mismatches |
+| **Exploratory** | "probe", "spike", "experiment", "harness", "find out whether" / "descobrir se" — the goal of the request is to learn something; no deliverable is committed to yet | Spike | Tasks-only and time-boxed: no requirements chain, no design doc; ends in a Verdict that promotes to a real story or closes the question |
+
+**Exploratory is a shape, not a size.** Propose Spike only when the request's own goal is to find something out, or when the user asks for one explicitly. A small feature is **Fast**, never Spike — the skill **never auto-downgrades a feature to a spike**: doing so would trade a deliverable for a question the user never asked.
 
 Always explain trade-offs in the triage proposal. Include EARS primer on first story only (see [ears-notation.md](../../references/ears-notation.md)):
 
@@ -458,7 +468,7 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
   ---
   story: <story-name>
   type: feature | bugfix
-  scale: fast | standard | full
+  scale: fast | standard | full | spike
   version: 1
   created: <date>
   status: draft
@@ -489,7 +499,7 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
   ---
   ```
 - Version is a simple integer, not semver
-- Maximum 10 history entries; older entries: "see git history"
+- Maximum 10 history entries; older entries: "see git history" — **unless the artifacts are not in git, in which case the cap does not apply.** The rule relegates old entries, and relegation needs somewhere to relegate them *to*. Where `.epic/` is gitignored — the default this plugin ships, and verifiable with `git ls-files .epic/` returning nothing — dropping the eleventh entry destroys it instead of moving it, and the escape hatch the rule names does not exist. Check before trimming; a story that has genuinely been refined eleven times keeps eleven entries, and that is not a violation. Where the artifacts *are* tracked, the cap holds as written
 - All files in a story share the same version number
 
 ### Lifecycle Status (`status:`)

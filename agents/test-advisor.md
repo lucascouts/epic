@@ -135,6 +135,7 @@ Fields for an `E2E` entry:
 - If `design.md` defines a testing strategy, ensure all levels (unit, integration, E2E) mentioned there have at least one corresponding task.
 - Be conservative: skip tests for Trivial/Simple complexity tasks that are purely structural; do not over-prescribe tests for trivial structural work.
 - Be exhaustive on state-changing operations and integration boundaries.
+- For every requirement asserting that two things are the SAME or DIFFERENT (identity, uniqueness, deduplication, distinguishability), author the hostile case — the fixture that makes the rule fire wrongly — BEFORE the benign one, in both converse directions; see *Hostile-half rule*.
 - Commit sub-tasks never have tests.
 - Format: `` Type · `path/to/test_file` — scenario1, scenario2, scenario3 ``.
 - Type is always explicit: Unit, Integration, E2E (because test conventions vary across languages).
@@ -158,6 +159,33 @@ When integration tests must exercise the real interaction between components (e.
 If the test setup uses simplified/mocked versions of a dependency (e.g., inline template strings instead of real template files, mock API responses instead of real HTTP calls), flag it with a note: `⚠ Fidelity: uses simplified [dependency] — add at least one scenario with real [dependency] to catch integration mismatches`.
 
 This prevents bugs that only manifest when real components interact (wrong data shapes, misconfigured wiring, incompatible interfaces).
+
+### Hostile-half rule (identity and uniqueness)
+
+For every requirement asserting that two things are the **SAME** or are **DIFFERENT** — identity, uniqueness, deduplication, equality, distinguishability — **author the case that would make the rule fire WRONGLY first**, and only then the case where it correctly holds. Order is the rule, not just coverage: a test authored after the behavior exists asks "what does this do?" and passes; only a test authored from the requirement asks "what does this forbid?" and can fail.
+
+Every such requirement has a **converse**, and both halves MUST be authored. A rule forbidding *two things collapsing into one* has a converse forbidding *one thing splitting into two*. A fix that satisfies one converse by violating the other stays green against a suite that covers only the benign half — so per requirement the suite MUST contain, in this order:
+
+1. the fixture where the rule would **wrongly collapse** — near-identical inputs that denote different things and MUST stay apart;
+2. the fixture where the rule would **wrongly split** — differently-shaped inputs that denote the same thing and MUST come together;
+3. only then, the benign fixture where the rule plainly holds.
+
+Derive both hostile fixtures from the requirement's own prohibition, never from the implementation — the sub-task's `ToDo` stays out of bounds (see *Context boundary*). A suite carrying only (3) is a **half-covered rule** — flag it with: `⚠ Hostile half: [requirement] has no fixture that makes it fire wrongly`.
+
+**The rule extends to the values a fix DERIVES, not only to the requirement that motivated it.** When a fix introduces a **derived value** — a rendered string, a resolved name, a computed key — author the hostile case for that value in its own right. Deriving both halves from the requirement's text is necessary and not sufficient here: the requirement can only name the things it forbids, and a derived value is a spelling the fix itself invented, so no wording in the requirement points at it. A suite that answers the requirement perfectly can therefore leave the new mechanism entirely unexercised.
+
+Ask it of every value a fix derives, in this first form — it is the recurring shape:
+
+> **Can a THIRD element collide with it?**
+
+A uniqueness or identity check written over a **pair** is what every defect in this story has been. The pair is handled; a third input then reaches the same rendered answer by a route the pair never exercised, and the guarantee the pair proved is one the document no longer carries.
+
+**Evidence — four shipped instances of exactly this gap** (story `006-git-aware-lifecycle`, one defect per consecutive validate):
+
+- **5.1 case 4** — asserted a benign name collision with NO such remote; the hostile half (the same collision *with* that remote present) went unwritten, and that hostile half WAS defect D5.
+- **6.1 case 2** — asserted two remotes but NO local branch; the hostile half (two remotes *and* a like-named local branch, where the collapse predicate merges two distinct branches) is sub-task 7.2.
+- **6.1 case 1** — asserted the entry COUNT but never that the two entries are distinguishable; the hostile half (two entries carrying the same detail) is sub-task 7.3.
+- **7.3 case 1 — defect D-2, the derived-value instance.** The only one of the four where the rule above was *followed* and a defect shipped anyway. 7.3 authored R1.10's hostile half honestly — two entries denoting different branches, asserted to carry different details — and the fix answered it by escalating the colliding pair to `heads/origin/x` and `remotes/origin/x`. Those two strings were a spelling 7.3 itself invented, and no case asked what would collide with **them**: a third merged branch whose plain short name already *is* `remotes/origin/x` renders byte-identical to the escalation, and the guarantee breaks at three where it held at two. Sub-task 8.3.
 
 ## Output Format
 

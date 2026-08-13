@@ -98,6 +98,39 @@ created: 2026-08-02
 EOF
 }
 
+# Byte-stability is a contract about this fixture's OUTPUT, not a freeze on its
+# input. Story 006 group 10 made a group header that contradicts its own
+# sub-tasks a validation error, and this fixture carried that exact shape:
+# `- [x] 1 - Group` over an open `1.2`. The header is now `- [ ]`, which is the
+# true statement — the alternative, closing `1.2`, would fabricate completion to
+# satisfy the checker, which is the inversion of what the rule is for. Both
+# R5.1 goldens below were verified BYTE-IDENTICAL across the change: neither
+# validate-story.sh nor cross-reference.sh emits a box-state count, so the
+# rendered output never depended on which of the three boxes was open.
+#
+# STORY 008 EXTENDED THE CROSS-REFERENCE OBJECT, and the golden was updated with
+# the new key rather than the key being suppressed to keep the bytes. The report
+# now carries `scale`, emitted on BOTH of its paths — the measured report below,
+# and the `{story, scale, status: "no-requirements-chain"}` object that a scale
+# owing no requirements chain gets instead of a measurement (design.md §5, R3.4).
+# It reads `standard` here because this fixture declares `scale: standard` in
+# both artifacts; a fixture declaring none anywhere would read a bare `null`.
+# THE EXTENSION IS PURELY ADDITIVE, and that is what makes it compatible with
+# R5.1's intent instead of a breach of it: every pre-existing key keeps its
+# position and its value byte for byte, so nothing reading `coverage`, `mapping`
+# or `status` moves. The positive reason the key is on both paths is that after
+# story 008 the RESOLVED scale is observable nowhere else in the system — every
+# other test of the resolution has to infer it from a downstream error message.
+#
+# AND THE PART WORTH THE PARAGRAPH. Story 008's design measured "the key set is
+# asserted nowhere" against tests/cross-reference.bats alone. That was true of
+# that suite and FALSE of the repository: THIS golden pins the whole object by
+# equality, it is the fifth pin the survey missed, and it was found only when the
+# sub-task's own full-suite run reddened here — one case, in a suite named after
+# checkboxes rather than after the script whose output it freezes. The next
+# person extending this object should sweep for full-object goldens
+# (`[ "$output" = "$expected" ]` over a heredoc) across EVERY suite, not only the
+# one named after the script.
 write_legacy_fixture() { # writes $WORK/legacy/story — MUST stay byte-stable
   mkdir -p "$WORK/legacy/story"
   cat > "$WORK/legacy/story/story.md" <<'EOF'
@@ -127,7 +160,7 @@ created: 2026-01-10
 ---
 
 ## Task List
-- [x] 1 - Group
+- [ ] 1 - Group
   - _Complexity: Simple | Tests: none | Risks: none | Dependencies: None_
   - [x] 1.1 - implement first
     - Requirements: R1.1
@@ -320,6 +353,7 @@ GOLDEN
   expected=$(cat <<'GOLDEN'
 {
   "story": "story",
+  "scale": "standard",
   "story_requirements": 2,
   "task_references": 2,
   "parseable_tasks": 3,

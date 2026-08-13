@@ -11,6 +11,215 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Fixed
+
+- **The interrupted-run completion is offered again, instead of just happening**
+  (`scripts/supersede-story.sh`, `references/supersede-mode.md`). Wiring
+  supersede behind a script had traded a prompt for an assumption: re-invoking
+  `supersede NNN --by MMM` over a run that died mid-write finished it
+  unconditionally, while the requirement says the system SHALL *offer* to
+  complete. An operator who re-ran the command might not know a prior run was
+  interrupted at all, so the second invocation carried no informed consent to
+  finish a half-applied write.
+  - The script now **classifies and stops**: a finishable interrupted state
+    returns exit 1 with `status: "recovery-offer"`, a `reason` naming exactly
+    what remains, and `banner_written: false`, `closed_subtasks: 0`,
+    `artifacts_flipped: []`. **Nothing is written** — the artifacts are
+    byte-identical across the offering run, which is the whole content of
+    "offer".
+  - **`--complete-interrupted`** authorizes the completion, and unlocks that one
+    arm only: on a fresh story it changes nothing, and it can never turn a
+    refusal into a completion or write a second banner.
+  - The `[y/n]` and its headless branch live with the caller, exactly as the
+    archive offer does. A headless session logs the offer and stops rather than
+    answering on the user's behalf.
+  - Exit 1 has always been documented as "refused (matrix) or **recovery
+    declined**". There was no declined path until now; declining is simply not
+    re-invoking with the flag, so that contract is accurate for the first time.
+
+- **A sub-task added by `stories refine` never reached the step that records its
+  Red.** Phase 3 is where the Test Advisor authors a test per `Unit`/
+  `Integration`/`E2E` sub-task, confirms it fails, and records that in
+  `.draft/red-evidence.yaml`. Refine is the only mode that can add a sub-task to
+  a story whose Phase 3 has already run, and it stopped at propagation — so a
+  refinement could ship a sub-task carrying a `Tests:` field with no authored
+  test and no Red entry, and every consumer downstream was written assuming
+  Phase 3 had covered the whole task list.
+  - `references/refine-mode.md` gains the producing step: each added sub-task
+    with a non-`None` `Tests:` field goes through the Test Advisor before the
+    status census, appending to `.draft/red-evidence.yaml` rather than
+    rewriting it, with `E2E` deferring its Red exactly as in Phase 3. A Red
+    that cannot be established is recorded as a deviation instead of being
+    invented or silently dropped.
+  - `references/run-mode.md`'s materialization step gains the guard: a pending
+    sub-task with a non-`None` `Tests:` field, no file under
+    `.draft/authored-tests/` and no Red entry stops the Run by number rather
+    than executing as if it were test-first. Copying what exists cannot see
+    what is absent, so the check is stated over the plan, not over the tree.
+  - `agents/auditor.md` and `references/validate-mode.md` had both phrased the
+    invariant as *"every sub-task **with a pre-authored test** has an
+    entry"* — a quantifier over the artifacts, which excludes precisely the
+    sub-task that has no artifact. Both now quantify over the `Tests:` field
+    and report a missing authored test as a finding distinct from a missing
+    entry.
+
+  Found by measurement rather than review: story `006`'s sub-task 12.3 was
+  refine-added, shipped seven bats cases, and carries no `12.x` entry in its Red
+  register at all.
+
+### Added
+
+- **Git-aware story lifecycle** (story `006-git-aware-lifecycle`). Epic can now
+  tell whether a finished story's work ever reached the main branch, and can
+  retire a story in favour of its replacement as a first-class operation.
+  - **`scripts/story-git-status.sh`** — a new read-only detector. It emits JSON
+    (`{story, main_branch, integrated, evidence, checked_at}`) from two kinds of
+    git evidence: a merged `feat/NNN-*` branch (`branch-merged`), and a commit
+    subject reachable from the main branch carrying the story's `(NNN)` token or
+    its `NNN-slug` (`message-ref`). A bare number never counts as evidence.
+    The evidence rules run in both directions. One merged branch is reported
+    **once**, however many refs point at it; and two branches are never
+    reported as one — a remote-tracking ref folds into a like-named local
+    branch only when it is genuinely that branch's mirror, meaning its
+    configured upstream or the same commit, so a fork's branch that merely
+    shares a name keeps its own entry. The reported detail always names a ref
+    that is itself merged, and two entries denoting different branches always
+    carry details that can be told apart, so a consumer counting distinct
+    details never reads two branches as one. And when a ref's remote cannot be
+    told apart from its branch — a repository configuring remotes named both
+    `a` and `a/b` — the detector reports the branches separately rather than
+    guessing where the remote name ends and silently dropping one of them.
+    **The main branch is resolved from the ref's own full path**, never from
+    git's short spelling of it. That short spelling is *ambiguity-aware*: it
+    changes as soon as any unrelated ref claims the same name. So a stray
+    branch or tag called `origin/main` used to corrupt both the reported
+    `main_branch` and the revision the evidence was searched on, reporting an
+    integrated story as un-integrated and putting the mangled name into the
+    validate warning's text. Adding an unrelated ref now changes neither
+    answer.
+    And **"not integrated" is now only ever said about a story that was
+    actually checked.** Resolving the main branch answers two separate
+    questions — what it is *called*, and which revision to search — and a
+    repository can answer the first while the second points at nothing: a
+    `git fetch --prune` that deletes `origin/main` leaves the pointer naming it
+    behind. Both evidence searches then fail, and the empty result used to be
+    reported as a finding, so validate warned about a story nothing had managed
+    to look at. That case now reports the integration as **unknown**, which
+    every consumer passes over in silence, while still reporting the branch
+    name it did resolve.
+    Everything is **evaluated live and stored nowhere** — no commit SHA, branch
+    name or merge-base is ever written into an artifact, so the answer can never
+    go stale. A project that is not a git repo, or has no main branch that can
+    be searched, degrades silently: no annotation, no warning, no error.
+  - **`references/list-mode.md`** and **`references/validate-mode.md`** — the
+    signal is **surfaced, never enforced**. LIST annotates the status cell of
+    each `done` / `validated` story (skipped above 50 stories unless the command
+    is `stories full`, since each annotation costs one git evaluation), and a
+    passing validate appends an integration warning before anything acts on the
+    verdict. Neither changes a verdict, a status write or an exit code, and
+    neither gates the archive.
+  - **`/epic:epic stories supersede NNN --by MMM`** — a new first-class
+    operation (**`references/supersede-mode.md`**, routed from
+    **`skills/epic/SKILL.md`**, listed in **`README.md`**). It prepends a
+    standardized ⛔ banner to `NNN` carrying the date, the replacement story, a
+    one-line rationale and one remap row per open sub-task; writes
+    `status: superseded` plus the machine-readable companion
+    `superseded-by: MMM` into every `NNN` artifact; closes each open sub-task as
+    `[~] (superseded-by: MMM)`; regenerates the index; and offers the archive on
+    the spot. `MMM` must already exist, so a typo in `--by` can never mint a
+    story. A story that already carries a banner gets one of three answers, and
+    the banner is written at most once whichever it is: a re-run over a
+    **completed** supersede refuses, an **interrupted** one is offered
+    completion of only its remaining steps, and a story whose frontmatter was
+    written while its scope was still open — a shape this command cannot
+    produce — refuses and says so rather than being offered a completion
+    supersede could not honestly perform.
+    - **The verbatim rule is stated rather than assumed** (`references/supersede-mode.md`,
+      new *The verbatim rule* section). The mode tells the session to surface a
+      refusal's `reason` verbatim; it now says what "verbatim" permits — a
+      `Refused: ` lead-in and a closing full stop are the session's own
+      presentation, and everything between them is the script's text, the story
+      slug included. The worked example previously rendered `story 042` where
+      the JSON says `story 042-legacy-import`, dropping exactly the token that
+      distinguishes two story directories sharing a number; the example now
+      quotes the reason whole.
+  - **`references/tasks.md`** — commit guidance gains the story anchor the
+    detection reads: `type(NNN): subject` for commits, `feat/NNN-slug` for
+    branches. A recommendation, not an enforcement — nothing gates on the shape.
+  - **`scripts/story-git-status.sh` JSON escaping** — the emitter escapes the
+    full C0/C1 control range as `\uXXXX`, so a control character in a commit
+    subject can no longer make the emitted document unparseable by `jq`.
+- **Supersede and the integration surfacing gained entry points**
+  (**`scripts/supersede-story.sh`**, **`scripts/render-integration.sh`**). Both
+  operations were specified as orchestrator prose, which meant no test could
+  drive them and every claim about their behaviour rested on reading. The steps
+  that **write to artifacts** — the refusal matrix, the banner and its
+  idempotence, the remap rows, the sub-task closures, the `status:` /
+  `superseded-by:` writes, and the interrupted-run classification — now live in
+  a script with `archive-story.sh`'s exit conventions — `0` superseded, `1`
+  refused, `2` invalid input — and one JSON object on stdout on every path that
+  reaches a verdict. It is **silent on stderr** wherever it emits JSON, unlike
+  `archive-story.sh`: a diagnostic beside the object breaks any caller that
+  pipes stdout into `jq`, and the supersede *conversation* belongs to the
+  orchestrator, which reads `reason` out of the report and says it in the
+  session's own voice. The steps that are **decisions** stay a conversation: the
+  rationale, the remap targets and the archive offer are inputs, not behaviour.
+  The LIST annotation and the validate warning are a pure function of the
+  detector's JSON, so they are a script too — one that exits `0` on every path,
+  because a renderer that can fail lets a caller turn a warning into a verdict.
+- **Those entry points are now on the path the commands take.** They shipped
+  wired to nothing: `references/supersede-mode.md`, `references/list-mode.md`
+  and `references/validate-mode.md` still described the behaviour in prose, so
+  the copy the suite exercised was not the copy the command ran. All three now
+  **invoke** the scripts, and the prose tables they used to render from are
+  demoted to documentation of what the scripts emit. **One user-visible
+  behaviour changes with it, and it is a loss:** completing an interrupted
+  supersede used to be offered, because the orchestrator performed those steps
+  by hand; the script completed unconditionally on re-invocation instead, and
+  had no prompt anywhere. **That loss is repaired below in this same release —
+  see "The interrupted-run completion is offered again" under Fixed.** The gap
+  was recorded rather than papered over, and it was owed a fix rather than an
+  amendment; it got one.
+- **`scripts/validate-story.sh` — a status can no longer lag its checkboxes in
+  silence.** The validator already warned when a story claimed `done` over an
+  open box; the converse was *prevented* by Run mode rather than *detected* by
+  anything, so when the prevention failed to fire nothing reported it — and a
+  story that has finished every task while still reading `in-progress` is never
+  offered the archive. A story whose census shows no open `[ ]` **and no
+  deferred `[~]`** while its status reads `draft` or `in-progress` now warns. A
+  **deferred** box deliberately blocks `done`, so a story resting over one is
+  correct and stays silent; `superseded` and `archived` are terminal and are
+  exempt for the same reason. Warning, never error.
+- **`skills/epic/SKILL.md` — the 10-entry history cap no longer applies to
+  artifacts that are not in git.** The rule relegates older entries to "see git
+  history", and relegation needs a destination. Where `.epic/` is gitignored —
+  the default this plugin ships — dropping the eleventh entry destroys it, so
+  the cap is lifted there and holds unchanged wherever the artifacts are
+  tracked.
+- **`scripts/validate-story.sh` — a group header can no longer lie about its own
+  sub-tasks.** A task group's checkbox is a claim about the sub-tasks under it,
+  and nothing checked it: a group left `- [ ]` over sub-tasks that are all
+  closed, or marked `- [x]` over a sub-task still open, validated clean. Both
+  are now **errors**, because the rule is an identity and half an identity is
+  not one. `[~]` is untouched — a group closed without doing the work is a
+  legitimate third state and neither direction applies to it — and a group with
+  no sub-tasks has nothing to be consistent with. Sub-tasks belong to a group by
+  their number, so group `1` owns `1.1` and never `10.1`, and a **repeated**
+  group number is its own error rather than one header quietly replacing the
+  other. Two parts of a `tasks.md` are excluded from the check, because a group
+  header is not the only thing shaped like one: **Quality Gates** (which share
+  the checkbox grammar by design, so `- [ ] 3 - Coverage >= 80%` is a legal gate
+  and a plausible header at once) and **fenced code blocks** (where a task list
+  is an illustration, not a claim). Neither exclusion depends on how a heading
+  is spelled or on locating where a section ends. The box counts everything else
+  depends on are unaffected — they still cover the whole file. Where a group's
+  state cannot be read at all — an unqualified
+  `[~]` child, or two headers claiming one number — the check says so instead
+  of guessing. The practical effect is on the archive gate: a group header left
+  open over finished work reads as pending to `archive-story.sh`,
+  `monitor-stale.sh` and the precompact hook alike, and the archive is the one
+  that refuses on it.
+
 ## [0.3.1] — 2026-05-17
 
 Patch release. Fixes plugin metadata so the version is shown in the Claude Code

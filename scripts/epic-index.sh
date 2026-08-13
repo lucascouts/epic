@@ -427,12 +427,18 @@ census() {
 # must start with a digit — that is what "the target is recorded" means, and it
 # rejects the unfilled `NNN` placeholder of the template (fail-closed).
 #
-# The GRAMMAR — these four regexes — is shared VERBATIM with archive-story.sh's
-# parse_verdict, exactly as the checkbox census above shares its grammar with
-# validate-story.sh and hook-precompact.sh. If 007 ever amends it, both
-# consumers move together. The AGGREGATION is per-consumer and differs on
-# purpose: archive-story.sh turns the verdict into a completion verdict
-# (may this story be archived?), this script RENDERS it for a human.
+# The GRAMMAR — these four regexes — is shared VERBATIM with the parse_verdict
+# of archive-story.sh AND of validate-story.sh, exactly as the checkbox census
+# above shares its grammar with validate-story.sh and hook-precompact.sh. THREE
+# full consumers, plus a PARTIAL fourth — monitor-stale.sh's verdict_status,
+# which copies the first three regexes verbatim and deliberately omits
+# `promoted-to` (staleness keys on the status alone). If 007 ever amends the
+# grammar, all four move together. The AGGREGATION is per-consumer and differs
+# on purpose: archive-story.sh turns the verdict into a completion verdict (may
+# this story be archived?), validate-story.sh turns it into validation errors (a
+# spike must HAVE a verdict, and `promote` must name its target),
+# monitor-stale.sh turns it into a deadline (has this probe concluded yet?), and
+# this script RENDERS it for a human.
 VERDICT_STATUS=""
 VERDICT_PROMOTED_TO=""
 parse_verdict() {
@@ -741,11 +747,28 @@ verdict_cell() {
 # not hidden: a dangling supersede is precisely what a reader needs to be told
 # about.
 #
-# A `scale: spike` story leaves through verdict_cell instead (design.md:67).
-# `scale` is looked up the way archive-story.sh's story_field looks it up —
-# story.md first, then tasks.md — because a spike commonly has NO story.md at
-# all, and a spike whose scale the renderer could not see would silently render
-# as a lifecycle story.
+# A `scale: spike` story leaves through verdict_cell instead — its Status column
+# carries the Verdict rather than the frontmatter status (references/list-mode.md,
+# "Spike Lifecycle"). So this cell has to be able to SEE the scale at all, and a
+# spike commonly has NO story.md: tasks.md is the only artifact it is guaranteed
+# to have. A renderer blind to the scale would print a spike as an ordinary
+# lifecycle story — the single outcome this branch exists to prevent.
+#
+# status_cell therefore keeps its OWN precedence: it reads the row's story.md and
+# falls back to tasks.md. That is a DELIBERATE, REGISTERED EXCEPTION to the shared
+# scale rule — `tasks.md` is authoritative for `scale:` — which is stated in full
+# at validate-story.sh's resolution loop (search it for "THE SHARED SCALE RULE")
+# and which names this function as the fifth of its five readers, so the
+# divergence reads as a decision and not as an oversight waiting to be tidied
+# away. It is affordable HERE and nowhere else: this function RENDERS a row and
+# gates nothing, so a disagreement costs one wrong cell, never a wrong archive.
+#
+# TWO FIXTURE COMMENTS RESTATE THIS EXCEPTION AND MOVE WITH IT: tests/epic-index.bats
+# explains the same precedence at its `spike_tasks` helper and at its
+# `003-precedence` case, both pointing back HERE for the reason. They are NOT a
+# sixth reader — nothing in a bats fixture resolves a scale — which is why the
+# five-reader inventory does not and must not list them. They are prose ABOUT
+# this paragraph, so amending it means amending those two.
 #
 # NOT reached by a MANIFEST-ONLY row, deliberately: those render the status
 # archive-story.sh RECORDED at move time (see manifest_row), and the manifest
@@ -770,8 +793,11 @@ status_cell() {
     printf '%s' "$cell"
     return 0
   fi
-  # The companion key is written by story 006; until then no story carries it
-  # and every superseded row simply renders `superseded`.
+  # The companion key is written by the supersede operation
+  # (references/supersede-mode.md), which is its only writer: it lands
+  # `superseded-by: MMM` in every artifact's frontmatter alongside the status.
+  # A story without it — hand-written, or a legacy `superseded` predating the
+  # operation — is not an error here: the row simply renders plain `superseded`.
   sup=$(front_value "$f" superseded-by) || sup=""
   if [[ -z "$sup" ]]; then
     printf '%s' "$cell"

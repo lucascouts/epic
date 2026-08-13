@@ -60,7 +60,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 > 7. No scope creep — nothing implemented that wasn't in the story or confirmed during clarify
 > 8. If deviations.yaml exists: for each deviation, verify the stated impact is accurate and no downstream breakage occurred. For each deviation marked with limited impact, check actual callers of the deviated component to confirm.
 > 9. If deviations.yaml has discoveries: verify each discovery was addressed in subsequent tasks (e.g., if a template engine gotcha was found, check that later tasks using templates account for it)
-> 10. Red precedence: every sub-task with a pre-authored test has an entry in `.draft/red-evidence.yaml` with `failed: true`; a missing entry is reported as a finding. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction.
+> 10. Red precedence: every sub-task whose `Tests:` field is **not `None`** has both a pre-authored test and an entry in `.draft/red-evidence.yaml` with `failed: true` (or `red_deferred: true` for `E2E`); a missing entry is reported as a finding. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction. Quantify over the `Tests:` field, never over the set of authored tests — a sub-task added by a refinement after Phase 3 ran has no authored test, so "every sub-task with a pre-authored test" excludes the very sub-task that is broken. Report a non-`None` `Tests:` field with no authored test as its own finding.
 >
 > Return:
 > - List of gaps found (cite requirement numbers, component names, file paths)
@@ -68,6 +68,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 > - List of unverified or inaccurate deviations (if any)
 > - List of scope creep items (if any)
 > - List of sub-tasks with a pre-authored test missing a Red-evidence entry in `.draft/red-evidence.yaml` (if any)
+> - List of sub-tasks whose `Tests:` field is not `None` but which have no pre-authored test at all (if any) — the refine-added case, reported separately
 > - 'All checks passed' if clean
 >
 > Do NOT modify any files. Only report results."
@@ -81,7 +82,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 5. Present combined results to the user
 6. If gaps found, offer to create new tasks to address them
 7. Apply the status transition for this verdict — see Status Transition (`validated`)
-8. On a passing verdict, offer the archive and refresh the index — see Ordering at the pass point, then Archive Offer and Index Refresh
+8. On a passing verdict, surface the integration warning when it applies — `story-git-status.sh` piped into `bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --validate <NNN>`, which writes the sentence or nothing — then offer the archive and refresh the index. See Ordering at the pass point, then Integration Warning, Archive Offer and Index Refresh
 
 ## Status Transition (`validated`)
 
@@ -105,16 +106,51 @@ Apply the first rule that matches:
 
 **design.md's state diagram does not draw that edge** — it shows only `done --> validated`. The edge falls out of the acceptance criteria all the same: R1.3 withholds `done` while a deferred box remains, R1.4 grants `validated` on a passing verdict. It is written down here rather than left implicit because an undocumented edge in a state machine is how the next maintainer gets it wrong.
 
-**Ordering at the pass point.** Four things happen on a passing verdict, in this fixed order. Steps 2, 3 and 4 exist today — step 1 is still a slot, named here so the order is settled before its behavior lands.
+**Ordering at the pass point.** Four things happen on a passing verdict, in this fixed order.
 
 | # | Step | Owner | Why here |
 |---|---|---|---|
-| 1 | Integration warning — validation passed but the story's work is not integrated into the main branch | story 006, **not implemented** | The caveat reaches the user before anything acts on the verdict |
+| 1 | Integration warning — validation passed but the story's work is not integrated into the main branch | Integration Warning, below | The caveat reaches the user before anything acts on the verdict |
 | 2 | The status write above (`validated`) | this section | — |
 | 3 | Archive offer, gated on a status of `done` or `validated` | Archive Offer, below | Its gate is true only once step 2 has written the value — which is why the gate reads `done` or `validated`, and not `done` alone |
 | 4 | Index refresh — regenerate the managed block in `.epic/EPIC.md` | Index Refresh, below | It renders what steps 2 and 3 changed: the new status, and the story's new location when the archive was accepted |
 
-Do not implement step 1 here — story 006 owns that behavior. This section fixes the order and the reason for it.
+This section fixes the order and the reason for it — each step's behavior is defined where its Owner column points.
+
+## Integration Warning
+
+Step 1 of the pass point. A passing verdict says the work is finished; whether it ever reached the main branch is a fact the checkboxes cannot see — the corpus's worst case was a project with every story checkbox-complete and zero merges. The detection is the same live evaluation LIST annotates from, defined in [list-mode.md](list-mode.md#integration-annotation): computed live, stored nowhere, blocking nothing.
+
+**The warning is rendered by the same script LIST annotates from** — [`scripts/render-integration.sh`](../scripts/render-integration.sh), asked for a different rendering of the same JSON — so the sentence the user reads is the sentence the test suite pins. On a passing verdict, pipe the detector into its `--validate` mode and append whatever comes back to the presented results:
+
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir> \
+  | bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --validate <NNN>
+```
+
+`<NNN>` is the story number **as the reader knows it** and is interpolated verbatim — pass `006`, not `6`. What the script writes, per the `integrated` field of the detector's JSON (`{story, main_branch, integrated, evidence, checked_at}`), **documents its three arms rather than prescribing a rendering to perform by hand**:
+
+| `integrated` | The script writes |
+|---|---|
+| `false` | the warning below, appended to the presented results |
+| `true` | nothing — the work is on the main branch |
+| `null` | nothing at all — no main branch is resolvable, so the fact is unknowable (R1.4) |
+
+Exit 2 from the detector — not a git repository, or story not found — also emits nothing at all: nothing reaches the pipe and `--validate` degrades silently, the same rule LIST applies (R1.4). "Not computable" must never dress up as a finding, and a failed detection must never delay, dirty or block the verdict it decorates.
+
+The sentence, spelled once in the script and reproduced here verbatim, with `<main>` filled from the JSON's `main_branch` and `NNN` the number passed on the command line:
+
+```
+story is done but no evidence of integration to <main> (no merged feat/NNN-* branch, no (NNN) commit)
+```
+
+`<main>` is read out of the report and never assumed: the detector resolves the default branch through four ordered candidates and it is regularly not named `main`, so a hard-coded name would print a branch the reader does not have. The sentence names the two evidence kinds the detection looked for and found missing — a merged `feat/NNN-*` branch (`branch-merged`) and a commit subject reachable from main carrying the `(NNN)` token (`message-ref`). Either alone would have flipped `integrated` to `true`.
+
+**A warning, never a verdict (R2.2).** Appending it changes nothing else: not the pass, not step 2's status write, not step 3's offer, not the validation's exit semantics. The script holds its half by construction: **every rendering path exits 0**, warning or no warning, so there is no exit status to read and nothing here to branch on — a caller that checked `$?` would turn the warning into the verdict R2.2 forbids. The one non-zero exit that is not the cost decision (`--should-annotate`, see [list-mode.md](list-mode.md#integration-annotation)) is exit 2, an unknown or missing mode: a caller error, unreachable from a well-formed call.
+
+**When to ask is this mode's half, and the script cannot check it.** The warning's first three words are a precondition — "story is done" is true only on a passing verdict with no `[ ]` left — and the renderer renders whatever JSON it is handed. Rule 2's partial pass must therefore not call it at all: there the sentence would manufacture the very claim rule 2 exists to refuse.
+
+**It never gates the archive (R2.3).** `archive-story.sh`'s preflight does not consult integration state — an un-integrated story archives exactly like an integrated one. Whether a warned story needs a merge, a cherry-pick or nothing at all is the user's decision; the warning informs that decision and blocks nothing.
 
 ## Archive Offer
 

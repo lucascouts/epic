@@ -921,8 +921,11 @@ spike_story() {
 # spike_tasks <area> <dir> - tasks.md declaring `scale: spike` in its OWN
 # frontmatter plus one closed probe box; the `## Verdict` section, when the case
 # wants one, is read from stdin. A spike commonly has no story.md at all, so the
-# scale has to be readable from here - the same story.md-then-tasks.md lookup
-# archive-story.sh's story_field makes.
+# scale has to be readable from here: status_cell reads the row's story.md and
+# falls back to tasks.md, which is its own registered exception to the shared
+# scale rule - see scripts/epic-index.sh at status_cell for why it keeps that
+# precedence while every reader that GATES something resolves scale from
+# tasks.md.
 spike_tasks() {
   local dir="$PROJ/.epic/$1/$2"
   mkdir -p "$dir"
@@ -1037,6 +1040,72 @@ EOF
   [[ "$idx" != *"promote"* ]]
 }
 
+# --- 3.3 Post-supersede rendering (story 006, R3.7) ---
+# The 4.1 supersede cases above pinned the renderer's contract FORWARD, before
+# any writer for the companion key existed. Story 006's supersede op is that
+# writer, and these cases pin the FULL artifact shape it leaves behind
+# (supersede-mode.md, Closure + Walkthrough): `status: superseded` plus
+# `superseded-by: MMM` in EVERY artifact's frontmatter — tasks.md included,
+# which the renderer must ignore for status — and every open box closed as a
+# terminal `[~] (superseded-by: MMM)`, which progress folds into closed, never
+# into deferred. Both were mutation-checked against a copy of the script with
+# the pointer rendering removed (both red) and with the `(missing)` suffix
+# removed (the second red). Prefixed `3.3:` for `bats --filter '^3\.3:'`.
+
+@test "3.3: a story the supersede op closed renders superseded by MMM" {
+  # NNN exactly as steps 2-3 leave it, MMM present in stories/. The fixture is
+  # the walkthrough's: one [x] survivor, three boxes closed by the op.
+  mk_story stories 042-legacy-import superseded 'superseded-by: 051'
+  mk_tasks stories 042-legacy-import <<'EOF'
+---
+version: 1
+created: 2026-05-14
+status: superseded
+superseded-by: 051
+---
+
+## Task List
+- [x] 1.1 - Parse the legacy CSV export
+- [~] 2.1 - Map legacy fields to the new schema (superseded-by: 051)
+- [~] 2.2 - Validate mapped rows (superseded-by: 051)
+- [~] 3.1 - Import against the live feed (superseded-by: 051)
+EOF
+  mk_story stories 051-modern-import in-progress
+  mk_tasks stories 051-modern-import <<'EOF'
+- [ ] 1 - rebuild the import on the v2 bulk endpoint
+EOF
+  run --separate-stderr bash "$INDEX_SH"
+  [ "$status" -eq 0 ]
+  # Status from story.md's companion key; 4/4 because `superseded-by:` is a
+  # TERMINAL qualifier (an op-closed box is settled, not owed).
+  [ "$(row_for 042-legacy-import)" = "| 042 | [legacy-import](stories/042-legacy-import/story.md) | superseded by 051 | 4/4 | active |" ]
+  # The pair in tasks.md's own frontmatter leaks nowhere: no deferred count,
+  # and the op's 3.1 closure REPLACED any `deferred:` (a line carrying both
+  # would stay owed, because deferred: wins the census).
+  [[ "$(cat "$EPIC_MD")" != *"deferred"* ]]
+}
+
+@test "3.3: a superseded story whose successor left the project renders missing" {
+  # Same post-op shape, but MMM has no directory anywhere - neither stories/
+  # nor archive/. The dangling pointer is surfaced, never an error (exit 0).
+  mk_story stories 007-dead superseded 'superseded-by: 099'
+  mk_tasks stories 007-dead <<'EOF'
+---
+version: 1
+created: 2026-05-14
+status: superseded
+superseded-by: 099
+---
+
+## Task List
+- [x] 1 - done before the supersede
+- [~] 2 - remapped away (superseded-by: 099)
+EOF
+  run --separate-stderr bash "$INDEX_SH"
+  [ "$status" -eq 0 ]
+  [ "$(row_for 007-dead)" = "| 007 | [dead](stories/007-dead/story.md) | superseded by 099 (missing) | 2/2 | active |" ]
+}
+
 @test "6.2: a non-spike story is untouched by the Verdict rule" {
   # The regression this sub-task could have shipped: reading a Verdict from a
   # story that is not a spike. All three rows below carry one and none may show
@@ -1065,9 +1134,10 @@ EOF
 - status: promote
 - promoted-to: 012
 EOF
-  # story.md wins the scale lookup, exactly as in archive-story.sh's
-  # story_field: tasks.md is a FALLBACK for the tasks-only scales, not an
-  # override that can turn a standard story into a spike.
+  # status_cell keeps its own precedence: the row's story.md decides the scale
+  # lookup and tasks.md is a FALLBACK for the tasks-only scales, not an override
+  # that can turn a standard story into a spike. That is a deliberate, registered
+  # exception to the shared scale rule - see scripts/epic-index.sh at status_cell.
   mk_story stories 003-precedence done
   spike_tasks stories 003-precedence <<'EOF'
 

@@ -44,7 +44,7 @@ Perform a holistic review comparing what was planned vs what was built. Activate
 7. **Scope creep:** Nothing implemented that wasn't in the story or confirmed during clarify
 8. **Deviation accuracy:** If deviations.yaml exists, verify each deviation's stated impact is accurate and no downstream breakage occurred
 9. **Discovery follow-through:** If discoveries exist, verify each was addressed in subsequent tasks
-10. **Red precedence:** Every sub-task with a pre-authored test has an entry in `.draft/red-evidence.yaml` with `failed: true`; a missing entry is reported as a finding. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction.
+10. **Red precedence:** Every sub-task whose `Tests:` field is **not `None`** has both a pre-authored test and an entry in `.draft/red-evidence.yaml` with `failed: true` (or `red_deferred: true` for `E2E`); a missing entry is reported as a finding. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction. **Quantify over the `Tests:` field, never over the set of authored tests** — a sub-task added by a refinement after Phase 3 ran has no authored test at all, so a check phrased as "every sub-task *with a pre-authored test*" excludes exactly the sub-task that is broken. Report a non-`None` `Tests:` field with no authored test as a finding of its own, distinct from a missing entry, and name the sub-task number.
 
 ## Code Review Checklist
 
@@ -69,6 +69,7 @@ Return:
 - List of unverified or inaccurate deviations (if any)
 - List of scope creep items (if any)
 - List of sub-tasks with a pre-authored test missing a Red-evidence entry in `.draft/red-evidence.yaml` (if any)
+- List of sub-tasks whose `Tests:` field is not `None` but which have no pre-authored test at all (if any) — the refine-added case, reported separately because it is an absence rather than a gap
 - List of code review findings from the checklist (severity: info / warning / issue)
 - "All checks passed" if clean
 

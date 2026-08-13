@@ -16,7 +16,21 @@
 # one in these same files — is still reported. This file suppresses exactly
 # these occurrences and nothing else.
 #
-# Regenerate after touching the secrets-guard fixtures:
+# WHICH DIALECT MATTERS TO WHOM. The two sections below are not interchangeable
+# and are not redundant. History entries answer a repository-wide `gitleaks
+# detect`; working-tree entries answer `gitleaks dir`, and they are the ONLY
+# ones `archive-story.sh`'s secrets guard can use — it scans the working tree of
+# one story directory. An entry filed in the wrong section is not a weaker
+# suppression, it is no suppression at all.
+#
+# RUN BOTH FROM THE PROJECT ROOT. gitleaks builds each fingerprint's path by
+# mirroring the source path AS GIVEN, so `gitleaks dir .` from here yields the
+# root-relative form both this file and the guard use, while the same command
+# run from a subdirectory — or with an absolute source — yields paths that match
+# nothing. Story 009 exists because the guard itself passed an absolute path and
+# could therefore never match a single line below.
+#
+# Regenerate after touching the secrets-guard fixtures, from the project root:
 #   gitleaks detect --report-format json --report-path h.json
 #   gitleaks dir . --report-format json --report-path w.json
 #   jq -r '.[].Fingerprint' h.json w.json | sort -u
@@ -38,9 +52,20 @@
 adea7273c69c55618c335fce5686cb000eeb9d00:tests/archive-story.bats:aws-access-token:856
 adea7273c69c55618c335fce5686cb000eeb9d00:tests/archive-story.bats:aws-access-token:869
 
+
+# story 009 — the two literals in tests/secrets-allowlist.bats.
+b38a4ae4afca7a75233acc1ab9816d453c6e1e42:tests/secrets-allowlist.bats:aws-access-token:33
+b38a4ae4afca7a75233acc1ab9816d453c6e1e42:tests/secrets-allowlist.bats:aws-access-token:34
+
 # --- working tree (gitleaks dir .) ---
-.epic/stories/005-archive-in-the-flow/.draft/authored-tests/tests/archive-story.bats:aws-access-token:276
-.epic/stories/005-archive-in-the-flow/.draft/authored-tests/tests/archive-story.bats:aws-access-token:289
+# A WORKING-TREE ENTRY PINS A PATH, SO ARCHIVING A STORY ORPHANS IT. These two
+# read `.epic/archive/…` and not `.epic/stories/…` because story 005 has been
+# archived and its files moved. Nothing repoints these automatically: when a
+# story with classified fixtures is archived, its entries here must be
+# regenerated, or a repository-wide scan starts reporting findings that were
+# classified years ago and nobody investigates any more.
+.epic/archive/005-archive-in-the-flow/.draft/authored-tests/tests/archive-story.bats:aws-access-token:276
+.epic/archive/005-archive-in-the-flow/.draft/authored-tests/tests/archive-story.bats:aws-access-token:289
 tests/archive-story.bats:aws-access-token:1302
 tests/archive-story.bats:aws-access-token:1315
 tests/archive-story.bats:aws-access-token:1504
@@ -56,3 +81,13 @@ tests/archive-story.bats:aws-access-token:1589
 tests/archive-story.bats:aws-access-token:1598
 tests/archive-story.bats:aws-access-token:1623
 tests/archive-story.bats:aws-access-token:1718
+
+
+# story 009 — same two literals, in the real suite and in the story's
+# authored-test copy. Both are AKIA-SHAPED and detected on purpose: a key
+# gitleaks ignores would make every suppression case in that suite a
+# tautology, which is the reasoning this header already records above.
+.epic/archive/009-root-anchored-secrets-scan/.draft/authored-tests/tests/secrets-allowlist.bats:aws-access-token:33
+.epic/archive/009-root-anchored-secrets-scan/.draft/authored-tests/tests/secrets-allowlist.bats:aws-access-token:34
+tests/secrets-allowlist.bats:aws-access-token:33
+tests/secrets-allowlist.bats:aws-access-token:34
