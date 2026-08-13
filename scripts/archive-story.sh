@@ -932,6 +932,12 @@ SECRETS_FINDINGS=0
 SECRETS_REPORT=""      # gitleaks' own JSON report, kept only when it is evidence
 SECRETS_ERR=""
 SECRETS_TMPDIR=""
+# The project root the scan is anchored to, and the story expressed relative to
+# it. Both "" until run_secrets_scan resolves them, which is what makes the two
+# paths that never scan — --skip-secrets and an absent gitleaks — report
+# `allowlist_root: null` without anyone having to remember to clear them.
+SECRETS_ROOT=""
+SECRETS_REL=""
 # "" until count_unscanned_large has actually taken the census, so that a path
 # where it never ran (an absent scanner, --skip-secrets) reports `null` rather
 # than a confident `0`. Same rule as `findings`: a number nobody measured must
@@ -964,16 +970,33 @@ SECRETS_COVERAGE=""
 # came back empty; that is the same mistake as `size: 0` in guard.violations[].
 # `unscanned_files` is the count of files LARGER than the scanner's
 # --max-target-megabytes limit, which it skips without reporting the skip.
+#
+# `allowlist_root` names the project root the scan was anchored to, and is TOTAL
+# — present on every path, `null` when no allowlist governed the scan. Total and
+# not conditional on purpose: `jq -r` renders an absent key and a null key
+# identically, so a consumer that branched on the key's PRESENCE could not tell
+# "no allowlist applied" from "this build predates the key". Branch on the
+# value. `null` means the fingerprints were absolute, so nothing in any
+# .gitleaksignore could have matched them — the findings are unsuppressed, never
+# under-reported.
 set_secrets_json() {
   local scanned="$1" findings="$2" report="$3" skipped="$4" err="$5"
   local f_json="null" r_json="null" s_json="null" e_json="null" u_json="null"
+  local a_json="null"
   [[ "$findings" =~ ^[0-9]+$ ]] && f_json="$findings"
   [[ "$SECRETS_UNSCANNED" =~ ^[0-9]+$ ]] && u_json="$SECRETS_UNSCANNED"
   [[ -n "$report" ]] && r_json=$(quote_scalar "$report")
   [[ -n "$skipped" ]] && s_json=$(quote_scalar "$skipped")
   [[ -n "$err" ]] && e_json=$(quote_scalar "$err")
-  SECRETS_JSON=$(printf '{ "scanner": "gitleaks", "scanned": %s, "findings": %s, "unscanned_files": %s, "report": %s, "skipped": %s, "error": %s }' \
-    "$scanned" "$f_json" "$u_json" "$r_json" "$s_json" "$e_json")
+  # Read from the global, like SECRETS_UNSCANNED and unlike the parameters: it is
+  # the same kind of value — a measurement the scan produced, not a decision the
+  # caller made. So no call site changes, and the two paths that never scan
+  # inherit "" and emit null without anyone having to remember to pass it.
+  # quote_scalar, never printf '"%s"': this reaches a JSON document and a
+  # directory name may legitimately contain a quote or a backslash.
+  [[ -n "$SECRETS_ROOT" ]] && a_json=$(quote_scalar "$SECRETS_ROOT")
+  SECRETS_JSON=$(printf '{ "scanner": "gitleaks", "scanned": %s, "findings": %s, "unscanned_files": %s, "report": %s, "skipped": %s, "error": %s, "allowlist_root": %s }' \
+    "$scanned" "$f_json" "$u_json" "$r_json" "$s_json" "$e_json" "$a_json")
   return 0
 }
 
@@ -1041,6 +1064,47 @@ secrets_cleanup_tmp() {
   return 0
 }
 
+# secrets_project_root <story-abs> — the directory the allowlist is anchored to.
+#
+# WHY THIS EXISTS AT ALL. gitleaks composes every Fingerprint by mirroring the
+# SOURCE PATH AS GIVEN, so an absolute source yields an absolute fingerprint,
+# while `.gitleaksignore` pins project-root-relative ones — the form gitleaks
+# documents ("a .gitleaksignore file at the root of your repo"). Compared as
+# opaque strings, the two dialects never match, so before this the guard
+# reported findings a maintainer had already classified, and the only escape
+# was --skip-secrets, which disarms the scan for the WHOLE story.
+#
+# Resolved from the STORY, not from the caller's cwd: the allowlist that governs
+# a story is the one in the story's own project, and a caller may stand anywhere.
+# `.epic/` being gitignored is irrelevant — ignore rules affect tracking, never
+# repository discovery.
+#
+# Git FIRST, `.epic/` second. gitleaks specifies the allowlist at the repository
+# root, and in a monorepo with `.epic/` in a subproject the .gitleaksignore still
+# sits at the git root — anchoring on `.epic/` there would recreate this very bug
+# one level down. The `.epic/` walk exists only for a project git cannot answer
+# for, which Epic supports (see epic-gitpolicy.sh).
+#
+# BOTH candidates are normalised through `cd … && pwd -P` because STORY_ABS is
+# built that way too. `git rev-parse --show-toplevel` may answer with a LOGICAL
+# path; under a symlinked checkout the unnormalised pair disagrees and the prefix
+# strip in the caller then silently fails, degrading a perfectly good project to
+# the unanchored fallback.
+#
+# Echoes the root, or nothing when there is none. NEVER fails its caller: a
+# non-git project is the expected case here, not an error.
+secrets_project_root() {
+  local story_abs=$1 root dir
+  root=$(cd "$story_abs" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null) \
+    && [ -n "$root" ] && (cd "$root" 2>/dev/null && pwd -P) && return 0
+  dir=$story_abs
+  while [ -n "$dir" ] && [ "$dir" != "/" ]; do
+    dir=$(dirname "$dir")
+    [ -d "$dir/.epic" ] && { (cd "$dir" 2>/dev/null && pwd -P); return 0; }
+  done
+  return 0
+}
+
 # run_secrets_scan — the scan itself. Three answers, never two:
 #   0  scanned, clean
 #   1  scanned, SECRETS_FINDINGS > 0, report kept at SECRETS_REPORT
@@ -1067,13 +1131,53 @@ run_secrets_scan() {
     return 2
   }
   report="$SECRETS_TMPDIR/gitleaks-report.json"
+
+  # ANCHORING. Express the source RELATIVE to the project root so every emitted
+  # fingerprint is root-relative and a committed .gitleaksignore can match it.
+  SECRETS_ROOT=$(secrets_project_root "$STORY_ABS")
+  SECRETS_REL=${STORY_ABS#"$SECRETS_ROOT"/}
+  # The strip changed nothing and the two are not the same directory, so the
+  # story lies OUTSIDE the root and no relative expression exists. Fall back and
+  # disclose rather than emitting `../../..`, which gitleaks would embed verbatim
+  # into every fingerprint — unmatchable by any allowlist, in a new way.
+  if [ -n "$SECRETS_ROOT" ] && [ "$SECRETS_REL" = "$STORY_ABS" ] \
+     && [ "$STORY_ABS" != "$SECRETS_ROOT" ]; then
+    SECRETS_ROOT=""
+  fi
+  # The story IS the root — a story directory that is itself a git repository
+  # resolves that way — so the strip leaves nothing. Measured on 8.30.1:
+  # `gitleaks dir ""` and `gitleaks dir "."` produce identical findings and
+  # identical fingerprints, so this pins an undocumented equivalence rather than
+  # fixing a live defect. One character is cheaper than depending on it.
+  [ -z "$SECRETS_REL" ] && SECRETS_REL=.
+
   # --no-color is the one flag added to the designed command line: this output
   # is spliced into a JSON `reason` a human reads, and gitleaks colourizes even
   # into a pipe -- raw ANSI escapes there are noise that quote_scalar then has
   # to encode one byte at a time into a message nobody can read.
-  out=$(gitleaks dir "$STORY_ABS" --no-banner --no-color --exit-code 1 \
-    --max-target-megabytes "$GITLEAKS_MAX_MB" \
-    --report-format json --report-path "$report" 2>&1) && rc=0 || rc=$?
+  #
+  # -i is passed EXPLICITLY rather than left to its "." default. That default
+  # made the effective allowlist a property of wherever the caller happened to
+  # stand — which list-mode.md recorded as a way to disarm this guard — instead
+  # of a property of the project. The `cd` lives inside the command substitution,
+  # so the caller's working directory never moves, and --report-path stays
+  # absolute (a private mktemp -d) so it is unaffected by it.
+  #
+  # NOT A FAIL-OPEN, and this is the failure mode that would look like success:
+  # `gitleaks dir` does NOT honour .gitignore, so re-rooting does not make it
+  # skip a gitignored `.epic/`. Measured — both forms read ~185801 bytes of
+  # story 005 — and pinned by tests/secrets-allowlist.bats rather than left to
+  # this comment.
+  if [ -n "$SECRETS_ROOT" ]; then
+    out=$(cd "$SECRETS_ROOT" && gitleaks dir "$SECRETS_REL" --no-banner --no-color \
+      --exit-code 1 --gitleaks-ignore-path "$SECRETS_ROOT" \
+      --max-target-megabytes "$GITLEAKS_MAX_MB" \
+      --report-format json --report-path "$report" 2>&1) && rc=0 || rc=$?
+  else
+    out=$(gitleaks dir "$STORY_ABS" --no-banner --no-color --exit-code 1 \
+      --max-target-megabytes "$GITLEAKS_MAX_MB" \
+      --report-format json --report-path "$report" 2>&1) && rc=0 || rc=$?
+  fi
   chmod 600 "$report" 2>/dev/null || true
   out=${out//$'\n'/; }
 
