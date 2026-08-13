@@ -921,8 +921,11 @@ spike_story() {
 # spike_tasks <area> <dir> - tasks.md declaring `scale: spike` in its OWN
 # frontmatter plus one closed probe box; the `## Verdict` section, when the case
 # wants one, is read from stdin. A spike commonly has no story.md at all, so the
-# scale has to be readable from here - the same story.md-then-tasks.md lookup
-# archive-story.sh's story_field makes.
+# scale has to be readable from here: status_cell reads the row's story.md and
+# falls back to tasks.md, which is its own registered exception to the shared
+# scale rule - see scripts/epic-index.sh at status_cell for why it keeps that
+# precedence while every reader that GATES something resolves scale from
+# tasks.md.
 spike_tasks() {
   local dir="$PROJ/.epic/$1/$2"
   mkdir -p "$dir"
@@ -1131,9 +1134,10 @@ EOF
 - status: promote
 - promoted-to: 012
 EOF
-  # story.md wins the scale lookup, exactly as in archive-story.sh's
-  # story_field: tasks.md is a FALLBACK for the tasks-only scales, not an
-  # override that can turn a standard story into a spike.
+  # status_cell keeps its own precedence: the row's story.md decides the scale
+  # lookup and tasks.md is a FALLBACK for the tasks-only scales, not an override
+  # that can turn a standard story into a spike. That is a deliberate, registered
+  # exception to the shared scale rule - see scripts/epic-index.sh at status_cell.
   mk_story stories 003-precedence done
   spike_tasks stories 003-precedence <<'EOF'
 
