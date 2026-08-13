@@ -16,7 +16,21 @@
 # one in these same files — is still reported. This file suppresses exactly
 # these occurrences and nothing else.
 #
-# Regenerate after touching the secrets-guard fixtures:
+# WHICH DIALECT MATTERS TO WHOM. The two sections below are not interchangeable
+# and are not redundant. History entries answer a repository-wide `gitleaks
+# detect`; working-tree entries answer `gitleaks dir`, and they are the ONLY
+# ones `archive-story.sh`'s secrets guard can use — it scans the working tree of
+# one story directory. An entry filed in the wrong section is not a weaker
+# suppression, it is no suppression at all.
+#
+# RUN BOTH FROM THE PROJECT ROOT. gitleaks builds each fingerprint's path by
+# mirroring the source path AS GIVEN, so `gitleaks dir .` from here yields the
+# root-relative form both this file and the guard use, while the same command
+# run from a subdirectory — or with an absolute source — yields paths that match
+# nothing. Story 009 exists because the guard itself passed an absolute path and
+# could therefore never match a single line below.
+#
+# Regenerate after touching the secrets-guard fixtures, from the project root:
 #   gitleaks detect --report-format json --report-path h.json
 #   gitleaks dir . --report-format json --report-path w.json
 #   jq -r '.[].Fingerprint' h.json w.json | sort -u
