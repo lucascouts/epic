@@ -173,7 +173,7 @@ All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — 
 | `PreCompact` | — | `hook-precompact.sh` | Snapshot active-story state before autocompaction | 2.1.105 |
 | `SessionStart` | `compact` | `hook-session-restore.sh` | Restore state after a compaction rewake | 2.1.105 |
 | `SessionEnd` | `clear` | `hook-session-end-cleanup.sh` | Clean transient drafts on explicit clear | 2.1.85 |
-| `TaskCompleted` | — (asyncRewake) | `hook-task-completed.sh` | Update tasks.md status markers from Executor reports | 2.1.85 |
+| `TaskCompleted` | — (asyncRewake) | `hook-task-completed.sh` | Run `validate-story.sh` on the active story when a TodoWrite item completes — it **writes nothing**: tasks.md markers are written only by `scripts/close-subtask.sh` | 2.1.85 |
 | `PostToolUseFailure` | `Bash` | `hook-post-tool-failure.sh` | Capture failing validation context into the story's notes | 2.1.85 |
 | `CwdChanged` | — | `hook-cwd-changed.sh` | Detect project switch; reset story cache | 2.1.85 |
 | `FileChanged` | `constitution.md` | `hook-file-changed.sh` | Re-evaluate constitution constraints when it changes | 2.1.85 |
@@ -194,9 +194,11 @@ The protocol **remains six steps**. Steps 2 and 5 are *conditional* — their wo
 3. **Design fidelity check** — diff the implementation's signatures, error paths, data structures, and contracts against `design.md`. Classify deviations as INTENTIONAL (with rationale, appended to deviation register) or ACCIDENTAL (fix before proceeding).
 4. **Validation** — run the sub-task's `Validation:` command; report full output. On failure, STOP.
 5. **Refactor** (test-first sub-task) **/ Tests** (test-after sub-task) — for a test-first sub-task, improve the implementation while the pre-authored test and the validation command stay green. For a test-after sub-task, create/run the tests listed in the sub-task's `Tests:` field. On failure, STOP.
-6. **Report** — structured report back to the main agent.
+6. **Report** — structured report back to the main agent, ending in a machine-liftable **closing block**: the sub-task id, the outcome (`done`, `close-tilde` with a qualifier and a reason, or `failed`), and the pre-authored commit message the executor validated against.
 
-The main agent does not implement code; the executor does not make scope decisions. This separation is load-bearing for the auditor's effectiveness.
+The closing block is where the protocol hands off, and it hands off a *report*, never a write. **The executor marks no box and runs no `git commit`** — marking is script-mediated: the main agent lifts the block into `scripts/close-subtask.sh`, which marks the box, takes the census, stamps `status:` and validates the story in one transaction, and it commits post-merge with the pre-authored message verbatim. A `failed` outcome makes no call at all: the box stays `[ ]`.
+
+The main agent does not implement code; the executor does not make scope decisions, and does not write the record of its own completion. This separation is load-bearing for the auditor's effectiveness.
 
 ---
 
