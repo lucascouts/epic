@@ -132,7 +132,7 @@ Sub-agents with specialized roles. Scale determines which personas are activated
 
 | Persona | Role | Scale | Agent file |
 |---|---|---|---|
-| **Executor** | Implements a sub-task following the strict 6-step protocol; step 5 is conditional (Refactor for test-first sub-tasks, Tests for test-after) | all scales (Simple+ complexity) | `agents/executor.md` |
+| **Executor** | Implements a sub-task following the strict 6-step protocol; step 5 is conditional (Refactor for test-first sub-tasks, Tests for test-after). Ends its report with a machine-liftable **closing block** — sub-task id, outcome (`done` / `close-tilde` + qualifier + reason / `failed`) and the pre-authored commit message it validated against. **Marks no box and runs no `git commit`**: the orchestrator lifts that block into `scripts/close-subtask.sh`, the one writer of the checkbox grammar | all scales (Simple+ complexity) | `agents/executor.md` |
 | **Tech Reviewer** | Reviews implementation at technology boundaries | all scales (multi-tech tasks) | `agents/tech-reviewer.md` |
 
 ### Post-Implementation Personas (validation)
@@ -142,7 +142,7 @@ Sub-agents with specialized roles. Scale determines which personas are activated
 | **Validator** | Runs validation commands and tests per completed task | all scales | `agents/validator.md` |
 | **Auditor** | Compares implemented code against story + design artifacts | all scales | `agents/auditor.md` |
 
-The **main agent** (this skill) orchestrates: generates artifacts (story.md, design.md, tasks.md) during planning, delegates to Executors during run-mode, and coordinates Validators/Auditors during validation. The main agent retains conversation context with the user and handles git operations (commits).
+The **main agent** (this skill) orchestrates: generates artifacts (story.md, design.md, tasks.md) during planning, delegates to Executors during run-mode, and coordinates Validators/Auditors during validation. The main agent retains conversation context with the user and handles git operations (commits) — post-merge, with the pre-authored message verbatim. It closes boxes too, but never by editing one: it invokes `scripts/close-subtask.sh` with the Executor's closing block, and the script performs the marking, the census and the `status:` stamp in a single transaction (a `failed` outcome makes no call at all).
 
 ### MCP Integration
 
@@ -509,13 +509,14 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
 | Value | Written by |
 |---|---|
 | `draft` | CREATE — when the artifacts are first written |
-| `in-progress` | RUN — when execution of the story starts; RUN **or** REFINE when a census finds open work on a story reading `done` or `validated` (the reopen edge, R1.7/R1.8) |
-| `done` | RUN — when a marking satisfies rule 1 of the [status transition table](../../references/run-mode.md#status-transitions); a deferred `[~]` blocks it (R1.3) |
+| `in-progress` | RUN — when execution of the story starts, written by `scripts/close-subtask.sh` inside the close; RUN **or** REFINE when a census finds open work on a story reading `done` or `validated` (the reopen edge, R1.7/R1.8) — REFINE performs that one `Edit` itself, since a refinement adds boxes and closes none |
+| `done` | RUN — written by `scripts/close-subtask.sh` when a marking satisfies rule 1 of the [status transition table](../../references/run-mode.md#status-transitions); a deferred `[~]` blocks it (R1.3) |
 | `validated` | VALIDATE — after Validator and Auditor pass |
 | `superseded` | the supersede operation |
 | `archived` | the archive operation |
 
 - **Engine-written, never hand-edited.** The writer list above is exhaustive — no other mode touches the field. A human editing it is tolerated, not blocked: validation only flags the result. A value outside the six is an **error**; `done` or `validated` while a `[ ]` box is still open is a **warning** (the status is ahead of the checkboxes).
+- **In RUN the write is script-mediated — the orchestrator does not perform it.** `scripts/close-subtask.sh` marks the box, takes the census, applies the transition table and stamps every artifact that carries frontmatter, all inside the invocation that closed the box; the orchestrator supplies the Executor's closing block and reads back `status_written` from the returned JSON. Neither the orchestrator nor the Executor edits the field — or the box — by hand (R3.2). The other writers in the table above perform their own `Edit`, because no close call is passing through to carry it.
 - **Same value in every artifact** of the story, exactly like `version`. Artifacts declaring **different** values raise a warning naming them. An artifact with no `status:` carries no opinion and is never counted as divergent.
 - **Absence is legal and silent.** A story with no `status:` anywhere is neither an error nor a warning — stories written before the field validate byte-identically. The field is never required by validation.
 - **Persisted values only.** `done-except-external` is not a `status:` value: it is a condition computed from the checkboxes at read time (see [tasks.md](../../references/tasks.md#completion)), never written to a file.

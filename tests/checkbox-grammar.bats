@@ -91,7 +91,7 @@ created: 2026-08-02
 - [ ] 1.5 - Still open
   - Requirements: R1.5
   - Validation: bats green
-  - Commit: "feat: mixed"
+  - Commit: "feat(010): mixed"
 
 ## Quality Gates
 - Counts consistent
