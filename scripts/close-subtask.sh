@@ -35,13 +35,24 @@
 #      object carrying `reason`, a usage error emits nothing.
 #
 # STEP ORDER IS LOAD-BEARING (design.md, component 1). Every refusal arm has its
-# say BEFORE anything is written, and the box write, the group-header repair and
-# the status stamp are ONE atomic rewrite — never a sequence a reader can catch
-# half-done:
+# say BEFORE anything is written, and every write is a whole-file rewrite
+# renamed into place — so no reader can ever catch one of them half-done:
 #   1. parse, resolve, refusal arms ..... sub-task 1.1 (implemented)
 #   2. locate and mark the box .......... sub-task 1.2 (implemented — R1.1/R1.2/R1.3/R1.6/R1.7)
-#   3. census + status transition ....... sub-task 2.1 (pending — R2.1/R2.2)
-#   4. self-invoked validate-story.sh ... sub-task 2.2 (pending — R2.3)
+#   3. census + status transition ....... sub-task 2.1 (implemented — R2.1/R2.2)
+#   4. self-invoked validate-story.sh ... sub-task 2.2 (implemented — R1.5/R2.3/R2.4)
+#
+# THE MARKING IS ONE REWRITE, THE STATUS STAMP IS ANOTHER PER ARTIFACT, and that
+# is the strongest shape available rather than a compromise. The box and the
+# group header it settles are ONE rewrite of tasks.md, so R1.7's pair is never
+# left half-written; the census then MEASURES the file that landed instead of
+# projecting what the write was supposed to do; the stamp then rewrites each
+# artifact that carries frontmatter on its own, because no shell can rename
+# three files at once — a reader can always catch a story between two of them.
+# That transient is the one validate-story.sh:992-999 names as legitimate: "a
+# validate run between the last checkbox marking and rule 1's status write lands
+# exactly here, and should say so rather than fail". And it is not this script's
+# own reader — step 4's self-validation runs after every one of these writes.
 #
 # NO SHARED LIBRARY, BY CONVENTION. `scripts/` has none — every script here is
 # invoked standalone by path — so the house patterns below (the JSON escaper,
@@ -121,8 +132,8 @@ BOX_DEFERRED=0
 # refusal wrote no box, so no status could transition and there was nothing new
 # to validate — reporting `{"from": "", "to": ""}` or `{"errors": 0}` there
 # would be a measurement nobody took, rendered as one that came back empty.
-STATUS_WRITTEN_JSON="null"   # {from, to} once sub-task 2.1 writes a transition
-VALIDATE_JSON="null"         # {errors, warnings, status} once sub-task 2.2 runs
+STATUS_WRITTEN_JSON="null"   # {from, to} once step 3 writes a transition
+VALIDATE_JSON="null"         # {errors, warnings, status} once step 4 has a verdict
 
 # --- String quoting ---------------------------------------------------------
 # EVERY string this script emits as JSON goes through json_escape. The inputs
@@ -361,6 +372,26 @@ TILDE_FORMS="'deferred: <reason>', 'waived: <reason>', 'n-a: <reason>', 'superse
 # than the readers' grammar (which would refuse reasons they accept) nor
 # narrower (which would let the disagreement through).
 TILDE_TOKEN_RE='(^|[^[:alnum:]_-])(deferred|waived|n-a|superseded-by):'
+
+# THE SAME FOUR TOKENS, SPLIT INTO THE TWO BUCKETS THE CENSUS NEEDS —
+# validate-story.sh:450-451 verbatim again, this time unfolded, because step 3
+# asks the question TILDE_TOKEN_RE above deliberately does not: not "is a token
+# here" but WHICH ONE, since `deferred:` is the token that blocks `done` and the
+# three terminal ones are the tokens that close a box (references/tasks.md,
+# Completion). The union above is NOT rebuilt from these two by concatenation:
+# its consumer reads BASH_REMATCH[2] for the offending token, and an alternation
+# of two prefixed groups renumbers exactly that capture.
+TILDE_DEFERRED_RE='(^|[^[:alnum:]_-])deferred:'
+TILDE_TERMINAL_RE='(^|[^[:alnum:]_-])(waived|n-a|superseded-by):'
+
+# The frontmatter delimiter, CRLF-tolerant — archive-story.sh:307 and
+# supersede-story.sh:284, the same constant for the same reason: with
+# core.autocrlf=true every artifact ends `---\r`, and a reader that rejects that
+# does not fail loudly, it decides the file has no frontmatter. Here that would
+# mean "no status line to stamp" and would leave the story's artifacts
+# disagreeing about the lifecycle state — the exact divergence R2.1 exists to
+# prevent.
+FM_DELIM_RE=$'^---\r?$'
 
 # canon_num <digits> — the number with its leading zeros stripped, into CANON.
 # `08` and `8` are ONE group, exactly as validate-story.sh:459 treats them.
@@ -750,12 +781,19 @@ locate_box() {
 #      checkbox grammar, so the "consumers move together" convention does not
 #      reach it, and that sibling is not this story's file.
 #
-# No `eol_of`/`REWRITE_EOL` here, and that is not an omission: this script ADDS
-# no lines. It replaces one character on lines the file already has and appends
-# to them BEFORE their own ending (set_box), which preserves each line's ending
-# individually — strictly stronger than a file-level guess, and correct on a
-# file with mixed endings too. A future step that appends a line (2.1 stamping a
-# `status:` into frontmatter that has none) will need eol_of; copy it then.
+# NO `eol_of`/`REWRITE_EOL` HERE, AND STILL NONE NOW THAT A LINE IS ADDED.
+# Every line ending this script writes is taken from a line of the file itself,
+# never guessed from the file as a whole:
+#   * a line it MARKS keeps its own ending, because the qualifier is appended
+#     before it (set_box);
+#   * the `status:` line it INSERTS into a legacy artifact takes the ending of
+#     the closing `---` it is inserted in front of (stamp_lines).
+# supersede-story.sh's eol_of reads line 1 and applies that answer to the whole
+# file. Taking the ending off the neighbouring line is strictly stronger — it is
+# right on a file with mixed endings, where a file-level guess is wrong by
+# construction — and it needs no extra read of the file. It is also the reasoning
+# this script already applies one function down, so the two writes agree instead
+# of each having their own idea of what a line ending is.
 REWRITE_EMITTER_RC=0
 REWRITE_EMITTER_NL=0   # newlines the emitter reports writing — witness C
 
@@ -778,6 +816,48 @@ file_mode() {
   return 0
 }
 
+# --- The tmp file, when the process does not get to finish ------------------
+# Every ordinary failure path inside rewrite_file removes its own tmp. A FATAL
+# SIGNAL takes none of them: the process dies between the write and the rename
+# and the tmp survives beside the story artifact, which is litter the next
+# reader has to know to ignore. Measured, before this trap existed: `ulimit -f
+# 0` around one close left tasks.md byte-identical and the box open (R1.6
+# honoured) — and a `tasks.md.epic-close.XXXXXX` stump in the story directory.
+# archive-story.sh:3056-3059 covers the same gap the same way, with the same
+# `|| true` (a trap must never turn a clean verdict into a failure) and the same
+# 128+signal exit codes (an exit that lies about how the process ended is worse
+# than the litter).
+#
+# IT CANNOT REACH ANOTHER INVOCATION'S TMP, which matters because two closes
+# against one story are exactly what the unique name exists to survive: the only
+# path it ever removes is the one THIS process's mktemp created, and it is
+# cleared the moment that path stops being live (renamed away, or already
+# removed). A concurrent invocation's tmp carries a different random suffix and
+# is never named here.
+#
+# XFSZ IS IN THE LIST because it is the signal the measurement above actually
+# produced; INT/TERM/HUP are the three a person or a supervisor sends. EXIT
+# covers every ordinary end, including the refusals, where it finds nothing to
+# do (REWRITE_TMP is empty on every path that never opened a tmp).
+REWRITE_TMP=""
+# shellcheck disable=SC2317,SC2329  # invoked from the trap strings below, and
+# a trap string is not a call site the linter follows (epic-index.sh:154 carries
+# the same pair for the same reason). BOTH codes are needed: 0.10+ reports
+# SC2329 once per function, 0.9 (what CI installs) reports SC2317 once per
+# COMMAND in the body.
+cleanup_rewrite_tmp() {
+  if [[ -n "$REWRITE_TMP" ]]; then
+    rm -f "$REWRITE_TMP" 2> /dev/null || true
+    REWRITE_TMP=""
+  fi
+  return 0
+}
+trap 'cleanup_rewrite_tmp || true' EXIT
+trap 'cleanup_rewrite_tmp || true; exit 130' INT
+trap 'cleanup_rewrite_tmp || true; exit 143' TERM
+trap 'cleanup_rewrite_tmp || true; exit 129' HUP
+trap 'cleanup_rewrite_tmp || true; exit 153' XFSZ
+
 rewrite_file() {
   # ONE NAME PER `local`, and do NOT fold these back into one statement: in
   # bash 5.3 a `local a=1 b=$a` declares BOTH names first, so `$a` expands to
@@ -794,14 +874,20 @@ rewrite_file() {
   # also creates the file `0600`, so the window between written and renamed is
   # the narrowest mode available rather than whatever the umask allows.
   tmp=$(mktemp "$f.epic-close.XXXXXX") || return 1
+  # Handed to the signal trap the moment it exists, and taken back from it the
+  # moment it stops existing (every `cleanup_rewrite_tmp` below removes it AND
+  # clears the global; the successful rename clears it without removing
+  # anything, because the path is gone by then). So the trap can only ever
+  # remove a tmp this function is in the middle of writing.
+  REWRITE_TMP="$tmp"
   REWRITE_EMITTER_RC=0
   REWRITE_EMITTER_NL=0
   { "$emitter" || REWRITE_EMITTER_RC=$?; :; } 2> /dev/null < "$f" > "$tmp" || {
-    rm -f "$tmp"
+    cleanup_rewrite_tmp
     return 1
   }
   if [[ "$REWRITE_EMITTER_RC" -ne 0 ]]; then
-    rm -f "$tmp"
+    cleanup_rewrite_tmp
     return 1
   fi
   # Witness C. `-1` on a failed measurement is not a count any emitter can
@@ -811,7 +897,7 @@ rewrite_file() {
   landed=$(wc -l < "$tmp" 2> /dev/null) || landed=-1
   landed="${landed//[[:space:]]/}"
   if [[ "$landed" != "$REWRITE_EMITTER_NL" ]]; then
-    rm -f "$tmp"
+    cleanup_rewrite_tmp
     return 1
   fi
   # Addition D — the mode, read off the ORIGINAL and applied to the tmp BEFORE
@@ -825,17 +911,21 @@ rewrite_file() {
   # exact widening this closes. Unmeasurable, or unappliable, is a rewrite that
   # does not happen.
   file_mode "$f" || {
-    rm -f "$tmp"
+    cleanup_rewrite_tmp
     return 1
   }
   chmod "$FILE_MODE" "$tmp" 2> /dev/null || {
-    rm -f "$tmp"
+    cleanup_rewrite_tmp
     return 1
   }
   mv -f "$tmp" "$f" || {
-    rm -f "$tmp"
+    cleanup_rewrite_tmp
     return 1
   }
+  # The rename consumed the tmp: there is no longer a path for the trap to
+  # remove, and leaving a stale one in the global would aim it at a name that
+  # mktemp may hand out again.
+  REWRITE_TMP=""
   return 0
 }
 
@@ -1020,5 +1110,589 @@ rewrite_file "$TASKS_FILE" mark_lines ||
   refuse "could not rewrite '$TASKS_FILE' — the box was located but the new text never replaced the old one, so tasks.md is byte-identical to what it was (R1.6); check the directory's permissions and free space, then re-run"
 
 BOX="$MARK_CHAR"
+
+# ============================================================================
+# STEP 3 — CENSUS AND STATUS TRANSITION (sub-task 2.1 — R2.1/R2.2)
+# ============================================================================
+# THE BOX IS CLOSED. Everything below reports on a story that has already been
+# written, so NOTHING HERE IS A REFUSAL and nothing here changes the exit code:
+# references/run-mode.md's fifth writing rule is explicit that "a failed write
+# is reported, and the run continues — `status:` is advisory metadata and must
+# never block the run that is producing the actual work". A failure here is said
+# on stderr and carried in the report by the ABSENCE of the transition it could
+# not write, never by turning a landed marking into an error the caller will
+# retry.
+#
+# THE ORDER IS census -> rules -> stamp, and it is the order references/run-mode.md
+# states: "Census the boxes as they now stand … then apply the first rule that
+# matches", and only then "Edit the frontmatter line".
+
+# --- 3a. The census ----------------------------------------------------------
+# THE BUCKETS ARE references/tasks.md#completion's, not this script's:
+#   total    = every box, whatever its state
+#   closed   = `[x]` + TERMINAL `[~]` (waived: / n-a: / superseded-by:)
+#   deferred = `[~]` qualified `deferred:`
+#   open     = `[ ]`, and only `[ ]`
+# `deferred:` wins on a line carrying both, which is the precedence the grammar
+# gives it (references/tasks.md: "the work is still owed by someone"), and an
+# UNQUALIFIED `[~]` — the grammar error validate-story.sh reports — counts in
+# the total and closes nothing. That aggregation is hook-precompact.sh's and
+# epic-index.sh:386-417's verbatim, which is what makes this script's report and
+# the index a reader sees side by side incapable of disagreeing about one story.
+#
+# EVERY BOX IN THE DOCUMENT, with no fence or Quality-Gates exclusion — the
+# exact opposite of locate_box above, and deliberately so. locate_box answers
+# "which box did the caller name", where a fenced example is documentation and a
+# gate shaped like a group header is not that group; the census answers "what
+# does this file now claim", which is the question every OTHER reader of the
+# same file answers over the whole document (validate-story.sh:506-507 says so
+# in as many words, and its BOX_OPEN/BOX_DEFERRED are what its own status
+# warnings run on). Excluding anything here would let this script write `done`
+# over a census the validator it invokes in step 4 does not share — authoring,
+# in one invocation, the very "status is ahead of the checkboxes" warning the
+# transition exists to prevent.
+#
+# Reading is fallible even now: the file was readable a moment ago, but `[[ -f
+# ]]` never said it would open twice. Returns non-zero rather than dying — the
+# output contract promises JSON on stdout on every path that reaches a verdict,
+# and this path has one.
+census_boxes() {
+  local file="$1" line
+  BOX_TOTAL=0
+  BOX_OPEN=0
+  BOX_CLOSED=0
+  BOX_DEFERRED=0
+  {
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      [[ "$line" =~ $BOX_RE ]] || continue
+      BOX_TOTAL=$((BOX_TOTAL + 1))
+      case "${BASH_REMATCH[1]}" in
+        ' ') BOX_OPEN=$((BOX_OPEN + 1)) ;;
+        'x') BOX_CLOSED=$((BOX_CLOSED + 1)) ;;
+        '~')
+          if [[ "$line" =~ $TILDE_DEFERRED_RE ]]; then
+            BOX_DEFERRED=$((BOX_DEFERRED + 1))
+          elif [[ "$line" =~ $TILDE_TERMINAL_RE ]]; then
+            BOX_CLOSED=$((BOX_CLOSED + 1))
+          fi
+          ;;
+      esac
+    done
+    :
+  } 2> /dev/null < "$file" || return 1
+  return 0
+}
+
+# THE FILE IS RE-READ, not projected from what the write was supposed to do.
+# The census is in the report so that the orchestrator never has to open
+# tasks.md after a marking (design.md, component 1) — which makes it the only
+# statement anyone will have about the file, and a statement derived from the
+# INTENT of the write cannot contradict a write that did something else. This
+# read is what turns it into a measurement.
+CENSUS_TAKEN=true
+census_boxes "$TASKS_FILE" || CENSUS_TAKEN=false
+if [[ "$CENSUS_TAKEN" == false ]]; then
+  # Zeros again, which is what they mean everywhere else in this report: nobody
+  # measured. A real story always has at least the box just closed, so `total:
+  # 0` beside a non-null `box` is not a state a reader can mistake for a census.
+  BOX_TOTAL=0
+  BOX_OPEN=0
+  BOX_CLOSED=0
+  BOX_DEFERRED=0
+  printf 'Note: the box was closed, but %s could not be re-read for the census — the census is reported as zeros and no status transition was applied. The marking stands.\n' \
+    "$TASKS_FILE" >&2
+fi
+
+# --- 3b. The story's current status ------------------------------------------
+# read_frontmatter <file> — fills FM_HAS (does this artifact carry a frontmatter
+# BLOCK, opening delimiter and closing one) and FM_STATUS (the FIRST `status:`
+# inside it, empty when absent). One read, no forks per line.
+#
+# BOTH DELIMITERS ARE REQUIRED, for supersede-story.sh:305-307's reason: an
+# unmatched opener would make the whole file read as frontmatter, and the stamp
+# would then write its key past the end of the world. An artifact that fails
+# that test is not "broken", it simply has no frontmatter — and run-mode is
+# explicit that such an artifact is SKIPPED and its silence never counted as
+# divergence.
+#
+# COLUMN 0, exactly as the templates write it and exactly as validate-story.sh
+# reads it: a nested or compound key (`review_status:`) is not a status line.
+# The value is trimmed and nothing else — no comment stripping, no whitespace
+# squeezing. A value this script cannot classify falls through to rule 4 below
+# and is left alone for validation to report, which is the safe direction: the
+# one thing worse than not writing a status is overwriting one nobody here
+# understood.
+FM_HAS=false
+FM_STATUS=""
+read_frontmatter() {
+  local f="$1" line n=0 rc=0
+  FM_HAS=false
+  FM_STATUS=""
+  [[ -f "$f" ]] || return 0
+  {
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      n=$((n + 1))
+      if [[ $n -eq 1 ]]; then
+        # No opening delimiter: nothing to look for, and reading on would find
+        # a `---` in the body and call it a block.
+        [[ "$line" =~ $FM_DELIM_RE ]] || break
+        continue
+      fi
+      if [[ "$line" =~ $FM_DELIM_RE ]]; then
+        FM_HAS=true
+        break
+      fi
+      if [[ -z "$FM_STATUS" && "${line%$'\r'}" == status:* ]]; then
+        FM_STATUS=$(trim "${line#status:}")
+      fi
+    done
+    :
+  } 2> /dev/null < "$f" || rc=1
+  # A status found without a closing delimiter is a status found outside a
+  # frontmatter block. It is not this story's lifecycle state.
+  if [[ "$FM_HAS" == false || "$rc" -ne 0 ]]; then
+    FM_HAS=false
+    FM_STATUS=""
+  fi
+  return $rc
+}
+
+# WHICH ARTIFACT ANSWERS FOR THE STORY: story.md when it has one, tasks.md
+# otherwise — archive-story.sh:328-339's `story_field` order, for its reason.
+# tasks.md is the one artifact every scale has, so a tasks-only story (fast,
+# spike) still has a lifecycle state to read; story.md is where the field
+# belongs when the story has one. design.md is deliberately not consulted for
+# the READ (it describes the solution, not the state of the work) and is
+# nonetheless WRITTEN below, because run-mode's rule is "the same value in every
+# artifact that carries frontmatter" — one artifact answers, all of them agree.
+STATUS_FROM=""
+read_frontmatter "$STORY_PATH/story.md" || true
+STATUS_FROM="$FM_STATUS"
+if [[ -z "$STATUS_FROM" ]]; then
+  read_frontmatter "$TASKS_FILE" || true
+  STATUS_FROM="$FM_STATUS"
+fi
+
+# --- 3c. The four transition rules -------------------------------------------
+# references/run-mode.md#status-transitions, FIRST MATCH WINS, in the documented
+# order — which is why this is one if/elif chain and not three independent
+# tests. Rule 2 sits BELOW rule 1 on purpose: a marking that re-completes a
+# reopened story writes `done` rather than recording a reopen that the same
+# marking just undid.
+#
+#   1. no `[ ]` and no deferred `[~]`           -> done
+#   2. rule 1 did not fire, a `[ ]` remains,
+#      and the status reads done | validated    -> in-progress   (the reopen edge)
+#   3. rules 1-2 did not fire, status absent
+#      or draft                                 -> in-progress
+#   4. none fired                               -> write nothing
+#
+# A DEFERRED BOX BLOCKS RULE 1, deliberately: the work is settled in the plan
+# and still owed in the world, and the persisted enum has no value for that —
+# `done-except-external` is computed at read time and never written. This is the
+# single sharpest difference between the two kinds of `[~]` and it is why the
+# census keeps them apart.
+#
+# RULE 1 DOES NOT OVERWRITE A TERMINAL STATE. `superseded` and `archived` both
+# legitimately sit over a fully-closed census, and validate-story.sh:914-918
+# already says so in those words — "neither is a state rule 1 would overwrite
+# with `done`" — while it decides which statuses its behind-the-checkboxes
+# warning may fire on. Reading rule 1 as unconditional would make this script
+# erase a supersede the first time a Quality Gate was settled on a superseded
+# story. Anything else outside the six-value enum is left alone for the same
+# reason: it is not a state this table describes.
+STATUS_TO=""
+if [[ "$CENSUS_TAKEN" == true ]]; then
+  if [[ "$BOX_OPEN" -eq 0 && "$BOX_DEFERRED" -eq 0 ]]; then
+    # `done` is a reserved word, so every one of these literals is quoted —
+    # bare, it reads as the end of a loop that was never opened.
+    case "$STATUS_FROM" in
+      '' | 'draft' | 'in-progress' | 'validated' | 'done') STATUS_TO='done' ;;
+      *) STATUS_TO="" ;;
+    esac
+  elif [[ "$BOX_OPEN" -gt 0 && ("$STATUS_FROM" == 'done' || "$STATUS_FROM" == 'validated') ]]; then
+    STATUS_TO='in-progress'
+  elif [[ -z "$STATUS_FROM" || "$STATUS_FROM" == 'draft' ]]; then
+    STATUS_TO='in-progress'
+  fi
+fi
+
+# --- 3d. The stamp -----------------------------------------------------------
+# stamp_lines — ONE line of one artifact: the first `status:` inside the
+# frontmatter block gets the new value, or the key is INSERTED before the
+# closing `---` when the artifact has none (run-mode's third writing rule: "on a
+# legacy story the Edit ADDS the field"). Everything else is copied byte for
+# byte, the box this run just marked included.
+#
+# ONLY THE FIRST ONE, and a duplicate `status:` further down the block is left
+# exactly where it is. Every reader of the field takes the first
+# (validate-story.sh's `head -1`, archive-story.sh's, the index's), so the story
+# reads as the value written here; deleting the other line would be this script
+# editing something nobody asked it to edit, on the one path where it is
+# already touching a file it does not own.
+#
+# THE INSERTED LINE TAKES THE ENDING OF THE `---` IT IS INSERTED IN FRONT OF.
+# See rewrite_file's note: every ending this script writes comes off a line of
+# the file itself. A bare `\n` added to a CRLF artifact is the defect this
+# avoids, and it is one no `grep` for the new key would ever show.
+# status_line <template-line> — the `status:` line to write, carrying the line
+# ending of the line it is derived from: the `status:` being replaced, or the
+# closing `---` an inserted key goes in front of. ONE reader of "where does this
+# line end", so the replace path and the insert path cannot drift into two
+# answers. (set_box does the same read inline and is deliberately left alone: it
+# needs the CR AND the remainder with the CR taken off, which is a different
+# operation on a line this step never touches.)
+# shellcheck disable=SC2317,SC2329  # invoked indirectly: rewrite_file takes a
+# line-emitter BY NAME, so shellcheck's reachability stops at the call site and
+# marks this — and everything it calls — as dead. BOTH codes are needed and they
+# are not interchangeable: 0.10+ reports SC2329 once per function, 0.9 (what CI
+# installs) reports SC2317 once per COMMAND in the body.
+status_line() {
+  local cr=""
+  if [[ "$1" == *$'\r' ]]; then
+    cr=$'\r'
+  fi
+  printf '%s' "status: $STATUS_TO$cr"
+}
+
+# shellcheck disable=SC2317,SC2329  # invoked indirectly: rewrite_file takes a
+# line-emitter BY NAME, so shellcheck's reachability stops at the call site and
+# marks this — and everything it calls — as dead. BOTH codes are needed and they
+# are not interchangeable: 0.10+ reports SC2329 once per function, 0.9 (what CI
+# installs) reports SC2317 once per COMMAND in the body.
+stamp_lines() {
+  local line n=0 closed=false wrote=false terminated=true
+  # `terminated` goes false only on a last line with no newline after it, and it
+  # is mark_lines' rule for the same reason: re-emitting that line WITH a newline
+  # would be a byte this script added to a file it was asked to edit one line of.
+  while IFS= read -r line || { [[ -n "$line" ]] && terminated=false; }; do
+    n=$((n + 1))
+    if [[ "$n" -gt 1 && "$closed" == false ]]; then
+      if [[ "$line" =~ $FM_DELIM_RE ]]; then
+        closed=true
+        if [[ "$wrote" == false ]]; then
+          # INSERTED, in front of the closing delimiter — and always with its own
+          # newline, even when that delimiter is an unterminated last line: the
+          # one thing worse than a missing ending here is `status: done---`.
+          printf '%s\n' "$(status_line "$line")" || return 1
+          REWRITE_EMITTER_NL=$((REWRITE_EMITTER_NL + 1))
+          wrote=true
+        fi
+      elif [[ "$wrote" == false && "${line%$'\r'}" == status:* ]]; then
+        # REPLACED in place, so the line keeps its own ending and its own
+        # termination — the emitter below decides that, exactly as for a line
+        # this function did not touch at all.
+        line=$(status_line "$line")
+        wrote=true
+      fi
+    fi
+    # EVERY EMITTING printf STATES ITS OWN FAILURE, and the newline tally is
+    # witness C — rewrite_file, additions B and C. `set -e` is suspended for this
+    # whole body, so a write that fails on a full disk is invisible unless asked.
+    if [[ "$terminated" == true ]]; then
+      printf '%s\n' "$line" || return 1
+      REWRITE_EMITTER_NL=$((REWRITE_EMITTER_NL + 1))
+    else
+      printf '%s' "$line" || return 1
+    fi
+  done
+  return 0
+}
+
+# stamp_artifact <file> — 0 written · 1 nothing to write · 2 the write failed.
+# supersede-story.sh:785-794's flip_artifact shape, and the three outcomes are
+# genuinely different things to report: an artifact with no frontmatter is
+# SKIPPED in silence (run-mode: "there is no line to edit, and its silence is
+# never counted as divergence"), an artifact already reading the new value needs
+# no write at all, and only a real failure is worth a line on stderr.
+stamp_artifact() {
+  local f="$1"
+  read_frontmatter "$f" || return 2
+  [[ "$FM_HAS" == true ]] || return 1
+  [[ "$FM_STATUS" != "$STATUS_TO" ]] || return 1
+  rewrite_file "$f" stamp_lines || return 2
+  return 0
+}
+
+# EVERY `.md` OF THE STORY, not a hard-coded three. run-mode names story.md,
+# design.md and tasks.md and then states the rule they are examples of — "every
+# artifact of the story that carries frontmatter". validate-story.sh:922 walks
+# `"$STORY_DIR"/*.md` to decide which artifacts declare a status and which of
+# them diverge, and supersede-story.sh:799-811 walks the same glob to flip them;
+# a stamp over a narrower set would leave behind exactly the artifact the
+# validator then reports as divergent.
+STAMPED=()        # basenames that took the new value
+STAMP_FAILED=()   # basenames that could not
+stamp_all() {
+  local f name rc
+  for f in "$STORY_PATH"/*.md; do
+    [[ -f "$f" ]] || continue
+    name=$(basename "$f")
+    rc=0
+    stamp_artifact "$f" || rc=$?
+    case $rc in
+      0) STAMPED+=("$name") ;;
+      1) : ;;
+      *) STAMP_FAILED+=("$name") ;;
+    esac
+  done
+  return 0
+}
+
+if [[ -n "$STATUS_TO" ]]; then
+  stamp_all
+  if [[ ${#STAMP_FAILED[@]} -gt 0 ]]; then
+    # Reported, and the run continues (run-mode's fifth writing rule). Named,
+    # because "a status write failed" without the artifact is not something
+    # anyone can go and fix.
+    printf 'Note: could not write status: %s into %s of story %s — the box is closed and the rest of the transition stands. Fix the artifact and re-run validation.\n' \
+      "$STATUS_TO" "${STAMP_FAILED[*]}" "$STORY_ID" >&2
+  fi
+  if [[ ${#STAMPED[@]} -gt 0 ]]; then
+    # R2.2 — the transition is IN THE OUTPUT, which is how Run mode makes its
+    # archive offer on the trigger it already has: the offer keys on "this run
+    # wrote `done`", never on the census, because a story that was already
+    # `done` before the run started did not become finished here
+    # (references/run-mode.md:583). That distinction is exactly the difference
+    # between `{"from": …, "to": "done"}` and the `null` below.
+    STATUS_WRITTEN_JSON="{ \"from\": $(json_or_null "$STATUS_FROM"), \"to\": $(json_or_null "$STATUS_TO") }"
+  fi
+fi
+# STATUS_WRITTEN_JSON stays `null` on every other path, and it means what it has
+# meant since 1.1: nothing was written. Rule 4 wrote nothing; a rule that fired
+# on a story whose artifacts already read the new value wrote nothing (that is
+# rule 1's "nothing to do if the field already reads done"); a story whose
+# artifacts carry no frontmatter has no line to write. None of the three is a
+# transition, and reporting one would send Run mode to an archive offer for a
+# story it did not finish.
+
+# ============================================================================
+# STEP 4 — SELF-INVOKED VALIDATION (sub-task 2.2 — R1.5/R2.3/R2.4)
+# ============================================================================
+# WHY THIS STEP EXISTS AT ALL. Until this script, a checkbox was marked with the
+# Write tool and hooks/hooks.json fired hook-validate.sh on it — a PostToolUse
+# hook that ran validate-story.sh over the story every single marking. A BASH
+# WRITE FIRES NO PostToolUse HOOK. Moving the marking into a script therefore
+# deletes that guarantee unless the script carries it itself, which is what R2.3
+# asks for and what this step is: the per-marking validation is preserved BY
+# CONSTRUCTION rather than left to a hook that no longer runs.
+#
+# IT RUNS LAST — after the box write (step 2) AND after the status stamp (step
+# 3d) — and both halves of that are load-bearing, not stylistic:
+#
+#   * BEFORE THE BOX WRITE it would describe a story the caller never sees. The
+#     census and the transition in the same report are measurements of the file
+#     AFTER the marking; a verdict taken before it would be the one field of the
+#     object describing a different file, and the caller has no way to tell.
+#
+#   * BETWEEN THE WRITE AND THE STAMP it would author the very warning the
+#     transaction exists to prevent. MEASURED, on the clean fixture of
+#     tests/close-subtask-transaction.bats: run there, the verdict comes back
+#     `warnings: 1` — "status is behind the checkboxes: design.md says
+#     'in-progress' but no task checkbox is still open and none is deferred —
+#     run-mode rule 1 writes 'done' at that point". Run after the stamp, on the
+#     same fixture: `warnings: 0`. The script would have been reporting a
+#     complaint about a state it was one statement away from fixing, and step
+#     3's whole point is that a marking and its status move together.
+#     validate-story.sh:992-999 names that transient as legitimate for OTHER
+#     readers precisely because it is transient — this script's own reader has
+#     no excuse to catch it.
+#
+# NOTHING HERE ROLLS ANYTHING BACK (R2.4). The box is closed, the status is
+# stamped, and a verdict is a STATEMENT ABOUT that file, not a veto over it: the
+# box state is the truth of what happened, and correcting a story the validator
+# is unhappy with is a follow-up action. So this step writes nothing, refuses
+# nothing, and changes no exit code — a close whose story fails validation is a
+# close that SUCCEEDED and a story that has errors, and the report carries both.
+#
+# Resolved from THIS script's own location, not from PATH and not from the cwd:
+# the validator is a sibling shipped with the plugin, and this script is invoked
+# from wherever the operator happens to be (archive-story.sh:2682-2686 and
+# supersede-story.sh:829-832 resolve their own sibling the same way). A relative
+# `${BASH_SOURCE[0]}` is resolved against the cwd, so this would have to be
+# computed before any `cd` — this script never changes directory (every `cd` it
+# contains is inside a `$( )` subshell), so "here" and "load time" are the same
+# instant. The failure is CARRIED, never fatal: a `VAR=$(cmd)` that fails under
+# `set -e` would end the run with no JSON at all, after the box was written.
+#
+# A PLAIN `if`, NEVER `[[ … ]] && VAR=…`: a trailing AND-list that fails hands
+# its status to the enclosing construct, and at top level under `set -e` that
+# ends the script. The two siblings above both carry that shape and both would
+# die on a story directory they could not resolve; it is deliberately not
+# copied, for the reason already recorded in locate_box.
+VALIDATE_SCRIPT=""
+_epic_script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" 2> /dev/null && pwd -P) || _epic_script_dir=""
+if [[ -n "$_epic_script_dir" ]]; then
+  VALIDATE_SCRIPT="$_epic_script_dir/validate-story.sh"
+fi
+unset _epic_script_dir
+
+# THE THREE FIELDS THE CONTRACT EMBEDS, and only these three: validate-story.sh
+# also reports `story`, `error_details`, `warning_details` and `strict`, and none
+# of them belongs here. `story` is this report's own first field; the two detail
+# arrays are the validator's output to read on its own, and copying them would
+# make this object grow without bound with text nobody asked this script for.
+# `{errors, warnings, status}` is the summary R1.5 names, and a caller that wants
+# the details runs the validator — this report tells it whether that is worth
+# doing.
+VALIDATE_ERRORS=""
+VALIDATE_WARNINGS=""
+VALIDATE_STATUS=""
+VALIDATE_ERR=""     # why there is no verdict, for the human on stderr
+
+# THE VALIDATOR'S JSON IS PARSED IN BASH, WITH NO jq. archive-story.sh,
+# supersede-story.sh and this script are the three writers with a JSON contract
+# and not one of them forks jq — they render JSON by hand and they read it by
+# hand, so a close never fails for want of a tool the marking itself does not
+# need. (The hooks do use jq; they are already running inside an agent that has
+# it. A story closed from a bare shell is not.)
+#
+# THE ANCHORS ARE WHAT MAKE THAT SAFE, and the safety is structural rather than
+# hopeful. validate-story.sh emits every top-level key on its own line as
+# `  "<key>": <value>` and every detail as `    "<escaped string>"<comma>` —
+# and a detail string CANNOT forge a key line, because the only way a `"` gets
+# into one is through its json_escape, which writes it `\"`. So a line matching
+# `"errors":` — closing quote unescaped, immediately followed by the colon — is
+# the real key and nothing else. Anchored at BOTH ends on top of that, so the
+# value must also be the last thing on the line.
+#
+# `status` IS CONSTRAINED TO A BARE WORD rather than accepted as any string, and
+# that is not paranoia about the validator: the text captured here is already in
+# the validator's ESCAPED form, so running it through json_escape again would
+# double every backslash it contains. Restricting it to a class that json_escape
+# provably does not touch removes the round trip instead of trying to get it
+# right — and it still goes through json_or_null below, because "every string in
+# this report goes through the escaper" is a rule with no carve-out to forget.
+# `pass` and `fail` are what validate-story.sh:1149-1153 emits today; the class
+# is wide enough that a third verdict word would not need a change here.
+VAL_ERRORS_RE='^[[:space:]]*"errors":[[:space:]]*([0-9]+)[[:space:]]*,?[[:space:]]*$'
+VAL_WARNINGS_RE='^[[:space:]]*"warnings":[[:space:]]*([0-9]+)[[:space:]]*,?[[:space:]]*$'
+VAL_STATUS_RE='^[[:space:]]*"status":[[:space:]]*"([A-Za-z][A-Za-z0-9_-]*)"[[:space:]]*,?[[:space:]]*$'
+
+# parse_validate_json <text> — fills the triple, or returns 1 having filled
+# nothing usable. FIRST MATCH WINS per field and each line fills AT MOST ONE
+# field: the keys are emitted once each, and a compacted object that put two of
+# them on one line would fail the parse rather than be half-read.
+parse_validate_json() {
+  local line
+  VALIDATE_ERRORS=""
+  VALIDATE_WARNINGS=""
+  VALIDATE_STATUS=""
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ -z "$VALIDATE_ERRORS" && "$line" =~ $VAL_ERRORS_RE ]]; then
+      VALIDATE_ERRORS="${BASH_REMATCH[1]}"
+    elif [[ -z "$VALIDATE_WARNINGS" && "$line" =~ $VAL_WARNINGS_RE ]]; then
+      VALIDATE_WARNINGS="${BASH_REMATCH[1]}"
+    elif [[ -z "$VALIDATE_STATUS" && "$line" =~ $VAL_STATUS_RE ]]; then
+      VALIDATE_STATUS="${BASH_REMATCH[1]}"
+    fi
+  done <<< "$1"
+  # ALL THREE OR NONE. A partial triple is what a validator killed mid-emit
+  # leaves behind, and reporting `errors: 0` off one is the fail-open answer.
+  if [[ -z "$VALIDATE_ERRORS" || -z "$VALIDATE_WARNINGS" || -z "$VALIDATE_STATUS" ]]; then
+    return 1
+  fi
+  return 0
+}
+
+# run_validate — 0 with the triple filled, 1 with VALIDATE_ERR saying why not.
+#
+# THE INVOCATION IS GUARDED, AND THAT GUARD IS THE POINT OF THE WHOLE STEP.
+# validate-story.sh EXITS 1 WHEN THE STORY HAS ERRORS — measured, not assumed:
+# on the transaction suite's calibrated fixture it exits 1 with `errors: 1`, and
+# on the clean one it exits 0. Under `set -e` an unguarded call would therefore
+# end this script exactly when it had something to report, AFTER the box was
+# already written: a marking that landed on disk and produced no JSON at all,
+# which is the worst outcome this contract has. `|| rc=$?` keeps the verdict.
+#
+# That is the 02/07 fail-open shape read from the other side, and both halves of
+# it are refused here. hook-task-completed.sh:48-52 records the same trap from
+# the swallowing side — a bare `OUTPUT=$(…)` inheriting the non-zero status and
+# aborting the hook before its blocking exit could run. Here the status is
+# captured AND used, never captured and dropped.
+#
+# ONLY STDOUT IS CAPTURED. archive-story.sh:2715 folds its child's stderr into
+# the same variable because it parses none of it; this one parses exactly that
+# variable, so `2>&1` would splice a diagnostic sentence into the JSON being
+# read. The validator's stderr flows to ours instead, which is where every
+# diagnostic in this script already goes — and its stdout, captured whole, can
+# never reach ours.
+#
+# Run through `${BASH:-bash}` rather than executed: the validator carries a
+# shebang but is not required to be executable (the test suite invokes it the
+# same way), and naming the interpreter runs the child under the SAME bash that
+# is running this script.
+run_validate() {
+  local out rc=0
+  VALIDATE_ERR=""
+  # `[[ -f ]]` says the file EXISTS, not that it opens — this arm is only here
+  # to name the ordinary case (an older install, a partial checkout) with a
+  # message someone can act on. One that exists and cannot be read fails below,
+  # where bash's own diagnostic reaches stderr on its own.
+  if [[ -z "$VALIDATE_SCRIPT" || ! -f "$VALIDATE_SCRIPT" ]]; then
+    VALIDATE_ERR="the validator is not there (looked for '${VALIDATE_SCRIPT:-<the sibling validate-story.sh of this script>}')"
+    return 1
+  fi
+  out=$("${BASH:-bash}" "$VALIDATE_SCRIPT" "$STORY_PATH") || rc=$?
+  # 0 and 1 are the two codes that come WITH a verdict (validate-story.sh:1160-
+  # 1165). 2 is its own invalid-input path, and anything else is a validator that
+  # died, was not found, or was killed — none of them a story that was judged.
+  if [[ "$rc" -ne 0 && "$rc" -ne 1 ]]; then
+    VALIDATE_ERR="'$VALIDATE_SCRIPT' exited $rc without reaching a verdict"
+    return 1
+  fi
+  if ! parse_validate_json "$out"; then
+    VALIDATE_ERR="'$VALIDATE_SCRIPT' exited $rc but its output carried no readable errors/warnings/status triple"
+    return 1
+  fi
+  # AN INDEPENDENT WITNESS THAT THE PARSE IS THE VERDICT — rewrite_file's
+  # witness C, applied to a read instead of a write. The exit code is a second,
+  # format-independent statement of the same fact: with no `--strict` (and none
+  # is passed), validate-story.sh:1160-1165 exits 1 if and only if it counted at
+  # least one error. So a parse that disagrees with the code is a parse that read
+  # the wrong thing — a reformatted emitter, a truncated capture — and it is said
+  # out loud instead of embedded. Silence here would be the fail-open answer once
+  # more: a drifted parse reporting `errors: 0` over a story full of them.
+  #
+  # `rc` IS COMPARED AS A NUMBER AND THE COUNT AS A STRING, and the asymmetry is
+  # deliberate. `rc` is an exit status this script captured itself, always 0-255.
+  # The count is text read out of another process's stdout, and bash arithmetic
+  # SILENTLY WRAPS a digit run past 64 bits — measured: `[[
+  # 999999999999999999999999999 -gt 0 ]]` is FALSE. A wrapped count that tests as
+  # zero is a fail-open the witness would then wave through, so the count is
+  # never made to do arithmetic. `${#ERRORS[@]}` has no leading zeros, so `== 0`
+  # is exactly "no errors". Same reasoning canon_num records one screen up.
+  if [[ "$rc" -eq 0 && "$VALIDATE_ERRORS" != 0 ]] || [[ "$rc" -eq 1 && "$VALIDATE_ERRORS" == 0 ]]; then
+    VALIDATE_ERR="'$VALIDATE_SCRIPT' exited $rc but its output reports $VALIDATE_ERRORS error(s) — the two disagree, so neither is reported"
+    # CLEARED, for refuse()'s reason one screen up: these three report what was
+    # MEASURED, and this arm has just decided the measurement is not one. Every
+    # other failure arm above returns before the parse could fill them; this is
+    # the one that returns with them full, and leaving them there would arm a
+    # later reader with a value this function refused to stand behind.
+    VALIDATE_ERRORS=""
+    VALIDATE_WARNINGS=""
+    VALIDATE_STATUS=""
+    return 1
+  fi
+  return 0
+}
+
+if run_validate; then
+  # The counts are bare JSON numbers and they are provably numeric — the parse
+  # captured them through `([0-9]+)` and nothing else could have filled them.
+  # The status is a string and goes through the escaper like every other string
+  # in this object.
+  VALIDATE_JSON="{ \"errors\": $VALIDATE_ERRORS, \"warnings\": $VALIDATE_WARNINGS, \"status\": $(json_or_null "$VALIDATE_STATUS") }"
+else
+  # `null` keeps meaning what it has meant since 1.1: NOBODY MEASURED. It is the
+  # one honest answer here, and specifically not `{"errors": 0}` — a verdict that
+  # was never reached, rendered as one that came back clean, is the fail-open
+  # report this whole step exists to refuse. The close still stands and still
+  # exits 0: the marking is not undone because the validator could not be run
+  # (R2.4), it is reported without a verdict beside it.
+  printf 'Note: the box was closed and the status transition stands, but the story could not be validated — %s. Run validate-story.sh on %s to see where the story stands.\n' \
+    "$VALIDATE_ERR" "$STORY_PATH" >&2
+fi
+
 emit_report
 exit 0
