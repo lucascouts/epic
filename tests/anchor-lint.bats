@@ -316,9 +316,18 @@ TASKSEOF
 # its doc-contract case above, while list-mode.md kept the pre-010 five-key
 # enumeration. Story 010's audit found the stale copy and booked it rather
 # than fixing it — the failure mode this repository documents twice
-# (close-subtask.sh:307-312, checkbox-grammar.bats:11-15): a fact stated in
-# prose cannot fail, so it is never corrected. The case below is what makes
-# the second copy fail, by the same mechanism as the first.
+# (close-subtask.sh's BOX_RE block, checkbox-grammar.bats' header): a fact
+# stated in prose cannot fail, so it is never corrected. The case below is
+# what makes the second copy fail, by the same mechanism as the first.
+#
+# CITED BY NAME, NOT BY LINE, and this comment is why: the first draft of it
+# cited `checkbox-grammar.bats:11-15`, and sub-task 1.2 shifted that paragraph
+# to line 20 in the same commit — a pointer that went stale inside the very
+# story written to kill stale pointers. close-subtask.sh already states the
+# rule, in the STATUS_WRITTEN_JSON block: "cited by name, not by line: story
+# 010 moved that trigger from :583 to :687 and a line number would have gone
+# stale in the same commit that wrote it". This is the second time the
+# repository has paid for it.
 
 @test "1.1 list-mode.md enumerates anchored_commits in the detector's key set (016, doc contract)" {
   # Asserted as the WHOLE key set rather than the bare field name, so the

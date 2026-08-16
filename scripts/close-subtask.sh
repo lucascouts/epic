@@ -305,8 +305,8 @@ resolve_by_number() {
 # one cannot find — or, worse, one it marks.
 #
 # HOW MANY CONSUMERS THERE ARE IS DELIBERATELY NOT WRITTEN DOWN. Three
-# successive prose enumerations of that list have been wrong, which
-# tests/checkbox-grammar.bats:11-15 records: a prose count cannot fail, so it is
+# successive prose enumerations of that list have been wrong, as the header of
+# tests/checkbox-grammar.bats records: a prose count cannot fail, so it is
 # never corrected. The roster that CAN fail is that harness — it drives one
 # mixed fixture through every consumer and reddens when one drifts. Any script
 # carrying these regexes belongs in it, this one included.
@@ -1294,13 +1294,13 @@ fi
 # census keeps them apart.
 #
 # RULE 1 DOES NOT OVERWRITE A TERMINAL STATE. `superseded` and `archived` both
-# legitimately sit over a fully-closed census, and validate-story.sh:914-918
-# already says so in those words — "neither is a state rule 1 would overwrite
-# with `done`" — while it decides which statuses its behind-the-checkboxes
-# warning may fire on. Reading rule 1 as unconditional would make this script
-# erase a supersede the first time a Quality Gate was settled on a superseded
-# story. Anything else outside the six-value enum is left alone for the same
-# reason: it is not a state this table describes.
+# legitimately sit over a fully-closed census, and validate-story.sh already
+# says so in those words where it defines STATUS_BEHIND — "neither is a state
+# rule 1 would overwrite with `done`" — while it decides which statuses its
+# behind-the-checkboxes warning may fire on. Reading rule 1 as unconditional
+# would make this script erase a supersede the first time a Quality Gate was
+# settled on a superseded story. Anything else outside the six-value enum is
+# left alone for the same reason: it is not a state this table describes.
 STATUS_TO=""
 if [[ "$CENSUS_TAKEN" == true ]]; then
   if [[ "$BOX_OPEN" -eq 0 && "$BOX_DEFERRED" -eq 0 ]]; then
