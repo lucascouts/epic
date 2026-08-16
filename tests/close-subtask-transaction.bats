@@ -256,3 +256,59 @@ EOF
   echo "$output" | jq -e '.validate.errors >= 1'
   grep -qE '^[[:space:]]*- \[x\] 1\.1 - Unmapped slice' "$STORY/tasks.md"
 }
+
+# =====================================================================
+# Story 016, sub-task 1.3 — the two transition arms story 010 argued in
+# a comment and pinned with no test
+#
+# Both arms live in close-subtask.sh's "3c. The four transition rules"
+# block. Both were implemented and reasoned about in prose, and prose
+# cannot fail — so neither could ever report its own regression. These
+# two cases give each arm a failing run to lose.
+# =====================================================================
+
+@test "1.3 rule 2 — a done story with work still owed reopens to in-progress (R2.1)" {
+  # WHY: a story with an open box still owes work, and a story that owes
+  # work is not done. So the marking that finds `done` sitting over a
+  # leftover `[ ]` does not merely decline to write — it REOPENS, walking
+  # the status back to in-progress in every artifact. Rule 2 is the only
+  # arm of the table that moves a status BACKWARDS.
+  #
+  # 1.1 is closed and 1.2/1.3 stay open on purpose: rule 1 is tested
+  # first and would swallow this case if the census reached zero open.
+  body_all_open | write_artifacts done
+  run_close 1.1
+  [ "$status" -eq 0 ]
+  # The census still shows work owed — the precondition rule 2 fires on.
+  echo "$output" | jq -e '.census.open == 2'
+  echo "$output" | jq -e '.status_written.from == "done" and .status_written.to == "in-progress"'
+  # Stamped in the FILES, not merely announced in the JSON: the report is
+  # a claim about the artifacts, and only the artifacts can confirm it.
+  [ "$(status_line_of "$STORY/tasks.md")" = in-progress ]
+  [ "$(status_line_of "$STORY/story.md")" = in-progress ]
+  [ "$(status_line_of "$STORY/design.md")" = in-progress ]
+}
+
+@test "1.3 rule 1 leaves a status outside the enum alone — superseded survives (R2.1)" {
+  # WHY: `superseded` and `archived` are terminal, and both legitimately
+  # sit over a fully-closed census — validate-story.sh says so in those
+  # words ("neither is a state rule 1 would overwrite with `done`") while
+  # choosing which statuses its behind-the-checkboxes warning may fire
+  # on. Reading rule 1 as unconditional would make this script erase a
+  # supersede the first time a Quality Gate was settled on a superseded
+  # story. Anything else outside the six-value enum is left alone for the
+  # same reason: it is not a state this table describes.
+  body_last_open | write_artifacts superseded
+  run_close 1.3
+  [ "$status" -eq 0 ]
+  # THE CONDITION REALLY WAS MET: zero open and zero deferred is exactly
+  # what rule 1 fires on. Without this assertion the case could pass by
+  # never reaching the `case` at all, and would then prove nothing about
+  # the guard.
+  echo "$output" | jq -e '.census.open == 0 and .census.deferred == 0'
+  echo "$output" | jq -e '.status_written == null'
+  # And the guard held where it counts — in the artifacts on disk.
+  [ "$(status_line_of "$STORY/tasks.md")" = superseded ]
+  [ "$(status_line_of "$STORY/story.md")" = superseded ]
+  [ "$(status_line_of "$STORY/design.md")" = superseded ]
+}

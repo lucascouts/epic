@@ -307,3 +307,28 @@ TASKSEOF
   grep -q 'only when' <<< "$FLAT"
   grep -qF 'integrated: null' <<< "$FLAT"
 }
+
+# =====================================================================
+# Story 016, sub-task 1.1 — the SECOND copy of the key set
+# =====================================================================
+# The detector's key set is written down in two reference files, and story
+# 010 pinned only one of them: validate-mode.md gained `anchored_commits` and
+# its doc-contract case above, while list-mode.md kept the pre-010 five-key
+# enumeration. Story 010's audit found the stale copy and booked it rather
+# than fixing it — the failure mode this repository documents twice
+# (close-subtask.sh:307-312, checkbox-grammar.bats:11-15): a fact stated in
+# prose cannot fail, so it is never corrected. The case below is what makes
+# the second copy fail, by the same mechanism as the first.
+
+@test "1.1 list-mode.md enumerates anchored_commits in the detector's key set (016, doc contract)" {
+  # Asserted as the WHOLE key set rather than the bare field name, so the
+  # position is pinned too: `anchored_commits` sits between `evidence` and
+  # `checked_at`, which is the order story-git-status.sh:988 emits and the
+  # order validate-mode.md:131 already names. A field present but reordered
+  # would still be a doc that disagrees with the script.
+  #
+  # Matched on the flattened text so wrapping never decides the verdict — the
+  # shape the two validate-mode.md doc-contract cases above use.
+  FLAT=$(tr -s '[:space:]' ' ' < "$PLUGIN_ROOT/references/list-mode.md")
+  grep -qF '{story, main_branch, integrated, evidence, anchored_commits, checked_at}' <<< "$FLAT"
+}

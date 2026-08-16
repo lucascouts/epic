@@ -1,20 +1,32 @@
 #!/usr/bin/env bats
 # Story 004, sub-tasks 2.3 and 5.3/5.4 — cross-regression harness (R4.1, R5.1,
-# R3.3, R3.4).
+# R3.3, R3.4); seventh consumer added by story 016, sub-task 1.2.
 # ONE mixed fixture ([x] / [ ] / [~] terminal / [~] deferred) is passed
-# through the SIX checkbox consumers — validate-story.sh, cross-reference.sh,
+# through the SEVEN checkbox consumers — validate-story.sh, cross-reference.sh,
 # hook-task-completed.sh, monitor-stale.sh, hook-precompact.sh,
-# hook-post-tool-failure.sh — asserting they agree on which boxes exist and
-# which work is open. This pins the duplicated regex so one drifted copy cannot
-# silently reopen the false-clean/false-orphan class fixed in e890d02.
+# hook-post-tool-failure.sh and close-subtask.sh — asserting they agree on which
+# boxes exist and which work is open. This pins the duplicated regex so one
+# drifted copy cannot silently reopen the false-clean/false-orphan class fixed
+# in e890d02.
+#
+# SIX OF THE SEVEN READ THE GRAMMAR. close-subtask.sh WRITES it, and is the only
+# one of the seven that does — the one sanctioned writer (story 010). That puts
+# it further inside this roster, not outside it: a reader that drifts mis-counts
+# a file someone else wrote, while a writer that drifts produces the file every
+# reader then mis-counts. It is compared here through the `census` object of its
+# stdout JSON, which is its own reading of the boxes as they now stand — the
+# same statement the six readers make directly in their output.
 #
 # Three enumerations of that list have now been wrong: the design said "6 regex
 # places across 4 scripts", sub-task 5.3 raised it to 5 and still missed
 # hook-post-tool-failure.sh, which the second validate-mode pass found (task
 # 6.4). The lesson is the harness itself — a prose list of consumers cannot
-# fail, and this file can. If a seventh appears, it belongs here.
+# fail, and this file can. If a seventh appears, it belongs here. One did:
+# story 010 copied these regexes into close-subtask.sh and left the roster at
+# six, so the count was stale a fourth time — this time in the very file whose
+# job is to make it fail. The rule is unchanged; an eighth belongs here too.
 #
-# Mixed fixture totals (the shared truth all four must agree on):
+# Mixed fixture totals (the shared truth all seven must agree on):
 #   total = 5 boxes · closed = 3 ([x] 1.1, 1.2 + terminal [~] 1.3)
 #   deferred = 1 ([~] 1.4) · open = 1 ([ ] 1.5)
 #
@@ -325,6 +337,36 @@ EOF
   [ "$status" -eq 0 ]
   run grep '^- Tasks:' "$MIXED/.draft/compact-snapshot.md"
   [ "$output" = "- Tasks: 3/5 completed (+1 deferred)" ]
+}
+
+@test "R4.1: close-subtask — the seventh consumer, and the only one that WRITES" {
+  # A WRITER IS COMPARED THROUGH ITS `census` OBJECT. That object is the
+  # script's own reading of the grammar — it re-reads tasks.md after marking it
+  # — so it is the comparable surface every reader above hands over directly in
+  # its output. Drift then shows up here as a disagreement about the same five
+  # boxes, in the same terms, rather than as a diff of the file it wrote.
+  #
+  # The close lands on a COPY: $MIXED is the shared fixture the cases above
+  # read, and this is the one consumer that would write to it. The copy keeps
+  # the proj/.epic/stories/010-mixed shape so the script resolves the story
+  # exactly as a real caller's does.
+  COPY=$(mktemp -d "$WORK/seventh.XXXXXX")
+  mkdir -p "$COPY/proj/.epic/stories"
+  cp -r "$MIXED" "$COPY/proj/.epic/stories/010-mixed"
+  cd "$COPY/proj"
+
+  # Diagnostics go to stderr and a clean close emits none, so $output is the
+  # JSON object. (bats merges the two streams by default, so a stray diagnostic
+  # would redden this case as a parse failure rather than pass unnoticed.)
+  run bash "$PLUGIN_ROOT/scripts/close-subtask.sh" .epic/stories/010-mixed 1.5
+  [ "$status" -eq 0 ]
+
+  # The header's shared truth, advanced by that one close: 1.5 stops being the
+  # open box, the terminal [~] 1.3 still counts as closed, and the deferred
+  # [~] 1.4 still counts apart from both. The report also carries a validate
+  # verdict; it is not this harness's subject, and this script never rolls a
+  # landed marking back on it.
+  echo "$output" | jq -e '.census.total == 5 and .census.open == 0 and .census.closed == 4 and .census.deferred == 1'
 }
 
 @test "R5.1: legacy story — validate-story output is byte-identical to the pre-change golden" {
