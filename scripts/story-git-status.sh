@@ -8,7 +8,8 @@
 #
 # Output: one JSON object on stdout —
 #   {story, main_branch, integrated: true|false|null,
-#    evidence: [{kind: branch-merged|message-ref, detail}], checked_at}
+#    evidence: [{kind: branch-merged|message-ref, detail}],
+#    anchored_commits: <n>|null, checked_at}
 #
 # Exit codes:
 #   0  status computable (including integrated: null when no main branch
@@ -483,6 +484,29 @@ render_branch_details() {
   return 0
 }
 
+# subject_is_anchored <subject>: succeeds when <subject> carries this story's
+# anchor as a DELIMITED TOKEN — the whole predicate, in one place, over the
+# patterns built by the Subject anchor rules block below.
+# TWO CALLERS, ONE PREDICATE (R4.3): the message-ref evidence rule asks it of
+# the subjects reachable from MAIN, the anchored-commit count asks it of those
+# reachable from HEAD. Sharing the two REGEXES is not enough on its own — the
+# disjunction and the slug guard are as much a part of "delimited token" as the
+# patterns are, and a second copy of them could still answer differently. The
+# ranges are what the two callers differ in; the question is not.
+# THE EMPTY-PATTERN GUARD IS THE POINT OF THE FIRST LINE, not a formality:
+# MSG_CONV_RE is empty exactly when no story number was parsed, and `[[ x =~ ]]`
+# against an empty pattern matches EVERY subject. Refusing here makes the
+# predicate total — false is the only honest answer when there is no token to
+# look for — so a caller cannot reintroduce that trap by forgetting a gate.
+# The STORY_SLUG guard stays inside for the same reason: MSG_SLUG_RE is built
+# whether or not a slug exists, and without a slug it degrades to a bare
+# `0*NNN-` prefix that a subject like "chore: 006-something-else" would match.
+subject_is_anchored() {
+  [[ -n "$MSG_CONV_RE" ]] || return 1
+  [[ "$1" =~ $MSG_CONV_RE ]] && return 0
+  [[ -n "$STORY_SLUG" && "$1" =~ $MSG_SLUG_RE ]]
+}
+
 # --- Input ---
 STORY_ARG="${1:-}"
 if [[ -z "$STORY_ARG" ]]; then
@@ -535,6 +559,42 @@ if [[ "$STORY_NAME" =~ ^0*([0-9]+)-(.+)$ ]]; then
   STORY_SLUG="${BASH_REMATCH[2]}"
 elif [[ "$STORY_NAME" =~ ^0*([0-9]+)$ ]]; then
   STORY_NUM="${BASH_REMATCH[1]}"
+fi
+
+# --- Subject anchor rules (R1.2, R1.3, R4.3) ---
+# THE SINGLE HOME OF THE ANCHOR REGEXES, and the reason they live up here
+# instead of beside their first reader. TWO readers now ask the same question of
+# a commit subject — the message-ref evidence rule (does anything reachable from
+# MAIN reference this story?) and the anchored-commit count (is the work
+# reachable from HEAD referenceable AT ALL?) — and R4.3 says the second reuses
+# the first's rules rather than restating them. A second copy is a second rule:
+# it would let one subject count for one reader and not the other, and the two
+# copies would drift apart on the first change to what "delimited token" means.
+# So the rules are built once, here, and applied through ONE predicate —
+# subject_is_anchored, above, which is the only thing that ever reads them.
+#
+# A subject carries the anchor when it holds the story number as a DELIMITED
+# TOKEN and never otherwise (R1.3): \(0*NNN\) — the conventional `type(NNN):`
+# scope — or a word-bounded 0*NNN-<slug>. `0*` accepts every padded spelling of
+# one number, so 006 and 6 are the same story, while a bare undelimited number
+# and substrings such as 1006 match neither pattern.
+#
+# BUILT ONLY WHEN A NUMBER WAS PARSED. With STORY_NUM empty, MSG_CONV_RE would
+# read \(0*\) and match a bare "()" in any subject; empty is therefore the
+# signal "there is no token to look for", and subject_is_anchored refuses on it.
+# MSG_SLUG_RE is built whether or not a slug was parsed, and is applied only
+# when STORY_SLUG is non-empty — that guard lives in the predicate too.
+# Pure string work over values already in hand: no git call, so hoisting it
+# costs nothing and can fail nowhere.
+SLUG_RE=""
+MSG_CONV_RE=""
+MSG_SLUG_RE=""
+if [[ -n "$STORY_NUM" ]]; then
+  if [[ -n "$STORY_SLUG" ]]; then
+    SLUG_RE=$(regex_escape "$STORY_SLUG")
+  fi
+  MSG_CONV_RE="\\(0*${STORY_NUM}\\)"
+  MSG_SLUG_RE="(^|[^[:alnum:]_])0*${STORY_NUM}-${SLUG_RE}"
 fi
 
 # --- Main-branch resolution (R1.5, R1.11, R1.12) ---
@@ -683,10 +743,9 @@ fi
 # never fail.
 EVIDENCE=()
 if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
-  SLUG_RE=""
-  if [[ -n "$STORY_SLUG" ]]; then
-    SLUG_RE=$(regex_escape "$STORY_SLUG")
-  fi
+  # SLUG_RE, MSG_CONV_RE and MSG_SLUG_RE are already built — see Subject anchor
+  # rules above. Only the BRANCH patterns are local to this block: no second
+  # reader asks whether a branch NAME carries the token.
 
   # Rule 1 — branch-merged (R1.1): a branch matching feat/NNN-* or
   # */NNN-<slug>* whose tip is already reachable from main.
@@ -770,23 +829,81 @@ if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
     add_evidence "branch-merged" "$BRANCH_DETAIL"
   done
 
-  # Rule 2 — message-ref (R1.2): a commit subject reachable from main carrying
-  # the story number as a delimited token ONLY — \(0*NNN\) (conventional
-  # type(NNN):) or a word-bounded 0*NNN-<slug>. A bare undelimited number and
-  # substrings such as 1006 never count (R1.3). The rule is existential, so
-  # the first (most recent) matching subject is reported as the detail.
-  MSG_CONV_RE="\\(0*${STORY_NUM}\\)"
-  MSG_SLUG_RE="(^|[^[:alnum:]_])0*${STORY_NUM}-${SLUG_RE}"
+  # Rule 2 — message-ref (R1.2): a commit subject reachable from MAIN carrying
+  # the story anchor, per the token rules built above (R1.3). The rule is
+  # existential, so the first (most recent) matching subject is reported as the
+  # detail and the walk stops there. The anchored-commit count below applies the
+  # same two patterns to a different range and counts instead of stopping —
+  # which is exactly why the patterns are not built here any more.
   rc=0
   SUBJECTS=$(git log "$MAIN_REF" --format=%s -- 2>/dev/null) || rc=$?
   if [[ "$rc" -eq 0 && -n "$SUBJECTS" ]]; then
     while IFS= read -r SUBJECT; do
-      if [[ "$SUBJECT" =~ $MSG_CONV_RE ]] ||
-         [[ -n "$STORY_SLUG" && "$SUBJECT" =~ $MSG_SLUG_RE ]]; then
+      if subject_is_anchored "$SUBJECT"; then
         add_evidence "message-ref" "$SUBJECT"
         break
       fi
     done <<< "$SUBJECTS"
+  fi
+fi
+
+# --- Anchored-commit count (R4.2, R4.3, R4.4) ---
+# THE REVERSE QUESTION, and it is a different one from `integrated`: that field
+# asks whether the work REACHED MAIN, this counts whether the work is FINDABLE
+# AT ALL. A finished story whose commits carry no anchor is invisible to both
+# evidence rules wherever it sits, so `integrated: false` would be reported for
+# a reason that is not the real one — the branch is not missing, the anchor is.
+# Consumers surface at most one of the two; the precedence is settled in
+# references/validate-mode.md, not here. This script measures, it never warns.
+#
+# HEAD, NOT MAIN, and that is the whole point of the field (R4.2). A story is
+# validated where it was just finished — on its own, still-unmerged branch — so
+# a main-relative count would read zero for every correctly anchored story
+# awaiting a merge, which is the state 006's `integrated` warning already
+# covers. Counting from HEAD keeps the two questions independent: one is about
+# the merge, this one is about the anchor.
+#
+# NULL IS NOT ZERO. `git log HEAD` fails on a repository with no commits at all
+# (an unborn HEAD: rc 128, swallowed by the guard as every git call here is), so
+# the count is not computable and the field says so — never 0, which would be a
+# measured finding about a repository nothing was ever counted in. Same rule
+# `integrated` obeys one field over, and validate-mode.md states it verbatim:
+# "not computable" must never dress up as a finding. A detached HEAD and a
+# shallow clone both SUCCEED and are counted over whatever history is visible,
+# matching how the evidence queries above already degrade.
+#
+# THE ONE 0 THAT IS NOT MEASURED is a story directory with no numeric prefix.
+# The anchor is defined in terms of the number, so with no number "no subject
+# can carry it" follows without asking git — DERIVED, not unknown. Precisely the
+# derivability argument the JSON emission block already makes for the `false` a
+# numberless story gets on `integrated`; the two must agree, or one story would
+# be a true negative for one field and an unknown for the other.
+ANCHORED_COMMITS="null"
+if [[ -z "$STORY_NUM" ]]; then
+  ANCHORED_COMMITS=0
+else
+  rc=0
+  HEAD_SUBJECTS=$(git log HEAD --format=%s -- 2>/dev/null) || rc=$?
+  if [[ "$rc" -eq 0 ]]; then
+    # Assigned only on this path: the count exists exactly when the walk ran.
+    # An empty answer is a real 0 — a repository whose every subject is
+    # unanchored produces the same emptiness — which is why -n gates the LOOP
+    # and not the count: a herestring of the empty string still feeds `read` one
+    # empty line, and that line must not be tested against the patterns.
+    ANCHORED_COUNT=0
+    if [[ -n "$HEAD_SUBJECTS" ]]; then
+      while IFS= read -r HEAD_SUBJECT; do
+        # The SAME predicate rule 2 asks of the main-relative range, asked here
+        # of HEAD's — see subject_is_anchored for why there is only one copy.
+        if subject_is_anchored "$HEAD_SUBJECT"; then
+          # Assignment, not (( ANCHORED_COUNT++ )): a post-increment whose OLD
+          # value is 0 returns status 1 and would trip `set -e` on the first
+          # match. Same reason as branch_identity's fits counter.
+          ANCHORED_COUNT=$(( ANCHORED_COUNT + 1 ))
+        fi
+      done <<< "$HEAD_SUBJECTS"
+    fi
+    ANCHORED_COMMITS="$ANCHORED_COUNT"
   fi
 fi
 
@@ -818,6 +935,19 @@ fi
 # unreachable by construction, not by a second test: MAIN_REF is assigned on no
 # arm that leaves MAIN_BRANCH empty, so MAIN_REF non-empty implies MAIN_BRANCH
 # non-empty.
+#
+# A THIRD FIELD, A THIRD QUESTION — anchored_commits, gated on nothing here
+# because its own block above already resolved it to a number or to `null`
+# (see Anchored-commit count for what each answer means). Its independence from
+# MAIN_REF is not an oversight: the count is a fact about HEAD, so it stays
+# measurable in a repository where no main branch resolves at all and
+# `integrated` is null.
+# ADDITIVE, AND EMITTED BEFORE checked_at FOR THAT REASON (R4.4). Every existing
+# line of this document is byte-identical to what it was before the field
+# existed: evidence already ended in a comma, checked_at already ended without
+# one, so the new line lands between them without rewriting either. Appending
+# after checked_at would have moved a comma onto a line no consumer asked to
+# change. checked_at stays the trailer it has always been.
 if [[ -n "$MAIN_BRANCH" ]]; then
   MAIN_JSON="\"$(json_escape "$MAIN_BRANCH")\""
 else
@@ -855,6 +985,7 @@ else
   done
   echo "  ],"
 fi
+echo "  \"anchored_commits\": $ANCHORED_COMMITS,"
 echo "  \"checked_at\": \"$CHECKED_AT\""
 echo "}"
 

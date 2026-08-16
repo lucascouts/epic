@@ -209,7 +209,7 @@ Format: a bullet list of 1-3 observable-behavior statements, placed in the sub-t
 - Contains only **Validation** (aggregated from the group) and **Commit** message.
 - If a task has only 1 working sub-task, the Commit field goes inline on that sub-task — no separate Commit sub-task needed.
 - Commit messages follow conventional commits: `feat:`, `fix:`, `chore:`, `refactor:`, `test:`.
-- **Story anchor (recommended).** Scope the subject with the story number — `type(NNN): subject`, e.g. `feat(012): add retry queue` — and name the branch `feat/NNN-slug`. These are the two anchors `scripts/story-git-status.sh` reads integration from (a merged `feat/NNN-*` branch, or a subject carrying `(NNN)` or `NNN-slug` as a delimited token); a commit with neither is invisible to it. Recommended, not enforced — nothing gates on the shape yet.
+- **Story anchor (recommended).** Scope the subject with the story number — `type(NNN): subject`, e.g. `feat(012): add retry queue` — and name the branch `feat/NNN-slug`. These are the two anchors `scripts/story-git-status.sh` reads integration from (a merged `feat/NNN-*` branch, or a subject carrying `(NNN)` or `NNN-slug` as a delimited token); a commit with neither is invisible to it. Checked, not gated: `scripts/validate-story.sh` warns on any `Commit:` field whose subject carries no `type(NNN):` anchor for its own story number (zero-padded or not). A warning, never an error — a foreign commit convention stays usable, but drift is no longer silent.
 
 ### Complexity Guide
 

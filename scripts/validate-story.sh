@@ -408,6 +408,91 @@ if [[ "$HAS_TASKS" == true ]]; then
     add_warning "Found $OLD_FORMAT_COUNT tasks using old [T1]/[T2]/[T3] prefix format — use new format: - [ ] N - Name"
   fi
 
+  # --- Commit-field anchor lint (R4.1) ---
+  # A `Commit:` message whose subject is not scoped with this story's number is
+  # INVISIBLE to integration detection: scripts/story-git-status.sh finds a
+  # story's work through `(NNN)` in a subject or a merged `feat/NNN-*` branch and
+  # through nothing else, so `feat: add the thing` is a commit no reader can ever
+  # attribute back to the story that authored it. references/tasks.md has always
+  # recommended the anchor; this is the recommendation becoming observable.
+  #
+  # A WARNING, NEVER AN ERROR, and the severity is the point rather than a
+  # softening: a foreign commit convention stays perfectly usable — the plugin
+  # does not own its host repository's commit style — but drift stops being
+  # silent. Every scale is linted, fast and spike included: those commit too.
+  # It also has to be quiet by default because scripts/close-subtask.sh
+  # self-invokes this validator on every box it closes, so a lint that fires
+  # loosely would surface on every marking in the system.
+  #
+  # THE FIELD IS WHAT IS MATCHED, NEVER THE CHECKBOX. Today the message lives in
+  # the body of a Commit sub-task (`- [ ] 1.6 - Commit` / `  - Commit: "…"`) and
+  # story 015 of this wave moves it to a group-level `- Commit: "…"` on the
+  # parent task body, dropping the box entirely. Both shapes are the SAME line —
+  # `- Commit:` in a body — so keying on the field rather than on the box is what
+  # lets one lint span the migration without knowing which side of it it is on.
+  #
+  # THIS STORY'S NUMBER COMES FROM THE DIRECTORY NAME, as it does for every other
+  # reader of a story's identity (story-git-status.sh:533-538 derives the same
+  # two tokens the same way): no artifact's frontmatter carries the number, so
+  # the directory is the only place it exists. A directory with no leading number
+  # — `story`, a bare slug, a checkout root — yields nothing to anchor against,
+  # and the lint is then SKIPPED WHOLE rather than guessed at: not computable
+  # must never dress up as a finding (references/validate-mode.md).
+  #
+  # TWO SPELLINGS OF ONE NUMBER, and both are needed. NUM is padding-free and
+  # feeds the regex through a leading `0*`, so `010-x` accepts `feat(010):` and
+  # `fix(10):` alike (R4.1: zero-padded and unpadded both). LABEL is the number
+  # AS THE DIRECTORY SPELLS IT and is what the message quotes — the same rule the
+  # group-header check above states for its own label, so grepping the file for
+  # the number the warning names finds the line it names.
+  COMMIT_STORY_NAME="$STORY_DIR"
+  while [[ "$COMMIT_STORY_NAME" == */ ]]; do
+    COMMIT_STORY_NAME="${COMMIT_STORY_NAME%/}"
+  done
+  COMMIT_STORY_NAME="${COMMIT_STORY_NAME##*/}"
+  # `.` and `..` name a directory without spelling it, and `validate-story.sh`
+  # with no argument defaults to `.` — resolve those to the real basename so a
+  # run from inside the story dir lints exactly like a run from outside it. The
+  # subshell cannot leak a `cd` and a failure leaves the name empty, which the
+  # skip below already handles.
+  if [[ -z "$COMMIT_STORY_NAME" || "$COMMIT_STORY_NAME" == "." || "$COMMIT_STORY_NAME" == ".." ]]; then
+    COMMIT_STORY_NAME=$(cd "$STORY_DIR" 2>/dev/null && printf '%s' "${PWD##*/}") ||
+      COMMIT_STORY_NAME=""
+  fi
+  COMMIT_STORY_LABEL=""  # `010` — the number as the directory spells it
+  COMMIT_STORY_NUM=""    # `10`  — the same number with its padding stripped
+  commit_anchor_re=""    # empty = no number to anchor against, so no lint
+  if [[ "$COMMIT_STORY_NAME" =~ ^(0*)([0-9]+)(-.*)?$ ]]; then
+    COMMIT_STORY_LABEL="${BASH_REMATCH[1]}${BASH_REMATCH[2]}"
+    COMMIT_STORY_NUM="${BASH_REMATCH[2]}"
+    # The conventional-commit prefix with this story's number as its scope:
+    # `type(0*NNN):`, with the optional `!` a breaking change carries. Built
+    # once, and COMMIT_STORY_NUM is a digit run captured above — never input.
+    commit_anchor_re="^[[:alnum:]][[:alnum:]_-]*\(0*${COMMIT_STORY_NUM}\)!?:"
+    # The expected shape the warning names (R4.1), spelled ONCE and hoisted out
+    # of the loop: it is a constant of the run, not of the offending line.
+    # The second example is CONDITIONAL because the two spellings collapse into
+    # one for a directory that writes its number unpadded — `10-slug` has
+    # LABEL == NUM, and an unguarded skeleton then offers `feat(10)` and
+    # `fix(10)` as if they were alternatives, which reads as a bug in the
+    # message. Padding stays flexible either way, so the parenthetical does not.
+    COMMIT_ANCHOR_HINT="'type($COMMIT_STORY_LABEL): <subject>' (zero-padded or not"
+    if [[ "$COMMIT_STORY_LABEL" != "$COMMIT_STORY_NUM" ]]; then
+      COMMIT_ANCHOR_HINT+=" — 'fix($COMMIT_STORY_NUM): …' anchors too"
+    fi
+    COMMIT_ANCHOR_HINT+=")"
+  fi
+  # The FIELD in a body — `- Commit: <message>` at any indent — and never the
+  # `- [ ] N.M - Commit` header, whose next character after the dash is `[`.
+  # `[Cc]` rather than a lowercased comparison because the VALUE is reported
+  # verbatim and must not be case-folded; same idiom as `[Vv]erdict` below.
+  commit_field_re='^[[:space:]]*-[[:space:]]+[Cc]ommit:[[:space:]]*(.*)$'
+  # Trailing whitespace is what this actually removes — the capture above already
+  # starts at the first non-space. The leading half is kept anyway so the two
+  # regexes stay independent: the anchor test is `^`-anchored, and it would fail
+  # on a leading space the day someone loosens the field regex.
+  commit_trim_re='^[[:space:]]*(.*[^[:space:]])[[:space:]]*$'
+
   # --- Checkbox census (R3.1, R3.2, R3.5) ---
   # One line grammar, three box states:
   #   - [ ] open   - [x] closed   - [~] closed WITHOUT doing the work.
@@ -525,6 +610,44 @@ if [[ "$HAS_TASKS" == true ]]; then
       if [[ "$in_fence" == true ]]; then in_fence=false; else in_fence=true; fi
     elif [[ "$in_fence" == false && "$in_gates" == false && "${line,,}" =~ $gates_re ]]; then
       in_gates=true
+    fi
+    # The Commit-field anchor lint (R4.1), argued in full at its own section
+    # above. It rides THIS loop rather than opening a second pass for one
+    # reason: the fence state is already tracked here, and an illustrative
+    # `- Commit:` inside a fenced block is documentation showing the format, not
+    # a claim about a commit — exactly the reading the group-state gathering
+    # below applies to a fenced checkbox. Reusing that state is what keeps the
+    # file to ONE fence policy instead of two that can drift apart.
+    # It sits ABOVE the checkbox filter because it reads a FIELD: the filter
+    # discards every line that is not a box, and no Commit field is one.
+    # `in_gates` is deliberately NOT consulted — that exclusion exists because a
+    # numbered Quality Gate is shaped exactly like a group header and has to be
+    # disambiguated from one. A `- Commit:` field collides with no gate syntax,
+    # so there is nothing to disambiguate and nothing to suppress.
+    if [[ -n "$commit_anchor_re" && "$in_fence" == false && "$line" =~ $commit_field_re ]]; then
+      commit_msg="${BASH_REMATCH[1]}"
+      # Trim, then take what the QUOTES enclose: the template writes the message
+      # quoted (`- Commit: "feat(NNN): …"`), so the quotes are the field's
+      # punctuation and the subject being checked is what sits between them.
+      #
+      # UP TO THE CLOSING QUOTE, not "strip a matching outer pair", and the
+      # difference is a measured false positive rather than a nicety.
+      # .epic/archive/006-git-aware-lifecycle/tasks.md:429 writes
+      # `- Commit: "fix(006): …" — widened from the planned "…", which named …`:
+      # a correctly anchored message with an editorial note appended after the
+      # closing quote. That value neither starts nor ends as a matched pair, so
+      # a pair-strip left the leading `"` in place, the anchor regex could not
+      # see the `fix(` behind it, and a properly anchored field warned. Reading
+      # to the first closing quote gets the message right for both shapes, and
+      # an unquoted or unterminated value simply keeps what it has.
+      if [[ "$commit_msg" =~ $commit_trim_re ]]; then commit_msg="${BASH_REMATCH[1]}"; fi
+      case "$commit_msg" in
+        '"'*) commit_msg="${commit_msg#\"}"; commit_msg="${commit_msg%%\"*}" ;;
+        "'"*) commit_msg="${commit_msg#\'}"; commit_msg="${commit_msg%%\'*}" ;;
+      esac
+      if ! [[ "$commit_msg" =~ $commit_anchor_re ]]; then
+        add_warning "tasks.md line $LINE_NO: Commit message carries no story anchor — expected the subject scoped with this story's number, $COMMIT_ANCHOR_HINT, found: $commit_msg — without the anchor story-git-status.sh cannot see this commit"
+      fi
     fi
     [[ "$line" =~ $box_re ]] || continue
     box_char="${BASH_REMATCH[1]}"

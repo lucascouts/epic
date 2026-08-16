@@ -82,7 +82,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 5. Present combined results to the user
 6. If gaps found, offer to create new tasks to address them
 7. Apply the status transition for this verdict — see Status Transition (`validated`)
-8. On a passing verdict, surface the integration warning when it applies — `story-git-status.sh` piped into `bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --validate <NNN>`, which writes the sentence or nothing — then offer the archive and refresh the index. See Ordering at the pass point, then Integration Warning, Archive Offer and Index Refresh
+8. On a passing verdict, surface **at most one** integration warning when it applies — run `story-git-status.sh` once, then either report its `anchored_commits == 0` sentence or pipe the same JSON into `bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --validate <NNN>`, which writes the sentence or nothing — then offer the archive and refresh the index. See Ordering at the pass point, then Integration Warning (and its precedence table), Archive Offer and Index Refresh
 
 ## Status Transition (`validated`)
 
@@ -110,7 +110,7 @@ Apply the first rule that matches:
 
 | # | Step | Owner | Why here |
 |---|---|---|---|
-| 1 | Integration warning — validation passed but the story's work is not integrated into the main branch | Integration Warning, below | The caveat reaches the user before anything acts on the verdict |
+| 1 | Integration warning — validation passed but the story's work is not integrated into the main branch, or carries no anchor for the detection to find | Integration Warning, below | The caveat reaches the user before anything acts on the verdict |
 | 2 | The status write above (`validated`) | this section | — |
 | 3 | Archive offer, gated on a status of `done` or `validated` | Archive Offer, below | Its gate is true only once step 2 has written the value — which is why the gate reads `done` or `validated`, and not `done` alone |
 | 4 | Index refresh — regenerate the managed block in `.epic/EPIC.md` | Index Refresh, below | It renders what steps 2 and 3 changed: the new status, and the story's new location when the archive was accepted |
@@ -128,7 +128,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir> \
   | bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --validate <NNN>
 ```
 
-`<NNN>` is the story number **as the reader knows it** and is interpolated verbatim — pass `006`, not `6`. What the script writes, per the `integrated` field of the detector's JSON (`{story, main_branch, integrated, evidence, checked_at}`), **documents its three arms rather than prescribing a rendering to perform by hand**:
+`<NNN>` is the story number **as the reader knows it** and is interpolated verbatim — pass `006`, not `6`. What the script writes, per the `integrated` field of the detector's JSON (`{story, main_branch, integrated, evidence, anchored_commits, checked_at}`), **documents its three arms rather than prescribing a rendering to perform by hand**:
 
 | `integrated` | The script writes |
 |---|---|
@@ -151,6 +151,39 @@ story is done but no evidence of integration to <main> (no merged feat/NNN-* bra
 **When to ask is this mode's half, and the script cannot check it.** The warning's first three words are a precondition — "story is done" is true only on a passing verdict with no `[ ]` left — and the renderer renders whatever JSON it is handed. Rule 2's partial pass must therefore not call it at all: there the sentence would manufacture the very claim rule 2 exists to refuse.
 
 **It never gates the archive (R2.3).** `archive-story.sh`'s preflight does not consult integration state — an un-integrated story archives exactly like an integrated one. Whether a warned story needs a merge, a cherry-pick or nothing at all is the user's decision; the warning informs that decision and blocks nothing.
+
+### The anchor warning, and which of the two fires (R4.2)
+
+The detector answers **two nested questions**, and step 1 surfaces **at most one** of them. `integrated` asks *did this story's work reach the main branch*. `anchored_commits` — the number of commit subjects reachable from **HEAD** carrying this story's number as a delimited token, by the same `(NNN)` / `NNN-slug` rules the `message-ref` evidence kind applies (R4.3) — asks the question underneath it: *is the work findable at all*. Zero means this story's commits carry nothing that any detector can attribute back to it, on the main branch or anywhere else.
+
+**Counted from HEAD, not from the main branch**, and that is what keeps the two questions apart: a just-validated story normally still sits on its own unmerged branch, so a main-relative count would read zero for every correctly anchored story awaiting its merge — the state the integration warning above already covers.
+
+Same precondition as that warning — a passing verdict with no `[ ]` left, so `status:` reads `done` or `validated` (R4.2) — and the same severity. **A warning, never a verdict.** It is non-blocking and changes nothing else: not the pass, not step 2's status write, not step 3's offer, not the archive. The sentence, with `NNN` the story number as the reader knows it:
+
+```
+this story's commits carry no (NNN) anchor — integration detection cannot see them
+```
+
+**Run the detector once and decide from its JSON.** The count and `integrated` come out of the same object, so the pipe shown above becomes a second use of that object rather than a second detection — two runs could disagree, and the detector is the expensive half:
+
+```
+status_json=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir>) || status_json=""
+# then, only when the table below says so:
+printf '%s\n' "$status_json" | bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --validate <NNN>
+```
+
+**Precedence — apply the first rule that matches.** Left to themselves the two warnings double-fire on one story: a story with no anchored commits has no `message-ref` evidence either, so `integrated` is usually `false` for the very same underlying fact, and the user reads two sentences about one problem.
+
+| # | The detector's JSON | Step 1 surfaces |
+|---|---|---|
+| 1 | `integrated: null` — or nothing on the pipe at all, the detector's exit 2 | nothing whatsoever, whatever the count says |
+| 2 | `anchored_commits == 0` | the anchor sentence above, and the `--validate` render is **not** run |
+| 3 | `integrated` reads `false` | the integration sentence, from the render above |
+| 4 | anything else — `integrated` reads `true` | nothing; the work reached the main branch |
+
+`anchored_commits == 0` **wins** over rule 3 because it is the more specific finding: there is nothing for the detection to see at all, and "merge your branch" is the wrong instruction for a story whose commits carry no anchor to find. The integration warning therefore fires **only when** the story has anchored commits and none of them reached the main branch — the case it was written for.
+
+`integrated: null` silences both, and it is first for that reason. No main branch resolved, so nothing was measured, and *"not computable" must never dress up as a finding* — the rule stated verbatim one field over, applied here to the pair rather than to one of them. `anchored_commits` can be `null` on the same principle, when the count itself was not computable (a repository with no commits at all): it is not `0`, so rule 2 does not match and the count simply adds nothing to a decision rules 3 and 4 already made without it. That combination is close to unreachable in practice — a repository with no commits resolves no main branch either, so rule 1 catches it first — and it is written down because a silence that depends on being unreachable is a silence nobody can check.
 
 ## Archive Offer
 
