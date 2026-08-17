@@ -133,14 +133,14 @@ Sub-agents with specialized roles. Scale determines which personas are activated
 | Persona | Role | Scale | Agent file |
 |---|---|---|---|
 | **Executor** | Implements a sub-task following the strict 6-step protocol; step 5 is conditional (Refactor for test-first sub-tasks, Tests for test-after). Ends its report with a machine-liftable **closing block** — sub-task id, outcome (`done` / `close-tilde` + qualifier + reason / `failed`) and the pre-authored commit message it validated against. **Marks no box and runs no `git commit`**: the orchestrator lifts that block into `scripts/close-subtask.sh`, the one writer of the checkbox grammar | all scales (Simple+ complexity) | `agents/executor.md` |
-| **Tech Reviewer** | Reviews implementation at technology boundaries | all scales (multi-tech tasks) | `agents/tech-reviewer.md` |
+| **Tech Reviewer** | Reviews implementation at technology boundaries; holds `Bash` for measurement only (never mutating files or git state), so a finding resting on a runnable check carries the command and its output | all scales (multi-tech tasks) | `agents/tech-reviewer.md` |
 
 ### Post-Implementation Personas (validation)
 
 | Persona | Role | Scale | Agent file |
 |---|---|---|---|
-| **Validator** | Runs validation commands and tests per completed task | all scales | `agents/validator.md` |
-| **Auditor** | Compares implemented code against story + design artifacts | all scales | `agents/auditor.md` |
+| **Validator** | Runs validation commands and tests per completed task, writing the verdict to `.draft/validation-report.yaml` before any prose summary | all scales | `agents/validator.md` |
+| **Auditor** | Compares implemented code against story + design artifacts, writing `.draft/audit-report.yaml` before any prose summary | all scales | `agents/auditor.md` |
 
 The **main agent** (this skill) orchestrates: generates artifacts (story.md, design.md, tasks.md) during planning, delegates to Executors during run-mode, and coordinates Validators/Auditors during validation. The main agent retains conversation context with the user and handles git operations (commits) — post-merge, with the pre-authored message verbatim. It closes boxes too, but never by editing one: it invokes `scripts/close-subtask.sh` with the Executor's closing block, and the script performs the marking, the census and the `status:` stamp in a single transaction (a `failed` outcome makes no call at all).
 

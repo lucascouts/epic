@@ -572,15 +572,24 @@ If only one technology with no boundary interaction: skip review.
 > - Error responses from the external service are handled (timeouts, 4xx, 5xx)
 > - Authentication credentials are not hardcoded
 >
+> ## Measurement, Not Argument
+>
+> Where a check can be run, run it. A boundary defect is almost always observable: the linter names the undefined template variable, the compiler rejects the mismatched type, a `grep` shows the handler never inserts the key the template reads, `EXPLAIN` shows the index nobody built. Reasoning your way to the same conclusion produces a claim the reader has to take on trust — and a claim that is wrong looks exactly like one that is right.
+>
+> So a finding resting on a runnable check carries the exact command and its observed output, quoted rather than paraphrased: whoever fixes it re-runs your line and sees what you saw. A finding with no runnable check behind it is still a finding — say what you read and where, and never invent a command to dress it up.
+>
+> `Bash` is for measurement only — never mutate files or git state. Linters, compilers, type checkers, `grep`, test runs, query plans: yes. Formatters, codemods, `git add`/`commit`/`checkout`/`stash`/`reset`, installs that touch a lockfile, migrations against a real database: no. If a command would leave the tree or the repository different from how it found them, it is not yours to run.
+>
 > ## Protocol
 >
 > 1. Fetch current docs for [technology] to verify behavior assumptions — via a documentation MCP if one is available to you, otherwise `WebFetch`/`WebSearch`
 > 2. Review the implementation files against your focus area
-> 3. Report:
+> 3. Run the checks that bear on what you found, per Measurement above
+> 4. Report:
 >    - **PASS** — no issues found at this boundary
->    - **ISSUES** — list each issue with file path, line reference, and what is wrong
+>    - **ISSUES** — list each issue with file path, line reference, what is wrong, and — where a runnable check backs it — the command and its output
 >
-> Do NOT modify files. Only report."
+> Do NOT modify files or git state. Only report."
 
 ### Orchestrator Handling of Tech Review
 

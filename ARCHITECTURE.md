@@ -101,10 +101,13 @@ Each sub-agent runs in its own context window. The main agent selects inputs (fi
 Each `agents/*.md` declares its allowed tools. Narrower scopes catch drift early:
 
 - `executor`: `Read, Write, Edit, Bash, Glob, Grep` (implements code)
-- `auditor`: adds `LSP` (reads symbols, writes deviation register)
+- `auditor`: `Read, Glob, Grep, Bash, LSP, Write` — `LSP` reads symbols; `Write` reaches exactly one path, `.draft/audit-report.yaml`
 - `test-advisor`: `Read, Write, Bash, Glob, Grep` — no longer a read-only surface. It authors the failing tests for test-first sub-tasks (`Write`) and runs them to capture Red evidence (`Bash`). Its scope now covers `E2E` sub-tasks in addition to `Unit`/`Integration` — an `E2E` test is authored against the story's selected E2E tool (see [Preferred-tooling policy](#preferred-tooling-policy)) with Red-phase verification **deferred to Run mode**, so for those sub-tasks the Test Advisor writes the file but does not run `Bash`.
-- `analyst`, `architect`, `reviewer`, `tech-reviewer`: read-only surfaces
-- `validator`: `Read, Glob, Grep, Bash` (runs validation commands, no writes)
+- `analyst`, `architect`, `reviewer`: read-only surfaces
+- `tech-reviewer`: `Read, Glob, Grep, Bash, WebFetch, WebSearch` — `Bash` is measurement only (linters, compilers, greps, query plans), never a mutation of files or git state, so a finding that rests on a runnable check can carry the command and the output backing it
+- `validator`: `Read, Glob, Grep, Bash, Write` — `Write` reaches exactly one path, `.draft/validation-report.yaml`
+
+Both report writes are **carve-outs, not licences**: each agent names its one file, creates `.draft/` on demand, and treats any other write as a protocol violation. Nothing enforces that at runtime — the guard is the exact-set grant assertion in `tests/reports-by-artifact-policy.bats`, which reddens when a tool lands on an agent this list does not name.
 
 ---
 
