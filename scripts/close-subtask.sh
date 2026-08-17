@@ -304,12 +304,16 @@ resolve_by_number() {
 # grammar fork nobody sees until a box the other consumers count is a box this
 # one cannot find — or, worse, one it marks.
 #
-# HOW MANY CONSUMERS THERE ARE IS DELIBERATELY NOT WRITTEN DOWN. Three
-# successive prose enumerations of that list have been wrong, as the header of
+# HOW MANY CONSUMERS THERE ARE IS DELIBERATELY NOT WRITTEN DOWN. One prose
+# enumeration of that list after another has been wrong, as the header of
 # tests/checkbox-grammar.bats records: a prose count cannot fail, so it is
-# never corrected. The roster that CAN fail is that harness — it drives one
+# never corrected. What CAN fail is data plus a comparison —
+# tests/lib/checkbox-consumers.sh carries the roster,
+# tests/consumer-roster.bats derives the same set from scripts/ and NAMES any
+# script the two disagree about, and tests/checkbox-grammar.bats drives one
 # mixed fixture through every consumer and reddens when one drifts. Any script
-# carrying these regexes belongs in it, this one included.
+# carrying these regexes belongs on that roster and in that harness, this one
+# included.
 #
 # AND THIS ONE IS A WRITER, which raises the bar. A reader that drifts
 # mis-counts a file someone else wrote; a writer that drifts produces the file

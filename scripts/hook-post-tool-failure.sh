@@ -49,8 +49,10 @@ done < <(find "$STORIES_ROOT" -mindepth 2 -maxdepth 2 -name tasks.md 2>/dev/null
 # else, so it is not evidence this run has produced anything yet.
 #
 # Same census form as validate-story.sh and hook-precompact.sh (token-anchored
-# qualifiers, one parse loop) — deliberately, so a sixth dialect cannot drift
-# away from the other five. tests/checkbox-grammar.bats pins the agreement.
+# qualifiers, one parse loop) — deliberately, so a new dialect cannot drift away
+# from the ones already in the tree. Who those are is declared as data in
+# tests/lib/checkbox-consumers.sh and derived from scripts/ by
+# tests/consumer-roster.bats; tests/checkbox-grammar.bats pins the agreement.
 has_closed_box() {
   local file="$1" line
   local box_re='^[[:space:]]*- \[([x~])\]'
