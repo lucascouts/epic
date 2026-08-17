@@ -12,7 +12,7 @@ memory: project
 
 You are the **Auditor** persona for the epic story framework.
 
-## Memory (`.claude/agent-memory/auditor/`)
+## Memory (`.claude/agent-memory/epic-auditor/`)
 
 A persistent project-scoped memory directory is available across runs. Use it
 to accumulate findings that future audits should incorporate without

@@ -123,6 +123,25 @@ agents_granting() { # $1 = tool name
     | command grep -q 'audit-report\.yaml'
 }
 
+@test "1.2: the Auditor template's carve-out keeps the memory clause, and the Validator's stays memory-free" {
+  # R3.4, both halves. auditor.md's carve-out names the memory directory as the
+  # agent's OWN store so that 'one writable path' does not forbid the after-audit
+  # append the same file mandates. A restatement that drops the clause tells a
+  # template-spawned Auditor to violate its own system prompt — and it did:
+  # story 011's audit withheld its mandated append rather than risk it.
+  aud="$(md_section "$VALIDATE_MODE" '^## Auditor Sub-agent' '^## ')"
+  printf '%s\n' "$aud" | tr '\n' ' ' \
+    | command grep -qiE 'memory director[a-z]*[^.]{0,160}own store'
+
+  # The NEGATIVE half, and it is the load-bearing one. `memory: project` is
+  # carried by analyst and auditor alone, so a memory clause in the Validator's
+  # prompt would name a store that agent does not have. Deliberately broad — any
+  # mention of memory here reddens, because the failure mode is a well-meaning
+  # sweep copying the clause into every carve-out it can find.
+  val="$(md_section "$VALIDATE_MODE" '^## Validator Sub-agent' '^## ')"
+  ! printf '%s\n' "$val" | command grep -qi 'memory'
+}
+
 # --- 2.1: orchestrator consumes the files ------------------------------------
 
 @test "2.1: validate-mode removes the stale report file before spawning" {
@@ -143,8 +162,29 @@ agents_granting() { # $1 = tool name
 @test "2.1: an absent or unparseable report is re-requested once via SendMessage, then the run is failed" {
   # R2.3: the recovery path is one SendMessage, never a silent respawn and
   # never a verdict inferred from prose.
-  command grep -q 'SendMessage' "$VALIDATE_MODE"
-  flat "$VALIDATE_MODE" | command grep -qi 'unparseable'
+  #
+  # Scoped to the recovery subsection. The unscoped predecessor asked only
+  # whether `SendMessage` and `unparseable` appeared ANYWHERE in the mode file
+  # — and both do, in the R2.1 prose above — so deleting any of the three rows
+  # this case is named for left it green. Measured: three deletions, three
+  # false passes.
+  #
+  # End pattern is '^#', NOT the '^## ' the neighbouring cases use: that one
+  # carries a trailing space and so runs straight past a '###' subsection,
+  # swallowing the rest of the file and putting the scope back where it was.
+  # '#' anchored at line start cannot match the table's '| # |' header.
+  sec="$(md_section "$VALIDATE_MODE" '^### Absent or unparseable' '^#')"
+  # Flattened inline rather than via `flat`, which reads a file and cannot take
+  # a captured section on a pipe. A soft wrap must not hide a phrase.
+  sec="$(printf '%s\n' "$sec" | tr '\n' ' ')"
+
+  # ONE request, and by SendMessage — not a loop, not a respawn.
+  printf '%s\n' "$sec" \
+    | command grep -qiE '(^|[^A-Za-z])one[^A-Za-z][^.]{0,80}SendMessage'
+  # NEVER a silent respawn — the whole cost the report file exists to avoid.
+  printf '%s\n' "$sec" | command grep -qiE 'never[^.]{0,80}respawn'
+  # THEN THE RUN IS FAILED — task group 2's declared Risk, verbatim.
+  printf '%s\n' "$sec" | command grep -qiE 'the run[^.]{0,40}fail'
 }
 
 @test "2.1: the pass point keys off the report file's verdict" {
@@ -208,4 +248,46 @@ validator"
   # both new grants are Write or Bash, never Edit. A reddening here means a
   # grant came along for the ride.
   [ "$(agents_granting Edit)" = "executor" ]
+}
+
+# --- agent-definition conventions --------------------------------------------
+#
+# NO 011 SUB-TASK OWNS THE CASE BELOW, so it carries no `N.N:` prefix — the
+# per-sub-task filter (`bats --filter '^1\.1:'`) must keep answering for exactly
+# the sub-task it names, and a general convention borrowing a number would make
+# it answer for one more. It is parked in this file because a single case does
+# not earn a file of its own; move this block out when a second
+# agent-definition convention joins it. Its helper travels with it, which is why
+# that helper sits here rather than with the shared ones at the top.
+
+# The memory: line inside the frontmatter block only — the same shape as
+# frontmatter_tools, so prose about memory can never enrol an agent.
+frontmatter_memory() {
+  awk 'NR==1 && $0=="---" {inb=1; next}
+       inb && $0=="---" {exit}
+       inb && $0 ~ /^memory:/ {print; exit}' "$1"
+}
+
+@test "convention: an agent granted memory: project heads its Memory section with the epic- prefixed directory" {
+  # `.claude/agent-memory/epic-<name>/` is the runtime's path for a
+  # plugin-namespaced agent. Measured, not assumed: epic-analyst/ and
+  # epic-auditor/ exist and carry notes from prior runs, while the unprefixed
+  # pair these headings once named never existed at all — so the declaration
+  # sent an agent to consult and append to nothing.
+  #
+  # DERIVED FROM THE FRONTMATTER, never from a hardcoded pair, so a third
+  # memory-carrying agent joins this pin by existing rather than by someone
+  # remembering to come back here.
+  checked=0
+  for f in "$PLUGIN_ROOT"/agents/*.md; do
+    frontmatter_memory "$f" | command grep -q 'project' || continue
+    name="$(basename "$f" .md)"
+    heading="$(awk '/^## Memory/ {print; exit}' "$f")"
+    printf '%s\n' "$heading" | command grep -q "agent-memory/epic-${name}/"
+    checked=$(( checked + 1 ))
+  done
+  # Without this the loop is a vacuous pass: a frontmatter shape the helper
+  # stopped parsing would enrol nobody and the case would go green having
+  # pinned nothing — the exact defect this story exists to close.
+  [ "$checked" -ge 1 ]
 }

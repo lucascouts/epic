@@ -129,7 +129,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 > - List of sub-tasks whose `Tests:` field is not `None` but which have no pre-authored test at all (if any) — the refine-added case, reported separately
 > - 'All checks passed' if clean
 >
-> Do NOT modify any other file: that report is your only write, and any other write is a protocol violation — report what is wrong, never fix it."
+> Do NOT modify any other file: that report is your only write, and any other write is a protocol violation — report what is wrong, never fix it. Your memory directory is not a second path in the code under audit — it is your own store, governed by the Memory section of your agent definition."
 
 ## Validate Mode Procedure
 
