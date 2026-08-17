@@ -18,6 +18,7 @@ Triggered per-task or in batch after implementation. Can be invoked incrementall
 > "Validate the implementation of these completed tasks.
 >
 > Tasks file: [path to tasks.md]
+> Story directory: [path to .epic/stories/NNN-slug]
 > Completed tasks: [list of tasks marked `[x]`]
 > Closed without work: [list of tasks marked `[~]`, each with its qualifier — these have nothing to run]
 > Project root: [path]
@@ -27,22 +28,46 @@ Triggered per-task or in batch after implementation. Can be invoked incrementall
 > 2. If a Tests field exists, verify the test file exists and tests pass
 > 3. If a Commit sub-task exists, verify the commit was made (check git log)
 >
-> Report per sub-task:
+> Then settle the Quality Gates: for each gate in the Quality Gates section, decide from the task results whether it is satisfied, and record it PASS or FAIL with its evidence.
+>
+> Then, as the LAST step before composing any textual summary, write the whole verdict to `.draft/validation-report.yaml` in the story directory, creating `.draft/` on demand — fast and spike stories have none. The orchestrator concludes from that file, not from your reply:
+>
+> ```yaml
+> story: "NNN-slug"                       # the story directory name
+> generated_at: "2026-08-17T14:03:11Z"    # UTC, ISO 8601
+> verdict: pass                           # pass | fail — fail when any result is FAIL
+> results:
+>   - task: "1.1"
+>     result: PASS                        # PASS | FAIL | SKIP
+>     qualifier: null                     # on a SKIP from a [~] box: deferred | waived | n-a | superseded-by
+>     detail: "bats tests/foo.bats — 12 tests, 0 failures"
+>   - task: "2.1"
+>     result: SKIP
+>     qualifier: deferred
+>     detail: "closed without the work — needs the provider's live account"
+> gates:
+>   - gate: "All task validations pass"
+>     result: PASS                        # PASS | FAIL
+>     evidence: "no FAIL in results[]"
+> ```
+>
+> One results[] entry per sub-task you were given, `[x]` and `[~]` alike, and one gates[] entry per Quality Gate. A SKIP never fails the run.
+>
+> Only then summarize in prose:
 > - PASS: task N.N — validation succeeded
 > - FAIL: task N.N — [what failed and why]
 > - SKIP: task N.N — nothing to run (a Commit sub-task with no prior failures, or a `[~]` box closed without the work being done — name its qualifier)
+> - each Quality Gate as PASS or FAIL with evidence
 >
-> At the end, check Quality Gates:
-> - For each gate in the Quality Gates section, determine if it is satisfied based on task results
-> - Report each gate as PASS or FAIL with evidence
->
-> Do NOT modify any files. Only report results."
+> Do NOT modify any other file: that report is your only write, and any other write is a protocol violation — report what is wrong, never fix it."
 
 ## Auditor Sub-agent
 
 Triggered after all tasks are complete and Validator has passed. Performs a holistic review comparing what was planned vs what was built.
 
 > "Review the implementation against the story and design artifacts.
+>
+> Story directory: [path to .epic/stories/NNN-slug]
 >
 > Files to read:
 > - [path to story.md]
@@ -62,7 +87,40 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 > 9. If deviations.yaml has discoveries: verify each discovery was addressed in subsequent tasks (e.g., if a template engine gotcha was found, check that later tasks using templates account for it)
 > 10. Red precedence: every sub-task whose `Tests:` field is **not `None`** has both a pre-authored test and an entry in `.draft/red-evidence.yaml` with `failed: true` (or `red_deferred: true` for `E2E`); a missing entry is reported as a finding. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction. Quantify over the `Tests:` field, never over the set of authored tests — a sub-task added by a refinement after Phase 3 ran has no authored test, so "every sub-task with a pre-authored test" excludes the very sub-task that is broken. Report a non-`None` `Tests:` field with no authored test as its own finding.
 >
-> Return:
+> Then, as the LAST step before composing any textual summary, write the whole audit to `.draft/audit-report.yaml` in the story directory, creating `.draft/` on demand — fast and spike stories have none. The orchestrator concludes from that file, not from your reply; the head is the Validator's, key for key, so one reader parses both:
+>
+> ```yaml
+> story: "NNN-slug"                       # the story directory name
+> generated_at: "2026-08-17T14:03:11Z"    # UTC, ISO 8601
+> verdict: pass                           # pass | fail — see below
+> gaps:
+>   - requirement: "R2.3"                 # requirement number, component name or file path
+>     detail: "no recovery path when the report is unparseable"
+> unmet_gates:
+>   - gate: "All tests written and passing"
+>     evidence: "tests/foo.bats — 2 failures"
+> deviations_reviewed:
+>   - deviation: "2.1 — parser inlined instead of extracted"
+>     accurate: false                     # is the deviation's stated impact accurate?
+>     detail: "claims no callers; src/cli.ts calls it"
+> scope_creep:
+>   - item: "retry/backoff added to the HTTP client"
+>     detail: "not in story.md, not confirmed during clarify"
+> missing_red:
+>   - task: "2.2"
+>     kind: no-entry                      # a pre-authored test with no entry in .draft/red-evidence.yaml
+>   - task: "3.1"
+>     kind: no-test                       # a non-`None` Tests: field with no authored test at all
+> findings:
+>   - severity: issue                     # info | warning | issue
+>     check: "Dead code"                  # the checklist item it came from
+>     location: "src/db/pool.ts:88"
+>     detail: "import left behind by the refactor"
+> ```
+>
+> Every array is present even when empty (`gaps: []`) — only the empty one says checked and clean. `verdict` is `fail` when any gap, unmet gate, inaccurate deviation, scope-creep item, `missing_red` entry or `issue`-severity finding exists, and `pass` otherwise. `missing_red`'s `kind` keeps the two absences apart: `no-entry` for a pre-authored test with no Red evidence, `no-test` for a non-`None` `Tests:` field with no test at all.
+>
+> Only then summarize in prose:
 > - List of gaps found (cite requirement numbers, component names, file paths)
 > - List of quality gates not met
 > - List of unverified or inaccurate deviations (if any)
@@ -71,7 +129,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 > - List of sub-tasks whose `Tests:` field is not `None` but which have no pre-authored test at all (if any) — the refine-added case, reported separately
 > - 'All checks passed' if clean
 >
-> Do NOT modify any files. Only report results."
+> Do NOT modify any other file: that report is your only write, and any other write is a protocol violation — report what is wrong, never fix it."
 
 ## Validate Mode Procedure
 
