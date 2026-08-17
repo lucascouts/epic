@@ -19,6 +19,28 @@
 # a sentence may wrap — never an exact sentence, which would make every future
 # rewording a false Red.
 #
+# ...BUT THEY PIN POLARITY, NOT CO-OCCURRENCE. Behavior-level is not
+# direction-blind. A bare window pattern like `the run[^.]{0,40}fail` is
+# satisfied by "the run is **not** failed" exactly as by the real row, so it
+# stays green through an inversion of the rule it exists to guard — measured,
+# not supposed. A directional claim therefore carries its polarity token INSIDE
+# the match (`is failed`, `is a protocol violation`, `is your own store`,
+# `never … respawn`), leaving no gap for a negation to slip between the anchors.
+# Tighten only what is measured first: scope the section, count the candidate
+# spans, and confirm the phrase is the one the rule's own name already uses —
+# otherwise the pin becomes the sentence-pinning this header forbids above.
+#
+# Each such pattern is written out, never routed through a shared polarity
+# helper. A helper that rejected a negation in the window before the match would
+# false-Red on correct prose right here: auditor.md's memory clause reads "is
+# not a second path in the code under audit — it is your own store", so a
+# negation sits one clause ahead of the match by design.
+#
+# THIS HEADER IS A COMMENT, NOT A CLAIM UNDER TEST. No case in this suite pins
+# its own conventions. The rules above hold because the next author reads them,
+# not because dropping one would turn anything Red — and implying otherwise is
+# exactly the unearned confidence story 018 refused to buy.
+#
 # CASE NAMES CARRY THE SUB-TASK THAT OWNS THE PROSE (`1.1:` … `3.1:`), so
 # `bats --filter '^1\.1:'` answers for exactly that sub-task's contract. The
 # `2.2:` grant-set cases are the least-privilege pins the policy sub-task
@@ -90,7 +112,9 @@ agents_granting() { # $1 = tool name
 
 @test "1.1: validator carve-out — any other write is a protocol violation, .draft/ created on demand" {
   # R1.5: the no-modify rule narrows to a carve-out, it does not disappear.
-  flat "$VALIDATOR" | command grep -qiE 'protocol violation'
+  # The assertive frame `is a` is part of the match: the definition writes "Any
+  # other write is a protocol violation" verbatim, and the inversion breaks it.
+  flat "$VALIDATOR" | command grep -qiE 'is a protocol violation'
   # R1.3: fast/spike stories have no .draft/ until someone makes one.
   flat "$VALIDATOR" | command grep -qiE 'creat[a-zA-Z]*[^.]{0,80}\.draft'
 }
@@ -114,7 +138,8 @@ agents_granting() { # $1 = tool name
 }
 
 @test "1.2: auditor carve-out — any other write is a protocol violation, .draft/ created on demand" {
-  flat "$AUDITOR" | command grep -qiE 'protocol violation'
+  # Same assertive frame as the Validator's, and for the same reason.
+  flat "$AUDITOR" | command grep -qiE 'is a protocol violation'
   flat "$AUDITOR" | command grep -qiE 'creat[a-zA-Z]*[^.]{0,80}\.draft'
 }
 
@@ -130,8 +155,10 @@ agents_granting() { # $1 = tool name
   # template-spawned Auditor to violate its own system prompt — and it did:
   # story 011's audit withheld its mandated append rather than risk it.
   aud="$(md_section "$VALIDATE_MODE" '^## Auditor Sub-agent' '^## ')"
+  # `is your own store`, not a bare `own store`: the clause is what LICENSES the
+  # append, so "it is not your own store" must red rather than satisfy it.
   printf '%s\n' "$aud" | tr '\n' ' ' \
-    | command grep -qiE 'memory director[a-z]*[^.]{0,160}own store'
+    | command grep -qiE 'memory director[a-z]*[^.]{0,160}is your own store'
 
   # The NEGATIVE half, and it is the load-bearing one. `memory: project` is
   # carried by analyst and auditor alone, so a memory clause in the Validator's
@@ -183,8 +210,15 @@ agents_granting() { # $1 = tool name
     | command grep -qiE '(^|[^A-Za-z])one[^A-Za-z][^.]{0,80}SendMessage'
   # NEVER a silent respawn — the whole cost the report file exists to avoid.
   printf '%s\n' "$sec" | command grep -qiE 'never[^.]{0,80}respawn'
-  # THEN THE RUN IS FAILED — task group 2's declared Risk, verbatim.
-  printf '%s\n' "$sec" | command grep -qiE 'the run[^.]{0,40}fail'
+  # THEN THE RUN IS FAILED — task group 2's declared Risk, verbatim. The copula
+  # and the participle are required ADJACENT, not merely co-occurring within a
+  # window: an inversion writes `not` between them, and `the run[^.]{0,40}fail`
+  # matched "the run is **not** failed" exactly as it matched the real row.
+  # Safe to tighten because it is measured, not hoped: this section holds
+  # exactly one `the run … fail` span and it reads `the run is failed` — the
+  # same phrase row 3, task group 2's Risk and this case's own name all use, so
+  # prose that breaks it is a rewrite of the rule, not a rewording of it.
+  printf '%s\n' "$sec" | command grep -qiE 'the run is failed'
 }
 
 @test "2.1: the pass point keys off the report file's verdict" {
