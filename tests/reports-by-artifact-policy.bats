@@ -36,6 +36,68 @@
 # not a second path in the code under audit — it is your own store", so a
 # negation sits one clause ahead of the match by design.
 #
+# WHEN THE NEGATION PREFIXES A QUANTIFIER there is no polarity token to move
+# inside. `is failed` works because the negation splits two anchors; `one`
+# offers no such gap — it is a substring of every phrase that reverses it
+# (`more than one`, `not just one`, `one or more`), so a pattern pinning `one`
+# is satisfied by its own negation. The sanctioned form is a SECOND, inline
+# negated grep naming that claim's own modifiers (`:296`) — never a generic
+# one, for the reason the paragraph above gives. Naming the modifiers is also
+# what keeps it behavior-level: it rejects the handful of phrases that reverse
+# the count, not the sentence that states it.
+#
+# A NEGATED ASSERTION MUST NOT REST ON BEING LAST. Bash exempts a `!`-inverted
+# command from errexit, so anywhere but the final statement of an @test its
+# non-zero status is discarded and the assertion is inert — green whatever the
+# file under test says. Probed, not reasoned: `! true` followed by one more
+# assertion passes, while `if true; then return 1; fi` in that same slot fails.
+# The sanctioned shape is therefore `if … then return 1; fi` (`:296`). The
+# subshell `( ! … )` also survives being moved and was rejected on diagnostics
+# alone — bats named the `return 1` line for the `if` and only the `@test` line
+# for the subshell, pointing at the case instead of the assertion.
+#
+# Five negations in this suite are correct TODAY only because nothing follows
+# them, each one appended assertion away from silently becoming a no-op: `:231`
+# here, `tests/secrets-allowlist.bats:344`, `tests/spike-stale.bats:85` and
+# `:91`, and `tests/validate-story.bats:238`. Measured, not assumed — each
+# pattern was widened to match everything and each owning case went Red.
+# Convert one when you touch its case, not in a sweep.
+# Five OTHERS were already inert by this rule and sub-task 1.7 converts them:
+# `tests/supersede-story.bats:383`, `:384`, `:407`, `:410` and
+# `tests/spike-validation.bats:182`.
+#
+# WHERE THE POLARITY RULE DOES NOT HOLD IN THIS FILE, named rather than quietly
+# excepted: a convention the file contradicts gets read as an invariant, which
+# is worse than no convention. Every site below predates this story, and closing
+# them is a story of its own rather than a sweep bolted on here. Two grades,
+# both measured:
+#
+#   DIRECTION-BLIND — a straight inversion leaves them green. `:241` asks only
+#   that some line mentioning `stale` also names a report file, so rewriting
+#   `Delete`/`delete`/`delete that agent's` to `Keep`/`keep`/`never delete that
+#   agent's` at all three prose sites in references/validate-mode.md — and
+#   `Before each spawn` to `After` on top of that — leaves it green: it pins
+#   neither the deletion verb nor the ordering. `:341`
+#   (`command[^.]{0,120}output`) states an obligation rather than a direction
+#   and fails the same way, staying green with tech-reviewer.md's `carries the
+#   exact command and its observed output` rewritten to `need not carry …`. A
+#   second span in that file satisfies the pattern too, so even deleting the
+#   rule outright would not Red it.
+#
+#   NEGATION-PERMEABLE — they catch a rewrite but not a negation parked in
+#   front of the match, which is the `the run[^.]{0,40}fail` defect again.
+#   `:172` and its 1.2 twin Red when `before composing any textual summary`
+#   becomes `after composing …`, and stay green when it becomes `never before
+#   …`. `:181` and its twin stay green when both `creating .draft/ on demand`
+#   sites become `never creating .draft/`.
+#
+# A pattern naming only a file, a field or a topic (`audit-report.yaml`,
+# `verdict`, `measurement`) makes no directional claim and so has no polarity to
+# pin — the first paragraph governs those. Outside the class but owed to the
+# same follow-up: `is a protocol violation` is pinned in the agent files above
+# and nowhere for the prompt-template copies at references/validate-mode.md:62
+# and :132, and inverting both leaves the whole 482-case suite green.
+#
 # THIS HEADER IS A COMMENT, NOT A CLAIM UNDER TEST. No case in this suite pins
 # its own conventions. The rules above hold because the next author reads them,
 # not because dropping one would turn anything Red — and implying otherwise is
@@ -208,16 +270,49 @@ agents_granting() { # $1 = tool name
   # ONE request, and by SendMessage — not a loop, not a respawn.
   printf '%s\n' "$sec" \
     | command grep -qiE '(^|[^A-Za-z])one[^A-Za-z][^.]{0,80}SendMessage'
+  # ...AND NOT MORE THAN ONE. The positive pattern above cannot carry this:
+  # `one` is a substring of every phrase that negates it (`more than one`,
+  # `not just one`, `one or more`), so there is no polarity token to move
+  # inside the match the way `is failed` does below. Hence a second, negated
+  # grep — measured green under all three inversions without it.
+  #
+  # NOT a bare `!`, and that is not a style choice: bash exempts a `!`-inverted
+  # command from errexit, so its status is discarded anywhere but the LAST
+  # statement of the @test — and two assertions follow this one. Measured: as a
+  # `!` here, this reddened none of the three inversions. `:231` uses that shape
+  # and is load-bearing only because nothing follows it there.
+  #
+  # NOT the generic helper the header forbids: that one rejects any negation in
+  # the window before any match and false-Reds on auditor.md's memory clause by
+  # construction. This names the modifiers of ONE quantifier, stays inline in
+  # the case that owns it, and is silent on the unmutated section — which holds
+  # two further `one`s ("One request, to the agent…", "after that one request").
+  #
+  # Two red-on-correct vectors, both measured and accepted rather than
+  # discovered later: "a single `SendMessage`" is PRE-EXISTING — the positive
+  # pattern above reds it too, so this line adds nothing there; "never more than
+  # one `SendMessage`" is ADDED, and accepted because row 2 is an imperative
+  # action cell and a prohibition does not fit that column.
+  if printf '%s\n' "$sec" \
+    | command grep -qiE '((more than|not just|not only|at least|greater than)[^.]{0,10}one[^A-Za-z]|one[^A-Za-z]{1,4}or more)'
+  then
+    return 1
+  fi
   # NEVER a silent respawn — the whole cost the report file exists to avoid.
   printf '%s\n' "$sec" | command grep -qiE 'never[^.]{0,80}respawn'
-  # THEN THE RUN IS FAILED — task group 2's declared Risk, verbatim. The copula
-  # and the participle are required ADJACENT, not merely co-occurring within a
-  # window: an inversion writes `not` between them, and `the run[^.]{0,40}fail`
-  # matched "the run is **not** failed" exactly as it matched the real row.
-  # Safe to tighten because it is measured, not hoped: this section holds
-  # exactly one `the run … fail` span and it reads `the run is failed` — the
-  # same phrase row 3, task group 2's Risk and this case's own name all use, so
-  # prose that breaks it is a rewrite of the rule, not a rewording of it.
+  # THEN THE RUN IS FAILED — story 011's sub-task 2.1 ToDo, verbatim: "still
+  # absent → the run is failed, stated in exactly those terms (R2.3)". The
+  # copula and the participle are required ADJACENT, not merely co-occurring
+  # within a window: an inversion writes `not` between them, and
+  # `the run[^.]{0,40}fail` matched "the run is **not** failed" exactly as it
+  # matched the real row. Safe to tighten because it is measured, not hoped:
+  # this section holds exactly one `the run … fail` span and it reads `the run
+  # is failed` — the same phrase row 3, that ToDo and this case's own name all
+  # use, so prose that breaks it is a rewrite of the contract, not a rewording
+  # of it. NOT task group 2's Risk field, which an earlier draft of this comment
+  # credited: that field reads "recovery path wording must not permit silent
+  # respawn" and never carries the phrase — the grep on the line above is what
+  # answers for it.
   printf '%s\n' "$sec" | command grep -qiE 'the run is failed'
 }
 
