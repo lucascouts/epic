@@ -1,21 +1,27 @@
 #!/usr/bin/env bats
 # Story 004, sub-tasks 2.3 and 5.3/5.4 — cross-regression harness (R4.1, R5.1,
-# R3.3, R3.4); seventh consumer added by story 016, sub-task 1.2.
-# ONE mixed fixture ([x] / [ ] / [~] terminal / [~] deferred) is passed
-# through the SEVEN checkbox consumers — validate-story.sh, cross-reference.sh,
-# hook-task-completed.sh, monitor-stale.sh, hook-precompact.sh,
-# hook-post-tool-failure.sh and close-subtask.sh — asserting they agree on which
-# boxes exist and which work is open. This pins the duplicated regex so one
-# drifted copy cannot silently reopen the false-clean/false-orphan class fixed
-# in e890d02.
+# R3.3, R3.4); seventh consumer added by story 016, sub-task 1.2; the roster
+# moved out to tests/lib/checkbox-consumers.sh in story 017, sub-task 1.3.
+# ONE mixed fixture ([x] / [ ] / [~] terminal / [~] deferred) is passed through
+# the checkbox consumers, asserting they agree on which boxes exist and which
+# work is open. This pins the duplicated regex so one drifted copy cannot
+# silently reopen the false-clean/false-orphan class fixed in e890d02.
 #
-# SIX OF THE SEVEN READ THE GRAMMAR. close-subtask.sh WRITES it, and is the only
-# one of the seven that does — the one sanctioned writer (story 010). That puts
-# it further inside this roster, not outside it: a reader that drifts mis-counts
-# a file someone else wrote, while a writer that drifts produces the file every
-# reader then mis-counts. It is compared here through the `census` object of its
-# stdout JSON, which is its own reading of the boxes as they now stand — the
-# same statement the six readers make directly in their output.
+# WHICH SCRIPTS THOSE ARE IS DECLARED AS DATA, NOT LISTED HERE.
+# tests/lib/checkbox-consumers.sh carries the roster — CHECKBOX_CONSUMERS — and
+# the scan that derives the same set from scripts/; tests/consumer-roster.bats
+# reddens and NAMES the script when the two disagree. Each @test title below
+# says which consumer that case drives, so this file states what it compares
+# without restating who they are: one list, in one place, that can fail.
+#
+# THE ROSTER HOLDS A WRITER, NOT ONLY READERS. close-subtask.sh WRITES the
+# grammar — the one sanctioned writer (story 010) — and every other consumer
+# only reads it. That puts it further inside the roster, not outside it: a
+# reader that drifts mis-counts a file someone else wrote, while a writer that
+# drifts produces the file every reader then mis-counts. It is compared here
+# through the `census` object of its stdout JSON, which is its own reading of
+# the boxes as they now stand — the same statement the readers make directly in
+# their output.
 #
 # Three enumerations of that list have now been wrong: the design said "6 regex
 # places across 4 scripts", sub-task 5.3 raised it to 5 and still missed
@@ -26,7 +32,12 @@
 # six, so the count was stale a fourth time — this time in the very file whose
 # job is to make it fail. The rule is unchanged; an eighth belongs here too.
 #
-# Mixed fixture totals (the shared truth all seven must agree on):
+# THAT HISTORY IS KEPT DELIBERATELY, as the argument for the derivation rather
+# than as a claim anyone still has to maintain: story 017 found the enumeration
+# wrong a fifth time and moved the roster into the library named above, where
+# the set is derived from scripts/ instead of counted by hand.
+#
+# Mixed fixture totals (the shared truth every consumer must agree on):
 #   total = 5 boxes · closed = 3 ([x] 1.1, 1.2 + terminal [~] 1.3)
 #   deferred = 1 ([~] 1.4) · open = 1 ([ ] 1.5)
 #
@@ -67,7 +78,7 @@ created: 2026-08-02
 ---
 
 ## Introduction
-Shared mixed-grammar fixture for the four checkbox consumers.
+Shared mixed-grammar fixture for the checkbox consumers.
 
 ### R1. First requirement
 #### Acceptance Criteria
