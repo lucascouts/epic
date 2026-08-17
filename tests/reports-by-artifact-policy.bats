@@ -1,0 +1,211 @@
+#!/usr/bin/env bats
+# Story 011, Task 2.2 — policy test for the wave-011 contract.
+#
+# WHAT THIS SUITE PINS. Reports-by-artifact turns the Validator's and Auditor's
+# verdicts into files (.draft/validation-report.yaml, .draft/audit-report.yaml)
+# written BEFORE the textual summary, makes validate-mode conclude from those
+# files rather than from the agent's final message, and gives the Tech Reviewer
+# Bash restricted to measurement. All of that is prose in agent definitions and
+# mode references — nothing executable — so the contract survives future edits
+# only if a test names it. This file is that test (R1.5, R2.1, R3.1, R3.4).
+#
+# FIXTURES ARE THE REPO FILES THEMSELVES. Every case is a pure content
+# assertion on agents/*.md, references/validate-mode.md and
+# references/run-mode.md — no temp dirs, no mutation, so no mktemp/teardown.
+#
+# ASSERTIONS ARE BEHAVIOR-LEVEL, NOT SENTENCE-PINNED. The story has no
+# design.md, so cases assert that a fact is stated (a filename, a grant, an
+# ordering, a prohibition), matched case-insensitively on flattened text where
+# a sentence may wrap — never an exact sentence, which would make every future
+# rewording a false Red.
+#
+# CASE NAMES CARRY THE SUB-TASK THAT OWNS THE PROSE (`1.1:` … `3.1:`), so
+# `bats --filter '^1\.1:'` answers for exactly that sub-task's contract. The
+# `2.2:` grant-set cases are the least-privilege pins the policy sub-task
+# itself owns: Write and Bash land on exactly the agents this story names, and
+# Edit moves nowhere. The Edit case is a GREEN PIN — correct today, present so
+# a grant that "comes along for the ride" reddens deliberately.
+
+setup() {
+  PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  VALIDATOR="$PLUGIN_ROOT/agents/validator.md"
+  AUDITOR="$PLUGIN_ROOT/agents/auditor.md"
+  TECH_REVIEWER="$PLUGIN_ROOT/agents/tech-reviewer.md"
+  VALIDATE_MODE="$PLUGIN_ROOT/references/validate-mode.md"
+  RUN_MODE="$PLUGIN_ROOT/references/run-mode.md"
+}
+
+# The tools: line inside the frontmatter block only — a tool named in prose
+# ("do not use Write") must never satisfy a grant assertion.
+frontmatter_tools() {
+  awk 'NR==1 && $0=="---" {inb=1; next}
+       inb && $0=="---" {exit}
+       inb && $0 ~ /^tools:/ {print; exit}' "$1"
+}
+
+# Word-boundary match without \b (a GNU-ism): Write must not match WebSearch,
+# Bash must not match a hypothetical BashOutput.
+grants() { # $1 = agent file, $2 = tool name
+  frontmatter_tools "$1" | command grep -qE "(^|[^A-Za-z])$2([^A-Za-z]|$)"
+}
+
+# Flatten to one line so a fact split across a soft wrap still matches.
+flat() { tr '\n' ' ' < "$1"; }
+
+# Lines of one markdown section: from the first heading matching $2 to the
+# next heading matching $3 (exclusive).
+md_section() { # $1 = file, $2 = start regex, $3 = end regex
+  awk -v start="$2" -v end="$3" '
+    !inb && $0 ~ start {inb=1; next}
+    inb && $0 ~ end {exit}
+    inb {print}' "$1"
+}
+
+# The sorted list of agents whose frontmatter grants a tool — the shape the
+# grant-set pins compare against, so an agent ADDED to the grant is as loud as
+# one removed.
+agents_granting() { # $1 = tool name
+  for f in "$PLUGIN_ROOT"/agents/*.md; do
+    if grants "$f" "$1"; then
+      basename "$f" .md
+    fi
+  done | sort
+}
+
+# --- 1.1: Validator report contract ------------------------------------------
+
+@test "1.1: validator frontmatter grants Write" {
+  grants "$VALIDATOR" "Write"
+}
+
+@test "1.1: validator names .draft/validation-report.yaml, its verdict, and the write-before-summary ordering" {
+  command grep -q 'validation-report\.yaml' "$VALIDATOR"
+  # R1.4: the file carries the overall verdict, not only per-task lines.
+  flat "$VALIDATOR" | command grep -qi 'verdict'
+  # R1.1: the write precedes the textual summary — the ordering is the whole
+  # point, because a summary-first agent can still end on an intermediate line
+  # with no file written.
+  flat "$VALIDATOR" | command grep -qiE 'before[^.]{0,160}summar'
+}
+
+@test "1.1: validator carve-out — any other write is a protocol violation, .draft/ created on demand" {
+  # R1.5: the no-modify rule narrows to a carve-out, it does not disappear.
+  flat "$VALIDATOR" | command grep -qiE 'protocol violation'
+  # R1.3: fast/spike stories have no .draft/ until someone makes one.
+  flat "$VALIDATOR" | command grep -qiE 'creat[a-zA-Z]*[^.]{0,80}\.draft'
+}
+
+@test "1.1: validate-mode Validator prompt template mirrors the report file" {
+  # R3.4: the duplicated template drifts unless it lands in the same story.
+  md_section "$VALIDATE_MODE" '^## Validator Sub-agent' '^## ' \
+    | command grep -q 'validation-report\.yaml'
+}
+
+# --- 1.2: Auditor report contract --------------------------------------------
+
+@test "1.2: auditor frontmatter grants Write" {
+  grants "$AUDITOR" "Write"
+}
+
+@test "1.2: auditor names .draft/audit-report.yaml, its verdict, and the write-before-summary ordering" {
+  command grep -q 'audit-report\.yaml' "$AUDITOR"
+  flat "$AUDITOR" | command grep -qi 'verdict'
+  flat "$AUDITOR" | command grep -qiE 'before[^.]{0,160}summar'
+}
+
+@test "1.2: auditor carve-out — any other write is a protocol violation, .draft/ created on demand" {
+  flat "$AUDITOR" | command grep -qiE 'protocol violation'
+  flat "$AUDITOR" | command grep -qiE 'creat[a-zA-Z]*[^.]{0,80}\.draft'
+}
+
+@test "1.2: validate-mode Auditor prompt template mirrors the report file" {
+  md_section "$VALIDATE_MODE" '^## Auditor Sub-agent' '^## ' \
+    | command grep -q 'audit-report\.yaml'
+}
+
+# --- 2.1: orchestrator consumes the files ------------------------------------
+
+@test "2.1: validate-mode removes the stale report file before spawning" {
+  # R2.2: a leftover from a prior run must never read as a fresh verdict.
+  # Line-based co-location on purpose: 'stale' alone matches the Index Refresh
+  # section's "a stale rendering", which has nothing to do with reports.
+  command grep -i 'stale' "$VALIDATE_MODE" \
+    | command grep -qiE 'validation-report|audit-report|report file'
+}
+
+@test "2.1: the procedure reads both verdicts from the report files" {
+  # R2.1: steps 3-5 conclude from disk; the message is courtesy.
+  proc="$(md_section "$VALIDATE_MODE" '^## Validate Mode Procedure' '^## ')"
+  printf '%s\n' "$proc" | command grep -q 'validation-report'
+  printf '%s\n' "$proc" | command grep -q 'audit-report'
+}
+
+@test "2.1: an absent or unparseable report is re-requested once via SendMessage, then the run is failed" {
+  # R2.3: the recovery path is one SendMessage, never a silent respawn and
+  # never a verdict inferred from prose.
+  command grep -q 'SendMessage' "$VALIDATE_MODE"
+  flat "$VALIDATE_MODE" | command grep -qi 'unparseable'
+}
+
+@test "2.1: the pass point keys off the report file's verdict" {
+  # R2.4: stamping `validated` reads the file, not the message. Scoped to the
+  # Status Transition section — "reported" elsewhere must not satisfy it.
+  md_section "$VALIDATE_MODE" '^## Status Transition' '^## ' \
+    | command grep -qiE 'validation-report|audit-report|report file'
+}
+
+# --- 3.1: Tech Reviewer measures ---------------------------------------------
+
+@test "3.1: tech-reviewer frontmatter grants Bash" {
+  grants "$TECH_REVIEWER" "Bash"
+}
+
+@test "3.1: tech-reviewer's Bash is measurement-only and never mutates" {
+  # R3.1 + R3.3: the grant arrives WITH its restriction, and the no-modify
+  # rule survives reworded — both facts, not either one.
+  flat "$TECH_REVIEWER" | command grep -qi 'measurement'
+  flat "$TECH_REVIEWER" | command grep -qiE '(never|not)[^.]{0,80}mutat'
+}
+
+@test "3.1: a tech-reviewer finding resting on a runnable check cites command and output" {
+  # R3.2: measured, not argued — the finding carries the evidence pair.
+  flat "$TECH_REVIEWER" | command grep -qiE 'command[^.]{0,120}output'
+}
+
+@test "3.1: run-mode Tech Reviewer prompt template mirrors the measurement rule" {
+  # R3.4: the duplicated template in references/run-mode.md moves in the same
+  # story as the agent definition.
+  md_section "$RUN_MODE" '^### Tech Reviewer Prompt Template' '^##' \
+    | command grep -qi 'measurement'
+}
+
+# --- 2.2: least-privilege grant sets -----------------------------------------
+
+@test "2.2: Write is granted to exactly auditor, executor, test-advisor and validator" {
+  # Constraint: Validator/Auditor grow by exactly Write. executor and
+  # test-advisor already held it; nobody else joins. An exact-set compare
+  # reddens on an agent ADDED as loudly as on one removed.
+  expected="auditor
+executor
+test-advisor
+validator"
+  [ "$(agents_granting Write)" = "$expected" ]
+}
+
+@test "2.2: Bash is granted to exactly auditor, executor, tech-reviewer, test-advisor and validator" {
+  # Constraint: Tech Reviewer grows by exactly Bash; the four existing holders
+  # keep theirs.
+  expected="auditor
+executor
+tech-reviewer
+test-advisor
+validator"
+  [ "$(agents_granting Bash)" = "$expected" ]
+}
+
+@test "2.2: PIN Edit stays the executor's alone" {
+  # GREEN PIN — true before this story and required to stay true through it:
+  # both new grants are Write or Bash, never Edit. A reddening here means a
+  # grant came along for the ride.
+  [ "$(agents_granting Edit)" = "executor" ]
+}

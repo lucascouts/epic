@@ -135,12 +135,44 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 
 1. Resolve story directory from NNN
 2. Read tasks.md and take the checkbox census. A story is **complete** when **no `[ ]` remains**: it is **`done`** when every box is `[x]` or terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), and **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`. `done-except-external` is computed at read time, never written to a file. Only `[x]` sub-tasks have an implementation to validate — see [tasks.md](tasks.md#completion)
-3. Spawn Validator sub-agent — runs validation commands and tests per task
-4. If Validator passes, spawn Auditor sub-agent — compares code against story + design, reviews deviation register
-5. Present combined results to the user
+3. Delete the stale `.draft/validation-report.yaml`, then spawn the Validator sub-agent — it runs each task's validation command and tests, and writes that file as its last step. Take the verdict from the file
+4. If `.draft/validation-report.yaml` reads `verdict: pass`, delete the stale `.draft/audit-report.yaml`, then spawn the Auditor sub-agent — compares code against story + design, reviews the deviation register — and take its verdict from that file the same way. On `verdict: fail` the Auditor is not spawned
+5. Present the combined results to the user, composed from the two files: the Validator's `results[]` and `gates[]`, the Auditor's `gaps[]`, `unmet_gates[]`, `deviations_reviewed[]`, `scope_creep[]`, `missing_red[]` and `findings[]`
 6. If gaps found, offer to create new tasks to address them
 7. Apply the status transition for this verdict — see Status Transition (`validated`)
 8. On a passing verdict, surface **at most one** integration warning when it applies — run `story-git-status.sh` once, then either report its `anchored_commits == 0` sentence or pipe the same JSON into `bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --validate <NNN>`, which writes the sentence or nothing — then offer the archive and refresh the index. See Ordering at the pass point, then Integration Warning (and its precedence table), Archive Offer and Index Refresh
+
+### The verdict is the file; the reply is a courtesy (R2.1)
+
+Both agents write their report as the **last** step of their protocol, before composing any prose ([validator.md](../agents/validator.md), [auditor.md](../agents/auditor.md)), and steps 3-5 conclude from those two files. The final message is a convenience for the human reading along and **the source of no pass/fail decision** — an agent that ends on an intermediate line swallows its own reply, and the verdict is on disk regardless. That failure is measured, not hypothetical: before the files existed it cost a `SendMessage` round, or a respawn that re-ran the entire suite.
+
+**Read `verdict`; never re-derive it.** Each agent computes its own by its own rule — a SKIP never fails the Validator, and `info` and `warning` findings never fail the Auditor — so a second derivation here is a second rule, and two rules disagree on the first story that tells them apart. The arrays are what step 5 presents and step 6 turns into tasks, never what the pass/fail is computed from.
+
+### Before each spawn, delete that agent's stale report file (R2.2)
+
+Step 3 removes `.draft/validation-report.yaml` and step 4 removes `.draft/audit-report.yaml`, each immediately before spawning the agent that owns it. Once an agent fails to write, a leftover from a prior run is indistinguishable from a fresh verdict — and *does the file exist* is exactly the test the next step performs, so without the delete the flow reads last week's `pass` as this run's.
+
+**That agent's file only, never both at once.** The Validator runs first and the Auditor only on its pass, so a single wipe at step 3 would destroy the Validator verdict steps 5, 7 and 8 still need. Pairing each delete with its spawn also settles the file the run never touches: a report is read only by the step that spawned its agent, so on a Validator `fail` the Auditor's file is neither refreshed nor consulted.
+
+**Deleting what is not there is a no-op, never an error, and never a reason to skip the spawn.** A fast or spike story has no `.draft/` at all — both agents create it on demand — so a missing file and a missing directory are the ordinary first-run state.
+
+### Absent or unparseable: one re-request, then the run is failed (R2.3)
+
+Apply the first row that matches, once the agent returns:
+
+| # | The report file | Then |
+|---|---|---|
+| 1 | Present and parses | read `verdict` and carry on — the ordinary case |
+| 2 | Absent, empty, truncated, or not parseable as YAML | **one** `SendMessage` to the **same agent**, asking it to write its report file now |
+| 3 | Still absent or still unparseable after that one request | **the run is failed** — report it in those terms and stop |
+
+**One request, to the agent that already did the work**, because it still holds the context that produced the verdict: re-emitting the file costs a message rather than a validation suite.
+
+**Never respawn silently.** A respawn re-runs every command and every test — precisely the cost the file exists to save — and a second agent that also ends on an intermediate line leaves the flow looping over one failure. Running validate again is the user's call, made with the failure in view.
+
+**Never infer a verdict from prose.** Whatever the agent did say — including a summary that reads like a clean pass — is not a verdict, and R2.1 has no exception for the case where the file is missing: a verdict assembled from chat is the unverifiable claim the file was introduced to replace.
+
+A failed run **writes no status and makes no offer** — rule 3 below, reached as any failure reaches it.
 
 ## Status Transition (`validated`)
 
@@ -148,17 +180,17 @@ Validate mode owns exactly one of the six `status:` values — `validated` — a
 
 **The write mechanism is defined once**, in [run-mode.md](run-mode.md#status-transitions) — `Edit` on the frontmatter line and never `Write`, the same value in every artifact that carries frontmatter, the `Edit` adding the field on a legacy story that never had one. Validate mode reuses it unchanged; restating it here is exactly how the two copies would drift apart. A failed write is reported and the flow continues: `status:` is advisory metadata and must never change, delay or block the verdict it is recording.
 
-Apply the first rule that matches:
+**The verdict read here is the files' (R2.4).** Rules 1-3 turn on the `verdict` field of `.draft/validation-report.yaml` and `.draft/audit-report.yaml` — never on what an agent said in chat, and never on a re-derivation from their arrays (see The verdict is the file, above). Apply the first rule that matches:
 
 | # | The verdict | Then |
 |---|---|---|
-| 1 | Validator **and** Auditor pass, and no `[ ]` remains | write `validated` (nothing to do if the field already reads `validated`) |
-| 2 | Validator **and** Auditor pass, and at least one `[ ]` remains | write nothing — report the pass and state why the status was not advanced |
-| 3 | Either sub-agent fails | write nothing — leave `status:` exactly as it was |
+| 1 | Both files read `verdict: pass`, and no `[ ]` remains | write `validated` (nothing to do if the field already reads `validated`) |
+| 2 | Both files read `verdict: pass`, and at least one `[ ]` remains | write nothing — report the pass and state why the status was not advanced |
+| 3 | Either file reads `verdict: fail`, or no verdict was readable at all | write nothing — leave `status:` exactly as it was |
 
 **Rule 2 — a partial validation must not manufacture the lie.** `/epic:epic stories validate NNN` can be invoked at any time, including on a story that still has open `[ ]` boxes: the Validator simply has fewer `[x]` sub-tasks to run, and it can still pass. Writing `validated` there would immediately trip `validate-story.sh`'s ahead-of-checkboxes warning — `done` or `validated` while a `[ ]` remains (R2.3) — so the engine would have written the exact claim that check exists to expose. Report the pass instead, and say why the status stayed where it is: **`validated` means "the finished story was verified", not "the part that exists so far looks fine".** When the remaining boxes close, Run mode writes its own transition, and the next passing verdict earns `validated`.
 
-**Rule 3 — a failing verdict writes nothing at all.** Not `in-progress`, and not a rollback of a `validated` left by an earlier pass. A failure is a report, not a lifecycle transition; the story keeps whatever state its last real transition recorded.
+**Rule 3 — a failing verdict writes nothing at all.** Not `in-progress`, and not a rollback of a `validated` left by an earlier pass. A failure is a report, not a lifecycle transition; the story keeps whatever state its last real transition recorded. A run failed for want of a readable report lands here too: an unknown verdict is not a passing one.
 
 **`in-progress → validated`, skipping `done`.** A story whose only non-`[x]` boxes are `[~] (deferred: …)` never receives `done`: Run mode writes `done` only when no `[ ]` **and** no deferred `[~]` remains, so such a story stays `in-progress` (see [run-mode.md](run-mode.md#status-transitions)). Nothing blocks it from being validated. Rule 1 asks for no `[ ]`, and a deferred box is closed, not open — the same reading `validate-story.sh` applies, whose ahead-of-checkboxes check counts `[ ]` only, so `validated` on a `done-except-external` story raises no warning. Such a story therefore runs `in-progress → validated`, skipping `done` entirely.
 
@@ -174,6 +206,8 @@ Apply the first rule that matches:
 | 4 | Index refresh — regenerate the managed block in `.epic/EPIC.md` | Index Refresh, below | It renders what steps 2 and 3 changed: the new status, and the story's new location when the archive was accepted |
 
 This section fixes the order and the reason for it — each step's behavior is defined where its Owner column points.
+
+**The chain is `verdict` → `status:` → offer, and every link is a file.** Rules 1-3 read the two reports' `verdict`, step 2 writes the status they decide, step 3's gate reads that status back, and step 4 renders what steps 2 and 3 changed. No link in it consults an agent's chat message.
 
 ## Integration Warning
 
@@ -253,7 +287,7 @@ Step 3 of the pass point, and **the single definition of the offer**. Run mode m
 
 Offer when **both** hold:
 
-1. The verdict is a pass **and no `[ ]` remains** — rule 1 of the status table above.
+1. Both report files read `verdict: pass` **and no `[ ]` remains** — rule 1 of the status table above.
 2. `status:` reads **`done` or `validated`** after step 2.
 
 The field can still read `done` at this point even though rule 1 writes `validated`: a failed status write is reported and the flow continues, and an advisory write that failed must not also cost the user the offer. That is the whole reason the gate reads `done` **or** `validated`.
