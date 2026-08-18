@@ -228,7 +228,9 @@ agents_granting() { # $1 = tool name
   # mention of memory here reddens, because the failure mode is a well-meaning
   # sweep copying the clause into every carve-out it can find.
   val="$(md_section "$VALIDATE_MODE" '^## Validator Sub-agent' '^## ')"
-  ! printf '%s\n' "$val" | command grep -qi 'memory'
+  if printf '%s\n' "$val" | command grep -qi 'memory'; then
+    return 1
+  fi
 }
 
 # --- 2.1: orchestrator consumes the files ------------------------------------

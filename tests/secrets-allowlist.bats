@@ -341,7 +341,9 @@ require_gitleaks() {
   [ "$status" -eq 0 ]
   # `! grep -q`, never `grep -qv`: -v succeeds when ANY line fails to match,
   # which is true of almost any output and asserts nothing.
-  ! echo "$stderr" | grep -q 'allowlist entr'
+  if echo "$stderr" | grep -q 'allowlist entr'; then
+    return 1
+  fi
 }
 
 @test "orphans: the report never edits the allowlist it reports on" {

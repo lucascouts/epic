@@ -492,7 +492,9 @@ T
   mk_story 006-widget-flow
   run_supersede 006 --nonsense
   [ "$status" -eq 2 ]
-  [ -z "$output" ] || ! echo "$output" | jq -e . > /dev/null 2>&1
+  if [ -n "$output" ] && echo "$output" | jq -e . > /dev/null 2>&1; then
+    return 1
+  fi
 }
 
 @test "contract: --by is required, and a missing story resolves to exit 2" {

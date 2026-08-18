@@ -235,7 +235,9 @@ version: 1
 EOF
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY" --cross-ref
   [ "$status" -eq 0 ]
-  ! echo "$output" | grep -q 'Requirement R1 in story.md'
+  if echo "$output" | grep -q 'Requirement R1 in story.md'; then
+    return 1
+  fi
 }
 
 @test "--cross-ref: model B flags an uncovered leaf criterion" {
