@@ -380,8 +380,16 @@ T
   # its first draft, which pushed the implementation off the spec.
   grep -q '^> | task 1.2 ' "$d/story.md"
   grep -q '^> | task 1.3 ' "$d/story.md"
-  ! grep -q '^> | task 1.1 ' "$d/story.md"
-  ! grep -q '^> | task 1.4 ' "$d/story.md"
+  # `if … then return 1; fi` rather than `! grep`: bash exempts a `!`-inverted
+  # command from errexit, so anywhere but an @test's LAST statement the negation
+  # is inert — green whatever story.md says. Both of these were measured inert.
+  # Canonical statement of the rule: tests/reports-by-artifact-policy.bats:49-67.
+  if grep -q '^> | task 1.1 ' "$d/story.md"; then
+    return 1
+  fi
+  if grep -q '^> | task 1.4 ' "$d/story.md"; then
+    return 1
+  fi
   echo "$output" | jq -e '.remap_rows == 2' > /dev/null
 }
 
@@ -404,10 +412,18 @@ T
   # On a deferred box the qualifier is REPLACED, never joined: a line carrying
   # both stays owed, because `deferred:` wins the census.
   grep -q '^  - \[~\] 1\.3 - parked (superseded-by: 012)$' "$d/tasks.md"
-  ! grep -q 'deferred:' "$d/tasks.md"
+  # `if … then return 1; fi` rather than `! grep`, here and at the open-box
+  # assertion below: a `!`-inverted command is exempt from errexit, so neither
+  # negation was in the last statement of this @test and neither could report a
+  # defect. Canonical: tests/reports-by-artifact-policy.bats:49-67.
+  if grep -q 'deferred:' "$d/tasks.md"; then
+    return 1
+  fi
   grep -q '^  - \[~\] 1\.4 - dropped (waived: not needed)$' "$d/tasks.md"
   # Nothing is left open, so the story is archivable.
-  ! grep -qE '^  - \[ \]' "$d/tasks.md"
+  if grep -qE '^  - \[ \]' "$d/tasks.md"; then
+    return 1
+  fi
   echo "$output" | jq -e '.closed_subtasks == 2' > /dev/null
 }
 

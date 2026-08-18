@@ -62,9 +62,9 @@
 # `:91`, and `tests/validate-story.bats:238`. Measured, not assumed — each
 # pattern was widened to match everything and each owning case went Red.
 # Convert one when you touch its case, not in a sweep.
-# Five OTHERS were already inert by this rule and sub-task 1.7 converts them:
-# `tests/supersede-story.bats:383`, `:384`, `:407`, `:410` and
-# `tests/spike-validation.bats:182`.
+# Five OTHERS were already inert by this rule and sub-task 1.7 converted them:
+# `tests/supersede-story.bats:387`, `:390`, `:419`, `:424` and
+# `tests/spike-validation.bats:187`.
 #
 # WHERE THE POLARITY RULE DOES NOT HOLD IN THIS FILE, named rather than quietly
 # excepted: a convention the file contradicts gets read as an invariant, which
