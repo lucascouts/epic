@@ -342,11 +342,17 @@ BODY
 # away from the row being added.
 #
 # ROWS ARE KEYED ON THE PATTERN TEXT, NEVER ON A LINE NUMBER. Every insertion
-# above a row would otherwise invalidate it, silently — story 019's header
-# carries `:172`, `:181`, `:341` and `:296` and every one of them is already
-# stale, because sub-task 1.2 of this story turned six one-line negations into
-# three lines each and shifted everything below. A pattern moves only when
-# someone rewrites it, which is exactly when its row should be revisited.
+# above a row would otherwise invalidate it, silently. That is not a caution,
+# it is this repo's record: story 019 wrote its census as a comment block of
+# line references, sub-task 1.2 turned six one-line negations into three lines
+# each, sub-task 5.1 shifted roughly two hundred more, and by the close of task
+# 5 not one of those references still pointed at what it named — some at a
+# blank line, some at another comment. Sub-task 5.2 replaced every one of them
+# with the NAME of the case that owns the claim, which cannot drift. A pattern
+# moves only when someone rewrites it, which is exactly when its row should be
+# revisited; a case name moves only when someone renames it, which `1.4: the
+# window-pattern census cannot be silently disabled or emptied` turns Red for
+# each of the ten names on its roster.
 #
 # THE VERDICT COLUMN takes four values. Two of them are deviations from the
 # sub-task's wording, explained rather than hidden:
@@ -364,7 +370,12 @@ BODY
 #             row records the inversion and the colour, and names the task
 #             (2, 3 or 4) that repairs it. THIS IS NOT A PASS, and the word is
 #             chosen so it cannot be read as one: PINNED and ALLOWED are the
-#             only two verdicts that say the site is sound.
+#             only two verdicts that say the site is sound. NO ROW CARRIES IT
+#             TODAY — tasks 2, 3 and 4 closed every one 1.5 recorded, so the
+#             value is in the vocabulary for the next failed measurement rather
+#             than describing anything below. Measured, not remembered — with
+#             the table-bounded count above, never a whole-file grep, which the
+#             planted fixtures answer.
 #   PENDING — the verdict is not settled yet. Sub-task 1.5 was this story's
 #             measured sweep and it left no PENDING row behind; tasks 2-4 fix
 #             what it found. Writing PINNED or ALLOWED on a row nobody has
@@ -394,7 +405,9 @@ BODY
 # below was settled by inverting, in the prose file the owning case reads, the
 # rule that case exists to guard, running the case, and restoring the file —
 # one mutation at a time, never two at once. 25 mutation runs over 6 prose
-# files answered 12 keys covering 15 sites, plus the two non-window candidates
+# files answered the 12 keys and 15 sites the tree held THEN — the table has
+# grown since and the two counts above give its present size — plus the two
+# non-window candidates
 # the story named by hand, both inside tests/anchor-lint.bats's `3.2 ...
 # no-double-fire precedence` case — AT 1.5 neither was a window pattern, so no
 # row here could hold either: a row whose pattern is not a site is an orphan
@@ -407,32 +420,50 @@ BODY
 # and pinning the condition the words govern made it a window pattern too, and
 # it is the second row of that file.
 #
-# THE RESULT IS NOT THE ONE THE STORY ASSUMED: 2 rows PINNED, 10
-# DIRECTION-BLIND. Both of the story's LEAD rows (`before…summar`,
-# `command…output`) reproduced as direction-blind, and `creat…\.draft` with
-# them, so nothing was inherited from story 019's header — every row here
-# names a run of its own. R5.2 is met by the sentence, not by the verdict: a
-# row states the exact inversion applied and the colour observed, so a reader
-# can re-run it rather than trust it.
+# THE RESULT WAS NOT THE ONE THE STORY ASSUMED — and this sentence is 1.5's
+# RECORD, not the table's present state, which is why it is in the past tense
+# and why no live number follows it. At the close of 1.5 the sweep answered 2
+# rows PINNED and 10 DIRECTION-BLIND. Both of the story's LEAD rows
+# (`before…summar`, `command…output`) reproduced as direction-blind, and
+# `creat…\.draft` with them, so nothing was inherited from story 019's header —
+# every row here names a run of its own. For what the table says NOW, count it
+# rather than read a sentence about it — and BOUND THE COUNT TO THE TABLE, for
+# the same reason the `UNMEASURED — 1.5` grep above is anchored on its field:
+# the planted fixtures below write rows too, so a whole-file grep answers 32
+# FILE lines against the table's 20 (measured, sub-task 5.2):
+#
+#   sed -n '/^allowlist_table() {/,/^ROWS$/p' tests/assertion-hygiene.bats \
+#     | command grep '^VERDICT' | sort | uniq -c
+#
+# R5.2 is met by the sentence, not by the verdict: a row states the exact
+# inversion applied and the colour observed, so a reader can re-run it rather
+# than trust it.
 #
 # WHAT COUNTS AS A SITE, settled by measurement rather than by preference:
 #
 #   1. A COMMENT IS NOT A SITE. Prose that DISCUSSES a window pattern quotes
 #      it, and one of those quotations — `the run[^.]{0,40}fail`, the defect
-#      this story exists to close — belongs to no assertion at all. Measured on
-#      the tree this ships into: dropping comments, the census reports 15
-#      sites; keeping them, 23 — eight sentences, four in
-#      tests/reports-by-artifact-policy.bats and four in this file's own
-#      headers, which quote real patterns in the course of explaining them.
+#      this story exists to close — belongs to no assertion at all. The gap
+#      between the two readings is not small and it is not stable: this file's
+#      headers and tests/reports-by-artifact-policy.bats's both quote real
+#      patterns while explaining them, so every header edit moves the
+#      comments-kept number and none of them moves the shipped one. Measured on
+#      demand rather than quoted here — comment out the `#` break in `scan()`
+#      and re-run `window_sites tests/*.bats | wc -l` against the shipped
+#      walker. Sub-task 5.2 did exactly that and the two readings differed by
+#      fourteen sites, all of them sentences.
 #
 #   2. A HEREDOC BODY IS NOT A SITE, and here that is load-bearing rather than
 #      tidy. The allowlist below is a heredoc whose every row quotes a window
 #      pattern in full; a walker that read heredoc bodies would report each row
 #      as a new unlisted site, which would need a row, which would be a new
-#      site. Measured, on this file: skipping ON reports 0 sites here, skipping
-#      OFF reports 28 — one per allowlist row, plus the planted fixtures — and
-#      the table can never close. The cost is real and named: an assertion
-#      written inside a heredoc body would escape this lint. None exists today.
+#      site. Measured, on this file: skipping ON reports ZERO sites here, and
+#      that zero is the invariant — this file holds no window pattern outside a
+#      heredoc, so the census never has to list itself. Skipping OFF reports
+#      one per allowlist row plus the planted fixtures, a number that grows
+#      with the table by construction, and the table can then never close. The
+#      cost is real and named: an assertion written inside a heredoc body would
+#      escape this lint. None exists today.
 #
 #   3. THE UNIT IS `file:pattern`, NOT `file:line`. Two sites that run the same
 #      pattern share one row: `before[^.]{0,160}summar` is asserted of the
@@ -659,6 +690,59 @@ WHY     MEASURED 4.1, and this key REPLACES `before[^.]{0,160}summar`, which
         the token or the direction goes unpinned.
 
 FILE    tests/reports-by-artifact-policy.bats
+PATTERN (^|[^A-Za-z])last[^.]{0,40}before[^.]{0,40}compos
+VERDICT PINNED
+WHY     MEASURED 5.1, and NO PROSE WAS TOUCHED to get there — the repair is a
+        SCOPE and a PIN, so references/validate-mode.md is byte-identical to
+        the tree 4.3 left. THREE SITES, ONE KEY, by the file:pattern unit
+        stated above: the ordering 4.1 rewrote and pinned in the two agent
+        DEFINITIONS is stated three more times in references/validate-mode.md
+        and was guarded at none of them — the Validator prompt template (:33)
+        and the Auditor's (:90) both read `as the LAST step before composing
+        any textual summary`, and the R2.1 paragraph (:147) reads `as the
+        **last** step of their protocol, before composing any prose`. 4.1's own
+        key cannot reach them: it pins `never composing ... first`, the token
+        4.1 put into the agent files, and these three copies carry a DIFFERENT
+        token for the same ordering. 5.1 pinned the token each copy already
+        carries rather than rewriting three sites to match a fourth. Measured
+        on this tree before the repair, whole suite, all three reversed at
+        once: `1..498`, 498 ok, 0 not ok. `last` and `before` are BOTH polarity
+        here and no reversal keeps both — RED, one mutation at a time, restored
+        and cmp-verified between: `FIRST step after composing` at :33 alone, at
+        :90 alone, `**first** step ... after composing any prose` at :147
+        alone, and the clause deleted outright at each of the three. Six
+        vectors, six Reds, where the predecessor stayed GREEN on all six.
+        SCOPED PER COPY, and the scope is load-bearing rather than tidy: this
+        pattern has TWO spans in the whole file, one per template, so a
+        whole-file grep would let the Auditor's copy answer for the Validator's
+        while that one states the opposite. Measured per scope — 1 span in
+        `## Validator Sub-agent`, 1 in `## Auditor Sub-agent`, 1 in
+        `## Validate Mode Procedure` — which is what lets a `-q` reach a
+        single-site inversion, the reason 4.2 took one. The 40-character
+        leashes are rewording slack, not reach: the real gaps are 6 characters
+        at :33 and :90 (` step `) and 27 at :147 (`** step of their protocol,
+        `). The `(^|[^A-Za-z])` boundary is measured free — one span per scope
+        with it or without — and keeps `ballast` and `lastly` out. `compos`
+        rather than `summar` for 4.1's measured reason, and here it is not
+        theoretical: :147 already writes `prose` where :33 and :90 write
+        `textual summary`, so a `summar` anchor could not have read all three.
+        Rewordings measured GREEN: `as the LAST step of the protocol, before
+        composing ...` and `as the **last** thing they do, before composing any
+        prose`. WHAT THIS PATTERN DOES NOT CARRY, said plainly and in 4.2's
+        words: a negation parked in FRONT of both anchors. `never as the LAST
+        step before composing any textual summary` keeps every word it reads —
+        the exact shape that defeated 4.1's predecessor — and it is refused by
+        the companion guard in each of the three cases, `(never|not|no)` plus
+        the file's own hedge list widened by `as` and `the` and repeated up to
+        three times before `last`, which is not a window pattern and so holds
+        no row of its own: measured RED on `never as the LAST step` at :33,
+        `not as the LAST step` at :90 and `no longer as the **last** step` at
+        :147, and measured SILENT on unmutated prose in all three scopes,
+        including the procedure section's other two `last` tokens (`writes that
+        file as its last step`, `reads last week's `pass``). Sanctioned shape,
+        not a `!`: `if ... then return 1; fi`.
+
+FILE    tests/reports-by-artifact-policy.bats
 PATTERN creat[a-zA-Z]*[^.]{0,80}\.draft
 VERDICT PINNED
 WHY     MEASURED 1.5, HALF REPAIRED BY 3.2, CLOSED BY 4.3 — and the verdict
@@ -703,6 +787,31 @@ WHY     MEASURED 1.5, HALF REPAIRED BY 3.2, CLOSED BY 4.3 — and the verdict
         and either span deleted outright Reds both. WHAT THIS PATTERN DOES NOT
         CARRY, said plainly and in 4.2's words: the DIRECTION. It is refused by
         the sibling assertion in the same case, not by anything here.
+        TWO MORE SITES ON THIS KEY, ADDED BY 5.1, and they were measured into
+        the sub-task rather than named by it: the same allowance is stated once
+        in each prompt template of references/validate-mode.md (:33, :90), and
+        reversing it at BOTH — `never creating `.draft/` on demand` — left the
+        whole suite at `1..498`, 498 ok, 0 not ok. There it is a `-q`, not a
+        count: each template scope holds exactly ONE `creat`, measured, so a
+        count of 1 would assert nothing the `-q` does not, where the agent
+        files state the allowance twice and any survivor answers a `-q`. RED
+        measured at each template separately with the clause deleted, and the
+        DIRECTION is refused there the way 4.2 refused it rather than the way
+        4.3 did — by an adjacency guard on `creat` carrying the file's own
+        hedge list, not a window pattern and so no row of its own. That choice
+        is measured, not preferred: the guard is silent on both unmutated
+        template scopes (0 hits) because each holds a single `creat`, which the
+        agent files' whole-file scope could not promise, and it costs no prose
+        edit — this story's rule is to pin the token the prose already carries.
+        RED on `never creating `.draft/` on demand` and on `do not create
+        `.draft/` yourself`; GREEN on `you create `.draft/` yourself when the
+        story has none`. Two residuals, named rather than left to be found: a
+        reversal parking the negation AFTER the anchor (`though creating
+        `.draft/` on demand is forbidden`) passes both assertions, and reaching
+        it costs the prose rewrite 4.3 took in the agent files; and a rewording
+        that renames the verb (`making `.draft/` yourself`) false-Reds —
+        R1.4's trade, taken to keep one key with the twin rather than widening
+        the anchor on the copies alone.
 
 FILE    tests/reports-by-artifact-policy.bats
 PATTERN \.draft[^.]{0,40}is +part of
@@ -1425,13 +1534,33 @@ ROWS
 }
 
 @test "1.4: the window-pattern census cannot be silently disabled or emptied" {
-  # R5.3. What this covers, exactly: a case emptied, a case renamed away, a
-  # case commented out, a `skip` added, or the census body gutted while its
-  # name stays. What it does NOT cover, stated rather than implied: deleting
-  # this file, deleting this case, or dropping tests/ from the runner. A guard
-  # that lives inside the artifact it guards cannot outlive the artifact, and
-  # this story owns nothing outside tests/ to put it in. The roster below is
-  # where the regress stops.
+  # R5.3. WHAT THIS COVERS AND WHAT IT DOES NOT, re-measured by sub-task 5.2
+  # over six mutations on this file rather than restated from the sub-task that
+  # wrote it — because the sentence that stood here claimed a comment-out and
+  # an emptying for all ten rostered cases, and only two of the four columns
+  # below hold across the roster:
+  #
+  #                                  the census case   the other nine
+  #   a `skip` added                 RED              RED    (file-wide grep)
+  #   the case renamed away          RED              RED    (roster below)
+  #   the case commented out         RED              GREEN  <- open
+  #   the body gutted, name intact   RED              GREEN  <- open
+  #
+  # The two RED columns are the roster and the `skip` grep, which read every
+  # name. The two open cells are the body check further down, which reads ONE
+  # case — the census — by construction: commenting a case out leaves the
+  # roster's `grep -F` matching the commented line, and gutting a body leaves
+  # the name in place, so only a per-case body check reaches either, and there
+  # is one. Closing them means a body check per rostered case, which is an
+  # assertion change and not this comment's to make. In the two cells that are
+  # RED for the census, the census itself reports `ok` — that is the silent
+  # removal, and this case is what turns it Red.
+  #
+  # WHAT NOTHING HERE COVERS, stated rather than implied: deleting this file,
+  # deleting this case, or dropping tests/ from the runner. A guard that lives
+  # inside the artifact it guards cannot outlive the artifact, and this story
+  # owns nothing outside tests/ to put it in. The roster below is where the
+  # regress stops.
   SELF="$PLUGIN_ROOT/tests/assertion-hygiene.bats"
   [ -f "$SELF" ]
 

@@ -40,83 +40,119 @@
 # inside. `is failed` works because the negation splits two anchors; `one`
 # offers no such gap — it is a substring of every phrase that reverses it
 # (`more than one`, `not just one`, `one or more`), so a pattern pinning `one`
-# is satisfied by its own negation. The sanctioned form is a SECOND, inline
-# negated grep naming that claim's own modifiers (`:296`) — never a generic
-# one, for the reason the paragraph above gives. Naming the modifiers is also
-# what keeps it behavior-level: it rejects the handful of phrases that reverse
-# the count, not the sentence that states it.
+# is satisfied by its own negation. Sub-task 4.3 measured that no pattern
+# repairs that, so the repair is not a pattern. It is three assertions and a
+# prose edit: the rule now carries a token a reversal BREAKS rather than
+# contains (`never a second`), the case counts the sites that state it, and a
+# third assertion pins the rule's CONSEQUENCE — one request, then the run is
+# failed — because a document licensing repeats cannot also say that. The
+# inline negated grep naming the claim's own modifiers survives BESIDE them,
+# kept for one measured vector rather than as the sanctioned form, and never as
+# a generic negation guard, for the reason the paragraph above gives. All four
+# stand in `2.1: an absent or unparseable report is re-requested once via
+# SendMessage, then the run is failed`, which argues each where it stands.
 #
 # A NEGATED ASSERTION MUST NOT REST ON BEING LAST. Bash exempts a `!`-inverted
 # command from errexit, so anywhere but the final statement of an @test its
 # non-zero status is discarded and the assertion is inert — green whatever the
 # file under test says. Probed, not reasoned: `! true` followed by one more
 # assertion passes, while `if true; then return 1; fi` in that same slot fails.
-# The sanctioned shape is therefore `if … then return 1; fi` (`:296`). The
-# subshell `( ! … )` also survives being moved and was rejected on diagnostics
-# alone — bats named the `return 1` line for the `if` and only the `@test` line
-# for the subshell, pointing at the case instead of the assertion.
+# The sanctioned shape is therefore `if …; then return 1; fi`, which is what
+# every negated assertion in this file now uses. The subshell `( ! … )` also
+# survives being moved and was rejected on diagnostics alone — bats named the
+# `return 1` line for the `if` and only the `@test` line for the subshell,
+# pointing at the case instead of the assertion.
 #
-# Five negations in this suite are correct TODAY only because nothing follows
-# them, each one appended assertion away from silently becoming a no-op: `:231`
-# here, `tests/secrets-allowlist.bats:344`, `tests/spike-stale.bats:85` and
-# `:91`, and `tests/validate-story.bats:238`. Measured, not assumed — each
-# pattern was widened to match everything and each owning case went Red.
-# Convert one when you touch its case, not in a sweep.
-# Five OTHERS were already inert by this rule and sub-task 1.7 converted them:
-# `tests/supersede-story.bats:387`, `:390`, `:419`, `:424` and
-# `tests/spike-validation.bats:187`.
+# THAT RULE IS ENFORCED, NOT ADVISED, and it is one of the few sentences in
+# this header that may say so. `1.1: no .bats file in tests/ inverts a command
+# as an assertion`, in tests/assertion-hygiene.bats, scans every tests/*.bats
+# and names each offender as file:line; it admits no position exemption, so
+# sitting last is not a defence either. Do not look for a list of the sites
+# here. There was one — it named five, the lint found six, and sub-task 1.2
+# converted all six. That gap is the whole argument: a list has to be
+# remembered, and the lint is re-derived on every run.
 #
-# WHERE THE POLARITY RULE DOES NOT HOLD IN THIS FILE, named rather than quietly
-# excepted: a convention the file contradicts gets read as an invariant, which
-# is worse than no convention. Every site below predates this story, and closing
-# them is a story of its own rather than a sweep bolted on here. Two grades,
-# both measured:
+# WHERE THE POLARITY RULE DOES NOT HOLD, named rather than quietly excepted: a
+# convention the file contradicts gets read as an invariant, which is worse
+# than no convention. THIS HEADER IS NOT WHERE THOSE SITES ARE NAMED, and that
+# is the correction sub-task 5.2 made rather than a gap it left. A hand-kept
+# list of exceptions is the same instrument as the hand-kept list of negations
+# above, with the same failure: three of the entries that stood here were
+# closed by tasks 2, 3 and 4 and went on reading as open, and a fourth said the
+# two prompt-template copies of `is a protocol violation` were unguarded on the
+# day sub-task 5.1 guarded them in `1.1: validate-mode Validator prompt
+# template mirrors the report file` and `1.2: validate-mode Auditor prompt
+# template mirrors the report file`. Re-measured for this edit: that same
+# inversion, applied to both copies at once, now Reds both cases.
 #
-#   DIRECTION-BLIND — a straight inversion leaves them green. BOTH ENTRIES OF
-#   THIS GRADE ARE NOW CLOSED, and the record stays because what each cost to
-#   close is the argument for the next pin, not because either is still open.
-#   The stale-report case ("2.1: validate-mode removes the stale report file
-#   before spawning") asked only that some line mentioning `stale` also name a
-#   report file, so rewriting `Delete`/`delete`/`delete that agent's` to
-#   `Keep`/`keep`/`never delete that agent's` at all three prose sites in
-#   references/validate-mode.md — and `Before each spawn` to `After` on top of
-#   that — left it green: it pinned neither half of its own name. Sub-task 4.2
-#   SCOPED it to `## Validate Mode Procedure`, which is where all three sites
-#   sit and where the Index Refresh decoy does not, then counted the three
-#   deletion sites, refused a negation on the verb, and pinned the ordering as
-#   an assertion of its own. No prose was touched. The evidence-pair case
-#   below ("a tech-reviewer finding resting on a runnable check cites command
-#   and output") was the second entry and is CLOSED the same way: it read the
-#   whole file for `command[^.]{0,120}output`, which two spans answered, so
-#   deleting the rule left it green. It now scopes to the section stating the
-#   rule and pins the obligation's own inflection — each measurement is in its
-#   own case's comment.
+# THE ALLOWLIST TABLE IN tests/assertion-hygiene.bats IS THE LIST. One row per
+# `file:pattern`, each stating the inversion applied, the colour observed and
+# every residual left open; and two cases keep the table and the suite in step
+# in both directions, so a pattern cannot exist unreviewed and a row cannot
+# outlive its pattern — `1.4: every window pattern in tests/ carries an
+# allowlist row` and `1.4: no allowlist row names a pattern tests/ no longer
+# contains`. Read it by verdict rather than from a sentence here — BOUNDED TO
+# THE TABLE, because that file's planted fixtures write rows of their own and a
+# whole-file grep is answered by them (measured while writing this paragraph:
+# 24 against the table's 20, and five `ALLOWED` where the table has none):
 #
-#   NEGATION-PERMEABLE — they catch a rewrite but not a negation parked in
-#   front of the match, which is the `the run[^.]{0,40}fail` defect again.
-#   `:172` and its 1.2 twin Red when `before composing any textual summary`
-#   becomes `after composing …`, and stay green when it becomes `never before
-#   …`. The `.draft/` carve-out pair is HALF repaired: sub-task 3.2 replaced
-#   its occurrence check with a count of the two spans each file states the
-#   allowance at, so dropping it from either site Reds now — but both sites
-#   rewritten to `never creating .draft/` keep the count at two and stay green,
-#   because the negation prefixes the anchor `creat`. No count reaches that;
-#   sub-task 4.3 owns it.
+#   sed -n '/^allowlist_table() {/,/^ROWS$/p' tests/assertion-hygiene.bats \
+#     | command grep '^VERDICT' | sort | uniq -c
 #
-# A pattern naming only a file, a field or a topic (`audit-report.yaml`,
-# `verdict`, `measurement`) makes no directional claim and so has no polarity to
-# pin — the first paragraph governs those. Outside the class but owed to the
-# same follow-up: `is a protocol violation` is pinned in the agent files above
-# and nowhere for the prompt-template copies at references/validate-mode.md:62
-# and :132, and inverting both leaves the whole 482-case suite green.
+# PINNED and ALLOWED are the two verdicts that say a site is sound;
+# DIRECTION-BLIND says it was measured and failed, and names the task that owes
+# the repair. At the close of task 4 the table held 20 rows and every one was
+# PINNED — a snapshot, which is why the command is written here and the number
+# is not load-bearing.
 #
-# THIS HEADER IS A COMMENT, NOT A CLAIM UNDER TEST. No case in this suite pins
-# its own conventions. The rules above hold because the next author reads them,
-# not because dropping one would turn anything Red — and implying otherwise is
-# exactly the unearned confidence story 018 refused to buy.
+# WHAT THE CENSUS CANNOT SEE, so that a green one is not read for more than it
+# says. It recognises the window shape `A[^.]{0,N}B` and nothing else. Tighten
+# a pattern out of that shape — as several pins in this file did, trading the
+# window for an adjacency bound — and it leaves the census with it, so no row
+# can hold its measurement; that evidence lives in the case's own comment and
+# nowhere else. And the census checks that a row EXISTS, never that its
+# sentence is TRUE: whether a pattern really survives an inversion depends on
+# the prose it reads, which no machine here judges.
 #
-# CASE NAMES CARRY THE SUB-TASK THAT OWNS THE PROSE (`1.1:` … `3.1:`), so
-# `bats --filter '^1\.1:'` answers for exactly that sub-task's contract. The
+# A pattern naming only a file or a field (`audit-report.yaml`, `verdict`)
+# makes no directional claim and so has no polarity to pin — the first
+# paragraph governs those. `measurement` USED TO BE IN THAT LIST AND DOES NOT
+# BELONG THERE: sub-task 2.2 measured that the rule states its own direction in
+# words the pattern can hold (`for measurement only`), that pinning them Reds
+# on `Bash is not limited to measurement`, and that the bare topic word stays
+# green through the same inversion. That pin and its negation guard stand in
+# `3.1: tech-reviewer's Bash is measurement-only and never mutates` and, for
+# the run-mode copy, in `3.1: run-mode Tech Reviewer prompt template mirrors
+# the measurement rule`. A word is a topic only until somebody measures it, so
+# that class is a finding and never a guess.
+#
+# WHAT IN THIS HEADER IS UNDER TEST, AND WHAT IS NOT — the distinction matters
+# more than either half, because a partial guard described as none misleads
+# exactly as much as none described as a guard, and this paragraph used to be
+# the first of those.
+#
+#   ENFORCED, each by a named case in tests/assertion-hygiene.bats. The
+#   negated-assertion rule: `1.1: no .bats file in tests/ inverts a command as
+#   an assertion`. The window-pattern rule, in both directions: `1.4: every
+#   window pattern in tests/ carries an allowlist row` and `1.4: no allowlist
+#   row names a pattern tests/ no longer contains`. The shape of a row: `1.4:
+#   every allowlist row carries file, pattern, verdict and a justifying
+#   sentence`. And those four against silent removal: `1.4: the window-pattern
+#   census cannot be silently disabled or emptied`, which reds on a `skip`
+#   anywhere in that file and on any of the ten rostered case names being
+#   renamed away. Its limits are measured and written into its own comment
+#   rather than left here — a commented-out or gutted case is caught for the
+#   census case alone, and no guard inside a file can outlive that file.
+#
+#   GUIDANCE, held by nothing but the next author reading it: behavior-level
+#   over sentence-pinned, fixtures being the repo files themselves, a polarity
+#   token inside the match rather than a shared negation helper, and every
+#   verdict the allowlist records. Dropping one of these turns nothing Red.
+#   Implying otherwise is the unearned confidence story 018 refused to buy.
+#
+# A CASE NAME OPENS WITH THE SUB-TASK THAT OWNS ITS PROSE, so
+# `bats --filter '^1\.1:'` answers for exactly that sub-task's contract; the
+# one case here whose rule predates the story opens `convention:` instead. The
 # `2.2:` grant-set cases are the least-privilege pins the policy sub-task
 # itself owns: Write and Bash land on exactly the agents this story names, and
 # Edit moves nowhere. The Edit case is a GREEN PIN — correct today, present so
@@ -316,8 +352,142 @@ agents_granting() { # $1 = tool name
 
 @test "1.1: validate-mode Validator prompt template mirrors the report file" {
   # R3.4: the duplicated template drifts unless it lands in the same story.
-  md_section "$VALIDATE_MODE" '^## Validator Sub-agent' '^## ' \
-    | command grep -q 'validation-report\.yaml'
+  #
+  # THE FILENAME WAS THE WHOLE MIRROR, AND A FILENAME IS NOT A RULE. This case
+  # asked only that the template name `.draft/validation-report.yaml`, which
+  # every inversion of every rule stated around it keeps — a mirror case named
+  # for mirroring that mirrored a path. Measured on this tree before the
+  # repair, whole suite, one mutation at a time, each restored before the next:
+  # the carve-out reversed to `any other write is **not** a protocol violation`
+  # in BOTH templates left `1..498`, 498 ok, 0 not ok; the ordering reversed to
+  # `as the FIRST step after composing any textual summary` at :33 and :90 and
+  # to `as the **first** step ... after composing any prose` at :147 left
+  # 498/0; the `.draft/` allowance reversed to `never creating `.draft/` on
+  # demand` at :33 and :90 left 498/0. Three rules the agent-definition cases
+  # above pin, three copies guarded by nothing — this story's half-guard defect
+  # one level down, which is why the three pins land HERE rather than in cases
+  # of their own.
+  #
+  # SCOPED TO THIS TEMPLATE, and the scope is load-bearing rather than tidy:
+  # each phrase below occurs TWICE in references/validate-mode.md, once per
+  # template, so a whole-file grep is answered by the Auditor's copy while the
+  # Validator's says the opposite — the co-location defect 4.2 and 3.1 both had
+  # to scope their way out of. Measured, spans per scope: `is a protocol
+  # violation` 1 here / 1 in the Auditor section / 2 in the file, the ordering
+  # window 1 / 1 / 2, `creat` 1 / 1.
+  #
+  # THE TRAILING SPACE IN `^## ` IS NOT LOAD-BEARING HERE, and that is measured
+  # rather than copied from a neighbour, because four sub-tasks of this story
+  # needed four different answers: this section holds no heading of any depth
+  # and no line beginning `#` — the YAML comments inside it all sit behind a
+  # `>` — so `^## `, `^##` and `^#` capture the identical 49 lines. The form
+  # the case already used is kept for that reason, not defended.
+  sec="$(md_section "$VALIDATE_MODE" '^## Validator Sub-agent' '^## ')"
+  # `flat` reads a file, so a captured section is flattened inline.
+  flatsec="$(printf '%s\n' "$sec" | tr '\n' ' ')"
+
+  printf '%s\n' "$flatsec" | command grep -q 'validation-report\.yaml'
+
+  # THE CARVE-OUT, IN THE DEFINITION'S OWN FRAME (R1.5), which is the whole of
+  # what "mirrors" is supposed to mean: `is a protocol violation` is the phrase
+  # agents/validator.md:74 writes verbatim and the `1.1: validator carve-out`
+  # case above already pins there. No negation guard rides beside it and none
+  # is needed — the assertive frame SPLITS under every reversal English writes
+  # for it (`is not a protocol violation`, `is never a protocol violation`),
+  # which is the property 019 chose it for. Measured, one mutation at a time:
+  # reversed in this template alone — RED; in both templates at once, the
+  # vector that was GREEN before this sub-task — RED; the clause deleted
+  # outright — RED. GREEN in the other direction: the surrounding sentence
+  # reworded with the frame standing.
+  printf '%s\n' "$flatsec" | command grep -qiE 'is a protocol violation'
+
+  # THE ORDERING, PINNED IN THE TOKEN THIS COPY ALREADY CARRIES rather than by
+  # rewriting it to match the definitions. 4.1 rewrote agents/*.md to `never
+  # composing any textual summary first` and left this copy reading `as the
+  # LAST step before composing any textual summary` — not a contradiction, the
+  # same ordering stated with its own token, so the measured question was
+  # whether that token can be pinned. It can: `last` and `before` are BOTH
+  # polarity, and every reversal loses at least one of them — `FIRST step
+  # after`, `LAST step after`, and the clause dropped for a bare `after
+  # composing any textual summary` are RED, as is the clause deleted outright.
+  #
+  # ONE SPAN IN THE SCOPE, measured, which is what lets a `-q` reach a
+  # single-site inversion the way 4.2's `before ... spawn` pin does. The
+  # leashes are 40 and 40: the real gaps are 6 characters here (` step `) and
+  # 27 at the :147 copy this same pattern reads two cases below (`** step of
+  # their protocol, `), so 40 is rewording slack, not reach. The `(^|[^A-Za-z])`
+  # boundary is measured free — one span with or without it — and keeps
+  # `ballast` and `lastly` out. `compos` rather than `summary` for 4.1's
+  # measured reason: a faithful rewording renames the object, and the :147 copy
+  # already writes `prose` where these two write `textual summary`.
+  printf '%s\n' "$flatsec" \
+    | command grep -qiE '(^|[^A-Za-z])last[^.]{0,40}before[^.]{0,40}compos'
+
+  # ...AND A WINDOW CANNOT CARRY A NEGATION PARKED IN FRONT OF IT. This is
+  # exactly the shape that defeated 4.1's predecessor: `never before composing
+  # any textual summary` keeps both anchors and reverses the rule. Applied
+  # here, `never as the LAST step before composing any textual summary` leaves
+  # the match above GREEN — so the negation is refused where it can reach the
+  # ordering, and REFUSED RATHER THAN REPAIRED IN THE PROSE, which is what
+  # keeps this sub-task from rewriting three sites to match a fourth.
+  #
+  # The hop `((be|longer|more|just|merely|simply|solely|as|the)[^A-Za-z]{1,3})
+  # {0,3}` is the file's own hedge vocabulary plus the two articles this
+  # sentence puts between a negation and `last`. Measured RED on all four
+  # reversals that keep the anchors — `never as the LAST step`, `not as the
+  # LAST step`, `not the LAST step`, `no longer the LAST step` — and measured
+  # SILENT on every scope it runs in: 0 hits in this template, 0 in the
+  # Auditor's, 0 in `## Validate Mode Procedure`, whose three `last` tokens
+  # include `reads last week's `pass`` and `writes that file as its last step`.
+  # Silent too on the rewordings the pin above admits (`as the LAST step of the
+  # protocol, before composing ...`, `as the **last** thing they do, before
+  # composing any prose`).
+  if printf '%s\n' "$flatsec" \
+    | command grep -qiE '(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely|as|the)[^A-Za-z]{1,3}){0,3}last'
+  then
+    echo "the write-before-summary ordering is stated with a negation on it — the template reverses the rule its definition states"
+    return 1
+  fi
+
+  # THE `.draft/` ALLOWANCE, the third copy, and it was not in this sub-task's
+  # ToDo — it was measured into it. R1.3 + R3.2: fast and spike stories have no
+  # `.draft/`, so the agent makes one rather than reporting its absence, and
+  # this template states that rule in the same sentence as the write. Measured
+  # unguarded exactly as the other two were (the reversal at both templates,
+  # whole suite, 498 ok / 0 not ok), so it is closed here rather than filed in
+  # a comment.
+  #
+  # SAME PATTERN AS THE AGENT-DEFINITION TWIN, one key, and `-q` rather than
+  # the count that case takes: the definitions state the allowance TWICE per
+  # file and any survivor answers a `-q` there, while this scope holds exactly
+  # one `creat` — measured — so a count of 1 would assert nothing the `-q`
+  # does not.
+  printf '%s\n' "$flatsec" | command grep -qiE 'creat[a-zA-Z]*[^.]{0,80}\.draft'
+
+  # ...AND THE DIRECTION, WITHOUT TOUCHING THE PROSE. The negation PREFIXES the
+  # anchor `creat` — `never creating `.draft/` on demand` keeps the span and
+  # reverses the permission, which is precisely what 3.2's count could not
+  # reach and what 4.3 had to rewrite the agent files to close. It does not
+  # have to be rewritten here: the definitions' scope is a whole file, this one
+  # is 49 lines with a single `creat` in it, so an adjacency guard reaches what
+  # a count cannot. Measured RED on `never creating `.draft/` on demand` and on
+  # `do not create `.draft/` yourself`; measured SILENT on the unmutated
+  # section (0 hits) and on the rewording `you create `.draft/` yourself when
+  # the story has none`.
+  #
+  # TWO RESIDUALS, named rather than left to be found. A reversal that parks
+  # the negation AFTER the anchor (`though creating `.draft/` on demand is
+  # forbidden`) passes both assertions; reaching it costs the prose rewrite 4.3
+  # took in the definitions, and this story's rule is to pin the token the
+  # prose already carries first. And a rewording that renames the verb
+  # (`making `.draft/` yourself`) false-Reds — R1.4's trade, taken here to keep
+  # one key with the twin rather than widening the anchor on this copy alone.
+  if printf '%s\n' "$flatsec" \
+    | command grep -qiE '(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely)[^A-Za-z]{1,3})?creat'
+  then
+    echo "the template's .draft/ allowance is stated with a negation on the verb — the permission is reversed"
+    return 1
+  fi
 }
 
 # --- 1.2: Auditor report contract --------------------------------------------
@@ -371,8 +541,45 @@ agents_granting() { # $1 = tool name
 }
 
 @test "1.2: validate-mode Auditor prompt template mirrors the report file" {
-  md_section "$VALIDATE_MODE" '^## Auditor Sub-agent' '^## ' \
-    | command grep -q 'audit-report\.yaml'
+  # The Validator's twin, phrase for phrase, and every decision behind the four
+  # pins below is argued once on that case rather than twice here: why the
+  # scope is load-bearing, why the carve-out frame needs no guard, why the
+  # ordering is pinned in the token this copy already carries instead of being
+  # rewritten to match the definitions, and what the two `.draft/` residuals
+  # cost. MEASURED ON THIS SECTION rather than inherited from the twin, which
+  # is the rule 3.2, 4.1 and 4.3 all took when a pair moved together — this
+  # scope is 69 lines to the Validator's 49 and holds prose the Validator's
+  # does not, so a divergence could open here and nowhere else.
+  #
+  # Per-scope numbers, measured here: `is a protocol violation` 1 span,
+  # the ordering window 1 span, `creat` 1 occurrence, and 0 hits for either
+  # negation guard on unmutated prose. Section boundary: `^## `, `^##` and
+  # `^#` capture the identical 69 lines, so the trailing space decides nothing
+  # here either. Mutations, one at a time, each restored before the next: the
+  # carve-out reversed alone — RED; the ordering reversed alone — RED; each
+  # deleted outright — RED; the `.draft/` allowance reversed alone — RED; the
+  # surrounding template text reworded with all three rules standing — GREEN.
+  sec="$(md_section "$VALIDATE_MODE" '^## Auditor Sub-agent' '^## ')"
+  # `flat` reads a file, so a captured section is flattened inline.
+  flatsec="$(printf '%s\n' "$sec" | tr '\n' ' ')"
+
+  printf '%s\n' "$flatsec" | command grep -q 'audit-report\.yaml'
+  printf '%s\n' "$flatsec" | command grep -qiE 'is a protocol violation'
+  printf '%s\n' "$flatsec" \
+    | command grep -qiE '(^|[^A-Za-z])last[^.]{0,40}before[^.]{0,40}compos'
+  if printf '%s\n' "$flatsec" \
+    | command grep -qiE '(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely|as|the)[^A-Za-z]{1,3}){0,3}last'
+  then
+    echo "the write-before-summary ordering is stated with a negation on it — the template reverses the rule its definition states"
+    return 1
+  fi
+  printf '%s\n' "$flatsec" | command grep -qiE 'creat[a-zA-Z]*[^.]{0,80}\.draft'
+  if printf '%s\n' "$flatsec" \
+    | command grep -qiE '(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely)[^A-Za-z]{1,3})?creat'
+  then
+    echo "the template's .draft/ allowance is stated with a negation on the verb — the permission is reversed"
+    return 1
+  fi
 }
 
 @test "1.2: the Auditor template's carve-out keeps the memory clause, and the Validator's stays memory-free" {
@@ -534,6 +741,46 @@ agents_granting() { # $1 = tool name
   # write its report file now", and it is what made the boundaries necessary.
   printf '%s\n' "$proc" \
     | command grep -qiE '(message|repl(y|ies))[^.]{0,120}[^A-Za-z](no|not|never)[^A-Za-z][^.]{0,40}(pass/fail|verdict|decision)'
+
+  # AND THE PREMISE UNDER BOTH HALVES: the files are readable at step 3 only
+  # because each agent writes its report as the LAST step, BEFORE any prose.
+  # That is the first clause of this section's own R2.1 paragraph (:147), and
+  # it is the THIRD unguarded copy of the ordering 4.1 pinned in the two agent
+  # definitions — the two prompt templates are the other two, pinned in the
+  # `1.1:`/`1.2:` mirror cases with this identical pattern and this identical
+  # guard. It lands in THIS case rather than in a case of its own because this
+  # scope is the only one that reaches :147 and because the sentence states
+  # this case's own rule from the writing side. Measured on this tree before
+  # the repair: the ordering reversed at all three copies at once left the
+  # whole suite at `1..498`, 498 ok, 0 not ok.
+  #
+  # ONE SPAN IN THIS SCOPE, measured, out of three `last` tokens — the other
+  # two are step 3's `writes that file as its last step` and R2.2's `reads last
+  # week's `pass``, neither of which has `before ... compos` behind it. The
+  # 40-character leashes carry this copy's own gap of 27 (`** step of their
+  # protocol, `), which is why the same pattern reads all three copies. RED
+  # measured here, one mutation at a time: `**first** step ... after composing
+  # any prose`, `**last** step ... after composing any prose`, and the clause
+  # deleted outright. GREEN on `as the **last** thing they do, before composing
+  # any prose`. Why the guard below is needed, what its hop admits and what the
+  # pin costs are argued once on the `1.1:` mirror case above.
+  #
+  # FLATTENED, unlike the three assertions above it, and the difference is the
+  # claim rather than taste: those pin a fact to the LINE that names a report
+  # file, so flattening would let the filename and the direction come from
+  # different paragraphs; this one needs no co-location and takes the reflow
+  # tolerance instead. Measured on the flattened section, not assumed — one
+  # span for the pin, zero hits for the guard, the same two numbers the raw
+  # section gives, so the widening admits nothing new.
+  flatproc="$(printf '%s\n' "$proc" | tr '\n' ' ')"
+  printf '%s\n' "$flatproc" \
+    | command grep -qiE '(^|[^A-Za-z])last[^.]{0,40}before[^.]{0,40}compos'
+  if printf '%s\n' "$flatproc" \
+    | command grep -qiE '(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely|as|the)[^A-Za-z]{1,3}){0,3}last'
+  then
+    echo "the write-before-prose ordering is stated with a negation on it — the premise this section reads its verdicts under is reversed"
+    return 1
+  fi
 }
 
 @test "2.1: an absent or unparseable report is re-requested once via SendMessage, then the run is failed" {
@@ -625,8 +872,9 @@ agents_granting() { # $1 = tool name
   # NOT a bare `!`, and that is not a style choice: bash exempts a `!`-inverted
   # command from errexit, so its status is discarded anywhere but the LAST
   # statement of the @test — and two assertions follow this one. Measured: as a
-  # `!` here, this reddened none of the three inversions. `:231` uses that shape
-  # and is load-bearing only because nothing follows it there.
+  # `!` here, this reddened none of the three inversions. No site in tests/ uses
+  # that shape any more — sub-task 1.2 converted the last six, and `1.1: no
+  # .bats file in tests/ inverts a command as an assertion` keeps them gone.
   #
   # NOT the generic helper the header forbids: that one rejects any negation in
   # the window before any match and false-Reds on auditor.md's memory clause by

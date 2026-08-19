@@ -339,8 +339,14 @@ require_gitleaks() {
   printf 'some/other/path/file.md:aws-access-token:1\n' > "$PROJ/.gitleaksignore"
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-quiet
   [ "$status" -eq 0 ]
-  # `! grep -q`, never `grep -qv`: -v succeeds when ANY line fails to match,
-  # which is true of almost any output and asserts nothing.
+  # `if grep -q …; then return 1; fi`, never `grep -qv` and never a bare
+  # `! grep -q`. Two separate traps. `-v` succeeds when ANY line fails to
+  # match, which is true of almost any output and asserts nothing. And bash
+  # exempts a `!`-inverted command from errexit, so its non-zero status is
+  # discarded anywhere but the last statement of the case — this comment held
+  # that shape up as the sanctioned one until sub-task 1.2 of story 020
+  # converted it; `1.1: no .bats file in tests/ inverts a command as an
+  # assertion`, in tests/assertion-hygiene.bats, now keeps it converted.
   if echo "$stderr" | grep -q 'allowlist entr'; then
     return 1
   fi
