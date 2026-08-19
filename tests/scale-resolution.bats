@@ -774,13 +774,28 @@ comment_blocks() {
   DOC="$PLUGIN_ROOT/references/tasks.md"
   [ -f "$DOC" ]
   # Flattened to one line: the statement may wrap, and `[^.]` keeps a match from
-  # spanning a sentence boundary.
+  # spanning a sentence boundary. The whole file, not one section — measured
+  # 2.3: exactly one span satisfies each pattern below, so no sentence
+  # elsewhere in the file can answer for the rule this case is about.
   FLAT=$(tr '\n' ' ' < "$DOC")
-  grep -qiE "tasks\.md[^.]{0,160}authoritative|authoritative[^.]{0,160}tasks\.md" <<< "$FLAT"
+  # THE POLARITY SITS INSIDE THE MATCH, not merely near it: `is authoritative`
+  # has to follow `tasks.md` itself. Measured 2.3 — the predecessor,
+  # `tasks\.md[^.]{0,160}authoritative`, stayed GREEN when line 68 became
+  # "`tasks.md` is not authoritative ... — `story.md` is", because a negation
+  # parks between two anchors as easily as anything else does. The window that
+  # remains is 24: the room a qualifier needs — `tasks.md` alone is
+  # authoritative — and too little to reach the next clause, so swapping the
+  # subject to `story.md` still reds it, as it did before.
+  grep -qiE "tasks\.md[^.]{0,24}is (the )?authoritative" <<< "$FLAT"
   # Half a rule is not the rule: the reader also has to be told what happens to
   # the artifact that disagrees — it is REPORTED, not honoured, and not silently
-  # ignored either.
-  grep -qiE "story\.md[^.]{0,200}(reported|not honoured|not honored)" <<< "$FLAT"
+  # ignored either. Here the polarity IS the pairing, so both halves are pinned,
+  # in the order the rule states them. Measured 2.3 — the predecessor accepted
+  # the bare token `reported`, which the reversed sentence "is honoured, not
+  # reported" still contains, so it read prose stating the opposite rule as a
+  # pass. `never` is admitted beside `not` because it negates the same verb;
+  # what is not admitted is either word standing alone.
+  grep -qiE "story\.md[^.]{0,200}reported[^.]{0,40}(not|never) honou?red" <<< "$FLAT"
 }
 
 @test "3.2: no comment in validate-story.sh still claims story.md wins for scale" {

@@ -395,10 +395,13 @@ BODY
 # rule that case exists to guard, running the case, and restoring the file —
 # one mutation at a time, never two at once. 25 mutation runs over 6 prose
 # files answered 12 keys covering 15 sites, plus the two non-window candidates
-# at tests/anchor-lint.bats:306-307 that the story named by hand — those two
-# are NOT window patterns, so no row here can hold them: a row whose pattern is
-# not a site is an orphan and reds the census. Their verdicts live in 1.5's
-# report, and the repair belongs in a task, not in this comment.
+# the story named by hand, both inside tests/anchor-lint.bats's `3.2 ...
+# no-double-fire precedence` case — AT 1.5 neither was a window pattern, so no
+# row here could hold either: a row whose pattern is not a site is an orphan
+# and reds the census. Their verdicts live in 1.5's report. Sub-task 2.4
+# repaired the first of the two by pinning which side wins, which MADE it a
+# window pattern — hence the tests/anchor-lint.bats row below. The second,
+# `only when`, is still a bare literal and still holdable by no row.
 #
 # THE RESULT IS NOT THE ONE THE STORY ASSUMED: 2 rows PINNED, 10
 # DIRECTION-BLIND. Both of the story's LEAD rows (`before…summar`,
@@ -551,6 +554,31 @@ FNR == 1 { nhd = 0; hdi = 1; inbody = 0 }
 # sentence is true.
 allowlist_table() {
   cat <<'ROWS'
+# --- tests/anchor-lint.bats ---
+
+FILE    tests/anchor-lint.bats
+PATTERN anchored_commits == 0[^.]{0,40}wins
+VERDICT PINNED
+WHY     MEASURED 2.4, and it is a site only because of that repair: the
+        predecessor was the bare literal `wins`, which is not a window pattern
+        and so could hold no row. Inversion: references/validate-mode.md:276
+        ``anchored_commits == 0` **wins** over rule 3 because it is the more
+        specific finding` became `Rule 3 **wins** over `anchored_commits ==
+        0` because the integration warning is the more specific finding` —
+        predecessor GREEN, this pattern RED. Deleting the rule reds both, so
+        the predecessor detected only the word's absence. Rewordings measured
+        GREEN: ``anchored_commits == 0` therefore always **wins** over the
+        integration warning at rule 3`, and the same line reflowed across
+        three lines without a word changed (the case flattens whitespace, so a
+        wrap must not decide it). `wins` occurs exactly once in the file and
+        the real gap is four characters, so the 40-character window is slack
+        for a connective, not reach: under the swap the nearest
+        `anchored_commits == 0` is the precedence table ~200 characters back.
+        Residual, named rather than hidden: a rewording that keeps the same
+        side winning while replacing the verb — `rule 3 yields to
+        `anchored_commits == 0`` — false-reds; pinning the order of the two
+        sides is what the direction costs.
+
 # --- tests/reports-by-artifact-policy.bats ---
 
 FILE    tests/reports-by-artifact-policy.bats
@@ -619,30 +647,6 @@ WHY     MEASURED 1.5, both ways, and the two results are the whole point.
         does not carry the claim. TASK 4, with row 4 above, as one repair.
 
 FILE    tests/reports-by-artifact-policy.bats
-PATTERN never[^.]{0,80}respawn
-VERDICT DIRECTION-BLIND
-WHY     MEASURED 1.5. Inversion: `**Never respawn silently.**` and its
-        following sentence became `**Never conclude without a respawn.** A
-        respawn ... is the price of a verdict you can trust ...` — a rule that
-        now MANDATES the respawn. The case stayed GREEN: both anchors survive
-        because the negation's object moved, not the negation. Replacing the
-        header with `**Always respawn silently.**` does red it. One span in the
-        section, so this is the phrase and not the file. TASK 2 — pin `never
-        respawn` adjacent, the phrase the rule's own name already uses.
-
-FILE    tests/reports-by-artifact-policy.bats
-PATTERN (never|not)[^.]{0,80}mutat
-VERDICT DIRECTION-BLIND
-WHY     MEASURED 1.5. Inversion: `**`Bash` is for measurement only — never
-        mutate files or git state.**` became `**`Bash` is not for measurement
-        only — mutate files or git state when the fix is trivial.**` in
-        agents/tech-reviewer.md. The case stayed GREEN — the alternation's own
-        `not` matched the negation of the RESTRICTION rather than of the
-        mutation. Deleting both tokens (`is for measurement and repair — fix
-        files ...`) does red it. One span, so it is the phrase. TASK 2 — pin
-        `measurement only` and `never mutate` adjacent.
-
-FILE    tests/reports-by-artifact-policy.bats
 PATTERN command[^.]{0,120}output
 VERDICT DIRECTION-BLIND
 WHY     MEASURED 1.5, three inversions, all GREEN. (a) `carries the exact
@@ -656,32 +660,105 @@ WHY     MEASURED 1.5, three inversions, all GREEN. (a) `carries the exact
         phrase is permeable on top of that. TASK 3 — scope to the rule and
         count its spans; the scoped pattern still has to pin the obligation.
 
+FILE    tests/reports-by-artifact-policy.bats
+PATTERN verdict[^.]{0,60}(from|off)[^.]{0,30}(file|disk)
+VERDICT PINNED
+WHY     MEASURED 2.1. It replaced a bare `validation-report` / `audit-report`
+        occurrence check, which asserted a FILENAME and so survived the rule
+        being reversed. Inversion: steps 3 and 4 of
+        references/validate-mode.md rewritten to `Take the verdict from the
+        final message` and `take its verdict from its final message the same
+        way`, both deletes — and so both filenames — left in place. The
+        predecessor stayed GREEN; this pattern went RED, on the first of the
+        two greps. Rewording: `The verdict is read from that report file
+        rather than from the reply` and `its verdict is read off that report
+        file the same way` — GREEN, which is what `off` and the 30-character
+        tail are there for. The polarity here is the OBJECT: a verdict comes
+        from a file or from disk, and a message is neither. Residual, named
+        rather than hidden: `the verdict not from the file but from the reply`
+        parks a negation between the anchors and would pass — an inversion
+        states the new rule positively, but this pattern does not detect the
+        stilted form.
+
+FILE    tests/reports-by-artifact-policy.bats
+PATTERN (message|repl(y|ies))[^.]{0,120}[^A-Za-z](no|not|never)[^A-Za-z][^.]{0,40}(pass/fail|verdict|decision)
+VERDICT PINNED
+WHY     MEASURED 2.1, and it is the other half of the same case: the reply is
+        the source of NO verdict. Inversion: the R2.1 paragraph at
+        references/validate-mode.md:147 rewritten so that `steps 3-5 conclude
+        from the final message` and `The report file is a convenience ... and
+        **the source of no pass/fail decision**` — the negation kept, moved
+        onto the FILE — RED. Rewording: `the final message is a convenience
+        ... and decides no pass/fail` — GREEN. The polarity token sits inside
+        the match AND governs the reply, which is exactly what the reversal
+        cannot keep. The boundaries around `(no|not|never)` are measured, not
+        decorative: without them R2.3's table row 2, which ends `asking it to
+        write its report file now`, answers the assertion by itself.
+
+FILE    tests/reports-by-artifact-policy.bats
+PATTERN ((^|[^A-Za-z])(never|not)[^A-Za-z]|rather than|instead of)[^.]{0,80}(chat|message|repl(y|ies)|said|prose)
+VERDICT PINNED
+WHY     MEASURED 2.1. Inversion: references/validate-mode.md:183 rewritten to
+        `Rules 1-3 turn on what an agent said in chat — never on the `verdict`
+        field of `.draft/validation-report.yaml` and
+        `.draft/audit-report.yaml`` — every filename kept, so the predecessor
+        (`validation-report|audit-report|report file` alone) stayed GREEN on a
+        section that now states the opposite rule; this pattern went RED,
+        because the negation now governs the file and the full stops in
+        `.draft/...yaml` close the window before any word for the reply.
+        Rewording: `the verdict is read from the report files ... rather than
+        from the agents' replies` — GREEN. Exactly one line of that section
+        names a report file, so the grep that feeds this one scopes it to the
+        rule's own paragraph rather than to the section.
+
 # --- tests/scale-resolution.bats ---
 
 FILE    tests/scale-resolution.bats
-PATTERN tasks\.md[^.]{0,160}authoritative|authoritative[^.]{0,160}tasks\.md
-VERDICT DIRECTION-BLIND
-WHY     MEASURED 1.5. Inversion: `**`tasks.md` is authoritative for the
+PATTERN tasks\.md[^.]{0,24}is (the )?authoritative
+VERDICT PINNED
+WHY     MEASURED 2.3, and it is the repair 1.5 asked for: the predecessor
+        `tasks\.md[^.]{0,160}authoritative|authoritative[^.]{0,160}tasks\.md`
+        was DIRECTION-BLIND and is gone. Inversion, re-run against this
+        pattern: references/tasks.md:68 `**`tasks.md` is authoritative for the
         declared `scale`.**` became `**`tasks.md` is not authoritative for the
-        declared `scale` — `story.md` is.**` in references/tasks.md. The case
-        stayed GREEN — `is not authoritative` sits inside the window as
-        comfortably as `is authoritative`. Swapping the noun to `**`story.md`
-        is authoritative ...**` does red it, so the pattern catches the wrong
-        file and misses the wrong direction. One span. TASK 2 — pin `is
-        authoritative` adjacent to its subject.
+        declared `scale` — `story.md` is.**` — predecessor GREEN, this one
+        RED, because `is authoritative` is now the match rather than a
+        neighbour of it and a negation has nowhere to park. Swapping the noun
+        to `**`story.md` is authoritative ...**` still reds, so that vector did
+        not regress. Rewordings measured GREEN: line 68 reflowed with the break
+        falling between `tasks.md`` and `is authoritative` (the case reads
+        flattened text, so a wrap must not bite), and `**`tasks.md` is the
+        authoritative artifact for the declared `scale`.**`. One span in the
+        whole file, so the flatten stays whole-file and needs no section
+        scope. Residual, named rather than hidden: an adverb between the two
+        words — `is always authoritative` — false-reds, measured. Admitting an
+        arbitrary word there would admit `is not authoritative`, which is the
+        inversion itself, so the pin keeps its edge and the row records where
+        it lies.
 
 FILE    tests/scale-resolution.bats
-PATTERN story\.md[^.]{0,200}(reported|not honoured|not honored)
-VERDICT DIRECTION-BLIND
-WHY     MEASURED 1.5. Inversion: `A `story.md` declaring a different `scale` is
-        **reported**, not honoured: validation warns ... proceeds with the one
-        `tasks.md` declares.` became `... is **honoured**, not reported:
-        validation stays quiet, and then proceeds with the one `story.md`
-        declares.` The case stayed GREEN — the alternation's first branch is
-        the bare token `reported`, which the reversed sentence still contains.
-        The other two branches carry the polarity and would have reddened.
-        TASK 2 — drop the polarity-free branch so the pin is the phrase the
-        rule already states.
+PATTERN story\.md[^.]{0,200}reported[^.]{0,40}(not|never) honou?red
+VERDICT PINNED
+WHY     MEASURED 2.3, and it is the repair 1.5 asked for: the predecessor
+        `story\.md[^.]{0,200}(reported|not honoured|not honored)` offered a
+        polarity-free first branch and is gone. Inversion, re-run against this
+        pattern: references/tasks.md:70 `A `story.md` declaring a different
+        `scale` is **reported**, not honoured: validation warns ... proceeds
+        with the one `tasks.md` declares.` became `... is **honoured**, not
+        reported: validation stays quiet, and then proceeds with the one
+        `story.md` declares.` — predecessor GREEN, this one RED. The polarity
+        here is the PAIRING, not either word: both halves are required, in the
+        order the rule states them, so a sentence that keeps `reported` while
+        dropping `not honoured` no longer answers. Deleting `, not honoured`
+        outright also reds it, measured. Rewordings measured GREEN: the
+        sentence reflowed with the break between `**reported**,` and `not
+        honoured`, and `When a `story.md` declares a different `scale`, the
+        disagreement is **reported**, never honoured: ... and resolves from
+        `tasks.md` anyway.` — hence the `never` branch, which negates the same
+        verb rather than adding a second claim. One span in the whole file:
+        `honour` occurs once in it. Residual, named rather than hidden: the
+        pairing stated the other way round — `is not honoured but merely
+        reported` — false-reds, measured; the pin is the order the rule states.
 
 FILE    tests/scale-resolution.bats
 PATTERN tasks\.md[^.]{0,120}(owns|authoritative|wins)|(authoritative)[^.]{0,120}tasks\.md

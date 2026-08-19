@@ -303,7 +303,21 @@ TASKSEOF
   # flattened text so wrapping never decides the verdict.
   FLAT=$(tr -s '[:space:]' ' ' < "$PLUGIN_ROOT/references/validate-mode.md")
   grep -qF 'anchored_commits == 0' <<< "$FLAT"
-  grep -q 'wins' <<< "$FLAT"
+  # WHICH SIDE WINS, not that the word `wins` is somewhere in the file. The
+  # bare literal survived the precedence being reversed to `Rule 3 **wins**
+  # over `anchored_commits == 0`` — measured GREEN, and RED only when the rule
+  # was deleted, so it asserted a word and never a direction. `wins` occurs
+  # exactly once in the whole file and the real gap is four characters
+  # (`` ` ** ``), so requiring the specific finding to PRECEDE it inside one
+  # sentence reds the swap: the nearest `anchored_commits == 0` is then the
+  # table row two lines up, ~200 characters away. Measured GREEN on `...
+  # therefore **wins** over the integration warning at rule 3` — the window is
+  # what buys that — and on the line reflowed, which the flatten above carries.
+  # Residual, measured and named rather than hidden: a rewording that keeps the
+  # same side winning while replacing the verb (`rule 3 yields to
+  # `anchored_commits == 0``) false-reds. The order of the two sides IS the
+  # direction, and pinning it is what direction costs.
+  grep -qE 'anchored_commits == 0[^.]{0,40}wins' <<< "$FLAT"
   grep -q 'only when' <<< "$FLAT"
   grep -qF 'integrated: null' <<< "$FLAT"
 }

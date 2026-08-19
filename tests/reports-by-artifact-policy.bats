@@ -245,9 +245,48 @@ agents_granting() { # $1 = tool name
 
 @test "2.1: the procedure reads both verdicts from the report files" {
   # R2.1: steps 3-5 conclude from disk; the message is courtesy.
+  #
+  # THAT COMMENT WAS THE ONLY PLACE THE DIRECTION WAS STATED. The assertion
+  # under it asked whether `validation-report` and `audit-report` OCCURRED
+  # anywhere in the section — a filename, which an inversion of this rule has
+  # no reason to delete. Measured: steps 3 and 4 rewritten to "Take the verdict
+  # from the final message" and "take its verdict from its final message the
+  # same way" left it GREEN, because both steps still DELETE their report file
+  # and the R2.2 subsection names both files again.
+  #
+  # Both halves of the comment are asserted now, and both are needed: the
+  # inversion of the steps leaves the R2.1 subsection intact, the inversion of
+  # that subsection leaves the steps intact, and each was run on its own.
   proc="$(md_section "$VALIDATE_MODE" '^## Validate Mode Procedure' '^## ')"
-  printf '%s\n' "$proc" | command grep -q 'validation-report'
-  printf '%s\n' "$proc" | command grep -q 'audit-report'
+
+  # CONCLUDE FROM DISK. Line-based co-location, as at the stale-report case
+  # above: this file writes one paragraph per source line, so the report file
+  # and the direction have to be stated in the SAME paragraph — the filename
+  # cannot be answered by the delete in step 3 while the direction is answered
+  # by some unrelated step. What is pinned is the SOURCE of the verdict, not a
+  # wording: `read off that report file` and `comes from disk` are the same
+  # rule and stay green; `from the final message` is another rule and Reds.
+  printf '%s\n' "$proc" | command grep -E 'validation-report' \
+    | command grep -qiE 'verdict[^.]{0,60}(from|off)[^.]{0,30}(file|disk)'
+  printf '%s\n' "$proc" | command grep -E 'audit-report' \
+    | command grep -qiE 'verdict[^.]{0,60}(from|off)[^.]{0,30}(file|disk)'
+
+  # THE MESSAGE IS COURTESY — the half no filename can carry: the reply is the
+  # source of NO verdict. The negation has to GOVERN the reply, which is what
+  # the reversal cannot keep; moving it onto the file ("The report file is a
+  # convenience … and the source of no pass/fail decision") Reds here.
+  #
+  # NOT co-located with a filename, unlike the pass point below, and that is
+  # measured rather than preferred: no line of this section states both halves,
+  # and the co-located form is answered by R2.3's table row 2 on its own — "or
+  # **not** parseable as YAML | **one** `SendMessage`" — a line the inversion
+  # of steps 3-4 never touches.
+  #
+  # `(no|not|never)` carries a boundary on each side so `now`, `know` and
+  # `cannot` are not read as negations — that same row 2 ends "asking it to
+  # write its report file now", and it is what made the boundaries necessary.
+  printf '%s\n' "$proc" \
+    | command grep -qiE '(message|repl(y|ies))[^.]{0,120}[^A-Za-z](no|not|never)[^A-Za-z][^.]{0,40}(pass/fail|verdict|decision)'
 }
 
 @test "2.1: an absent or unparseable report is re-requested once via SendMessage, then the run is failed" {
@@ -300,8 +339,28 @@ agents_granting() { # $1 = tool name
   then
     return 1
   fi
-  # NEVER a silent respawn — the whole cost the report file exists to avoid.
-  printf '%s\n' "$sec" | command grep -qiE 'never[^.]{0,80}respawn'
+  # NEVER a silent respawn — the whole cost the report file exists to avoid,
+  # and `never` has to GOVERN `respawn` rather than merely share a sentence
+  # with it. The predecessor `never[^.]{0,80}respawn` passed `**Never conclude
+  # without a respawn.**` — a rule that MANDATES the respawn — because that
+  # reversal moves the negation's OBJECT and leaves both anchors standing
+  # (measured, 1.5). Pinned ADJACENT instead: the phrase the rule's own name
+  # already uses, one span in this section before and after.
+  #
+  # The optional `-ly` adverb is the one thing English puts between a
+  # prohibition and its verb without changing what is prohibited: `**Never
+  # silently respawn the agent.**` stays GREEN, measured. Every reversal needs
+  # a verb and a preposition in that slot — `conclude without a`, `fail to`,
+  # `skip a` — or a bare `not`, and none of those is an adverb: RED, measured,
+  # including the `**Always respawn silently.**` control and the deletion.
+  # Two residuals, measured and named rather than hidden: an adverb that
+  # WEAKENS instead of reversing (`never unnecessarily respawn`) passes, and
+  # the prohibition restated with its negation AFTER the verb (`a silent
+  # respawn is never the answer`) false-reds — what is pinned is the order the
+  # rule's own name states. Closing the adverb slot to buy the first one back
+  # would false-red a plain word-order rewording, the costlier of the two.
+  printf '%s\n' "$sec" \
+    | command grep -qiE '(^|[^A-Za-z])never[^A-Za-z]+([a-z]+ly[^A-Za-z]+)?respawn'
   # THEN THE RUN IS FAILED — story 011's sub-task 2.1 ToDo, verbatim: "still
   # absent → the run is failed, stated in exactly those terms (R2.3)". The
   # copula and the participle are required ADJACENT, not merely co-occurring
@@ -321,8 +380,29 @@ agents_granting() { # $1 = tool name
 @test "2.1: the pass point keys off the report file's verdict" {
   # R2.4: stamping `validated` reads the file, not the message. Scoped to the
   # Status Transition section — "reported" elsewhere must not satisfy it.
+  #
+  # THE FILENAME WAS NOT THE RULE. Asking only that the section mention a
+  # report file left this case green through the rule's own reversal:
+  # measured, `Rules 1-3 turn on what an agent said in chat — never on the
+  # `verdict` field of `.draft/validation-report.yaml` and
+  # `.draft/audit-report.yaml`` keeps every filename, and the case named for
+  # the direction passed a section that now states its opposite.
+  #
+  # The polarity was already in the prose — "never on what an agent said in
+  # chat" — so the match carries it: a negation GOVERNING the reply, on the
+  # line that names the report file. Exactly one line of this section names
+  # one (the rule itself), so the rejection cannot be borrowed from a
+  # neighbouring paragraph.
+  #
+  # The reversal cannot keep that shape. It moves the negation onto the file
+  # half, where the full stops in `.draft/…yaml` close the window before any
+  # word for the reply — RED, measured. "The verdict is read from the report
+  # files … rather than from the agents' replies" stays GREEN, which is the
+  # distinction the pin exists to draw: the direction survives a rewording,
+  # the reversal does not.
   md_section "$VALIDATE_MODE" '^## Status Transition' '^## ' \
-    | command grep -qiE 'validation-report|audit-report|report file'
+    | command grep -iE 'validation-report|audit-report|report file' \
+    | command grep -qiE '((^|[^A-Za-z])(never|not)[^A-Za-z]|rather than|instead of)[^.]{0,80}(chat|message|repl(y|ies)|said|prose)'
 }
 
 # --- 3.1: Tech Reviewer measures ---------------------------------------------
@@ -334,8 +414,59 @@ agents_granting() { # $1 = tool name
 @test "3.1: tech-reviewer's Bash is measurement-only and never mutates" {
   # R3.1 + R3.3: the grant arrives WITH its restriction, and the no-modify
   # rule survives reworded — both facts, not either one.
-  flat "$TECH_REVIEWER" | command grep -qi 'measurement'
-  flat "$TECH_REVIEWER" | command grep -qiE '(never|not)[^.]{0,80}mutat'
+  #
+  # `measurement` ALONE IS THE TOPIC, NOT THE RULE. The case is named for a
+  # restriction and asserted a subject heading: measured, rewriting the grant
+  # to "`Bash` is not limited to measurement — never mutate files or git
+  # state" left it GREEN, because the topic word survives every widening of
+  # the scope it exists to close. What is pinned instead is the RESTRICTION
+  # both files already write — `for measurement only` — which occurs once per
+  # file, so no heading and no cross-reference can answer for it.
+  flat "$TECH_REVIEWER" | command grep -qiE '(^|[^A-Za-z])for measurement only'
+
+  # THE PHRASE ALONE IS NOT THE RULE EITHER: the reversal keeps it and negates
+  # it. "`Bash` is not for measurement only" is the inversion 1.5 measured
+  # GREEN against the predecessor, and it contains `for measurement only`
+  # verbatim. So the negation is refused where it can reach the phrase —
+  # adjacent, or across one hedge ("no longer", "not merely", "must not be").
+  # Adjacency rather than a sentence-wide window is the point: a window here
+  # would red on "This is a rule, not advice: `Bash` is for measurement only",
+  # which states the rule rather than reversing it.
+  if flat "$TECH_REVIEWER" \
+    | command grep -qiE '(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely)[^A-Za-z]{1,3})?for measurement only'
+  then
+    echo "the restriction phrase survives, negated: the grant no longer stops at measurement"
+    return 1
+  fi
+
+  # THE NO-MUTATION HALF WAS UNGUARDED TOO — the story recorded only the scope
+  # half as open, and the sweep in 1.5 recorded this sibling DIRECTION-BLIND.
+  # Both are right about a different mutation, and the pair is why the window
+  # went: `(never|not)[^.]{0,80}mutat` reads 80 characters and cannot say which
+  # clause the negation governs. Measured on this file, one change at a time —
+  # dropping the negation ("— mutate files or git state when the fix is
+  # trivial") went RED, but moving its OBJECT ("— never refuse to mutate files
+  # or git state when the fix is trivial"), a rule that now licenses the
+  # mutation, stayed GREEN.
+  #
+  # The negation sits on the mutation word, at most one `for` apart: `no-modif`
+  # is excluded on purpose, because this paragraph names the rule as "The
+  # no-modification rule" and that noun would answer the assertion by itself
+  # while the clause above it said the opposite. Grepping the lines that name
+  # the tool first is the co-location this case is named for — the grant
+  # arrives WITH its restriction, not somewhere else in the file: the closing
+  # "**Do NOT modify files or git state. Only report.**" is a second span of
+  # the prohibition and must not be able to stand in for this one.
+  #
+  # ONE `for` IS THE WHOLE WIDENING, and strict adjacency was too tight
+  # without it: rewriting the half to "— never for mutation." preserves the
+  # rule exactly and went RED — this task group's own risk, a pin so tight a
+  # faithful rewording false-Reds. It keeps the sentence's own frame ("is for
+  # measurement only") and negates it for mutation, so what is admitted is
+  # that clause nominalised, not a gap: a VERB between the two is what
+  # re-targets the negation, and "never refuse to mutate" is still RED.
+  command grep -E '(^|[^A-Za-z])Bash([^A-Za-z]|$)' "$TECH_REVIEWER" \
+    | command grep -qiE '(never|not|no) {1,3}(for {1,3})?(mutat|modif)'
 }
 
 @test "3.1: a tech-reviewer finding resting on a runnable check cites command and output" {
@@ -346,8 +477,35 @@ agents_granting() { # $1 = tool name
 @test "3.1: run-mode Tech Reviewer prompt template mirrors the measurement rule" {
   # R3.4: the duplicated template in references/run-mode.md moves in the same
   # story as the agent definition.
-  md_section "$RUN_MODE" '^### Tech Reviewer Prompt Template' '^##' \
-    | command grep -qi 'measurement'
+  #
+  # THE SECTION SAYS `measurement` THREE TIMES and only one of them is the
+  # rule: the heading "Measurement, Not Argument", step 3's "per Measurement
+  # above", and the grant itself. Measured — deleting the grant's whole
+  # paragraph from the template left this case GREEN, answered by the other
+  # two, so the mirror it exists to keep could go missing silently. The phrase
+  # `for measurement only` occurs once in the section, which is what makes
+  # this assertion load-bearing.
+  #
+  # The end pattern is `^##` WITHOUT the trailing space on purpose, unlike the
+  # `^## ` used elsewhere: it stops at the next heading of any depth, which
+  # here is `### Orchestrator Handling of Tech Review`. `^## ` would run past
+  # that subsection to `## Context Passing Between Tasks` and let prose the
+  # template does not own answer for it. The blockquote markers make no
+  # difference — `> ## Protocol` starts with `>`, so no inner heading of the
+  # quoted prompt closes the section early.
+  sec="$(md_section "$RUN_MODE" '^### Tech Reviewer Prompt Template' '^##')"
+  # `flat` reads a file, so a captured section is flattened inline.
+  flatsec="$(printf '%s\n' "$sec" | tr '\n' ' ')"
+  printf '%s\n' "$flatsec" | command grep -qiE '(^|[^A-Za-z])for measurement only'
+
+  # Same guard as the agent definition's case, for the same measured reason:
+  # "is not for measurement only" keeps the phrase and reverses the rule.
+  if printf '%s\n' "$flatsec" \
+    | command grep -qiE '(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely)[^A-Za-z]{1,3})?for measurement only'
+  then
+    echo "the template mirrors the restriction phrase, negated — the mirror states the opposite rule"
+    return 1
+  fi
 }
 
 # --- 2.2: least-privilege grant sets -----------------------------------------
