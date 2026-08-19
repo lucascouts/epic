@@ -625,23 +625,44 @@ WHY     MEASURED 3.3, and like the row above it is a site only because of the
 # --- tests/reports-by-artifact-policy.bats ---
 
 FILE    tests/reports-by-artifact-policy.bats
-PATTERN before[^.]{0,160}summar
-VERDICT DIRECTION-BLIND
-WHY     MEASURED 1.5. Inversion: `, before composing any textual summary,`
-        became `, not before composing any textual summary but after it,` in
-        agents/validator.md, then the same in agents/auditor.md — one file per
-        run. Both owning cases stayed GREEN. The blunter swap `before` ->
-        `after` does red it, so the pattern catches a REWRITE and misses a
-        NEGATION parked in front of its own anchor. One span per file, so
-        scoping or counting cannot reach it, and the polarity word IS the
-        anchor, so there is nothing left to pin in place. TASK 4 — the rule's
-        prose has to state the ordering in a phrase a negation cannot prefix.
+PATTERN (^|[^A-Za-z])never +composing[^.]{0,60}first
+VERDICT PINNED
+WHY     MEASURED 4.1, and this key REPLACES `before[^.]{0,160}summar`, which
+        1.5 recorded DIRECTION-BLIND and which no longer occurs in the suite.
+        That predecessor could not be repaired as a pattern: `before` was the
+        anchor AND the polarity, so `, never before composing any textual
+        summary,` — one word inserted — left both owning cases GREEN under the
+        reversed rule, re-measured on this tree and not inherited. One span per
+        file, so neither scoping nor counting reaches it. 4.1 therefore
+        rewrote the PROSE, in both agent files identically and inside the
+        existing sentence: `, before composing any textual summary,` became
+        `, never composing any textual summary first,`. The pin is the
+        prohibition itself, with the negation ADJACENT to the verb it governs,
+        which is what leaves a negation nowhere to park. Four vectors per file,
+        one at a time, restored between, eight Reds: `never` dropped; `never
+        before composing`, the exact mutation that defeated the predecessor;
+        `first` -> `last`; and the clause deleted outright. The predecessor was
+        GREEN on the second of those four and RED on the other three, run on
+        the same mutated trees. Measured GREEN in the other direction too: the
+        object reworded (`never composing the prose reply for the human
+        first`) and the sentence reflowed at 72 columns with not a word
+        changed. The ` +` inside the token is that reflow's doing and is
+        measured, not defensive: a break falling BETWEEN the two words with a
+        trailing space reaches `flat` as two spaces and false-Reds a
+        single-space literal. Only whitespace fits there, so the widening
+        admits no reversal. `summar` is deliberately NOT an anchor — that
+        rewording drops the word — and 60 characters is the leash because
+        the widest rewording measured puts 31 between the anchors. `compos`
+        and `first` each occur exactly once per agent file, both inside this
+        clause. Residual, named and accepted: the rule restated in its own
+        pre-4.1 words false-Reds, which is R1.4's trade — the prose carries
+        the token or the direction goes unpinned.
 
 FILE    tests/reports-by-artifact-policy.bats
 PATTERN creat[a-zA-Z]*[^.]{0,80}\.draft
-VERDICT DIRECTION-BLIND
-WHY     MEASURED 1.5, HALF REPAIRED BY 3.2, AND STILL NOT SOUND — the verdict
-        stays DIRECTION-BLIND because the direction is exactly the half left
+VERDICT PINNED
+WHY     MEASURED 1.5, HALF REPAIRED BY 3.2, CLOSED BY 4.3 — and the verdict
+        turns only now, because the direction was exactly the half 3.2 left
         open. 1.5's inversion: the permission reversed at BOTH spans of one
         file — `so creating `.draft/` on demand is part of this step` became
         `... is NOT part of this step — an absent `.draft/` is a precondition
@@ -672,9 +693,54 @@ WHY     MEASURED 1.5, HALF REPAIRED BY 3.2, AND STILL NOT SOUND — the verdict
         and exactness was taken instead because duplication is what made this
         site blind. 3.2 DID NOT CLOSE THE SECOND and re-measured it rather than
         inheriting it: 1.5's both-spans reversal still finds 2 spans and both
-        cases are still GREEN. TASK 4.3 — the permission needs a phrase whose
-        negation is not a superstring of it; the count lands first so that
-        rewrite arrives at a site whose span count is already held.
+        cases were still GREEN. 4.3 CLOSED IT IN THE PROSE rather than in this
+        pattern, because no count and no scope reaches a negation that PREFIXES
+        the anchor: each agent file's Rules bullet now reads `, and creating
+        `.draft/` on demand is part of it.**`, and the direction is pinned by
+        `\.draft[^.]{0,40}is +part of`, counted at 2 per file, the row below.
+        This count keeps a job of its own and the two do not overlap, measured:
+        the both-spans reversal leaves this one at 2 while Redding that one,
+        and either span deleted outright Reds both. WHAT THIS PATTERN DOES NOT
+        CARRY, said plainly and in 4.2's words: the DIRECTION. It is refused by
+        the sibling assertion in the same case, not by anything here.
+
+FILE    tests/reports-by-artifact-policy.bats
+PATTERN \.draft[^.]{0,40}is +part of
+VERDICT PINNED
+WHY     MEASURED 4.3, and it is the direction half the count above cannot
+        reach. 1.5's inversion, re-run on this tree rather than inherited: the
+        permission reversed at BOTH spans of agents/validator.md — the protocol
+        step's `so creating `.draft/` on demand is part of this step rather
+        than a precondition for it.` to `... is NOT part of this step — an
+        absent `.draft/` is a precondition you report rather than fix.`, and
+        the Rules bullet to `never creating `.draft/` on demand.**` —
+        predecessor GREEN with the count above still at 2, this pattern RED at
+        0. The same two mutations on agents/auditor.md: predecessor GREEN, RED
+        here. The defect was that the negation PREFIXES the anchor `creat`, so
+        4.3 rewrote the bullet to carry a frame a negation must SPLIT instead —
+        `, creating `.draft/` on demand.**` became `, and creating `.draft/` on
+        demand is part of it.**`, the same frame the protocol step already
+        used, in both agent files identically, one clause and no paragraph
+        restructured. ANCHORED AFTER `.draft` rather than before it, which is
+        arithmetic: `[^.]` cannot cross the full stop inside `` `.draft/` ``,
+        so a `creat...is part of` window could never reach the verb. `is part
+        of` occurs exactly twice per file, both inside the carve-out, so no
+        neighbouring sentence can answer for either span. COUNTED at 2 per file
+        because a `-q` is answered by whichever span survives — the one-span
+        reversal is what 1.5 and 3.2 both left open: measured, one mutation at
+        a time, the reversal at the protocol step alone and at the Rules bullet
+        alone each count 1 and RED, in each file. Four one-span vectors, four
+        Reds, where the predecessor stayed GREEN on all four. Measured GREEN in
+        the other direction: both spans of both files reworded around the frame
+        (`creating `.draft/` when you find none is part of this step rather
+        than something you wait for`, `creating `.draft/` yourself, on demand,
+        is part of that path`), and both files reflowed at 72 columns with not
+        a word changed — the break falls between `creating` and `` `.draft/` ``
+        and the ` +` carries it. Residual, named and accepted: a rewording that
+        drops the frame (`so this step creates `.draft/` itself whenever it
+        finds none` — one of the two 3.2 measured GREEN) now false-Reds, which
+        is R1.4's trade: the prose carries the token or the direction goes
+        unpinned.
 
 FILE    tests/reports-by-artifact-policy.bats
 PATTERN memory director[a-z]*[^.]{0,160}is your own store
@@ -689,29 +755,174 @@ WHY     MEASURED 1.5, twice. Inversion: `Your memory directory is not a second
         negation breaks rather than prefixes.
 
 FILE    tests/reports-by-artifact-policy.bats
-PATTERN (^|[^A-Za-z])one[^A-Za-z][^.]{0,80}SendMessage
-VERDICT DIRECTION-BLIND
-WHY     MEASURED 1.5. Inversion: the count reversed WITHOUT any modifier the
-        companion row names — table row 2 became `**one** `SendMessage` ... per
-        attempt ... — repeat the row as often as it takes`, the paragraph
-        became `**One request per attempt, ...**` and row 3 became `after the
-        last of those requests`. The case stayed GREEN under a rule that now
-        licenses unbounded re-requests. `one` is a substring of every phrase
-        that reverses it, so there is no token to move inside the match. TASK 4
-        — with row 5 below, as one repair: the prose must bound the count in a
-        phrase that can be pinned (`exactly one`, `a single`).
+PATTERN (delet|remov)[a-z]*[^.]{0,40}stale
+VERDICT PINNED
+WHY     MEASURED 4.2, and it REPLACES a predecessor that could hold no row:
+        `command grep -i 'stale' | grep -qiE 'validation-report|audit-report|
+        report file'` is not a window pattern, so the DIRECTION-BLIND verdict
+        1.5 gave it lives in that file's header rather than here. It asked only
+        that some LINE mentioning `stale` also name a report file, and so
+        pinned neither half of its own case name. Re-measured on this tree
+        rather than inherited: the deletion verb reversed at all three sites of
+        references/validate-mode.md in one edit — steps 3 and 4 to `Keep`/`keep
+        the stale ...`, the R2.2 heading to `never delete that agent's ...` —
+        predecessor GREEN, this count RED at 1. NO PROSE WAS TOUCHED to get
+        there; the repair is a SCOPE (R3.1). All three sites sit inside
+        `## Validate Mode Procedure` and the `stale rendering` decoy at :363
+        sits in `## Index Refresh`, so the boundary excludes it by construction
+        rather than by the predecessor's co-location trick. Measured in the
+        other direction twice: the decoy reworded away, and the decoy rewritten
+        to plant BOTH `never delete a stale rendering` and a second `deleting a
+        stale rendering` span — precisely the two mutations that would break
+        this count and its companion guard if the scope leaked — GREEN on both.
+        The end pattern's TRAILING SPACE is load-bearing: `^## ` captures 42
+        lines including the `###` R2.2 heading, `^##` stops at the first `###`
+        and captures 10, dropping the third site and Redding on unmutated
+        prose. COUNTED rather than matched because the rule stands at THREE
+        sites and any two survivors answer a `-q`: measured one site at a time,
+        step 3 alone, step 4 alone and the heading's verb alone each take the
+        count to 2 and RED where the predecessor stayed GREEN, as do the
+        heading deleted outright and the whole R2.2 subsection deleted. `-eq 3`
+        rather than `-ge 3` for the reason 3.2 and 3.3 both took it, at the same
+        measured cost: a legitimate fourth statement false-Reds. `remov` rides
+        beside `delet` because the document calls the act by both names — the
+        R2.2 paragraph writes `Step 3 removes ... and step 4 removes ...` and
+        this case's own name says `removes` — and the widening is measured
+        free: 3 spans either way, and the section holds exactly three `stale`
+        tokens, so no verb elsewhere can raise the count. Rewordings measured
+        GREEN: steps 3 and 4 rewritten to `Remove the stale ...`, the heading
+        rewritten to `Delete that agent's stale report file before spawning
+        it`, and the section reflowed at 72 and at 40 columns with not a word
+        changed — the reflow matters because it breaks between `delete the` and
+        `stale` and hands `flat` TWO spaces, the false Red 4.1 measured. WHAT
+        THIS PATTERN DOES NOT CARRY, said plainly: the DIRECTION. `never delete
+        that agent's stale report file` counts three and passes here, because
+        the negation PREFIXES the anchor. It is refused by the companion guard
+        in the same case, `(never|not|no)[^A-Za-z]{1,3}(...)?(delet|remov)`,
+        which is not a window pattern and so holds no row of its own — measured
+        RED on that exact mutation and silent on unmutated prose, including the
+        section's own `Deleting what is not there is a no-op, never an error`
+        and `**Never respawn silently.**`
+
+FILE    tests/reports-by-artifact-policy.bats
+PATTERN (before[^.]{0,20}spawn[a-z]*[^.]{0,30}(delet|remov)|(delet|remov)[a-z]*[^.]{0,60}before[^.]{0,20}spawn)
+VERDICT PINNED
+WHY     MEASURED 4.2, and it is the OTHER half of the same case, pinned as an
+        assertion of its own so a future reader sees which half broke. The
+        count above reads every word of `After each spawn, delete that agent's
+        stale report file` and stays at 3; the polarity token `before` is what
+        that reversal cannot keep. Inversion: the R2.2 heading of
+        references/validate-mode.md, `Before each spawn` -> `After each spawn`
+        — predecessor GREEN, this pattern RED. The heading deleted outright,
+        RED. ONE span in the scoped section, measured — the heading itself —
+        which is what lets a `-q` reach a single-site inversion. A bare
+        `before ... spawn` would not: the paragraph under the heading says
+        `each immediately before spawning` too, so that form has TWO spans and
+        the heading could be inverted alone and stay green. Both orders,
+        because this task group's risk is a pin so tight a faithful rewording
+        false-Reds: `Delete that agent's stale report file before spawning it`
+        exercises the second branch and is GREEN, as is the section reflowed at
+        72 and at 40 columns with not a word changed. Neither branch matches
+        anything else in the section, measured on unmutated prose and again
+        under the `After` mutation, where the `.` inside `(R2.2)` closes the
+        second branch's window before it can reach the paragraph's own `before
+        spawning`. Residual, named rather than hidden: that paragraph's
+        restatement inverted ALONE — `each immediately after spawning`, the
+        heading intact — stays GREEN, measured. Reaching it costs a second
+        count over `before ... spawn`, whose price is a false Red the day that
+        paragraph legitimately stops restating the heading above it.
+
+FILE    tests/reports-by-artifact-policy.bats
+PATTERN (SendMessage[^.]{0,60}never +a +second|never +a +second[^.]{0,60}SendMessage)
+VERDICT PINNED
+WHY     MEASURED 4.3, and this key REPLACES `(^|[^A-Za-z])one[^A-Za-z][^.]{0,80}SendMessage`,
+        which 1.5 recorded DIRECTION-BLIND and which no longer occurs in the
+        suite. That predecessor could not be repaired as a pattern: `one` is a
+        SUBSTRING of every phrase that reverses it, so a reversal never has to
+        come near the anchors. 1.5's inversion, re-run on this tree rather than
+        inherited — row 2 of references/validate-mode.md rewritten to `**one**
+        `SendMessage` ... per attempt ... — repeat the row as often as it
+        takes`, the paragraph to `**One request per attempt, ...**` and row 3
+        to `after the last of those requests` — left the owning case GREEN
+        under a rule that now licenses unbounded re-requests. 4.3 therefore
+        rewrote the PROSE, inside the existing sentences and moving no word:
+        `and **never a second**` inserted into row 2, `and never a second` into
+        the paragraph. On that same mutated tree: predecessor GREEN, this
+        pattern RED. The token is one the reversal BREAKS rather than contains,
+        which is the whole difference from `one`. Also RED, one mutation at a
+        time: `never a second` -> `always a second` at both sites; the token
+        dropped from row 2 alone; dropped from the paragraph alone. Row 2's
+        `**one**` -> `**more than one**` with the token left standing Reds at
+        the modifier guard below rather than here, which is what keeps that
+        guard from being redundant. Measured GREEN in the other direction: the
+        token MOVED inside row 2 and inside the paragraph with the objects
+        reworded, and both reflowed at 60 columns with the break falling
+        between `never a` and `second` — which is what the ` +` is for, 4.1's
+        measured false Red. `SendMessage` occurs exactly once in the scoped
+        section (row 2), the gap to the token is 30 characters, and neither
+        branch matches anywhere else — measured on unmutated prose and again
+        under every mutation above. BOTH ORDERS for rewording tolerance, the
+        reason 4.2 took them. WHAT THIS PATTERN DOES NOT CARRY, said plainly:
+        the bound at the PARAGRAPH and at ROW 3. The first is held by the
+        `never a second` count in the same case — not a window pattern, so no
+        row of its own, measured RED at 1 on either single-site removal — and
+        the second by the `one request ... the run is failed` pairing below.
+
+FILE    tests/reports-by-artifact-policy.bats
+PATTERN (^|[^A-Za-z])(one|single) +request[^.]{0,60}the run is failed
+VERDICT PINNED
+WHY     MEASURED 4.3, and it is the THIRD site of the same rule: row 3 of
+        references/validate-mode.md, which states the bound from the failure
+        side — `Still absent or still unparseable after that one request |
+        **the run is failed**`. It REPLACES a bare `the run is failed` literal
+        that was not a window pattern and so held no row; that literal is
+        subsumed here, since this pattern cannot match without it. Why it
+        exists at all, measured rather than argued: the token pinned above is a
+        bound whose SCOPE can be narrowed, and narrowing is the exact defeat
+        1.5 recorded. With `never a second per attempt` at both token sites,
+        row 3 rewritten to `after the last of those requests` and `repeat the
+        row as often as it takes` appended — a section that now licenses
+        unbounded re-requests — the pin above stayed GREEN, the count stayed
+        GREEN, and this pattern went RED. Row 3 reversed ALONE, both tokens
+        untouched: RED, where the predecessor stayed GREEN. The count word sits
+        ADJACENT to the noun it counts, which is what makes `one` usable here
+        after 1.5 proved it unpinnable on its own: a reversal that licenses
+        repeats must change the noun (`the last of those requests`) and so
+        loses the phrase, while a reversal that KEEPS `one` needs a modifier in
+        front of it (`more than one request`), which the guard below refuses.
+        Complementary, measured both ways. `single` rides beside `one` as this
+        document's other word for the same count, and the widening is measured
+        free: one span either way, and no other `one` in the section is within
+        60 characters of the failure phrase. Rewordings measured GREEN: `after
+        that single request`, and the section reflowed at 60 columns with not a
+        word changed. Residual, named rather than hidden: row 3 reworded to
+        drop the count altogether (`after that request`) false-Reds — R1.4's
+        trade, the same one 4.1 took at the ordering clause.
 
 FILE    tests/reports-by-artifact-policy.bats
 PATTERN ((more than|not just|not only|at least|greater than)[^.]{0,10}one[^A-Za-z]|one[^A-Za-z]{1,4}or more)
-VERDICT DIRECTION-BLIND
-WHY     MEASURED 1.5, both ways, and the two results are the whole point.
+VERDICT PINNED
+WHY     MEASURED 1.5, then RE-MEASURED 4.3 once the pair it belongs to was
+        repaired. 1.5 ran it both ways and the two results are the whole point.
         Inversion A — table row 2's `**one** `SendMessage`` became `**more than
-        one** `SendMessage` ... repeating until it writes its report file`: the
-        case went RED here, at this row's `return 1`. Inversion B — the same
-        count reversed as `one ... per attempt ... repeat the row as often as
-        it takes`, which uses none of the five modifiers named above: GREEN.
-        The guard bites the phrasings it enumerates and no others, so the PAIR
-        does not carry the claim. TASK 4, with row 4 above, as one repair.
+        one** `SendMessage` ... repeating until it writes its report file`: RED
+        here, at this row's `return 1`. Inversion B — the same count reversed
+        as `one ... per attempt ... repeat the row as often as it takes`, which
+        uses none of the five modifiers named above: GREEN. The guard bites the
+        phrasings it enumerates and no others, so it never carried the claim on
+        its own. 4.3 did NOT extend the list — an enumeration of the ways to
+        say `more than one` is the mechanism this story replaces — and put the
+        bound in the PROSE instead, pinned by the two rows above. KEPT rather
+        than deleted, and measured NOT redundant: row 2's `**one**` swapped for
+        `**more than one**` with `**never a second**` left standing passes both
+        of those and Reds here alone, which is the one vector nothing else in
+        the case reaches. Both of 1.5's inversions re-run on the rewritten
+        tree: A still RED here, B now RED at the pin above. Silent on unmutated
+        prose, which holds four `one`s, measured. One red-on-correct vector,
+        named and accepted: `never more than one `SendMessage`` Reds here, and
+        row 2 has no need of that phrasing now that its prohibition is stated
+        adjacent as `**never a second**`. Sanctioned shape, not a `!`: `if ...
+        then return 1; fi`, which errexit honours wherever it sits in the body.
 
 FILE    tests/reports-by-artifact-policy.bats
 PATTERN carries[^.]{0,60}(command[^.]{0,120}output|output[^.]{0,120}command)

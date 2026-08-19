@@ -163,10 +163,10 @@ Apply the first row that matches, once the agent returns:
 | # | The report file | Then |
 |---|---|---|
 | 1 | Present and parses | read `verdict` and carry on — the ordinary case |
-| 2 | Absent, empty, truncated, or not parseable as YAML | **one** `SendMessage` to the **same agent**, asking it to write its report file now |
+| 2 | Absent, empty, truncated, or not parseable as YAML | **one** `SendMessage` to the **same agent** and **never a second**, asking it to write its report file now |
 | 3 | Still absent or still unparseable after that one request | **the run is failed** — report it in those terms and stop |
 
-**One request, to the agent that already did the work**, because it still holds the context that produced the verdict: re-emitting the file costs a message rather than a validation suite.
+**One request and never a second, to the agent that already did the work**, because it still holds the context that produced the verdict: re-emitting the file costs a message rather than a validation suite.
 
 **Never respawn silently.** A respawn re-runs every command and every test — precisely the cost the file exists to save — and a second agent that also ends on an intermediate line leaves the flow looping over one failure. Running validate again is the user's call, made with the failure in view.
 

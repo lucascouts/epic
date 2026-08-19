@@ -72,17 +72,25 @@
 # them is a story of its own rather than a sweep bolted on here. Two grades,
 # both measured:
 #
-#   DIRECTION-BLIND — a straight inversion leaves them green. `:241` asks only
-#   that some line mentioning `stale` also names a report file, so rewriting
-#   `Delete`/`delete`/`delete that agent's` to `Keep`/`keep`/`never delete that
-#   agent's` at all three prose sites in references/validate-mode.md — and
-#   `Before each spawn` to `After` on top of that — leaves it green: it pins
-#   neither the deletion verb nor the ordering. The evidence-pair case below
-#   ("a tech-reviewer finding resting on a runnable check cites command and
-#   output") was the second entry here and is CLOSED: it read the whole file
-#   for `command[^.]{0,120}output`, which two spans answered, so deleting the
-#   rule left it green. It now scopes to the section stating the rule and pins
-#   the obligation's own inflection — the measurement is in its comment.
+#   DIRECTION-BLIND — a straight inversion leaves them green. BOTH ENTRIES OF
+#   THIS GRADE ARE NOW CLOSED, and the record stays because what each cost to
+#   close is the argument for the next pin, not because either is still open.
+#   The stale-report case ("2.1: validate-mode removes the stale report file
+#   before spawning") asked only that some line mentioning `stale` also name a
+#   report file, so rewriting `Delete`/`delete`/`delete that agent's` to
+#   `Keep`/`keep`/`never delete that agent's` at all three prose sites in
+#   references/validate-mode.md — and `Before each spawn` to `After` on top of
+#   that — left it green: it pinned neither half of its own name. Sub-task 4.2
+#   SCOPED it to `## Validate Mode Procedure`, which is where all three sites
+#   sit and where the Index Refresh decoy does not, then counted the three
+#   deletion sites, refused a negation on the verb, and pinned the ordering as
+#   an assertion of its own. No prose was touched. The evidence-pair case
+#   below ("a tech-reviewer finding resting on a runnable check cites command
+#   and output") was the second entry and is CLOSED the same way: it read the
+#   whole file for `command[^.]{0,120}output`, which two spans answered, so
+#   deleting the rule left it green. It now scopes to the section stating the
+#   rule and pins the obligation's own inflection — each measurement is in its
+#   own case's comment.
 #
 #   NEGATION-PERMEABLE — they catch a rewrite but not a negation parked in
 #   front of the match, which is the `the run[^.]{0,40}fail` defect again.
@@ -173,7 +181,52 @@ agents_granting() { # $1 = tool name
   # R1.1: the write precedes the textual summary — the ordering is the whole
   # point, because a summary-first agent can still end on an intermediate line
   # with no file written.
-  flat "$VALIDATOR" | command grep -qiE 'before[^.]{0,160}summar'
+  #
+  # THE PROSE HAD NO TOKEN TO PIN, so sub-task 4.1 gave it one. The rule read
+  # `, before composing any textual summary,` and the predecessor pattern was
+  # `before[^.]{0,160}summar`: `before` was the anchor AND the polarity at
+  # once, so a negation had nowhere to go but in FRONT of it, where the window
+  # never looks. Measured, twice — 1.5's sweep and again here on this tree:
+  # `never before composing any textual summary` left this case GREEN under a
+  # rule that now says the opposite. No scope and no count reaches that; only
+  # different prose does, and the rewrite is the smallest one that carries the
+  # rule: `before` became `never`, and `first` was inserted.
+  #
+  # WHAT IS PINNED IS `never composing … first`, not the sentence. The negation
+  # is ADJACENT to the verb it governs, so the mutation that defeated the
+  # predecessor has no slot: `never before composing` puts a word between the
+  # two and Reds, as does dropping `never`, as does `first` -> `last`, as does
+  # deleting the clause outright — four vectors, run on this file and on the
+  # Auditor's separately, eight Reds.
+  #
+  # THE ANCHORS ARE UNIQUE IN THE FILE, measured rather than assumed: `compos`
+  # occurs exactly once here and `first` exactly once, both inside this clause,
+  # so no neighbouring span can answer for it the way the carve-out case below
+  # was answered by a second `.draft/` span before 3.2 counted them. Named by
+  # content rather than by line, because every `.bats` line number this suite
+  # ever wrote down has since drifted.
+  #
+  # `summar` IS DELIBERATELY NOT AN ANCHOR, and 60 characters rather than the
+  # predecessor's 160. Both are costs measured in the other direction: a
+  # faithful rewording that renames the object (`never composing the prose
+  # reply for the human first`) drops the word `summary` entirely and stays
+  # GREEN, and the widest rewording measured puts 31 characters between the
+  # anchors. What the leash proves is that the prohibition governs the
+  # composing, and `composing` is this document's verb for the summary alone.
+  # The `(^|[^A-Za-z])` guard is not decoration: `whenever composing` ends in
+  # `never composing`. Nor is the ` +`: `flat` turns a newline into a space and
+  # leaves any trailing one alone, so a reflow breaking between the two words
+  # of the token hands the pattern TWO spaces and a single-space literal
+  # false-Reds — measured, on prose with not a word changed. Only whitespace
+  # can sit in that slot, so widening it admits no reversal.
+  #
+  # THE RESIDUAL, named rather than left to be found: the rule restated in its
+  # OWN pre-4.1 words — `before composing any textual summary` — now false-Reds
+  # here. That is R1.4's trade taken knowingly: a claim whose polarity cannot
+  # be matched without matching most of a sentence is stated in prose that
+  # carries a polarity token, and the token is then required. A reader who
+  # wants the positive form back has to keep the prohibition with it.
+  flat "$VALIDATOR" | command grep -qiE '(^|[^A-Za-z])never +composing[^.]{0,60}first'
 }
 
 @test "1.1: validator carve-out — any other write is a protocol violation, .draft/ created on demand" {
@@ -213,14 +266,16 @@ agents_granting() { # $1 = tool name
   # green. It is the trade the grant-set pins below take too — an addition as
   # loud as a removal.
   #
-  # WHAT THE COUNT DOES NOT GUARD, said plainly rather than left to be found:
-  # the DIRECTION. The permission reversed at BOTH spans — `never creating
-  # .draft/ on demand` — keeps the count at two and stays GREEN, measured here
-  # exactly as 1.5 measured it, because the negation PREFIXES the anchor
-  # `creat`: no count and no scope reaches it, only different prose does.
-  # Sub-task 4.3 rewrites the permission into a phrase whose negation is not a
-  # superstring of it; the count lands first so that rewrite arrives at a site
-  # whose span count is already held.
+  # WHAT THE COUNT DOES NOT GUARD, AND WHAT NOW DOES: the DIRECTION. The
+  # permission reversed at BOTH spans — `never creating .draft/ on demand` —
+  # keeps the count at two and stayed GREEN, measured here exactly as 1.5
+  # measured it, because the negation PREFIXES the anchor `creat`: no count and
+  # no scope reaches it, only different prose does. Sub-task 4.3 wrote that
+  # prose and pins it in the assertion below. The count stays because the two
+  # answer different questions — this one whether the allowance is STATED at
+  # both sites, that one in which DIRECTION — and neither subsumes the other:
+  # measured, the both-spans reversal keeps this count at 2 while Redding the
+  # pin, and either span deleted outright Reds both.
   #
   # The count is captured before it is compared, not inlined into `[ "$(…)" ]`,
   # and that is the census talking rather than taste: the window-pattern walker
@@ -229,6 +284,34 @@ agents_granting() { # $1 = tool name
   # orphaning the one this pattern already has. Measured on both shapes.
   spans=$(flat "$VALIDATOR" | command grep -oiE 'creat[a-zA-Z]*[^.]{0,80}\.draft' | wc -l)
   [ "$spans" -eq 2 ]
+
+  # ...AND IN WHICH DIRECTION (R1.4). The Rules bullet had no token to pin:
+  # `, creating `.draft/` on demand.**` is reversed by `, never creating
+  # `.draft/` on demand.**` — a negation in FRONT of the anchor, where no
+  # window looks. The protocol step one span above already carried one, and it
+  # is the shape `the run is failed` uses: `is part of this step` SPLITS under
+  # `is NOT part of this step`. So 4.3 moved that frame into the bullet rather
+  # than inventing a second one — `, creating `.draft/` on demand.**` became
+  # `, and creating `.draft/` on demand is part of it.**`, which reads as a
+  # clause instead of the dangling participle it replaced — and both agent
+  # files took the identical edit.
+  #
+  # ANCHORED AFTER `.draft`, NEVER BEFORE IT, which is arithmetic rather than
+  # taste: `[^.]` cannot cross the full stop inside `` `.draft/` ``, so a
+  # `creat…is part of` window could never reach the verb it needs. `is part of`
+  # occurs exactly twice in this file, both inside the carve-out — measured —
+  # so no neighbouring sentence can answer for either span.
+  #
+  # COUNTED, for the reason the span count above is: a `-q` is answered by
+  # whichever span survives, and the ONE-span reversal is exactly what 1.5 and
+  # 3.2 left open. Measured, one mutation at a time: reversed at both spans —
+  # 0, RED; at the protocol step alone — 1, RED; at the Rules bullet alone —
+  # 1, RED. Residual, named and accepted: a rewording that drops the frame
+  # (`so this step creates `.draft/` itself whenever it finds none`) now
+  # false-Reds, which is R1.4's trade — the prose carries the token or the
+  # direction goes unpinned.
+  allowed=$(flat "$VALIDATOR" | command grep -oiE '\.draft[^.]{0,40}is +part of' | wc -l)
+  [ "$allowed" -eq 2 ]
 }
 
 @test "1.1: validate-mode Validator prompt template mirrors the report file" {
@@ -246,7 +329,15 @@ agents_granting() { # $1 = tool name
 @test "1.2: auditor names .draft/audit-report.yaml, its verdict, and the write-before-summary ordering" {
   command grep -q 'audit-report\.yaml' "$AUDITOR"
   flat "$AUDITOR" | command grep -qi 'verdict'
-  flat "$AUDITOR" | command grep -qiE 'before[^.]{0,160}summar'
+  # Same rewritten rule and the same pin as the Validator's — the two files
+  # state this step in one another's words, and 4.1 rewrote both in the same
+  # edit so a divergence could not open here. Measured on THIS file rather
+  # than inherited from the twin: `never` dropped, `never before composing`,
+  # `first` -> `last` and the clause deleted each Red on agents/auditor.md
+  # with agents/validator.md untouched, and the object reworded stays GREEN.
+  # Why the negation sits adjacent, why `summar` is not an anchor and what
+  # that costs are argued once, on the 1.1 twin above.
+  flat "$AUDITOR" | command grep -qiE '(^|[^A-Za-z])never +composing[^.]{0,60}first'
 }
 
 @test "1.2: auditor carve-out — any other write is a protocol violation, .draft/ created on demand" {
@@ -256,14 +347,27 @@ agents_granting() { # $1 = tool name
   # Same count and the same two sites — the protocol step at agents/auditor.md:74
   # and the Rules bullet at :125, in the Validator's own words — measured on THIS
   # file rather than inherited from the twin: the bullet-only removal and the
-  # step-only removal each Red here, as does either span deleted outright, the
-  # both-sites rewording stays GREEN, and the both-sites REVERSAL stays green
-  # too, which is 4.3's half and nothing this count can reach. Why the count is
-  # taken over flattened text, why `-eq` rather than `-ge`, and why it is
-  # captured before it is compared are all on the 1.1 twin above — one decision,
-  # not two, so it is argued once.
+  # step-only removal each Red here, as does either span deleted outright, and
+  # the both-sites rewording stays GREEN. The both-sites REVERSAL stays green
+  # here too, and always will: it keeps both spans and only turns them round,
+  # which is the DIRECTION — 4.3's half, pinned in the assertion below. Why the
+  # count is taken over flattened text, why `-eq` rather than `-ge`, and why it
+  # is captured before it is compared are all on the 1.1 twin above — one
+  # decision, not two, so it is argued once.
   spans=$(flat "$AUDITOR" | command grep -oiE 'creat[a-zA-Z]*[^.]{0,80}\.draft' | wc -l)
   [ "$spans" -eq 2 ]
+
+  # ...AND IN WHICH DIRECTION, the same token, the same count and the same two
+  # sites as the Validator's — the two files state this rule in one another's
+  # words and 4.3 rewrote both Rules bullets in one edit, so no divergence
+  # could open here. Measured on THIS file rather than inherited: the carve-out
+  # reversed at BOTH spans counts 0 and Reds, at the protocol step alone counts
+  # 1 and Reds, at the Rules bullet alone counts 1 and Reds, and the rewording
+  # that keeps the frame at both spans stays GREEN. Why the pattern anchors
+  # AFTER `.draft`, why `is part of` carries the direction where the participle
+  # could not, and what the token costs are argued once on the 1.1 twin above.
+  allowed=$(flat "$AUDITOR" | command grep -oiE '\.draft[^.]{0,40}is +part of' | wc -l)
+  [ "$allowed" -eq 2 ]
 }
 
 @test "1.2: validate-mode Auditor prompt template mirrors the report file" {
@@ -298,10 +402,92 @@ agents_granting() { # $1 = tool name
 
 @test "2.1: validate-mode removes the stale report file before spawning" {
   # R2.2: a leftover from a prior run must never read as a fresh verdict.
-  # Line-based co-location on purpose: 'stale' alone matches the Index Refresh
-  # section's "a stale rendering", which has nothing to do with reports.
-  command grep -i 'stale' "$VALIDATE_MODE" \
-    | command grep -qiE 'validation-report|audit-report|report file'
+  #
+  # THE PREDECESSOR PINNED NEITHER HALF OF ITS OWN NAME. It asked only that
+  # some line mentioning `stale` also name a report file — line-based on
+  # purpose, because `## Index Refresh` calls a stale INDEX "a stale
+  # rendering" and that line has nothing to do with reports. Measured on this
+  # tree rather than inherited: the deletion verb reversed at all three sites
+  # (`Delete`/`delete`/`delete that agent's` -> `Keep`/`keep`/`never delete
+  # that agent's`) together with `Before each spawn` -> `After each spawn`
+  # left it GREEN, on prose that then stated the opposite rule twice over.
+  #
+  # SCOPED RATHER THAN WIDENED, AND NO PROSE WAS TOUCHED (R3.1). All three
+  # sites sit inside `## Validate Mode Procedure` — steps 3 and 4 and the
+  # R2.2 subsection heading — and the decoy sits in `## Index Refresh`, so the
+  # section boundary excludes it by construction rather than by the
+  # co-location trick the predecessor needed. Measured in the other direction
+  # too: the decoy reworded with the rule untouched stays GREEN.
+  #
+  # THE TRAILING SPACE IN `^## ` IS LOAD-BEARING HERE, measured rather than
+  # copied from a neighbour: `^## ` runs past the three `###` subsections to
+  # `## Status Transition` and captures 42 lines, the R2.2 heading among them,
+  # while `^##` stops at the first `###` and captures 10 — dropping the third
+  # site entirely and Redding on unmutated prose.
+  sec="$(md_section "$VALIDATE_MODE" '^## Validate Mode Procedure' '^## ')"
+  # `flat` reads a file, so a captured section is flattened inline.
+  flatsec="$(printf '%s\n' "$sec" | tr '\n' ' ')"
+
+  # HALF ONE, THE VERB, AND IT IS COUNTED. The rule stands at three sites, so
+  # asking whether it is stated ANYWHERE is answered by any two survivors —
+  # the partial-removal defect this story is named for. Measured one site at a
+  # time: the verb reversed at step 3 alone, at step 4 alone and at the R2.2
+  # heading alone each take the count to 2 and Red, where the predecessor
+  # stayed GREEN on all three. Why the count is taken over flattened text with
+  # `grep -o | wc -l` rather than `grep -c`, why `-eq` rather than `-ge`, and
+  # why it is captured before it is compared are argued once on the 1.1
+  # carve-out twin above — one decision, not two.
+  #
+  # `remov` RIDES BESIDE `delet` because this document calls the act by both
+  # names — the R2.2 paragraph writes "Step 3 removes … and step 4 removes …"
+  # of the very deletes the heading above it mandates, and this case's own
+  # name says `removes`. A pin that Redded when the prose adopted the case's
+  # own word would be the rewritten-for-the-grep failure this task group is
+  # warned about. The widening is measured free: 3 spans either way, and the
+  # section holds exactly three `stale` tokens, so no verb elsewhere can raise
+  # the count. The 40-character leash is rewording slack, not reach — the
+  # widest real gap is 14 (`delete that agent's stale`) and the count is 3 at
+  # every width from 20 to 120.
+  deletes=$(printf '%s\n' "$flatsec" | command grep -oiE '(delet|remov)[a-z]*[^.]{0,40}stale' | wc -l)
+  [ "$deletes" -eq 3 ]
+
+  # ...AND A COUNT CANNOT CARRY THE DIRECTION. `never delete that agent's
+  # stale report file` is the rule reversed and still counts three, because
+  # the negation PREFIXES the anchor — the same shape that leaves the
+  # `.draft/` carve-out open two cases above. Refused here instead, and
+  # ADJACENT so that a negation reaching the verb Reds while prose that merely
+  # contains one does not: the R2.2 subsection's own "Deleting what is not
+  # there is a no-op, never an error" is silent here, measured, as is
+  # "**Never respawn silently.**" further down the same section.
+  if printf '%s\n' "$flatsec" \
+    | command grep -qiE '(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely)[^A-Za-z]{1,3})?(delet|remov)'
+  then
+    echo "the stale report file's deletion is stated with a negation on the verb — the rule is reversed"
+    return 1
+  fi
+
+  # HALF TWO, THE ORDERING, pinned separately so a future reader sees which
+  # half broke: `Before each spawn` -> `After each spawn` keeps every word the
+  # count above reads and reverses the rule's other half. What is pinned is
+  # the ordering word sharing a sentence with BOTH the spawn and the delete —
+  # one span in the section, measured, the R2.2 heading itself. A bare
+  # `before … spawn` would not reach it: the paragraph under that heading says
+  # "immediately before spawning" too, so the heading could be inverted alone
+  # and stay green.
+  #
+  # BOTH ORDERS, for the reason the evidence-pair case below takes them: the
+  # rule reworded as `delete that agent's stale report file before each spawn`
+  # states the same ordering the other way round, and this task group's risk
+  # is a pin so tight a faithful rewording false-Reds. Neither branch matches
+  # anything else in the section, measured, before the mutation and under it.
+  #
+  # Residual, named rather than left to be found: the paragraph's own
+  # restatement inverted ALONE — "each immediately after spawning", the
+  # heading intact — stays GREEN, measured. Reaching it costs a second count
+  # over `before … spawn`, whose price is a false Red the day that paragraph
+  # legitimately stops restating the heading above it.
+  printf '%s\n' "$flatsec" \
+    | command grep -qiE '(before[^.]{0,20}spawn[a-z]*[^.]{0,30}(delet|remov)|(delet|remov)[a-z]*[^.]{0,60}before[^.]{0,20}spawn)'
 }
 
 @test "2.1: the procedure reads both verdicts from the report files" {
@@ -369,14 +555,72 @@ agents_granting() { # $1 = tool name
   # a captured section on a pipe. A soft wrap must not hide a phrase.
   sec="$(printf '%s\n' "$sec" | tr '\n' ' ')"
 
-  # ONE request, and by SendMessage — not a loop, not a respawn.
+  # ONE REQUEST, BY SendMessage — AND NEVER A SECOND, which is the half the
+  # predecessor could not carry. That one was
+  # `(^|[^A-Za-z])one[^A-Za-z][^.]{0,80}SendMessage`, and no pattern could
+  # repair it: `one` is a SUBSTRING of every phrase that reverses it (`more
+  # than one`, `one per attempt`), so a reversal never has to come near the
+  # anchors. Measured, 1.5 and again here on this tree — row 2 rewritten to
+  # `**one** `SendMessage` … per attempt … — repeat the row as often as it
+  # takes`, the paragraph to `**One request per attempt, …**` and row 3 to
+  # `after the last of those requests` left this case GREEN under a rule that
+  # now licenses unbounded re-requests. No scope and no count reaches that;
+  # only different prose does (R1.4), and 4.3's is the smallest edit that
+  # carries the bound: `and **never a second**` inserted into row 2 and `and
+  # never a second` into the paragraph — a token inside each existing
+  # sentence, no word moved and no paragraph restructured.
+  #
+  # THE TOKEN IS ONE THE REVERSAL BREAKS RATHER THAN CONTAINS, which is the
+  # whole difference from `one`: prose that licenses repeats cannot keep
+  # `never a second` and stay coherent. So the mutation that defeated the
+  # predecessor Reds here, as do `never` dropped, the token dropped, and the
+  # rule inverted to `always a second` — four vectors, one at a time.
+  #
+  # MECHANISM AND BOUND IN ONE MATCH, because the case is named for both.
+  # `SendMessage` occurs exactly once in this section — row 2, measured — and
+  # the token sits 30 characters from it. BOTH ORDERS, for the reason the
+  # ordering pin two cases above takes them: a rewording that states the bound
+  # first states the same rule, and this task group's risk is a pin so tight a
+  # faithful rewording false-Reds. Neither branch matches anything else in the
+  # section, measured — the paragraph's own `never a second` has no
+  # `SendMessage` within 60 characters, before the mutations or under them.
   printf '%s\n' "$sec" \
-    | command grep -qiE '(^|[^A-Za-z])one[^A-Za-z][^.]{0,80}SendMessage'
-  # ...AND NOT MORE THAN ONE. The positive pattern above cannot carry this:
-  # `one` is a substring of every phrase that negates it (`more than one`,
-  # `not just one`, `one or more`), so there is no polarity token to move
-  # inside the match the way `is failed` does below. Hence a second, negated
-  # grep — measured green under all three inversions without it.
+    | command grep -qiE '(SendMessage[^.]{0,60}never +a +second|never +a +second[^.]{0,60}SendMessage)'
+
+  # ...AND AT BOTH SITES THAT STATE IT, counted, because a `-q` is answered by
+  # either one and the partial removal is the defect this story is named for:
+  # row 2 is the instruction the flow executes, the paragraph is the argument
+  # for it. Measured one site at a time — the bound reversed at row 2 alone and
+  # at the paragraph alone each take the count to 1 and Red, where the
+  # predecessor stayed GREEN on both. `-eq` rather than `-ge`, over flattened
+  # text, captured before it is compared: three decisions argued once at the
+  # 1.1 carve-out twin above, at the same measured cost — a legitimate THIRD
+  # statement of the bound would false-Red. The ` +` is 4.1's measured reflow
+  # slack; the leading boundary is not decoration either, because `whenever a
+  # second` ends in `never a second`.
+  #
+  # ROW 3 STATES THE BOUND TOO, in its own words rather than in this token's
+  # (`after that one request`), and it is pinned at the TAIL of this case
+  # instead of counted here: it is the same rule read from the failure side and
+  # it shares no anchor with `never a second`. Reversing that row alone leaves
+  # this count at 2 and Reds the pairing below — measured, one mutation at a
+  # time, which is how all three sites end up held.
+  bounds=$(printf '%s\n' "$sec" | command grep -oiE '(^|[^A-Za-z])never +a +second' | wc -l)
+  [ "$bounds" -eq 2 ]
+
+  # ...AND NOT MORE THAN ONE, for the five phrasings this guard names and no
+  # others. That limit is measured, not suspected: 1.5 reddened it with `**more
+  # than one** `SendMessage`` and left it GREEN with the `per attempt` form,
+  # which is why the bound is now in the PROSE and pinned above rather than
+  # enumerated here. Extending the list is the mechanism this story replaces,
+  # so the list is untouched.
+  #
+  # KEPT, AND NOT REDUNDANT — measured rather than assumed, because an
+  # assertion that cannot fail while its neighbour passes is one this file
+  # deletes (see the carve-out count above). The vector it alone catches is the
+  # MINIMAL widening: row 2's `**one**` swapped for `**more than one**` with
+  # the token left standing. The prose then contradicts itself, the pin and the
+  # count both stay GREEN, and this guard Reds.
   #
   # NOT a bare `!`, and that is not a style choice: bash exempts a `!`-inverted
   # command from errexit, so its status is discarded anywhere but the LAST
@@ -388,13 +632,14 @@ agents_granting() { # $1 = tool name
   # the window before any match and false-Reds on auditor.md's memory clause by
   # construction. This names the modifiers of ONE quantifier, stays inline in
   # the case that owns it, and is silent on the unmutated section — which holds
-  # two further `one`s ("One request, to the agent…", "after that one request").
+  # four `one`s, measured: row 2's "**one** `SendMessage`", row 3's "after that
+  # one request", the paragraph's "One request and never a second" and the
+  # respawn paragraph's "looping over one failure".
   #
-  # Two red-on-correct vectors, both measured and accepted rather than
-  # discovered later: "a single `SendMessage`" is PRE-EXISTING — the positive
-  # pattern above reds it too, so this line adds nothing there; "never more than
-  # one `SendMessage`" is ADDED, and accepted because row 2 is an imperative
-  # action cell and a prohibition does not fit that column.
+  # One red-on-correct vector, measured and accepted rather than discovered
+  # later: "never more than one `SendMessage`" Reds here, and that is accepted
+  # because row 2 is an imperative action cell whose prohibition is already
+  # stated, adjacent, as `**never a second**`.
   if printf '%s\n' "$sec" \
     | command grep -qiE '((more than|not just|not only|at least|greater than)[^.]{0,10}one[^A-Za-z]|one[^A-Za-z]{1,4}or more)'
   then
@@ -435,7 +680,32 @@ agents_granting() { # $1 = tool name
   # credited: that field reads "recovery path wording must not permit silent
   # respawn" and never carries the phrase — the grep on the line above is what
   # answers for it.
-  printf '%s\n' "$sec" | command grep -qiE 'the run is failed'
+  #
+  # ...AFTER *ONE* REQUEST, WHICH IS ROW 3'S HALF OF THE BOUND, and the third
+  # site the token above does not reach. A bare `the run is failed` cannot
+  # carry it, and that gap is measured rather than argued: with the bound
+  # WIDENED but KEPT — `never a second per attempt` at both token sites, row 3
+  # rewritten to `after the last of those requests` and `repeat the row as
+  # often as it takes` appended — every other assertion in this case stayed
+  # GREEN on a section that now licenses unbounded re-requests. Pairing the
+  # count with the failure Reds it, because a rule that repeats cannot also say
+  # the run is failed after ONE request.
+  #
+  # THE COUNT SITS ADJACENT TO THE NOUN IT COUNTS, which is what makes `one`
+  # usable here after 1.5 proved it unpinnable on its own. The two directions
+  # split: a reversal that licenses repeats must change the noun (`the last of
+  # those requests`, `each of those requests`) and so loses the phrase, while a
+  # reversal that KEEPS `one` needs a modifier in front of it — `more than one
+  # request` — which the guard above refuses. Neither assertion covers the
+  # other, measured both ways. `single` rides beside `one` because it is this
+  # document's other word for the same count, and the widening is measured free
+  # — one span either way, and the section's other `one`s are all further than
+  # 60 characters from the failure phrase or behind a full stop. Residual,
+  # named rather than left to be found: row 3 reworded to drop the count
+  # altogether (`after that request`) false-Reds, which is R1.4's trade — the
+  # same one 4.1 took at the ordering clause.
+  printf '%s\n' "$sec" \
+    | command grep -qiE '(^|[^A-Za-z])(one|single) +request[^.]{0,60}the run is failed'
 }
 
 @test "2.1: the pass point keys off the report file's verdict" {

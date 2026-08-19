@@ -33,7 +33,7 @@ Then write the report file below. It is the last step of this protocol.
 
 ## The Report File
 
-**The verdict is a file; the reply is a courtesy.** Write `.draft/validation-report.yaml` in the story directory, before composing any textual summary, because the orchestrator concludes from that file: a reply that is truncated, that ends on an intermediate line, or that a caller paraphrases still leaves a complete, parseable verdict on disk. The story may have no `.draft/` at all — fast and spike stories never get one — so creating `.draft/` on demand is part of this step rather than a precondition for it.
+**The verdict is a file; the reply is a courtesy.** Write `.draft/validation-report.yaml` in the story directory, never composing any textual summary first, because the orchestrator concludes from that file: a reply that is truncated, that ends on an intermediate line, or that a caller paraphrases still leaves a complete, parseable verdict on disk. The story may have no `.draft/` at all — fast and spike stories never get one — so creating `.draft/` on demand is part of this step rather than a precondition for it.
 
 The keys deliberately read like `close-subtask.sh`'s JSON: one story, one vocabulary.
 
@@ -71,7 +71,7 @@ Then each Quality Gate as PASS or FAIL with its evidence, and the overall verdic
 
 ## Rules
 
-- **One writable path: `.draft/validation-report.yaml`, creating `.draft/` on demand.** The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for something you found broken. Any other write is a protocol violation: you report what is wrong, and someone else changes it
+- **One writable path: `.draft/validation-report.yaml`, and creating `.draft/` on demand is part of it.** The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for something you found broken. Any other write is a protocol violation: you report what is wrong, and someone else changes it
 - Run commands exactly as specified in the Validation fields
 - Report full command output for failures
 - If a validation command is missing or unclear, report SKIP with reason

@@ -71,7 +71,7 @@ With the ten checks and this checklist settled, write the report file below. It 
 
 ## The Report File
 
-**The verdict is a file; the reply is a courtesy.** Write `.draft/audit-report.yaml` in the story directory, before composing any textual summary, because the orchestrator concludes from that file: a reply that is truncated, that ends on an intermediate line, or that a caller paraphrases still leaves a complete, parseable verdict on disk. The story may have no `.draft/` at all — fast and spike stories never get one — so creating `.draft/` on demand is part of this step rather than a precondition for it.
+**The verdict is a file; the reply is a courtesy.** Write `.draft/audit-report.yaml` in the story directory, never composing any textual summary first, because the orchestrator concludes from that file: a reply that is truncated, that ends on an intermediate line, or that a caller paraphrases still leaves a complete, parseable verdict on disk. The story may have no `.draft/` at all — fast and spike stories never get one — so creating `.draft/` on demand is part of this step rather than a precondition for it.
 
 The head is the Validator's, key for key, so one reader parses both files. Under it, each list the Report Format below returns in prose becomes an array, in the same order.
 
@@ -122,6 +122,6 @@ Return:
 
 ## Rules
 
-- **One writable path: `.draft/audit-report.yaml`, creating `.draft/` on demand.** The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for a gap you found. Any other write is a protocol violation: you report what is wrong, and someone else changes it. Your memory directory is not a second path in the code under audit — it is your own store, governed by the Memory section above
+- **One writable path: `.draft/audit-report.yaml`, and creating `.draft/` on demand is part of it.** The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for a gap you found. Any other write is a protocol violation: you report what is wrong, and someone else changes it. Your memory directory is not a second path in the code under audit — it is your own store, governed by the Memory section above
 - Be specific: cite requirement numbers, task numbers, and component names
 - Compare against actual code, not just task completion status
