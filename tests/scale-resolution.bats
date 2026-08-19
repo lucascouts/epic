@@ -805,9 +805,48 @@ comment_blocks() {
   BLOCKS=$(comment_blocks "$PLUGIN_ROOT/scripts/validate-story.sh")
   SCALE_BLOCKS=$(grep -i 'scale' <<< "$BLOCKS" || true)
   [ -n "$SCALE_BLOCKS" ]
-  # The retraction, stated: some comment about scale says tasks.md owns it.
-  if ! grep -qiE "tasks\.md[^.]{0,120}(owns|authoritative|wins)|(authoritative)[^.]{0,120}tasks\.md" <<< "$SCALE_BLOCKS"; then
-    echo "expected a comment stating that tasks.md owns/is authoritative for 'scale'"
+  # THE RETRACTION, STATED AT EVERY SITE THAT STATES IT AND IN THE DIRECTION IT
+  # STATES. This file carries the rule in THREE comment spans — the shared-rule
+  # header (:136), the written-contract paragraph (:148) and the disagreement
+  # warning's rationale (:233) — and the predecessor asked only whether ONE of
+  # them existed. Measured 3.3, that is exactly what it did: a `not` inserted
+  # into ALL THREE left it GREEN, and each span's rule deleted outright left it
+  # GREEN too. Six mutations, six greens, one at a time. Both halves are
+  # repaired here, because either alone leaves the other open (R3.2, R1.1).
+  #
+  # COUNTED OVER THE FLATTENED BLOCKS, the representation measured rather than
+  # assumed. `grep -c` counts matching LINES, and `comment_blocks` joins a run
+  # of `#` lines — a bare `#` continues the run — so :136 and :148 land on ONE
+  # line: it answers 2 here, and still answers 2 with either of those two spans'
+  # rule deleted. It cannot see them apart at all. Counting MATCHES answers 3,
+  # and 2 for every one-site removal. Counting over the raw file instead fails
+  # the other way: each of the three spans reworded across a line break drops a
+  # raw `grep -c` to 1 — a false Red on prose that still states the rule three
+  # times — while this form still answers 3. All three forms measured, on the
+  # same mutations.
+  #
+  # THE POLARITY SITS INSIDE THE MATCH, which is why the count alone would not
+  # close this. 1.5's negation PREFIXES the anchor — `is not authoritative` —
+  # and no count reaches a prefix: three negated spans would still count three.
+  # The pin is 2.3's, the same phrase in the same words, so `is authoritative`
+  # is the match rather than a neighbour of it and a negation has nowhere to
+  # park. Measured: the three-span negation counts 0.
+  #
+  # EXACTLY THREE, AND THE COST IS MEASURED RATHER THAN PREFERRED: a legitimate
+  # FOURTH statement of the rule false-Reds — measured, a restatement added
+  # inside the :136 block counts 4. `-ge 3` Reds all six removals just as well
+  # and buys that fourth span silence; exactness is taken because DUPLICATION is
+  # what blinded this site — the rule already stands at three places, which is
+  # why one could vanish unnoticed — so a fourth belongs in front of a reader
+  # rather than under a green. The trade 3.2 took at the `.draft/` carve-out,
+  # for the same reason.
+  #
+  # The count is captured before it is compared rather than inlined into
+  # `[ "$(…)" ]`: the window-pattern census keys a row on the WHOLE quoted span,
+  # and inlining would key one nobody would recognise. Measured on both shapes.
+  spans=$(grep -oiE 'tasks\.md[^.]{0,24}is (the )?authoritative' <<< "$SCALE_BLOCKS" | wc -l)
+  if [ "$spans" -ne 3 ]; then
+    echo "expected 3 comment spans stating that tasks.md is authoritative for 'scale', found $spans"
     # Truncated: these blocks are paragraphs, and dumping them whole buries the
     # one line of diagnosis under a page of prose.
     echo "the scale-mentioning comment blocks (first 120 chars each) were:"

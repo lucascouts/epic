@@ -77,19 +77,23 @@
 #   `Delete`/`delete`/`delete that agent's` to `Keep`/`keep`/`never delete that
 #   agent's` at all three prose sites in references/validate-mode.md — and
 #   `Before each spawn` to `After` on top of that — leaves it green: it pins
-#   neither the deletion verb nor the ordering. `:341`
-#   (`command[^.]{0,120}output`) states an obligation rather than a direction
-#   and fails the same way, staying green with tech-reviewer.md's `carries the
-#   exact command and its observed output` rewritten to `need not carry …`. A
-#   second span in that file satisfies the pattern too, so even deleting the
-#   rule outright would not Red it.
+#   neither the deletion verb nor the ordering. The evidence-pair case below
+#   ("a tech-reviewer finding resting on a runnable check cites command and
+#   output") was the second entry here and is CLOSED: it read the whole file
+#   for `command[^.]{0,120}output`, which two spans answered, so deleting the
+#   rule left it green. It now scopes to the section stating the rule and pins
+#   the obligation's own inflection — the measurement is in its comment.
 #
 #   NEGATION-PERMEABLE — they catch a rewrite but not a negation parked in
 #   front of the match, which is the `the run[^.]{0,40}fail` defect again.
 #   `:172` and its 1.2 twin Red when `before composing any textual summary`
 #   becomes `after composing …`, and stay green when it becomes `never before
-#   …`. `:181` and its twin stay green when both `creating .draft/ on demand`
-#   sites become `never creating .draft/`.
+#   …`. The `.draft/` carve-out pair is HALF repaired: sub-task 3.2 replaced
+#   its occurrence check with a count of the two spans each file states the
+#   allowance at, so dropping it from either site Reds now — but both sites
+#   rewritten to `never creating .draft/` keep the count at two and stay green,
+#   because the negation prefixes the anchor `creat`. No count reaches that;
+#   sub-task 4.3 owns it.
 #
 # A pattern naming only a file, a field or a topic (`audit-report.yaml`,
 # `verdict`, `measurement`) makes no directional claim and so has no polarity to
@@ -177,8 +181,54 @@ agents_granting() { # $1 = tool name
   # The assertive frame `is a` is part of the match: the definition writes "Any
   # other write is a protocol violation" verbatim, and the inversion breaks it.
   flat "$VALIDATOR" | command grep -qiE 'is a protocol violation'
-  # R1.3: fast/spike stories have no .draft/ until someone makes one.
-  flat "$VALIDATOR" | command grep -qiE 'creat[a-zA-Z]*[^.]{0,80}\.draft'
+
+  # R1.3 + R3.2: fast/spike stories have no .draft/ until someone makes one,
+  # and THIS FILE SAYS SO TWICE — the protocol step at agents/validator.md:36
+  # and the Rules bullet at :74. That is what made the predecessor an assertion
+  # about half the file rather than about the file: `flat … | grep -q` is
+  # answered by either span alone, so dropping the allowance from the bullet
+  # only left this case GREEN — story 019's recorded failure, re-measured here
+  # before the repair. Counting the spans Reds it, and Reds the other three
+  # one-site removals with it: eight mutations across the two files, eight Reds.
+  # The count SUBSUMES the `-q` it replaces — 2 spans implies at least one — so
+  # keeping both would be a second assertion that cannot fail while the first
+  # passes.
+  #
+  # COUNTED OVER FLATTENED TEXT, and the representation is measured rather than
+  # assumed, because the obvious `grep -c` is wrong twice over: it counts
+  # matching LINES, so over `flat`'s single line it answers 1 however many
+  # spans exist, and over the raw file it answers 2 only while both spans keep
+  # to a line of their own. Not a hypothetical — measured, on prose with not a
+  # word changed: this file reflowed at 72 columns puts a newline inside the
+  # Rules bullet's span, and raw `grep -c` answers 1, raw `grep -o` answers 1,
+  # `flat` + `grep -o` answers 2; with a newline inside BOTH spans the two raw
+  # forms answer 0 and this one still answers 2. Spans over flattened text is
+  # the tolerance every other assertion in this file is flattened for.
+  #
+  # EXACTLY TWO, AND THE COST IS REAL AND MEASURED: a legitimate THIRD
+  # statement of the allowance false-Reds here. `-ge 2` Reds all eight removals
+  # just as well and buys that third span silence; the exactness is taken
+  # deliberately, because DUPLICATION is half of what made this site blind in
+  # 1.5, so a third span belongs in front of a reader rather than under a
+  # green. It is the trade the grant-set pins below take too — an addition as
+  # loud as a removal.
+  #
+  # WHAT THE COUNT DOES NOT GUARD, said plainly rather than left to be found:
+  # the DIRECTION. The permission reversed at BOTH spans — `never creating
+  # .draft/ on demand` — keeps the count at two and stays GREEN, measured here
+  # exactly as 1.5 measured it, because the negation PREFIXES the anchor
+  # `creat`: no count and no scope reaches it, only different prose does.
+  # Sub-task 4.3 rewrites the permission into a phrase whose negation is not a
+  # superstring of it; the count lands first so that rewrite arrives at a site
+  # whose span count is already held.
+  #
+  # The count is captured before it is compared, not inlined into `[ "$(…)" ]`,
+  # and that is the census talking rather than taste: the window-pattern walker
+  # keys a row on the WHOLE quoted span, and inlining puts the pattern inside a
+  # `"…"` that runs from `|` to `)`, keying a row nobody would recognise and
+  # orphaning the one this pattern already has. Measured on both shapes.
+  spans=$(flat "$VALIDATOR" | command grep -oiE 'creat[a-zA-Z]*[^.]{0,80}\.draft' | wc -l)
+  [ "$spans" -eq 2 ]
 }
 
 @test "1.1: validate-mode Validator prompt template mirrors the report file" {
@@ -202,7 +252,18 @@ agents_granting() { # $1 = tool name
 @test "1.2: auditor carve-out — any other write is a protocol violation, .draft/ created on demand" {
   # Same assertive frame as the Validator's, and for the same reason.
   flat "$AUDITOR" | command grep -qiE 'is a protocol violation'
-  flat "$AUDITOR" | command grep -qiE 'creat[a-zA-Z]*[^.]{0,80}\.draft'
+
+  # Same count and the same two sites — the protocol step at agents/auditor.md:74
+  # and the Rules bullet at :125, in the Validator's own words — measured on THIS
+  # file rather than inherited from the twin: the bullet-only removal and the
+  # step-only removal each Red here, as does either span deleted outright, the
+  # both-sites rewording stays GREEN, and the both-sites REVERSAL stays green
+  # too, which is 4.3's half and nothing this count can reach. Why the count is
+  # taken over flattened text, why `-eq` rather than `-ge`, and why it is
+  # captured before it is compared are all on the 1.1 twin above — one decision,
+  # not two, so it is argued once.
+  spans=$(flat "$AUDITOR" | command grep -oiE 'creat[a-zA-Z]*[^.]{0,80}\.draft' | wc -l)
+  [ "$spans" -eq 2 ]
 }
 
 @test "1.2: validate-mode Auditor prompt template mirrors the report file" {
@@ -471,7 +532,63 @@ agents_granting() { # $1 = tool name
 
 @test "3.1: a tech-reviewer finding resting on a runnable check cites command and output" {
   # R3.2: measured, not argued — the finding carries the evidence pair.
-  flat "$TECH_REVIEWER" | command grep -qiE 'command[^.]{0,120}output'
+  #
+  # NO PIN COULD HAVE CLOSED THIS ONE ALONE: the predecessor read the WHOLE
+  # file, and `command[^.]{0,120}output` was answered TWICE — by the rule at
+  # agents/tech-reviewer.md:44 and by the report-format bullet at :55 ("… the
+  # command and its output"). Measured, and it is why the scope comes before
+  # the polarity: DELETING the rule outright left the predecessor GREEN, so
+  # the obligation could vanish from that file without a Red.
+  #
+  # SCOPED TO THE SECTION THAT STATES THE RULE. `## Measurement, Not Argument`
+  # ends where `## Protocol` begins, which puts the checklist bullet out of
+  # scope by construction. The end pattern is `^## ` WITH the trailing space,
+  # the idiom the `##`-level captures above use; here it is not load-bearing
+  # and that is measured, not assumed — the section holds no heading of any
+  # depth, so `^##` captures the same seven lines. Where a `###` subsection
+  # DOES sit inside, the space decides the boundary, which is why the run-mode
+  # case below drops it and says so. Inside the section the pair has exactly
+  # one span and `output` occurs exactly once, so the deletion Reds now.
+  # The exclusion is measured in the other direction too: the :55 bullet
+  # rewritten to `— a paraphrase of what you ran`, the rule untouched, stays
+  # GREEN. A span this case does not own must not decide it.
+  sec="$(md_section "$TECH_REVIEWER" '^## Measurement, Not Argument' '^## ')"
+  # `flat` reads a file, so a captured section is flattened inline.
+  flatsec="$(printf '%s\n' "$sec" | tr '\n' ' ')"
+
+  # THEN THE POLARITY, because a scope alone still passes a section stating
+  # the opposite. `carries` is the obligation, and English reverses a rule of
+  # this shape with a modal plus a bare infinitive — `need not carry`, `does
+  # not carry`, `is not required to carry` — every one of which loses the
+  # inflection: RED, measured, all three.
+  #
+  # The 60-character leash and the two orders are costs, measured rather than
+  # preferred. Reworderings that park a parenthetical between the verb and its
+  # object cluster at 40-44 characters (`carries, quoted rather than
+  # paraphrased, the exact command …`), and `carries the observed output and
+  # the exact command that produced it` states the same pair the other way
+  # round; a 40-character single-order pattern false-Reds both. Tightening the
+  # leash buys nothing back: a sentence where `carries` governs some OTHER
+  # noun while the pair sits in a later clause measures 39 characters, inside
+  # even a 40-character window. That shape is the residual, named rather than
+  # discovered later — the leash proves `carries` shares the sentence, and the
+  # guard below is what proves it is not negated.
+  printf '%s\n' "$flatsec" \
+    | command grep -qiE 'carries[^.]{0,60}(command[^.]{0,120}output|output[^.]{0,120}command)'
+
+  # THE INFLECTION IS NOT THE WHOLE RULE. Three reversals keep it and park the
+  # negation beside it — `carries neither the command nor its output`, `never
+  # carries`, `no longer carries` — and all three pass the match above,
+  # measured. Refused here rather than by narrowing that match, because a
+  # negation beside `carries` only reverses the rule when it REACHES the pair:
+  # `carries no command it did not actually run` restates the rule and stays
+  # GREEN, which is what the `output` leash on the second branch is for.
+  if printf '%s\n' "$flatsec" \
+    | command grep -qiE '((never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely)[^A-Za-z]{1,3})?carries|carries[^A-Za-z]{1,3}(no|neither|nothing)[^.]{0,80}output)'
+  then
+    echo "the evidence pair is stated with a negation beside it — the finding is no longer obliged to carry it"
+    return 1
+  fi
 }
 
 @test "3.1: run-mode Tech Reviewer prompt template mirrors the measurement rule" {

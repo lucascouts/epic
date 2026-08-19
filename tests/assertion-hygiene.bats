@@ -400,8 +400,12 @@ BODY
 # row here could hold either: a row whose pattern is not a site is an orphan
 # and reds the census. Their verdicts live in 1.5's report. Sub-task 2.4
 # repaired the first of the two by pinning which side wins, which MADE it a
-# window pattern — hence the tests/anchor-lint.bats row below. The second,
-# `only when`, is still a bare literal and still holdable by no row.
+# window pattern — hence the FIRST tests/anchor-lint.bats row below. Sub-task
+# 3.3 did the same to the second: `only when` was a bare literal that three
+# spans of that file answered, two of them unrelated to the rule, so deleting
+# the rule outright left the case green; scoping the assertion to the section
+# and pinning the condition the words govern made it a window pattern too, and
+# it is the second row of that file.
 #
 # THE RESULT IS NOT THE ONE THE STORY ASSUMED: 2 rows PINNED, 10
 # DIRECTION-BLIND. Both of the story's LEAD rows (`before…summar`,
@@ -579,6 +583,45 @@ WHY     MEASURED 2.4, and it is a site only because of that repair: the
         `anchored_commits == 0`` — false-reds; pinning the order of the two
         sides is what the direction costs.
 
+FILE    tests/anchor-lint.bats
+PATTERN integration warning[^.]{0,40}fires[^.]{0,20}only when[^.]{0,40}ha(s|ve) anchored commits
+VERDICT PINNED
+WHY     MEASURED 3.3, and like the row above it is a site only because of the
+        repair: the predecessor was the bare literal `only when`, which is not
+        a window pattern and could hold no row. That literal occurs THREE times
+        in references/validate-mode.md and is this rule at only one of them —
+        `:195` writes `done` "only when no `[ ]` and no deferred `[~]` remains"
+        (a status transition) and `:263` is a shell comment inside a code block
+        ("then, only when the table below says so") — so any one of them
+        answered for the rule and DELETING the rule outright left the case
+        GREEN. Measured, and it is the R1.3 vector: rule at :276 deleted —
+        predecessor GREEN, this pattern RED. Scoped first (R3.1) to
+        `## Integration Warning` … `^## `, which owns both warnings and the
+        precedence between them, `###` subsection included; `:195` sits in
+        `## Status Transition` and is out by construction, measured in the
+        other direction too — `:195` reworded with the rule intact stays GREEN,
+        as does `:263` reworded. The `##` boundary is taken over the `###` one
+        that also excludes `:195`, because the rule may legitimately move
+        between the section and its own subsection: 66 lines against 31, the
+        same two `only when` spans and the same one pinned span either way,
+        measured. The trailing space in `^## ` IS load-bearing here — `^##`
+        stops at the `### The anchor warning` heading, capturing 33 lines with
+        no `only when` in them at all, which would Red on unmutated prose.
+        Then the pin, because a scope alone still admits `:263`. Three anchors,
+        three measured vectors: `only when` -> `except when` (the reversal) —
+        RED; `The anchor warning therefore fires only when …`, the other
+        warning and the opposite rule — RED; and the condition negated to `has
+        no anchored commits` — RED, which is the vector no count and no scope
+        would have reached. Rewordings measured GREEN: `Which means the
+        integration warning fires **only when** the story does have anchored
+        commits, none of which reached the main branch`, and the sentence
+        reflowed across five lines with not a word changed. Residuals, named
+        rather than hidden and both measured: a pronoun subject (`It therefore
+        fires only when …`) false-Reds, and the SECOND conjunct reversed (`and
+        at least one of them reached the main branch`) stays GREEN — reaching
+        it costs a fourth anchor over a `none|no|not one|never` alternation
+        whose false-Red surface is wider than the vector it buys.
+
 # --- tests/reports-by-artifact-policy.bats ---
 
 FILE    tests/reports-by-artifact-policy.bats
@@ -597,7 +640,9 @@ WHY     MEASURED 1.5. Inversion: `, before composing any textual summary,`
 FILE    tests/reports-by-artifact-policy.bats
 PATTERN creat[a-zA-Z]*[^.]{0,80}\.draft
 VERDICT DIRECTION-BLIND
-WHY     MEASURED 1.5. Inversion: the permission reversed at BOTH spans of one
+WHY     MEASURED 1.5, HALF REPAIRED BY 3.2, AND STILL NOT SOUND — the verdict
+        stays DIRECTION-BLIND because the direction is exactly the half left
+        open. 1.5's inversion: the permission reversed at BOTH spans of one
         file — `so creating `.draft/` on demand is part of this step` became
         `... is NOT part of this step — an absent `.draft/` is a precondition
         you report rather than fix`, and the Rules bullet's `creating `.draft/`
@@ -606,8 +651,30 @@ WHY     MEASURED 1.5. Inversion: the permission reversed at BOTH spans of one
         GREEN, with the pattern still finding 2 spans per file. Two defects,
         both measured: the file states the rule twice, AND the negation
         prefixes the anchor `creat`, so scoping to one span would not close it
-        either. TASK 4 — the permission needs a phrase whose negation is not a
-        superstring of it.
+        either. 3.2 CLOSED THE FIRST (R3.2): the two cases no longer ask
+        whether the pattern occurs, they count its spans and require exactly 2
+        per file. Measured RED at the new count and GREEN at the `-q`
+        predecessor, eight mutations, one at a time — the allowance dropped
+        from the Rules bullet only, then from the protocol step only, then each
+        of those four spans deleted outright. Measured GREEN both ways, which
+        is what keeps a count from being a sentence pin: the allowance reworded
+        at both sites of a file (`so this step creates the `.draft/` directory
+        itself whenever it finds none` and `; you create `.draft/` yourself
+        when the story has none`), and a file reflowed with not a word changed.
+        That reflow is why the count is `grep -o | wc -l` over flattened text
+        and not `grep -c`: reflowing agents/validator.md at 72 columns puts a
+        newline inside the Rules bullet's span, and raw `grep -c` answers 1,
+        raw `grep -o` answers 1 — both false Reds — while flat + `grep -o`
+        answers 2; with a newline inside BOTH spans the raw forms answer 0 and
+        this one still answers 2. Cost accepted and measured, not assumed: a
+        legitimate THIRD statement of the allowance false-Reds — `-ge 2`
+        would buy it silence,
+        and exactness was taken instead because duplication is what made this
+        site blind. 3.2 DID NOT CLOSE THE SECOND and re-measured it rather than
+        inheriting it: 1.5's both-spans reversal still finds 2 spans and both
+        cases are still GREEN. TASK 4.3 — the permission needs a phrase whose
+        negation is not a superstring of it; the count lands first so that
+        rewrite arrives at a site whose span count is already held.
 
 FILE    tests/reports-by-artifact-policy.bats
 PATTERN memory director[a-z]*[^.]{0,160}is your own store
@@ -647,18 +714,47 @@ WHY     MEASURED 1.5, both ways, and the two results are the whole point.
         does not carry the claim. TASK 4, with row 4 above, as one repair.
 
 FILE    tests/reports-by-artifact-policy.bats
-PATTERN command[^.]{0,120}output
-VERDICT DIRECTION-BLIND
-WHY     MEASURED 1.5, three inversions, all GREEN. (a) `carries the exact
-        command and its observed output, quoted rather than paraphrased`
-        became `need not carry the exact command or its observed output, and a
-        paraphrase is enough`: GREEN. (b) the same plus the checklist span at
-        `— the command and its output` rewritten to `— a paraphrase of what you
-        ran`: GREEN. (c) R3.2's rule DELETED outright, leaving only the
-        checklist span: GREEN, so the obligation can vanish from
-        agents/tech-reviewer.md without a red. Two spans in one file, and the
-        phrase is permeable on top of that. TASK 3 — scope to the rule and
-        count its spans; the scoped pattern still has to pin the obligation.
+PATTERN carries[^.]{0,60}(command[^.]{0,120}output|output[^.]{0,120}command)
+VERDICT PINNED
+WHY     MEASURED 3.1, and the scope had to come first: the predecessor
+        `command[^.]{0,120}output` read the WHOLE of agents/tech-reviewer.md,
+        where two spans answer it — the rule at :44 and the report-format
+        bullet at :55 — so 1.5's inversion (`carries the exact command and its
+        observed output` -> `need not carry … and a paraphrase is enough`) and
+        even DELETING the rule outright both stayed GREEN. Scoped to
+        `## Measurement, Not Argument` the pair has one span and `output`
+        occurs once. Measured: rule DELETED — predecessor GREEN, this pattern
+        RED; `carries` -> `need not carry` — predecessor GREEN, this pattern
+        RED; whole section deleted — RED. Also RED: `does not carry` and `is
+        not required to carry`, both of which lose the inflection the way
+        English negates this rule. Rewordings measured GREEN: `carries the
+        command it ran and the output that command produced`, `carries, quoted
+        rather than paraphrased, the exact command you ran and the output you
+        saw`, the pair in the other order, and the rule reflowed across lines
+        without a word changed. GREEN too, and it is the point of the scope:
+        the :55 bullet rewritten to `— a paraphrase of what you ran` with the
+        rule intact. The 60-character leash is rewording tolerance, not reach
+        — parentheticals between the verb and its object measure 40-44 — and
+        tightening it buys nothing, because a sentence where `carries` governs
+        another noun with the pair in a later clause measures 39. That shape
+        is the residual; the companion row below is what refuses a negation.
+
+FILE    tests/reports-by-artifact-policy.bats
+PATTERN ((never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely)[^A-Za-z]{1,3})?carries|carries[^A-Za-z]{1,3}(no|neither|nothing)[^.]{0,80}output)
+VERDICT PINNED
+WHY     MEASURED 3.1. It is the same case's negation-refusal guard, and it
+        exists because the inflection alone is not the whole rule: `carries
+        neither the exact command nor its observed output`, `never carries`
+        and `no longer carries` all pass the positive match above. All three
+        RED at this guard, measured. Only the second branch carries a window,
+        and its `output` leash is the discrimination, measured both ways: a
+        negation beside `carries` reverses the rule only when it reaches the
+        pair, so `carries no command it did not actually run` — the rule's own
+        closing clause restated — stays GREEN, while `carries no exact command
+        and no observed output` and the reversed-order `carries neither the
+        observed output nor the exact command` both Red. Sanctioned shape, not
+        a `!`: the guard is `if … then return 1; fi`, which errexit honours
+        wherever it sits in the body.
 
 FILE    tests/reports-by-artifact-policy.bats
 PATTERN verdict[^.]{0,60}(from|off)[^.]{0,30}(file|disk)
@@ -716,7 +812,12 @@ WHY     MEASURED 2.1. Inversion: references/validate-mode.md:183 rewritten to
 FILE    tests/scale-resolution.bats
 PATTERN tasks\.md[^.]{0,24}is (the )?authoritative
 VERDICT PINNED
-WHY     MEASURED 2.3, and it is the repair 1.5 asked for: the predecessor
+WHY     TWO SITES, ONE KEY, the second added by 3.3: the references/tasks.md
+        contract case reads this pattern, and so now does the comment census
+        over scripts/validate-story.sh, which COUNTS its spans. One row covers
+        both, by the file:pattern unit stated above; the two measurements are
+        separate and both are recorded here.
+        MEASURED 2.3, and it is the repair 1.5 asked for: the predecessor
         `tasks\.md[^.]{0,160}authoritative|authoritative[^.]{0,160}tasks\.md`
         was DIRECTION-BLIND and is gone. Inversion, re-run against this
         pattern: references/tasks.md:68 `**`tasks.md` is authoritative for the
@@ -735,6 +836,38 @@ WHY     MEASURED 2.3, and it is the repair 1.5 asked for: the predecessor
         arbitrary word there would admit `is not authoritative`, which is the
         inversion itself, so the pin keeps its edge and the row records where
         it lies.
+        MEASURED 3.3 AT THE SECOND SITE, where the same pin is also a COUNT.
+        That site had a row of its own —
+        `tasks\.md[^.]{0,120}(owns|authoritative|wins)|(authoritative)[^.]{0,120}tasks\.md`,
+        DIRECTION-BLIND, TASK 3 — and it is DELETED rather than moved: this key
+        replaced it, and a row whose pattern is gone is an orphan.
+        scripts/validate-story.sh states the rule in THREE comment spans (:136
+        the shared-rule header, :148 the written-contract paragraph, :233 the
+        disagreement warning's rationale) and the predecessor asked only whether
+        ONE of them existed. Eight removal mutations, one at a time, each run
+        against both patterns: a `not` in all three spans, a `not` in each span
+        alone, and each span's rule deleted outright — predecessor GREEN on
+        every one, this pattern RED on every one. Counted: 0 spans for the
+        three-span negation, 2 for every single-span negation or deletion. The
+        polarity is the half a count cannot reach and the pin does: 1.5's
+        negation PREFIXES the anchor (`is not authoritative`), so three negated
+        spans would still COUNT three, and it is `is authoritative` being the
+        match rather than a neighbour of it that takes them to 0. Rewording
+        measured GREEN — all three spans rewritten, each with its line break
+        falling at a different point inside the phrase, still counts 3. The
+        representation is measured, not assumed: `grep -c` counts matching
+        LINES, and comment_blocks joins a run of `#` lines, so :136 and :148
+        land on ONE line and it answers 2 pristine AND 2 with either of those
+        two spans deleted — blind to two of the three removals. Counting over
+        the raw file instead answers 1 on the rewording, a false Red on prose
+        that still states the rule three times. `grep -o | wc -l` over the
+        flattened blocks is the form that answers 3, 2 and 3. The cost of
+        `-eq 3` is measured too: a legitimate FOURTH statement of the rule
+        counts 4 and false-Reds, and `-ge 3` Reds all eight removals just as
+        well while buying that fourth span silence. Exactness taken because
+        DUPLICATION is what blinded this site — the rule already stands three
+        times, which is why one could vanish unseen — the same trade 3.2 took
+        at the `.draft/` carve-out.
 
 FILE    tests/scale-resolution.bats
 PATTERN story\.md[^.]{0,200}reported[^.]{0,40}(not|never) honou?red
@@ -759,19 +892,6 @@ WHY     MEASURED 2.3, and it is the repair 1.5 asked for: the predecessor
         `honour` occurs once in it. Residual, named rather than hidden: the
         pairing stated the other way round — `is not honoured but merely
         reported` — false-reds, measured; the pin is the order the rule states.
-
-FILE    tests/scale-resolution.bats
-PATTERN tasks\.md[^.]{0,120}(owns|authoritative|wins)|(authoritative)[^.]{0,120}tasks\.md
-VERDICT DIRECTION-BLIND
-WHY     MEASURED 1.5. Inversion: all THREE spans of scripts/validate-story.sh
-        negated in one edit — `is AUTHORITATIVE for `scale:``, `— tasks.md is
-        authoritative, and an` and `is authoritative for `scale:`, so its` each
-        gained a `not`. The case stayed GREEN. Measured separately: replacing
-        one of the three with `story.md is read first and wins` leaves the
-        other two, and this assertion green. Two defects — the comment states
-        the rule at three sites, and the negation prefixes the anchor. TASK 3 —
-        scope and count the spans; the scoped pattern still has to pin `is
-        authoritative`.
 
 FILE    tests/scale-resolution.bats
 PATTERN story\.md[^.]{0,120}(first|wins)

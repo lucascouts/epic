@@ -39,6 +39,20 @@ refute_grep() {
   fi
 }
 
+# md_section <file> <start regex> <end regex> — the lines strictly between the
+# heading that matches <start> and the next heading that matches <end>. The
+# doc-contract case below reads a rule whose wording recurs elsewhere in the
+# same file for unrelated reasons, and a whole-file grep cannot tell the rule
+# from its homonyms (R3.1). Same helper, same three arguments and same idiom as
+# tests/reports-by-artifact-policy.bats' — copied rather than shared because a
+# .bats file cannot source another without becoming its runner.
+md_section() { # $1 = file, $2 = start regex, $3 = end regex
+  awk -v start="$2" -v end="$3" '
+    !inb && $0 ~ start {inb=1; next}
+    inb && $0 ~ end {exit}
+    inb {print}' "$1"
+}
+
 # --- 3.1 fixtures ----------------------------------------------------------
 # Calibrated against the pre-change validator: 0 errors, 0 warnings — so any
 # warning a case sees is the lint's own. Story number comes from the dir name
@@ -318,7 +332,53 @@ TASKSEOF
   # `anchored_commits == 0``) false-reds. The order of the two sides IS the
   # direction, and pinning it is what direction costs.
   grep -qE 'anchored_commits == 0[^.]{0,40}wins' <<< "$FLAT"
-  grep -q 'only when' <<< "$FLAT"
+  # WHICH CONDITION THE `only when` GOVERNS, and in which section it is stated.
+  # The predecessor was the bare literal `only when`, which occurs THREE times
+  # in this file and is this rule at only one of them: `:195` writes `done`
+  # "only when no `[ ]` and no deferred `[~]` remains" — a status transition —
+  # and `:263` is a shell comment inside a code block, "then, only when the
+  # table below says so". Either answered for the rule, so DELETING the rule
+  # outright left the case GREEN. Measured, and it is the R1.3 vector this
+  # repair exists to Red.
+  #
+  # SCOPED FIRST (R3.1), to `## Integration Warning` — the section that owns
+  # both warnings and the precedence between them, its `###` subsection
+  # included. That puts `:195` out of scope by construction, and the exclusion
+  # is measured in the other direction too: `:195` reworded with the rule
+  # intact stays GREEN. The `##` boundary is taken over the `###` one that also
+  # excludes `:195` because the rule may legitimately move between the section
+  # and its own subsection, and both capture the same two `only when` spans
+  # today — measured: 66 lines against 31, one pinned span either way. `:263`
+  # sits inside either scope and is refused by the pin instead.
+  #
+  # THE TRAILING SPACE IN `^## ` IS LOAD-BEARING HERE, measured rather than
+  # copied: `^##` without it matches the `### The anchor warning` heading, so
+  # the capture stops at line 33 of the section, holds no `only when` at all
+  # and this assertion would Red on unmutated prose. Elsewhere in the suite the
+  # space is slack, and one sibling drops it ON PURPOSE to stop at a `###`.
+  # Which one a section wants is a question about that section, never a style.
+  #
+  # THEN THE PIN, because a scope alone still passes `:263`. Three anchors,
+  # each buying a measured vector: `integration warning` … `fires` Reds the
+  # swap to `The anchor warning therefore fires only when …`, which is the
+  # other warning and the opposite rule; `only when` Reds `except when`; and
+  # `ha(s|ve) anchored commits` Reds the condition negated to `has no anchored
+  # commits`, which no count and no scope would reach. Rewordings measured
+  # GREEN: `Which means the integration warning fires **only when** the story
+  # does have anchored commits, none of which reached the main branch`, and the
+  # sentence reflowed across five lines without a word changed — the flatten
+  # below is what carries that.
+  #
+  # Residuals, named rather than hidden, both measured: a pronoun subject (`It
+  # therefore fires only when …`) false-Reds, and the SECOND conjunct reversed
+  # (`and at least one of them reached the main branch`) stays GREEN. Reaching
+  # that one costs a fourth anchor over a `none|no|not one|never` alternation
+  # whose false-Red surface is wider than the vector it buys.
+  SEC=$(md_section "$PLUGIN_ROOT/references/validate-mode.md" '^## Integration Warning' '^## ')
+  # md_section yields lines, so the section is flattened here exactly as $FLAT
+  # is above — otherwise a wrap decides the verdict.
+  FLATSEC=$(printf '%s\n' "$SEC" | tr -s '[:space:]' ' ')
+  grep -qiE 'integration warning[^.]{0,40}fires[^.]{0,20}only when[^.]{0,40}ha(s|ve) anchored commits' <<< "$FLATSEC"
   grep -qF 'integrated: null' <<< "$FLAT"
 }
 
