@@ -109,6 +109,23 @@ Each `agents/*.md` declares its allowed tools. Narrower scopes catch drift early
 
 Both report writes are **carve-outs, not licences**: each agent names its one file, creates `.draft/` on demand, and treats any other write as a protocol violation. Nothing enforces that at runtime — the guard is the exact-set grant assertion in `tests/reports-by-artifact-policy.bats`, which reddens when a tool lands on an agent this list does not name.
 
+### Effort tiers
+
+Each `agents/*.md` also declares a reasoning `effort:`. The tier is a cost decision, and this table is the policy itself — not a summary of one kept elsewhere:
+
+| Agent | Effort | Why |
+| --- | --- | --- |
+| `executor` | `max` | Writes the code. A wrong implementation is the most expensive thing to discover late. |
+| `auditor` | `max` | Holds the semantic judgment the rest of the pipeline is priced against — it is what makes the Validator's `medium` affordable. |
+| `architect` | `high` | Reads an unfamiliar codebase for the patterns a design must not contradict. |
+| `reviewer` | `high` | Cross-artifact gaps are found by reasoning over three documents at once. |
+| `tech-reviewer` | `high` | Correctness at technology boundaries — the defect is precisely what a generalist would not think to look for. |
+| `test-advisor` | `high` | Authoring a test that fails for the right reason is a design act, not a transcription. |
+| `analyst` | `medium` | Discovery: scans structure, samples representative files, reports what it found. |
+| `validator` | `medium` | Mechanical verification: runs the commands the sub-tasks name and compares output. The judgment lives with the Auditor. |
+
+**The table is enforced, not descriptive.** `tests/agent-effort-policy.bats` derives the tiers from the frontmatters and compares them against these rows, so a change on either side reddens until both agree. It also pins `max` on the Executor and the Auditor by name: they are the mitigation the Validator's `medium` was traded against, and a silent drop there would keep the saving while removing the safety net.
+
 ---
 
 ## Artifact contracts

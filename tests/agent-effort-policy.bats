@@ -80,3 +80,34 @@ setup() {
     return 1
   fi
 }
+
+# Sub-task 1.2 — the documented table is the DECLARED side and the frontmatters
+# are the DERIVATION, so ARCHITECTURE.md cannot drift from the tree in silence.
+# This case is what makes 1.2's own claim ("the policy test enforces the table")
+# true; without it the doc would say it is guarded and nothing would guard it,
+# which is the defect story 020 spent itself closing one directory over.
+@test "1.2: ARCHITECTURE.md's effort table matches the frontmatters, agent for agent" {
+  local doc="$PLUGIN_ROOT/ARCHITECTURE.md" declared actual
+
+  declared=$(awk -F'|' '
+    $2 ~ /^ `[a-z-]+` $/ && $3 ~ /^ `(medium|high|max)` $/ {
+      a = $2; e = $3; gsub(/[ `]/, "", a); gsub(/[ `]/, "", e); print a, e
+    }' "$doc" | sort)
+
+  if [ -z "$declared" ]; then
+    echo "ARCHITECTURE.md carries no parseable effort table — expected rows shaped"
+    echo "  | \`<agent>\` | \`<medium|high|max>\` | <why> |"
+    return 1
+  fi
+
+  actual=$(for f in "$AGENTS"/*.md; do
+    printf '%s %s\n' "$(basename "$f" .md)" "$(grep -m1 '^effort:' "$f" | sed 's/^effort:[[:space:]]*//')"
+  done | sort)
+
+  if [ "$declared" != "$actual" ]; then
+    echo "the table in ARCHITECTURE.md and the agent frontmatters disagree"
+    echo "(< = documented, > = declared in agents/):"
+    diff <(printf '%s\n' "$declared") <(printf '%s\n' "$actual") || true
+    return 1
+  fi
+}
