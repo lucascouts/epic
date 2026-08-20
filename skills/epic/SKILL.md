@@ -421,6 +421,8 @@ Before entering any phase, load the corresponding reference files:
 - For reference files per phase (ears-notation, requirements, design-guide, etc.): see table in phase-gates.md
 - On format doubts, load the relevant example from `assets/examples/`
 
+**Authoring ceiling at Phase 3.** When the generated `tasks.md` passes the threshold defined in [tasks.md](../../references/tasks.md) (Authoring Ceiling), warn and offer a split into a wave — interactively as a question, headless as a logged note that proceeds. It is a warning, never a block: a story that genuinely needs a large plan keeps it. In batch create the offer is not re-entered into the live interview; the warning surfaces in the approval block and the split happens post-batch (see [batch-create.md](../../references/batch-create.md)).
+
 ## Persistence and Recovery
 
 ### Draft Saving (Standard and Full modes only)

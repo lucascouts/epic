@@ -88,7 +88,7 @@ Each approved story runs the phases its scale prescribes. Batch collapses the co
 
 **Materialization requires a clean `validate-story.sh` pass** for that story. A story that does not validate is not materialized; it is reported `blocked` in the approval block with the validator's own error text.
 
-**The authoring size ceiling fires per generated story, and its split offer is deferred.** When a generated `tasks.md` trips the ceiling, the warning surfaces in the approval block — the live interview is never re-entered for it. A split, if the user wants one, happens after the batch as an ordinary create. Re-opening the interview to renegotiate one story's shape would undo the amortization the whole mode is for.
+**The authoring size ceiling fires per generated story, and its split offer is deferred.** The threshold has one home — [tasks.md](tasks.md) (Authoring Ceiling) — and is cited, never restated. When a generated `tasks.md` trips the ceiling, the warning surfaces in the approval block — the live interview is never re-entered for it. A split, if the user wants one, happens after the batch as an ordinary create. Re-opening the interview to renegotiate one story's shape would undo the amortization the whole mode is for.
 
 ## 7. One approval, per-story verdicts
 

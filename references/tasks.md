@@ -133,6 +133,20 @@ This is the **strictest** of the places where terminal and deferred `[~]` part w
 
 The asymmetry between the last two is real and intended: a story whose only non-`[x]` boxes are deferred is `done-except-external` — nothing here is pending — yet a task depending on one of those boxes must still wait, because the thing it needs does not exist yet.
 
+### Authoring Ceiling
+
+**A plan warns when it passes 32KB or 60 checkboxes, whichever comes first.** This paragraph is the threshold's only home: every consumer cites it rather than repeating the numbers, so raising the ceiling is one edit and not a hunt.
+
+The numbers come from the corpus, not from taste. Across the 2026-07 measurement a healthy `tasks.md` sits around 11KB; the plans that had to be split afterwards ran 51-109KB. The box arm exists because size in bytes and size in work are not the same thing — a plan can carry sixty-five checkboxes in three kilobytes of terse lines and still be more work than one person can hold.
+
+It is a **warning at every site, never a block**:
+
+- **At Phase 3**, the orchestrator offers a split into a wave — interactively as a question, headless as a logged note that proceeds.
+- **At validation**, `validate-story.sh` warns, so a plan that shipped oversized stays visible afterwards and not only at the moment it was written.
+- **In batch create**, the warning surfaces in the approval block and the split is deferred to a post-batch create — the live interview is never re-entered. See [batch-create.md](batch-create.md).
+
+A story that genuinely needs a large plan keeps it: the ceiling asks the question, the author answers it.
+
 ### Metadata Line Fields
 
 The metadata line appears on parent tasks and optionally on sub-tasks (only overridden fields).

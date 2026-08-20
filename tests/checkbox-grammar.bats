@@ -558,6 +558,14 @@ GOLDEN
   [ "$output" = "$expected" ]
 }
 
+# GOLDEN UPDATED ONCE SINCE, DELIBERATELY, and this is the second time. The key
+# set of cross-reference.sh grew `scale` (recorded at that script's emit block)
+# and now `satisfied_by` (story 014, R2.2), which reports a leaf answered by a
+# named non-code artifact instead of dropping it from the orphan list unnamed.
+# Both are contract EXTENSIONS: no existing key changed name, type or value, and
+# a legacy story still emits the empty list. This golden's job is to make such a
+# change deliberate rather than to forbid it — it caught this one, which is the
+# case working.
 @test "R5.1: legacy story — cross-reference output is byte-identical to the pre-change golden" {
   write_legacy_fixture
   cd "$WORK/legacy"
@@ -571,6 +579,7 @@ GOLDEN
   "traced": 2,
   "orphan_requirements": [],
   "phantom_references": [],
+  "satisfied_by": [],
   "coverage": "2/2",
   "mapping": {"R1.1": ["1.1"], "R1.2": ["1.2"]},
   "status": "clean"

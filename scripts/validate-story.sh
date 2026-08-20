@@ -1003,6 +1003,32 @@ if [[ "$HAS_TASKS" == true ]]; then
     add_warning "No Commit fields or Commit sub-tasks found — every task group should have a commit point"
   fi
 
+  # --- Authoring ceiling (story 014, sub-task 3.1 — R3.3)
+  #
+  # The threshold has ONE home, references/tasks.md § Authoring Ceiling, and
+  # the warning CITES it rather than restating the numbers. A value repeated in
+  # a message is a second place to edit and a second place to be wrong; the two
+  # constants below are the arms, and the sentence points at the paragraph that
+  # justifies them.
+  #
+  # WHY BOTH ARMS. Bytes and work are not the same measure. A plan can carry
+  # sixty-five checkboxes in three kilobytes of terse lines and still be more
+  # than one story should hold, and a plan can run to 36KB of prose around a
+  # single task. Whichever arm trips first is enough to ask the question.
+  #
+  # A WARNING, NEVER AN ERROR: an oversized plan is a judgement call the author
+  # is entitled to make. This site exists so a plan that shipped oversized stays
+  # visible after authoring time, not only at the Phase 3 offer.
+  CEILING_BYTES=32768
+  CEILING_BOXES=60
+  TASKS_BYTES=$(wc -c < "$TASKS_FILE" 2>/dev/null | tr -d '[:space:]' || echo 0)
+  TASKS_BOXES=$(grep -cE '^[[:space:]]*- \[([ x~])\]' "$TASKS_FILE" 2>/dev/null || true)
+  if [[ "${TASKS_BYTES:-0}" -gt "$CEILING_BYTES" ]]; then
+    add_warning "tasks.md is ${TASKS_BYTES} bytes, past the authoring ceiling — see references/tasks.md (Authoring Ceiling) for the threshold and the split offer"
+  elif [[ "${TASKS_BOXES:-0}" -gt "$CEILING_BOXES" ]]; then
+    add_warning "tasks.md carries ${TASKS_BOXES} checkboxes, past the authoring ceiling — see references/tasks.md (Authoring Ceiling) for the threshold and the split offer"
+  fi
+
   # Check for Validation fields
   VALIDATION_COUNT=$(grep -ci '^\s*- Validation:' "$TASKS_FILE" 2>/dev/null || true)
   if [[ "$TASK_COUNT" -gt 0 && "$VALIDATION_COUNT" -eq 0 ]]; then
