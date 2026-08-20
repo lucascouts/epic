@@ -152,6 +152,8 @@ COVERS_RE='^[[:space:]]*(\*\*)?[Cc]overs:?(\*\*)?:?[[:space:]]*(.*)$'
 BOXLESS_RE='^-[[:space:]]+([0-9]+)[[:space:]]+-[[:space:]]+(.*)$'
 WRAPPER_RE='^[[:space:]]*</[A-Za-z_][A-Za-z0-9_:-]*>[[:space:]]*$'
 CANON_BOX_RE='^-[[:space:]]+\[[ x~]\][[:space:]]+[0-9]+[[:space:]]+-[[:space:]]'
+COMMIT_BOX_RE='^[[:space:]]*-[[:space:]]+\[[ x~]\][[:space:]]+[0-9]+\.[0-9]+[[:space:]]+-[[:space:]]+Commit[[:space:]]*$'
+COMMIT_FIELD_RE='^[[:space:]]*-[[:space:]]+Commit:[[:space:]]*(.*)$'
 REQ_FIELD_RE='^[[:space:]]*-[[:space:]]+Requirements:'
 
 T1_HEADERS=0; COVERS_FIELDS=0; BOXES_ADDED=0; WRAPPER_TAGS=0; FAST_REQUIREMENTS=0; COMMIT_SUBTASKS=0
@@ -162,7 +164,7 @@ MIXTURE_LINES=()
 # the counters. Reads nothing it has not been given.
 migrate_file() {
   local f="$1" line in_fence=false n=0 out=""
-  local crlf=""
+  local crlf="" in_commit=false commit_msg=""
   while IFS= read -r line || [ -n "$line" ]; do
     n=$((n + 1))
     crlf=""
@@ -173,6 +175,35 @@ migrate_file() {
       out+="$line$crlf"$'\n'; continue
     fi
     if [ "$in_fence" = true ]; then out+="$line$crlf"$'\n'; continue; fi
+
+    # Variant 5 — a Commit SUB-TASK becomes a group-level Commit FIELD.
+    #
+    # WHY THE BOX HAS TO GO. A Commit sub-task is a checkbox that is never the
+    # unit of work: it exists to carry a message. Left as a box it makes every
+    # group look partially open, which is the false-partial factory the corpus
+    # kept reporting. The message is carried VERBATIM — punctuation, em dashes
+    # and all — because a commit message that drifts in migration is worse than
+    # one that was never moved.
+    #
+    # THE NUMBER IS NOT REUSED. Dropping `1.3` leaves a gap, and the gap stays:
+    # renumbering 2.1 into 1.3 would silently break every `Dependencies: Task
+    # N.N` pointer in the file. A gap is readable; a moved pointer is not.
+    if [ "$in_commit" = true ]; then
+      if [[ "$line" =~ $COMMIT_FIELD_RE ]]; then
+        commit_msg="${BASH_REMATCH[1]}"; continue
+      fi
+      if [[ "$line" =~ ^[[:space:]]{3,}- ]] || [ -z "${line// /}" ]; then
+        continue
+      fi
+      in_commit=false
+      if [ -n "$commit_msg" ]; then out+="  - Commit: $commit_msg$crlf"$'\n'; fi
+      out+="$crlf"$'\n'
+      commit_msg=""
+    fi
+    if [[ "$line" =~ $COMMIT_BOX_RE ]]; then
+      COMMIT_SUBTASKS=$((COMMIT_SUBTASKS + 1))
+      in_commit=true; commit_msg=""; continue
+    fi
 
     # Variant 3 — a naked wrapper tag is a leak from a tool that wrote the file,
     # never content. The line goes; a fenced one is documentation and stays.
@@ -214,6 +245,9 @@ migrate_file() {
 
     out+="$line$crlf"$'\n'
   done < "$f"
+  if [ "$in_commit" = true ] && [ -n "$commit_msg" ]; then
+    out+="  - Commit: $commit_msg"$'\n'
+  fi
   printf '%s' "$out"
 }
 
