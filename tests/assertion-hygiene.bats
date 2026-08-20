@@ -1160,7 +1160,7 @@ WHY     MEASURED 2.1. Inversion: references/validate-mode.md:183 rewritten to
 # --- tests/scale-resolution.bats ---
 
 FILE    tests/scale-resolution.bats
-PATTERN tasks\.md[^.]{0,24}is (the )?authoritative
+PATTERN tasks\.md[^.]{0,40}authoritative
 VERDICT PINNED
 WHY     TWO SITES, ONE KEY, the second added by 3.3: the references/tasks.md
         contract case reads this pattern, and so now does the comment census
@@ -1186,6 +1186,33 @@ WHY     TWO SITES, ONE KEY, the second added by 3.3: the references/tasks.md
         arbitrary word there would admit `is not authoritative`, which is the
         inversion itself, so the pin keeps its edge and the row records where
         it lies.
+        REPLACED BY 6.4, AND THE RESIDUAL ABOVE IS WHY. The pattern was
+        `tasks\.md[^.]{0,24}is (the )?authoritative`, which wrote the polarity
+        into the match as a LITERAL VERB PHRASE — and a literal verb phrase is
+        one phrasing of a rule, not its direction. Measured, on prose stating
+        the rule exactly as it stands: `is always authoritative` RED, `is
+        strictly authoritative` RED, `is and remains authoritative` RED. Three
+        false Reds, all firing THIS case at THE SAME assertion line a genuine
+        inversion fires, so `not ok` could not tell a reverted rule from an
+        inserted adverb. The window was never the cost and that is measured
+        rather than argued: references/tasks.md yields ONE span at 24, 40 and
+        60 alike, and the comment blocks below yield THREE at all three widths,
+        so 40 is rewording slack and no reach. The form is 2.2's, the one that
+        held under this story's hostile pass: match the anchors POSITIVELY and
+        refuse a negation on the word that carries the direction — the guard
+        `(never|not|no)[^A-Za-z]{1,3}(hedge|the)?authoritative`, which is not a
+        window pattern and so holds no row, in the same case beside each site.
+        Re-measured after the edit, one mutation at a time, each restored
+        before the next — references/tasks.md:68: `is always authoritative`
+        GREEN, `is strictly authoritative` GREEN, `is and remains
+        authoritative` GREEN (the three false Reds, paid off); `is not
+        authoritative` RED, `is never authoritative` RED, the subject swapped
+        to `**`story.md` is authoritative`` RED (the vectors 2.3 bought, all
+        kept). The guard is SILENT on the unmutated file — 0 hits — including
+        `never a leftover` two clauses from the rule, which the 1-to-3
+        character leash keeps out. WHAT THIS PATTERN DOES NOT CARRY, said
+        plainly: the DIRECTION. It is refused by the sibling guard in the same
+        case, not by anything here — the shape 4.2 took at `.draft/`.
         MEASURED 3.3 AT THE SECOND SITE, where the same pin is also a COUNT.
         That site had a row of its own —
         `tasks\.md[^.]{0,120}(owns|authoritative|wins)|(authoritative)[^.]{0,120}tasks\.md`,
@@ -1218,9 +1245,20 @@ WHY     TWO SITES, ONE KEY, the second added by 3.3: the references/tasks.md
         DUPLICATION is what blinded this site — the rule already stands three
         times, which is why one could vanish unseen — the same trade 3.2 took
         at the `.draft/` carve-out.
+        BOTH SITES MOVED TOGETHER IN 6.4, and they had to: `file:pattern` is
+        the row's unit, so editing the pattern at one site and not the other
+        splits this row in two — one unlisted site and one orphan row. The
+        count still reads 3 and the direction is refused by the same guard,
+        now on the comment-block scope. Re-measured after the edit: a `not`
+        inserted at all three spans — 3 spans, RED at the guard, where 2.3's
+        pattern counted 0 and Redded at the count; the :136 span's rule deleted
+        — 2 spans, RED; all three spans reworded to `is always authoritative` —
+        3 spans, guard silent, GREEN, which is the false Red this row's first
+        site paid off, paid off here too. The guard is silent on the unmutated
+        blocks — 0 hits.
 
 FILE    tests/scale-resolution.bats
-PATTERN story\.md[^.]{0,200}reported[^.]{0,40}(not|never) honou?red
+PATTERN story\.md[^.]{0,200}(reported[^.]{0,40}(not|never) honou?red|(not|never) honou?red[^.]{0,40}reported)
 VERDICT PINNED
 WHY     MEASURED 2.3, and it is the repair 1.5 asked for: the predecessor
         `story\.md[^.]{0,200}(reported|not honoured|not honored)` offered a
@@ -1242,6 +1280,19 @@ WHY     MEASURED 2.3, and it is the repair 1.5 asked for: the predecessor
         `honour` occurs once in it. Residual, named rather than hidden: the
         pairing stated the other way round — `is not honoured but merely
         reported` — false-reds, measured; the pin is the order the rule states.
+        THAT RESIDUAL IS PAID OFF BY 6.4, and the fix is 3.1's: an ORDER is not
+        a polarity either. `is **not honoured**, but merely reported` states
+        the identical rule with the halves swapped — a pure stylistic flip —
+        and Redded, measured. The pattern now alternates the two arrangements
+        and still refuses either half standing alone, so nothing the order
+        bought is given up. Re-measured after the edit, one mutation at a time:
+        the flip `is **not honoured**, but merely reported` GREEN (the false
+        Red, paid off); the inversion `is **honoured**, not reported` RED — it
+        holds `reported` and it holds a negation, but never a negation on
+        `honoured`, which is what both branches require. Residual, named rather
+        than hidden: a restatement that keeps the pair but puts more than 40
+        characters between the halves still false-Reds, and the leash stays at
+        40 because the two halves are one clause in every phrasing measured.
 
 FILE    tests/scale-resolution.bats
 PATTERN story\.md[^.]{0,120}(first|wins)
