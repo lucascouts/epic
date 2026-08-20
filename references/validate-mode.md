@@ -76,7 +76,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 > - [path to .draft/deviations.yaml] (if exists)
 >
 > Check:
-> 1. Every requirement in story.md is implemented (trace to actual code, not just task checkboxes)
+> 1. Every requirement in story.md is implemented (trace to actual code, not just task checkboxes). A criterion carrying the `(satisfied-by: <artifact>)` suffix is traced to THAT ARTIFACT instead — confirm it exists and answers the criterion, and do not report it as a coverage gap. A suffix naming an artifact that does not exist IS a finding.
 > 2. Every component in design.md exists in the codebase with the specified interfaces
 > 3. Error handling strategy in design.md is followed in the actual handlers/controllers
 > 4. Security considerations in design.md are addressed in the implementation

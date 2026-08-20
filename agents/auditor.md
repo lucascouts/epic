@@ -41,7 +41,7 @@ Perform a holistic review comparing what was planned vs what was built. Activate
 
 ## Checks
 
-1. **Requirements coverage:** Every requirement in story.md is implemented (trace to actual code, not just task checkboxes)
+1. **Requirements coverage:** Every requirement in story.md is implemented (trace to actual code, not just task checkboxes). A criterion carrying the `(satisfied-by: <artifact>)` suffix is traced to THAT ARTIFACT instead — confirm the artifact exists and answers the criterion, and do not report it as a coverage gap. A suffix naming an artifact that does not exist IS a finding.
 2. **Component existence:** Every component in design.md exists in the codebase with the specified interfaces
 3. **Error handling:** Strategy in design.md is followed in actual handlers/controllers
 4. **Security:** Considerations in design.md are addressed in the implementation

@@ -378,7 +378,48 @@ else
   TASK_TOKENS=()
 fi
 
+
+# --- satisfied-by: the sanctioned non-code deliverable (story 014, R2.1-R2.3)
+#
+# A criterion whose deliverable is NOT code — a regression guard, a feasibility
+# verdict, a decision record — has no task to reference it and therefore reads
+# as an orphan. The corpus invented this shape six times before it was grammar.
+# The suffix makes the intent declarable:
+#
+#   - R1.2: THE SYSTEM SHALL keep the regression guarded (satisfied-by: tests/regression.bats)
+#
+# TOKEN-ANCHORED, like the `[~]` qualifier it is modelled on: the artifact is
+# read from `(satisfied-by: ...)`, and the leaf it binds to is the most recent
+# `- Rn.m:` label, so a criterion wrapped over four lines can still carry the
+# suffix at its end. A heading resets the binding — a suffix cannot reach
+# across a requirement group into the next one.
+#
+# AN EMPTY ARTIFACT DOES NOT SATISFY. `(satisfied-by: )` names nothing, so the
+# leaf stays an orphan and validate-story.sh warns about the blank (R2.3). The
+# class legalizes a deliverable, not a way to silence the check.
+#
+# MOVERS — this parser is duplicated, deliberately (no shared library):
+#   1. scripts/cross-reference.sh  — the orphan_requirements/satisfied_by split
+#   2. scripts/validate-story.sh   — the --cross-ref orphan advisory
+# Both read the same grammar and must move together.
+declare -A SATISFIED_MAP=()
+while IFS='|' read -r sb_leaf sb_art; do
+  [[ -n "$sb_leaf" ]] && SATISFIED_MAP["$sb_leaf"]="$sb_art"
+done < <(awk '
+  /^[[:space:]]*-[[:space:]]+R[0-9]+\.[0-9]+:/ { cur = $0; sub(/^[[:space:]]*-[[:space:]]+/, "", cur); sub(/:.*/, "", cur) }
+  /^#/ { cur = "" }
+  {
+    if (cur != "" && match($0, /\(satisfied-by:[^)]*\)/)) {
+      s = substr($0, RSTART, RLENGTH)
+      sub(/^\(satisfied-by:[[:space:]]*/, "", s); sub(/\)$/, "", s)
+      gsub(/[[:space:]]+$/, "", s)
+      print cur "|" s
+      cur = ""
+    }
+  }' "$STORY_FILE" 2>/dev/null || true)
+
 # --- Build traceability ---
+SATISFIED=()  # Story leaf requirement satisfied by a named non-code artifact
 ORPHANS=()    # Story leaf requirement with no Requirements-field reference
 PHANTOMS=()   # Requirements-field reference matching no story requirement
 TRACED=()     # Story leaf requirement declared by at least one sub-task
@@ -386,6 +427,8 @@ TRACED=()     # Story leaf requirement declared by at least one sub-task
 for req in "${STORY_REQS_ARR[@]}"; do
   if [[ -n "${REQ_MAP[$req]:-}" ]]; then
     TRACED+=("$req")
+  elif [[ -n "${SATISFIED_MAP[$req]:-}" ]]; then
+    SATISFIED+=("$req")
   else
     ORPHANS+=("$req")
   fi
@@ -474,6 +517,19 @@ emit_mapping() {
 # Measured safe before it shipped: no case in tests/cross-reference.bats or
 # tests/cross-reference-grammar.bats asserts on the key set, and none reads
 # `.status` as a closed enum.
+# One object per satisfied leaf, on one line like every other list key here:
+# the requirement and the artifact that answers for it. Reported rather than
+# dropped — a leaf excused from the orphan list without being named would be a
+# silent exemption, which is the shape this repository keeps having to close.
+emit_satisfied_by() {
+  local first=1 out="[" req
+  for req in ${SATISFIED+"${SATISFIED[@]}"}; do
+    if [[ "$first" -eq 1 ]]; then first=0; else out="$out,"; fi
+    out="$out{\"requirement\":\"$(json_escape "$req")\",\"artifact\":\"$(json_escape "${SATISFIED_MAP[$req]}")\"}"
+  done
+  printf '%s]' "$out"
+}
+
 echo "{"
 echo "  \"story\": \"$(json_escape "$STORY_DIR")\","
 echo "  \"scale\": $SCALE_JSON,"
@@ -483,6 +539,7 @@ echo "  \"parseable_tasks\": $PARSEABLE_TASKS,"
 echo "  \"traced\": $TOTAL_TRACED,"
 echo "  \"orphan_requirements\": $(json_array "${ORPHANS[@]}"),"
 echo "  \"phantom_references\": $(json_array "${PHANTOMS[@]}"),"
+echo "  \"satisfied_by\": $(emit_satisfied_by),"
 echo "  \"coverage\": \"$TOTAL_TRACED/$TOTAL_STORY_REQS\","
 echo "  \"mapping\": $(emit_mapping),"
 echo "  \"status\": \"$STATUS_STR\""

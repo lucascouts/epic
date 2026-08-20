@@ -1334,10 +1334,57 @@ if [[ "$CROSS_REF" == true && "$HAS_STORY" == true && "$HAS_TASKS" == true ]] &&
     fi
   done
 
+
+  # --- satisfied-by: the sanctioned non-code deliverable (story 014, R2.1-R2.3)
+  #
+  # A criterion whose deliverable is NOT code — a regression guard, a feasibility
+  # verdict, a decision record — has no task to reference it and therefore reads
+  # as an orphan. The corpus invented this shape six times before it was grammar.
+  # The suffix makes the intent declarable:
+  #
+  #   - R1.2: THE SYSTEM SHALL keep the regression guarded (satisfied-by: tests/regression.bats)
+  #
+  # TOKEN-ANCHORED, like the `[~]` qualifier it is modelled on: the artifact is
+  # read from `(satisfied-by: ...)`, and the leaf it binds to is the most recent
+  # `- Rn.m:` label, so a criterion wrapped over four lines can still carry the
+  # suffix at its end. A heading resets the binding — a suffix cannot reach
+  # across a requirement group into the next one.
+  #
+  # AN EMPTY ARTIFACT DOES NOT SATISFY. `(satisfied-by: )` names nothing, so the
+  # leaf stays an orphan and validate-story.sh warns about the blank (R2.3). The
+  # class legalizes a deliverable, not a way to silence the check.
+  #
+  # MOVERS — this parser is duplicated, deliberately (no shared library):
+  #   1. scripts/cross-reference.sh  — the orphan_requirements/satisfied_by split (the JSON side)
+  #   2. scripts/validate-story.sh   — the --cross-ref orphan advisory
+  # Both read the same grammar and must move together.
+  declare -A XR_SATISFIED=()
+  while IFS='|' read -r xr_leaf xr_art; do
+    [[ -n "$xr_leaf" ]] && XR_SATISFIED["$xr_leaf"]="$xr_art"
+  done < <(awk '
+  /^[[:space:]]*-[[:space:]]+R[0-9]+\.[0-9]+:/ { cur = $0; sub(/^[[:space:]]*-[[:space:]]+/, "", cur); sub(/:.*/, "", cur) }
+  /^#/ { cur = "" }
+  {
+    if (cur != "" && match($0, /\(satisfied-by:[^)]*\)/)) {
+      s = substr($0, RSTART, RLENGTH)
+      sub(/^\(satisfied-by:[[:space:]]*/, "", s); sub(/\)$/, "", s)
+      gsub(/[[:space:]]+$/, "", s)
+      print cur "|" s
+      cur = ""
+    }
+  }' "$STORY_DIR/story.md" 2>/dev/null || true)
+
+  for xr_leaf in "${!XR_SATISFIED[@]}"; do
+    if [[ -z "${XR_SATISFIED[$xr_leaf]}" ]]; then
+      add_warning "Requirement $xr_leaf carries an empty 'satisfied-by:' suffix — name the artifact that answers for it, or drop the suffix"
+    fi
+  done
+
   if [[ ${#XR_STORY_REQS[@]} -gt 0 && ${#XR_TASK_TOKENS[@]} -gt 0 ]]; then
-    # Story leaf requirements with no matching task reference (orphans).
+    # Story leaf requirements with no matching task reference (orphans), minus
+    # those a non-empty satisfied-by suffix answers for.
     for xr_req in "${XR_STORY_REQS[@]}"; do
-      if ! xr_in_list "$xr_req" "${XR_TASK_TOKENS[@]}"; then
+      if ! xr_in_list "$xr_req" "${XR_TASK_TOKENS[@]}" && [[ -z "${XR_SATISFIED[$xr_req]:-}" ]]; then
         add_warning "Requirement $xr_req in story.md has no matching reference in tasks.md"
       fi
     done
