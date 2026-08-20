@@ -243,6 +243,53 @@ EOF
   [ "$(row_for 002-nofront)" = "| 002 | [nofront](stories/002-nofront/story.md) | — | 0/1 | active |" ]
 }
 
+@test "4.1: a tasks-only story renders the status its tasks.md carries" {
+  # A `fast` (or `spike`) story HAS no story.md - tasks.md is the only artifact
+  # it is guaranteed to have, so that is where its lifecycle fields live. Reading
+  # status from story.md alone printed an em dash for every Fast row in the
+  # corpus while `status: done` sat in tasks.md one directory over. The em dash
+  # is reserved for a story that genuinely declares no status (the case above);
+  # spending it on a story that declares one reads as a rendering bug because it
+  # IS one. Precedence: story.md when there is one, tasks.md otherwise — the same
+  # way the archiver reads a lifecycle field, so a row and an archive entry can
+  # never disagree about the same story.
+  mk_tasks stories 001-tasksonly <<'EOF'
+---
+story: tasksonly
+type: feature
+scale: fast
+version: 1
+created: 2026-08-01
+status: done
+---
+
+- [x] 1 - done
+EOF
+  run --separate-stderr bash "$INDEX_SH"
+  [ "$status" -eq 0 ]
+  [ "$(row_for 001-tasksonly)" = "| 001 | [tasksonly](stories/001-tasksonly/) | done | 1/1 | active |" ]
+  [[ "$(cat "$EPIC_MD")" != *"| — |"* ]]
+}
+
+@test "4.1: story.md still outranks tasks.md when both declare a status" {
+  # The fallback is a FALLBACK, not an override: with both artifacts present the
+  # row's story.md decides, exactly as it does for the scale lookup. Without this
+  # case, resolving the two in the wrong order would still pass the test above.
+  mk_story stories 001-both in-progress
+  mk_tasks stories 001-both <<'EOF'
+---
+version: 1
+created: 2026-08-01
+status: done
+---
+
+- [x] 1 - done
+EOF
+  run --separate-stderr bash "$INDEX_SH"
+  [ "$status" -eq 0 ]
+  [ "$(row_for 001-both)" = "| 001 | [both](stories/001-both/story.md) | in-progress | 1/1 | active |" ]
+}
+
 @test "4.1: progress folds no unqualified tilde box into the closed count" {
   # make_story's fixture is 2 [x] + 1 [~] whose line carries NO qualifier
   # ("Deferred external thing" has no `deferred:` token), so per the 004
