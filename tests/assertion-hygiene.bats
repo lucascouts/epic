@@ -805,13 +805,24 @@ WHY     MEASURED 1.5, HALF REPAIRED BY 3.2, CLOSED BY 4.3 — and the verdict
         edit — this story's rule is to pin the token the prose already carries.
         RED on `never creating `.draft/` on demand` and on `do not create
         `.draft/` yourself`; GREEN on `you create `.draft/` yourself when the
-        story has none`. Two residuals, named rather than left to be found: a
-        reversal parking the negation AFTER the anchor (`though creating
-        `.draft/` on demand is forbidden`) passes both assertions, and reaching
-        it costs the prose rewrite 4.3 took in the agent files; and a rewording
-        that renames the verb (`making `.draft/` yourself`) false-Reds —
-        R1.4's trade, taken to keep one key with the twin rather than widening
-        the anchor on the copies alone.
+        story has none`. ONE OF THOSE TWO RESIDUALS IS NOW PAID FOR, and 6.1
+        paid it in the prose rather than in this pattern: a reversal parking
+        the negation AFTER the anchor (`though creating `.draft/` on demand is
+        forbidden`) passed both assertions on both templates — measured on the
+        pre-repair tree, both cases GREEN, while the control `never creating`
+        Redded, so one form of the same reversal was caught and the other was
+        not. That is D6, and it was R1.1 unmet in the two copies this key
+        covers. Closed by the edit 4.3 took in the agent files, taken verbatim
+        here: `in the story directory, creating `.draft/` on demand — fast and
+        spike stories have none.` became `in the story directory — creating
+        `.draft/` on demand is part of that step, since fast and spike stories
+        have none.`, so the direction now rests on `\.draft[^.]{0,40}is +part
+        of` at 1 per template section, the row below. The negation guard here
+        was NOT widened, deliberately: enumerating the ways English says "no"
+        is the mechanism this story replaced. The second residual stands — a
+        rewording that renames the verb (`making `.draft/` yourself`)
+        false-Reds — R1.4's trade, taken to keep one key with the twin rather
+        than widening the anchor on the copies alone.
 
 FILE    tests/reports-by-artifact-policy.bats
 PATTERN \.draft[^.]{0,40}is +part of
@@ -850,6 +861,25 @@ WHY     MEASURED 4.3, and it is the direction half the count above cannot
         finds none` — one of the two 3.2 measured GREEN) now false-Reds, which
         is R1.4's trade: the prose carries the token or the direction goes
         unpinned.
+        TWO MORE SITES ON THIS KEY, ADDED BY 6.1, and they close D6 — the one
+        place a requirement of this story (R1.1) was not met in its own tree.
+        The two prompt templates of references/validate-mode.md stated the
+        allowance with no frame to split, so the reversal `though creating
+        `.draft/` on demand is forbidden` kept the `creat` span, sat outside
+        the reach of the adjacency guard that reads only in FRONT of the verb,
+        and left both template cases GREEN — measured on the pre-repair tree,
+        against the control `never creating`, which Redded. The prose took 4.3's
+        edit verbatim in both templates, and this pattern reads them COUNTED AT
+        1 PER TEMPLATE SECTION rather than `-q`: the file holds two spans, one
+        per template, and the defect this story is about is the copy that
+        contradicts its twin, which a `-q` over either scope answers from its
+        own span. Measured on each template scope, one mutation at a time, each
+        restored before the next: `though ... is forbidden` — 0, RED; the frame
+        negated in place (`is NOT part of that step`) — 0, RED; `never
+        creating` — 0, RED here and RED at the adjacency guard beside it; the
+        clause deleted outright — 0, RED. Measured GREEN in the other
+        direction: `creating `.draft/` when you find none is part of that step`
+        and the sentence reflowed across lines with not a word changed.
 
 FILE    tests/reports-by-artifact-policy.bats
 PATTERN memory director[a-z]*[^.]{0,160}is your own store

@@ -475,19 +475,62 @@ agents_granting() { # $1 = tool name
   # section (0 hits) and on the rewording `you create `.draft/` yourself when
   # the story has none`.
   #
-  # TWO RESIDUALS, named rather than left to be found. A reversal that parks
-  # the negation AFTER the anchor (`though creating `.draft/` on demand is
-  # forbidden`) passes both assertions; reaching it costs the prose rewrite 4.3
-  # took in the definitions, and this story's rule is to pin the token the
-  # prose already carries first. And a rewording that renames the verb
-  # (`making `.draft/` yourself`) false-Reds — R1.4's trade, taken here to keep
-  # one key with the twin rather than widening the anchor on this copy alone.
+  # ONE RESIDUAL LEFT, AND IT IS NOT THE ONE THIS COMMENT USED TO NAME. The
+  # reversal that parks the negation AFTER the anchor (`though creating
+  # `.draft/` on demand is forbidden`) passed both assertions above, and the
+  # comment that stood here filed it as a residual the story would not pay for.
+  # It is paid for below, by the prose rewrite 4.3 already took in the
+  # definitions — the same edit, so no new mechanism and no wider guard. What
+  # remains is a rewording that renames the verb (`making `.draft/` yourself`),
+  # which false-Reds — R1.4's trade, taken here to keep one key with the twin
+  # rather than widening the anchor on this copy alone.
   if printf '%s\n' "$flatsec" \
     | command grep -qiE '(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely)[^A-Za-z]{1,3})?creat'
   then
     echo "the template's .draft/ allowance is stated with a negation on the verb — the permission is reversed"
     return 1
   fi
+
+  # ...AND THE RESIDUAL THAT LEFT, WHICH IS D6 (R1.1). The comment above named
+  # it rather than closed it: a reversal that parks the negation AFTER the
+  # anchor — `though creating `.draft/` on demand is forbidden` — keeps the
+  # `creat` span and satisfies the guard above, because that guard reaches a
+  # negation only immediately IN FRONT of the verb. Measured on this tree
+  # before the repair: that form left this case GREEN, while the control
+  # `never creating` Redded it — one form of the same reversal caught, the
+  # other not.
+  #
+  # CLOSED THE WAY 4.3 CLOSED IT IN THE DEFINITIONS, by prose rather than by
+  # enumeration: the permission now carries a frame a negation must SPLIT
+  # instead of prefix — `in the story directory, creating `.draft/` on demand —
+  # fast and spike stories have none.` became `in the story directory —
+  # creating `.draft/` on demand is part of that step, since fast and spike
+  # stories have none.`, the same `is part of` frame agents/validator.md:74
+  # already writes, in both templates identically. Widening the negation guard
+  # was the alternative and is refused: enumerating the ways English says "no"
+  # is the mechanism this story replaced.
+  #
+  # SAME KEY AS THE DEFINITION TWIN — one row, `\.draft[^.]{0,40}is +part of` —
+  # and ANCHORED AFTER `.draft` for that case's arithmetic: `[^.]` cannot cross
+  # the full stop inside `` `.draft/` ``, so a `creat...is part of` window could
+  # never reach the verb it needs. COUNTED rather than `-q`, at 1 per template
+  # section, because the count is what makes the SCOPE assert something: the
+  # file holds two spans, one per template, and this story's defect is the copy
+  # that says the opposite of its twin.
+  #
+  # Measured, one mutation at a time, each restored before the next: D6's own
+  # form `though creating `.draft/` on demand is forbidden` — 0, RED; the frame
+  # negated in place, `is NOT part of that step` — 0, RED; the control `never
+  # creating` — 0, RED here and RED at the guard above; the clause deleted
+  # outright — 0, RED. Measured GREEN in the other direction: `creating
+  # `.draft/` when you find none is part of that step` and the sentence
+  # reflowed across lines without a word changed.
+  #
+  # The count is captured before it is compared for the census's reason, the
+  # same one the twin states: inlining the pattern into `[ "$(...)" ]` keys a
+  # row on a span running from `|` to `)` and orphans the row this pattern has.
+  allowed=$(printf '%s\n' "$flatsec" | command grep -oiE '\.draft[^.]{0,40}is +part of' | wc -l)
+  [ "$allowed" -eq 1 ]
 }
 
 # --- 1.2: Auditor report contract --------------------------------------------
@@ -580,6 +623,20 @@ agents_granting() { # $1 = tool name
     echo "the template's .draft/ allowance is stated with a negation on the verb — the permission is reversed"
     return 1
   fi
+
+  # ...AND THE RESIDUAL THAT LEFT — D6 (R1.1), the Auditor's copy of it. The
+  # argument is the Validator case's, one screen up, and so is the prose
+  # repair: `is part of that step` is a frame a negation must SPLIT, where the
+  # guard above reaches only a negation parked in FRONT of `creat`. Both
+  # templates took the identical edit, which is what keeps one key across the
+  # four sites this pattern now reads.
+  #
+  # Measured here too rather than inherited, one mutation at a time on this
+  # section: `though creating `.draft/` on demand is forbidden` — 0, RED; `is
+  # NOT part of that step` — 0, RED; `never creating` — 0, RED; the clause
+  # deleted — 0, RED. GREEN on the rule-preserving rewording.
+  allowed=$(printf '%s\n' "$flatsec" | command grep -oiE '\.draft[^.]{0,40}is +part of' | wc -l)
+  [ "$allowed" -eq 1 ]
 }
 
 @test "1.2: the Auditor template's carve-out keeps the memory clause, and the Validator's stays memory-free" {

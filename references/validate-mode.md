@@ -30,7 +30,7 @@ Triggered per-task or in batch after implementation. Can be invoked incrementall
 >
 > Then settle the Quality Gates: for each gate in the Quality Gates section, decide from the task results whether it is satisfied, and record it PASS or FAIL with its evidence.
 >
-> Then, as the LAST step before composing any textual summary, write the whole verdict to `.draft/validation-report.yaml` in the story directory, creating `.draft/` on demand — fast and spike stories have none. The orchestrator concludes from that file, not from your reply:
+> Then, as the LAST step before composing any textual summary, write the whole verdict to `.draft/validation-report.yaml` in the story directory — creating `.draft/` on demand is part of that step, since fast and spike stories have none. The orchestrator concludes from that file, not from your reply:
 >
 > ```yaml
 > story: "NNN-slug"                       # the story directory name
@@ -87,7 +87,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 > 9. If deviations.yaml has discoveries: verify each discovery was addressed in subsequent tasks (e.g., if a template engine gotcha was found, check that later tasks using templates account for it)
 > 10. Red precedence: every sub-task whose `Tests:` field is **not `None`** has both a pre-authored test and an entry in `.draft/red-evidence.yaml` with `failed: true` (or `red_deferred: true` for `E2E`); a missing entry is reported as a finding. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction. Quantify over the `Tests:` field, never over the set of authored tests — a sub-task added by a refinement after Phase 3 ran has no authored test, so "every sub-task with a pre-authored test" excludes the very sub-task that is broken. Report a non-`None` `Tests:` field with no authored test as its own finding.
 >
-> Then, as the LAST step before composing any textual summary, write the whole audit to `.draft/audit-report.yaml` in the story directory, creating `.draft/` on demand — fast and spike stories have none. The orchestrator concludes from that file, not from your reply; the head is the Validator's, key for key, so one reader parses both:
+> Then, as the LAST step before composing any textual summary, write the whole audit to `.draft/audit-report.yaml` in the story directory — creating `.draft/` on demand is part of that step, since fast and spike stories have none. The orchestrator concludes from that file, not from your reply; the head is the Validator's, key for key, so one reader parses both:
 >
 > ```yaml
 > story: "NNN-slug"                       # the story directory name
