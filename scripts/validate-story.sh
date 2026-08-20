@@ -1013,6 +1013,22 @@ if [[ "$HAS_TASKS" == true ]]; then
   # Check for Commit fields or sub-tasks
   COMMIT_COUNT=$(grep -ci '^\s*- Commit:' "$TASKS_FILE" 2>/dev/null || true)
   COMMIT_SUBTASK_COUNT=$(grep -ciE '^\s*- \[[ x~]\].*[Cc]ommit' "$TASKS_FILE" 2>/dev/null || true)
+  # TWO COUNTS, because the two questions are not the same question.
+  #
+  # The count above is DELIBERATELY loose: it answers "does this group have a
+  # commit point at all", and for that purpose any box that mentions a commit
+  # counts. The count below is the one the legacy nudge may use, and it is the
+  # migrator's own COMMIT_BOX_RE verbatim (scripts/migrate-story.sh) — a box
+  # titled exactly `N.M - Commit` and nothing else.
+  #
+  # They must not be the same number, because the nudge NAMES A TOOL and tells
+  # the reader to run it. Counting with the loose pattern counted sub-tasks that
+  # merely mention the word — `- [x] 2.3 - Variant 5: Commit sub-task → group
+  # field` is a real line in story 015 — and then promised that `migrate --apply`
+  # would convert them. It does not: it converts the exact shape, so the reader
+  # ran the tool, saw `commit_subtasks: 0`, and got the identical warning again.
+  # An advisory that survives doing what it asks is worse than no advisory.
+  COMMIT_LEGACY_COUNT=$(grep -cE '^[[:space:]]*-[[:space:]]+\[[ x~]\][[:space:]]+[0-9]+\.[0-9]+[[:space:]]+-[[:space:]]+Commit[[:space:]]*$' "$TASKS_FILE" 2>/dev/null || true)
   TOTAL_COMMITS=$((COMMIT_COUNT + COMMIT_SUBTASK_COUNT))
   if [[ "$PARENT_TASK_COUNT" -gt 0 && "$TOTAL_COMMITS" -eq 0 ]]; then
     add_warning "No Commit fields or Commit sub-tasks found — every task group should have a commit point"
@@ -1023,8 +1039,8 @@ if [[ "$HAS_TASKS" == true ]]; then
   # form `migrate-story.sh` converts, and a checkbox that is never the unit of
   # work is what made every group read as partially open. The nudge names both
   # the shape and the tool, so the reader is not left to search for either.
-  if [[ "$COMMIT_SUBTASK_COUNT" -gt 0 ]]; then
-    add_warning "tasks.md carries $COMMIT_SUBTASK_COUNT Commit sub-task checkbox(es) — the legacy shape. The canonical form is a group-level 'Commit:' field; 'bash scripts/migrate-story.sh <NNN> --apply' converts it, message verbatim"
+  if [[ "$COMMIT_LEGACY_COUNT" -gt 0 ]]; then
+    add_warning "tasks.md carries $COMMIT_LEGACY_COUNT Commit sub-task checkbox(es) — the legacy shape. The canonical form is a group-level 'Commit:' field; 'bash scripts/migrate-story.sh <NNN> --apply' converts it, message verbatim"
   fi
 
   # --- Authoring ceiling (story 014, sub-task 3.1 — R3.3)

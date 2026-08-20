@@ -201,6 +201,33 @@ EOF
   echo "$output" | jq -e '[.warning_details[] | select(test("legacy"; "i") and test("migrate"; "i"))] | length > 0' > /dev/null
 }
 
+@test "3.2: a sub-task that merely mentions a commit does not raise the legacy nudge" {
+  # The nudge names migrate-story.sh and tells the reader to run it, so it may
+  # only count what that tool actually converts: a box titled exactly
+  # `N.M - Commit`. A sub-task whose TITLE mentions the word is ordinary work —
+  # story 015's own `2.3 - Variant 5: Commit sub-task -> group field` is one —
+  # and counting it produced a warning that survived doing what it asked:
+  # migrate reported `commit_subtasks: 0` and the identical nudge came back.
+  make_field_form_story 092-mentions
+  cat >> "$PROJ/.epic/stories/092-mentions/tasks.md" <<'EOF'
+
+- [ ] 9 - Later work
+  - _Complexity: Simple | Tests: None | Risks: None | Dependencies: None_
+  - Objective: Convert the legacy shape
+  - Commit: "feat(092): later"
+
+  - [x] 9.1 - Variant 5: Commit sub-task to group field, gap preserved
+    - Validation: ok
+    - Requirements: R1.1
+EOF
+  run --separate-stderr bash "$VALIDATE_SH" .epic/stories/092-mentions
+  # The nudge must be silent...
+  echo "$output" | jq -e '[.warning_details[] | select(test("Commit sub-task checkbox"))] | length == 0' > /dev/null
+  # ...and migrate must agree there is nothing to convert.
+  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/092-mentions
+  echo "$output" | jq -e '.rewrites.commit_subtasks == 0' > /dev/null
+}
+
 @test "3.2: run-mode states the group-tail ordering — close boxes, census, Commit field, archive offer" {
   run bash -c "tr '\n' ' ' < '$REFS/run-mode.md' | grep -Eq 'close (the )?boxes.*(status )?census.*Commit:.*archive'"
   [ "$status" -eq 0 ]
