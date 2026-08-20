@@ -164,7 +164,7 @@ MIXTURE_LINES=()
 # the counters. Reads nothing it has not been given.
 migrate_file() {
   local f="$1" line in_fence=false n=0 out=""
-  local crlf="" in_commit=false commit_msg=""
+  local crlf="" in_commit=false commit_msg="" converted=""
   while IFS= read -r line || [ -n "$line" ]; do
     n=$((n + 1))
     crlf=""
@@ -222,7 +222,20 @@ migrate_file() {
     # under another name, indented to the field position the canonical shape uses.
     if [[ "$line" =~ $COVERS_RE ]]; then
       COVERS_FIELDS=$((COVERS_FIELDS + 1))
-      out+="  - Requirements: ${BASH_REMATCH[3]}$crlf"$'\n'; continue
+      converted="  - Requirements: ${BASH_REMATCH[3]}"
+      # THE TWO RULES COMPOSE IN ONE PASS, and that is what makes migrate
+      # idempotent. A fast story has no requirements chain, so the field this
+      # conversion just produced is subject to exactly the same rule as one that
+      # was already in the file. Emitting it here and deleting it on the NEXT
+      # run is how the all-variants fixture measured a second apply still
+      # rewriting — R1.4 broken by two correct rules that never met.
+      if [ "$SCALE" = "fast" ] || [ "$SCALE" = "spike" ]; then
+        case "$converted" in
+          *satisfied-by:*) : ;;
+          *) FAST_REQUIREMENTS=$((FAST_REQUIREMENTS + 1)); continue ;;
+        esac
+      fi
+      out+="$converted$crlf"$'\n'; continue
     fi
 
     # Variant 2 — a checkbox-less task item gains `[ ]` and ONLY `[ ]`. The
@@ -251,11 +264,35 @@ migrate_file() {
   printf '%s' "$out"
 }
 
-# The mixture guard runs BEFORE any rewriting: a file carrying canonical task
-# boxes AND legacy T-headers or Covers fields cannot be classified without
-# guessing which line owns which slot.
+# The mixture guard runs BEFORE any rewriting. What makes a file unparseable is
+# POSITION, not co-occurrence: a legacy shape standing exactly where a sub-task
+# or a field of an OPEN canonical group would stand, so no detector can say
+# which slot the line owns.
+#
+# THE FIRST RULE HERE WAS TOO BROAD, and the all-variants fixture measured it.
+# It refused any file carrying canonical boxes anywhere AND legacy shapes
+# anywhere — which is the shape of nearly every real legacy story, since they
+# accumulated canonical sections over time. A guard that refuses the corpus the
+# tool exists to convert makes the tool useless while still passing its own
+# refusal test. Narrowed to the ambiguity itself:
+#
+#   ## T1 Parse            <- own section, ownership obvious      -> migrate
+#   **Covers:** R1.1
+#   - [ ] 3 - Canonical group
+#
+#   - [ ] 1 - Canonical group
+#   ## T1 Interleaved      <- stands where a sub-task would       -> refuse
+#     - [ ] 1.1 - Whose sub-task is this
+#
+# The rule is pinned FROM BOTH SIDES by two opposing tests: the interleaved
+# fixture in tests/migrate-story.bats must still refuse, and the all-variants
+# fixture in tests/migrate-roundtrip.bats must migrate. Loosening it to satisfy
+# one reddens the other.
+#
+# A legacy header is never treated as a section boundary — it IS the ambiguity,
+# so letting it close the group would hide the very thing being looked for.
 detect_mixture() {
-  local f="$1" line in_fence=false n=0 has_canon=false legacy=()
+  local f="$1" line in_fence=false n=0 in_group=false legacy=()
   while IFS= read -r line || [ -n "$line" ]; do
     n=$((n + 1)); line=${line%$'\r'}
     if [[ "$line" =~ $FENCE_RE ]]; then
@@ -263,10 +300,15 @@ detect_mixture() {
       continue
     fi
     [ "$in_fence" = false ] || continue
-    if [[ "$line" =~ $CANON_BOX_RE ]]; then has_canon=true; fi
-    if [[ "$line" =~ $T1_RE || "$line" =~ $COVERS_RE ]]; then legacy+=("$f:$n"); fi
+
+    if [[ "$line" =~ $T1_RE || "$line" =~ $COVERS_RE ]]; then
+      if [ "$in_group" = true ]; then legacy+=("$f:$n"); fi
+      continue
+    fi
+    if [[ "$line" =~ $CANON_BOX_RE ]]; then in_group=true; continue; fi
+    if [[ "$line" =~ ^#{1,6}[[:space:]] ]]; then in_group=false; fi
   done < "$f"
-  if [ "$has_canon" = true ] && [ "${#legacy[@]}" -gt 0 ]; then
+  if [ "${#legacy[@]}" -gt 0 ]; then
     MIXTURE_LINES+=("${legacy[@]}")
   fi
 }

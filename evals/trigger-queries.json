@@ -13,7 +13,8 @@
     "can you create an epic for the user onboarding flow?",
     "show me all stories — I want to see what's left before the release freeze on Friday",
     "stories create --batch docs/audit-2026-07.md",
-    "stories"
+    "stories",
+    "stories migrate 007 --apply"
   ],
   "should_not_trigger": [
     "write a unit test for validateCredentials() in src/auth/login.service.ts",

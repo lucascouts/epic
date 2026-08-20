@@ -12,7 +12,7 @@ description: >
   needs to be done to implement X?", "list stories", "run story",
   "execute tasks", "validate implementation" — even without saying
   "epic" or "story" explicitly.
-argument-hint: "[description] or [stories create --batch <doc>] or [stories] or [stories full] or [stories run|validate|refine NNN] or [stories supersede NNN --by MMM] or [stories NNN run N|all] or [init]"
+argument-hint: "[description] or [stories migrate NNN] or [stories create --batch <doc>] or [stories] or [stories full] or [stories run|validate|refine NNN] or [stories supersede NNN --by MMM] or [stories NNN run N|all] or [init]"
 allowed-tools:
   - Read
   - Glob
@@ -169,6 +169,10 @@ $ARGUMENTS parsing:
 "init"
   → INIT mode (project configuration wizard)
 
+"stories migrate NNN [--apply]"
+  → MIGRATE mode (normalize a legacy story into the canonical shapes;
+    dry run by default — scripts/migrate-story.sh writes nothing without --apply)
+
 "stories create --batch <doc>"
   → BATCH-CREATE mode (one interview, N stories derived from a source document)
     ORDER IS THE GUARD: this arm is matched BEFORE the bare "stories" arm below.
@@ -231,6 +235,7 @@ When a command references `NNN`:
 | Mode | Trigger | Reference to load |
 |---|---|---|
 | **Create** | `/epic:epic` or `/epic:epic <description>` | Continue below (Triage + Clarify + Phases) |
+| **Migrate** | `/epic:epic stories migrate NNN [--apply]` | Run `scripts/migrate-story.sh` (or `bin/epic-migrate`) — dry run by default; it reports the rewrites as JSON and the diff on stderr, and writes only with `--apply` |
 | **Batch Create** | `/epic:epic stories create --batch <doc>` | Load [batch-create.md](../../references/batch-create.md) — one interview, N stories; numbers come from `scripts/next-story-number.sh` |
 | **Init** | `/epic:epic init` | Load [init-mode.md](../../references/init-mode.md) |
 | **List** | `/epic:epic stories [full] [NNN]` | Load [list-mode.md](../../references/list-mode.md) |
