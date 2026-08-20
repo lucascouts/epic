@@ -385,6 +385,124 @@ if [[ "$HAS_STORY" == true ]]; then
     add_warning "No hierarchical requirement numbering (R1, R2...) found in story.md"
   fi
 
+  # --- EARS form lint (story 014, sub-task 1.1 — R1.1, R1.2, R1.3, R1.4, R1.5)
+  #
+  # THREE CHECKS, ONE SEVERITY EACH, and the split is the story's Constraint
+  # rather than a preference: only (a) is an error, because only (a) makes a
+  # criterion invisible to the whole traceability chain — an unlabeled bullet
+  # cannot be referenced by a task, so cross-reference.sh cannot see it and the
+  # Auditor cannot trace it. (b) and (c) are shape advice about a criterion
+  # everything downstream can still find, so they warn.
+  #
+  #   (a) a criterion bullet with no `Rn.m:` label ......... ERROR   (R1.1)
+  #   (b) a labeled criterion carrying 2+ SHALL ............ warning (R1.2)
+  #   (c) a labeled criterion with no EARS trigger, whose
+  #       opening is not the ubiquitous form ............... warning (R1.3)
+  #
+  # WHERE IT LOOKS. Only bullets under a `#### Acceptance Criteria` heading,
+  # and the block ends at the next heading of any level (R1.5). A fenced block
+  # is never scanned: an illustrative criterion inside a fence is documentation
+  # showing the shape, not a claim about this story. The fence state is tracked
+  # with the same idiom and the same regex the checkbox walker below uses, so
+  # this file keeps ONE fence policy rather than two that can drift.
+  #
+  # WHY CONTINUATION LINES ARE JOINED. A criterion in this repository routinely
+  # wraps across three or four lines — the SHALL is often not on the bullet's
+  # first line at all. Evaluating the first line alone would report the
+  # majority of the live corpus as trigger-less, which is how a lint teaches
+  # people to ignore it. The bullet and its continuations are therefore
+  # buffered and evaluated as one criterion, and the line reported is the
+  # bullet's own first line, which is where an author would go to fix it.
+  #
+  # SCALE GATING (R1.4). The whole block is skipped for fast and spike, which
+  # have no requirements chain — a leftover story.md in a Fast story is not a
+  # requirements document and must not be linted as one.
+  #
+  # --strict PROMOTION. Under `--strict`, warnings are promoted to errors, so
+  # (b) and (c) become blocking there. That is the flag's existing meaning and
+  # is stated here because this block is the largest new source of warnings in
+  # the script.
+  #
+  # BSD-SAFE SPELLINGS ONLY: no `\b`, no `\d`, no `\s` in any pattern below.
+  if scale_has_requirements_chain; then
+    ears_fence_re='^(```|~~~)'
+    ears_heading_re='^#{1,6}[[:space:]]'
+    ears_ac_re='^####[[:space:]]+Acceptance[[:space:]]+Criteria[[:space:]]*$'
+    ears_bullet_re='^[[:space:]]*-[[:space:]]+'
+    ears_label_re='^[[:space:]]*-[[:space:]]+R[0-9]+\.[0-9]+:'
+    ears_trigger_re='(^|[^[:alnum:]_])(WHEN|WHILE|WHERE|IF)([^[:alnum:]_]|$)'
+    # The ubiquitous form keeps its component slot: `THE <COMPONENT> SHALL` is
+    # legal EARS and subject drift beyond that is out of this story's scope.
+    # Case is load-bearing — EARS keywords are CAPS, so a prose opener like
+    # "The exporter SHALL" is not the ubiquitous form and does warn.
+    ears_ubiquitous_re='^[[:space:]]*-[[:space:]]+R[0-9]+\.[0-9]+:[[:space:]]+THE[[:space:]]+[A-Z][A-Z0-9_ -]*SHALL([^[:alnum:]_]|$)'
+
+    ears_in_fence=false
+    ears_in_ac=false
+    ears_buf=""
+    ears_buf_line=0
+    ears_line_no=0
+
+    # Evaluates one buffered criterion. Called when the buffer closes, which is
+    # at the next bullet, the next heading, a fence, a blank line, or EOF —
+    # never from inside the loop's own accumulation branch.
+    ears_flush() {
+      local text="$1" line="$2" shall_count bare
+      [[ -n "$text" ]] || return 0
+      # An inline code span is a MENTION, not an obligation — the same rule the
+      # fence applies to a block, applied to a span. Measured on this repo's own
+      # corpus: without it, a criterion that merely names `SHALL` while stating
+      # a rule about SHALL counts as compound and warns, which flagged story
+      # 014's own R1.2 ("WHEN a labeled criterion contains more than one
+      # `SHALL` THE SYSTEM SHALL warn"). A lint that reddens on prose describing
+      # itself is a lint people learn to ignore. Stripping is symmetric: a
+      # trigger word mentioned inside a span is likewise not a trigger.
+      bare=$(printf '%s' "$text" | sed 's/`[^`]*`//g')
+      if [[ ! "$text" =~ $ears_label_re ]]; then
+        add_error "story.md line $line: acceptance criterion has no Rn.m label — an unlabeled criterion cannot be referenced by a task, so nothing downstream can trace it"
+        return 0
+      fi
+      # SHALL CONTINUE TO is the bugfix Unchanged-Behavior verb, not a second
+      # obligation, so it is removed before the count rather than matched around.
+      shall_count=$(printf '%s' "${bare//SHALL CONTINUE TO/}" | grep -o 'SHALL' | grep -c 'SHALL' || true)
+      if [[ "$shall_count" -gt 1 ]]; then
+        add_warning "story.md line $line: acceptance criterion carries $shall_count SHALL obligations — one condition per requirement, each independently testable"
+      fi
+      if [[ ! "$bare" =~ $ears_trigger_re && ! "$text" =~ $ears_ubiquitous_re ]]; then
+        add_warning "story.md line $line: acceptance criterion has no EARS trigger (WHEN/WHILE/WHERE/IF) — the accepted exception is the ubiquitous form, THE SYSTEM SHALL ..."
+      fi
+    }
+
+    while IFS= read -r ears_line || [[ -n "$ears_line" ]]; do
+      ears_line_no=$((ears_line_no + 1))
+
+      if [[ "$ears_line" =~ $ears_fence_re ]]; then
+        ears_flush "$ears_buf" "$ears_buf_line"; ears_buf=""
+        if [[ "$ears_in_fence" == true ]]; then ears_in_fence=false; else ears_in_fence=true; fi
+        continue
+      fi
+      [[ "$ears_in_fence" == false ]] || continue
+
+      if [[ "$ears_line" =~ $ears_heading_re ]]; then
+        ears_flush "$ears_buf" "$ears_buf_line"; ears_buf=""
+        if [[ "$ears_line" =~ $ears_ac_re ]]; then ears_in_ac=true; else ears_in_ac=false; fi
+        continue
+      fi
+      [[ "$ears_in_ac" == true ]] || continue
+
+      if [[ "$ears_line" =~ $ears_bullet_re ]]; then
+        ears_flush "$ears_buf" "$ears_buf_line"
+        ears_buf="$ears_line"
+        ears_buf_line=$ears_line_no
+      elif [[ -z "${ears_line// /}" ]]; then
+        ears_flush "$ears_buf" "$ears_buf_line"; ears_buf=""
+      elif [[ -n "$ears_buf" ]]; then
+        ears_buf="$ears_buf $ears_line"
+      fi
+    done < "$STORY_FILE"
+    ears_flush "$ears_buf" "$ears_buf_line"
+  fi
+
   # Bugfix: check Unchanged Behavior section
   if [[ "$IS_BUGFIX" == true ]]; then
     if ! grep -qi 'unchanged behavior' "$STORY_FILE" 2>/dev/null; then
