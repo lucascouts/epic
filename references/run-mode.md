@@ -28,7 +28,7 @@ Parse flags from `$ARGUMENTS` after the run command:
 | (default) | Gate after every task group |
 | `--auto` | Only stop on validation/test failure |
 | `--batch=N` | Gate every N task groups |
-| `--gate=commit` | Gate only at Commit sub-tasks |
+| `--gate=commit` | Gate only where a group's `Commit:` field is executed |
 
 Examples:
 ```
@@ -319,7 +319,11 @@ And the reopen edge, on the story left at `done` by step 5:
 
 Metadata lines and the `Objective`, `Validation`, `Requirements` and `Commit` fields are elided from all three listings: they carry no checkbox and never enter the census. The JSON objects are elided too, to their load-bearing fields — every call also returns `story`, `task` and `reason`. Every value shown was measured on this fixture, not projected from the rules.
 
-### Commit Sub-tasks
+### The Commit Field
+
+**The tail of a group runs in one order:** close the boxes through `close-subtask.sh`, take the status census it runs (which may write `done`), execute the group's `Commit:` field with its pre-authored message, then make the archive offer if the story is complete. The census precedes the commit deliberately — a group that finished is `done` before its commit exists, so the commit records a state the file already claims rather than one it is about to.
+
+**Dependency satisfaction reads the boxes that exist.** A group carrying a `Commit:` field has no Commit box, so nothing in the plan waits on one.
 
 Always executed by the main agent (not a sub-agent). Git operations require the main worktree context, so in a parallel batch the commit runs **after** the merge and never inside a worktree (see Parallel Execution).
 
@@ -512,7 +516,7 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 
 ### Executor Rules
 
-- The Executor does NOT commit code. Commits are handled by the orchestrator via Commit sub-tasks — post-merge, in the main tree, with the pre-authored message verbatim (R3.4). A parallel Executor sits in a worktree, where a commit would land on a branch nobody has merged yet
+- The Executor does NOT commit code. Commits are handled by the orchestrator from each group's `Commit:` field — post-merge, in the main tree, with the pre-authored message verbatim (R3.4). A parallel Executor sits in a worktree, where a commit would land on a branch nobody has merged yet
 - The Executor does NOT mark tasks — not `[x]`, and not `[~]` either: `close-tilde` is something its closing block *reports*, never something it writes. The orchestrator does the marking, after verifying the report — and it does it through `close-subtask.sh`, the one sanctioned writer of the checkbox grammar (see Closing a Box). This is not a matter of trust: a box marked anywhere else is a box written outside the only writer that takes the census, stamps the status and validates the story in the same transaction — and, inside a worktree, written into a copy of tasks.md that the merge would then have to reconcile (R3.3)
 - The Executor does NOT skip steps. If Context Gathering finds nothing useful, the step still executes and reports "no actionable findings."
 - If a step fails (validation, tests), the Executor STOPS and reports. It does not attempt fixes autonomously.
@@ -599,7 +603,7 @@ If only one technology with no boundary interaction: skip review.
   2. Spawn a new Executor instance with the original task + issues to fix
   3. Re-run only the affected Tech Reviewers
   4. Maximum 2 fix cycles. If still failing after 2 cycles, stop and escalate to user
-- Tech Reviews are skipped for Commit sub-tasks
+- Tech Reviews are skipped for a group's `Commit:` field — there is no implementation to review
 
 ## Context Passing Between Tasks
 
@@ -683,13 +687,13 @@ If confirmed:
 2. Each Executor follows the full 6-step protocol in its isolated worktree — and closes **no** box there: tasks.md is never edited inside a worktree
 3. Wait for all Executors to complete
 4. Run Tech Reviews for each Executor's output (can be parallel)
-5. If ALL pass: merge worktrees **sequentially**, and after each merge close that task's boxes **in the main tree** — one `close-subtask.sh` call per box, in task order, from the merged Executor's closing block (see Closing a Box). When every worktree has been merged and closed, run the group's Commit sub-task. Call `ExitWorktree` on each worktree after merging to clean up.
+5. If ALL pass: merge worktrees **sequentially**, and after each merge close that task's boxes **in the main tree** — one `close-subtask.sh` call per box, in task order, from the merged Executor's closing block (see Closing a Box). When every worktree has been merged and closed, execute the group's `Commit:` field. Call `ExitWorktree` on each worktree after merging to clean up.
 6. If ANY fail: report failures, ask user how to proceed (retry failed tasks, skip, or abort). Worktrees of failed executors are preserved for inspection until the user decides. A failed Executor's boxes are **not** closed — `outcome: failed` makes no close call, here as anywhere else
 
 ### Rules
 
 - **Boxes are closed only in the main tree, sequentially, after each merge — never inside a worktree copy of tasks.md (R3.3).** A worktree branches from HEAD with its own copy of the file, so a box closed there is closed in a copy the merge then has to reconcile, and two Executors closing at once are two rewrites of one file. Serialising the closes behind the merges — which are already sequential — also makes each returned `census` a census of the file everyone else will read
-- Commit sub-tasks are ALWAYS sequential (post-merge), executed by the main agent, using the group's pre-authored `Commit:` message verbatim (R3.4)
+- A group's `Commit:` field is ALWAYS executed sequentially (post-merge), by the main agent, using the pre-authored message verbatim (R3.4)
 - If user declines parallel execution, fall back to sequential (no worktrees created)
 - Maximum parallel Executors: 5 (to avoid resource exhaustion)
 - Each parallel Executor gets the full story context (story.md, design.md relevant sections)
@@ -704,7 +708,7 @@ If confirmed:
 - **No step skipping** — every step in the Executor protocol is mandatory. Context Gathering is not optional when a Context field exists. Validation commands must be executed and their output reported. This is the fundamental rule of Run Mode.
 - **User gates** — controlled by execution flags (default: gate after every task group)
 - **Context is fresh** — each Executor reads files directly. The orchestrator passes only metadata (paths, deviations, discoveries) between tasks.
-- **Commit granularity** — follow the Commit fields defined in tasks. Never commit in the middle of a task group unless a Commit sub-task says so.
+- **Commit granularity** — follow the Commit fields defined in tasks. Never commit in the middle of a task group.
 - **Completion** — a story is **complete** when **no `[ ]` remains**: it is **`done`** when every box is `[x]` or terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), and **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`. `done-except-external` is computed at read time, never written to a file. Progress reads `closed/total (+D deferred)`. See [tasks.md](tasks.md#completion)
 - **Marking** — every box this mode closes is closed by `close-subtask.sh`, one invocation per box; the orchestrator never edits a checkbox, and never re-reads tasks.md for a census the call already returned. See Closing a Box
 - **Lifecycle status** — Run mode writes `status: in-progress` when a census finds the field absent or `draft`, or finds an open `[ ]` on a story reading `done` or `validated` (the reopen edge, R1.7), and `status: done` when a marking leaves no `[ ]` and no deferred `[~]`. **Run mode writes none of it by hand**: the same `close-subtask.sh` invocation that closed the box takes the census, applies the table, stamps every artifact that carries frontmatter — the same value in each, the field added on a legacy story with the state this run observed and never a back-dated one — and reports what it wrote in `status_written`. A failed write is reported and the run continues. See Status Transitions

@@ -46,6 +46,8 @@
 # golden output recorded from the pre-change scripts (2026-08-02, branch
 # fix/epic-traceability).
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   WORK=$(mktemp -d)
@@ -589,6 +591,41 @@ GOLDEN
   run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" story
   [ "$status" -eq 0 ]
   [ "$output" = "$expected" ]
+}
+
+@test "R2.1/R2.4: migrate-story.sh — the eleventh consumer, and the only one that REWRITES the grammar" {
+  # It reads the same five boxes to decide there is nothing to normalize. Every
+  # shape in the shared fixture is already canonical — [x], terminal [~],
+  # deferred [~], [ ] — and the group carries a Commit FIELD rather than a
+  # Commit box, so a correct reading produces a byte-identical no-op. A
+  # consumer that disagreed with the others about what a box is would show up
+  # here as a rewrite nobody asked for.
+  cd "$WORK/proj"
+  before=$(sha256sum "$MIXED/tasks.md" | cut -d' ' -f1)
+  run bash "$PLUGIN_ROOT/scripts/migrate-story.sh" .epic/stories/010-mixed --apply
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '[.rewrites[]] | add == 0' > /dev/null
+  [ "$(sha256sum "$MIXED/tasks.md" | cut -d' ' -f1)" = "$before" ]
+
+  # And the other direction: give the group a legacy Commit BOX and migrate
+  # converts exactly that, leaving all five graded boxes untouched.
+  cat >> "$MIXED/tasks.md" <<'LEGACY'
+
+- [x] 1.6 - Commit
+  - Validation: All tests pass
+  - Commit: "feat(010): the legacy shape"
+LEGACY
+  run --separate-stderr bash "$PLUGIN_ROOT/scripts/migrate-story.sh" .epic/stories/010-mixed --apply
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.rewrites.commit_subtasks == 1' > /dev/null
+  # the five graded boxes are all still there, states intact
+  [ "$(grep -cE '^- \[[ x~]\] 1\.[1-5] - ' "$MIXED/tasks.md")" -eq 5 ]
+  grep -qE '^- \[~\] 1\.4 - .*deferred: real hardware' "$MIXED/tasks.md"
+  if grep -qE '^[[:space:]]*- \[[ x~]\][[:space:]]+1\.6[[:space:]]+-[[:space:]]+Commit' "$MIXED/tasks.md"; then
+    echo "the legacy Commit box survived the conversion"
+    return 1
+  fi
+  grep -qF -- '- Commit: "feat(010): the legacy shape"' "$MIXED/tasks.md"
 }
 
 @test "R1.5/R2.5: every declared consumer is compared by a case in this harness" {

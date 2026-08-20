@@ -31,6 +31,7 @@ CHECKBOX_CONSUMERS=(
   hook-post-tool-failure.sh
   hook-precompact.sh
   hook-task-completed.sh
+  migrate-story.sh
   monitor-stale.sh
   supersede-story.sh
   validate-story.sh

@@ -23,7 +23,7 @@ For each sub-task marked `[x]`:
 
 1. **Run the Validation command** specified in the sub-task
 2. **If a Tests field exists**, verify the test file exists and tests pass
-3. **If a Commit sub-task exists**, verify the commit was made (check git log)
+3. **If the group carries a `Commit:` field**, verify the commit was made (check git log)
 
 For each sub-task marked `[~]`: run nothing, and report SKIP naming its qualifier.
 
@@ -65,7 +65,7 @@ Only now, with the file written, summarize it in prose for the human reading alo
 Report per sub-task:
 - **PASS:** task N.N — validation succeeded
 - **FAIL:** task N.N — [what failed and why]
-- **SKIP:** task N.N — nothing to run (a Commit sub-task with no prior failures, or a `[~]` box closed without the work being done — name its qualifier)
+- **SKIP:** task N.N — nothing to run (a `[~]` box closed without the work being done — name its qualifier)
 
 Then each Quality Gate as PASS or FAIL with its evidence, and the overall verdict.
 

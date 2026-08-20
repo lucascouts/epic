@@ -26,7 +26,7 @@ Triggered per-task or in batch after implementation. Can be invoked incrementall
 > For each completed task and sub-task:
 > 1. Run the Validation command specified in the sub-task
 > 2. If a Tests field exists, verify the test file exists and tests pass
-> 3. If a Commit sub-task exists, verify the commit was made (check git log)
+> 3. If the group carries a `Commit:` field, verify the commit was made (check git log)
 >
 > Then settle the Quality Gates: for each gate in the Quality Gates section, decide from the task results whether it is satisfied, and record it PASS or FAIL with its evidence.
 >
@@ -56,7 +56,7 @@ Triggered per-task or in batch after implementation. Can be invoked incrementall
 > Only then summarize in prose:
 > - PASS: task N.N — validation succeeded
 > - FAIL: task N.N — [what failed and why]
-> - SKIP: task N.N — nothing to run (a Commit sub-task with no prior failures, or a `[~]` box closed without the work being done — name its qualifier)
+> - SKIP: task N.N — nothing to run (a `[~]` box closed without the work being done — name its qualifier)
 > - each Quality Gate as PASS or FAIL with evidence
 >
 > Do NOT modify any other file: that report is your only write, and any other write is a protocol violation — report what is wrong, never fix it."

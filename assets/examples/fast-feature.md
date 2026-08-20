@@ -48,9 +48,7 @@ Add an email field to the user profile form with validation. Single-component ch
     - Tests: Unit · `src/components/__tests__/ProfileForm.test.tsx` — valid email accepted, invalid email shows error, empty email shows required error
     - Validation: `npm test -- ProfileForm` passes with all 3 cases
 
-  - [ ] 1.3 - Commit
-    - Validation: All tests pass, form renders and submits correctly
-    - Commit: "feat: add email field to user profile form"
+  - Commit: "feat: add email field to user profile form"
 
 ## Quality Gates
 

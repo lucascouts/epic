@@ -156,9 +156,7 @@ Configure TypeScript for ESM output, set up Prisma 7 with explicit config, valid
     - Validation: `npm test -- prisma.test.ts` passes
     - Requirements: R2.3
 
-  - [ ] 2.3 - Commit
-    - Validation: `prisma generate` clean, integration test passes
-    - Commit: "feat: configure Prisma 7 with ESM and pg adapter"
+  - Commit: "feat: configure Prisma 7 with ESM and pg adapter"
 
 ## Quality Gates
 

@@ -1003,6 +1003,15 @@ if [[ "$HAS_TASKS" == true ]]; then
     add_warning "No Commit fields or Commit sub-tasks found — every task group should have a commit point"
   fi
 
+  # The legacy nudge (story 015, R3.2). A Commit CHECKBOX is still accepted —
+  # 400-odd stories carry the shape and none of them is wrong — but it is the
+  # form `migrate-story.sh` converts, and a checkbox that is never the unit of
+  # work is what made every group read as partially open. The nudge names both
+  # the shape and the tool, so the reader is not left to search for either.
+  if [[ "$COMMIT_SUBTASK_COUNT" -gt 0 ]]; then
+    add_warning "tasks.md carries $COMMIT_SUBTASK_COUNT Commit sub-task checkbox(es) — the legacy shape. The canonical form is a group-level 'Commit:' field; 'bash scripts/migrate-story.sh <NNN> --apply' converts it, message verbatim"
+  fi
+
   # --- Authoring ceiling (story 014, sub-task 3.1 — R3.3)
   #
   # The threshold has ONE home, references/tasks.md § Authoring Ceiling, and

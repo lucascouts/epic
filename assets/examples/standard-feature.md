@@ -99,9 +99,7 @@ Implement API key guard as a NestJS Guard. Workspace lookup by apiKey, inject wo
     - Validation: `npm run test:e2e -- api-key` passes
     - Requirements: R1.1, R1.2
 
-  - [ ] 1.3 - Commit
-    - Validation: All unit and integration tests pass
-    - Commit: "feat: add API key guard for workspace authentication"
+  - Commit: "feat: add API key guard for workspace authentication"
 
 - [ ] 2 - API Key Auto-Generation
   - _Complexity: Trivial | Tests: None | Risks: None | Dependencies: None_

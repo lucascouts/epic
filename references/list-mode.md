@@ -232,7 +232,6 @@ Same as summary, plus expand each story's task list showing checkbox state, task
 
   - [x] 1 - Project Scaffolding
     - [x] 1.1 - Install dependencies
-    - [x] 1.2 - Commit
   - [x] 2 - Database Layer
     - [x] 2.1 - Schema and migrations
   ...
@@ -248,7 +247,6 @@ Render every box as the file writes it, qualifier included. Under the gate count
 
   - [x] 1 - Webhook Receiver
     - [x] 1.1 - Signature verification
-    - [x] 1.2 - Commit
   - [x] 2 - Provider Handshake
     - [~] 2.1 - Register the production callback URL (deferred: needs the provider's live account)
     - [~] 2.2 - Verify the first live event (deferred: needs a real payment in production)
