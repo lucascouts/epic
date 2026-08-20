@@ -12,7 +12,7 @@ description: >
   needs to be done to implement X?", "list stories", "run story",
   "execute tasks", "validate implementation" — even without saying
   "epic" or "story" explicitly.
-argument-hint: "[description] or [stories] or [stories full] or [stories run|validate|refine NNN] or [stories supersede NNN --by MMM] or [stories NNN run N|all] or [init]"
+argument-hint: "[description] or [stories create --batch <doc>] or [stories] or [stories full] or [stories run|validate|refine NNN] or [stories supersede NNN --by MMM] or [stories NNN run N|all] or [init]"
 allowed-tools:
   - Read
   - Glob
@@ -169,6 +169,12 @@ $ARGUMENTS parsing:
 "init"
   → INIT mode (project configuration wizard)
 
+"stories create --batch <doc>"
+  → BATCH-CREATE mode (one interview, N stories derived from a source document)
+    ORDER IS THE GUARD: this arm is matched BEFORE the bare "stories" arm below.
+    The cascade is prefix-loose, so placing it lower would let LIST claim the
+    invocation and the mode would be unreachable.
+
 "stories"
   → LIST mode (summary)
 
@@ -225,6 +231,7 @@ When a command references `NNN`:
 | Mode | Trigger | Reference to load |
 |---|---|---|
 | **Create** | `/epic:epic` or `/epic:epic <description>` | Continue below (Triage + Clarify + Phases) |
+| **Batch Create** | `/epic:epic stories create --batch <doc>` | Load [batch-create.md](../../references/batch-create.md) — one interview, N stories; numbers come from `scripts/next-story-number.sh` |
 | **Init** | `/epic:epic init` | Load [init-mode.md](../../references/init-mode.md) |
 | **List** | `/epic:epic stories [full] [NNN]` | Load [list-mode.md](../../references/list-mode.md) |
 | **Run** | `/epic:epic stories run NNN` or `NNN run N\|all` | Load [run-mode.md](../../references/run-mode.md) |
@@ -284,7 +291,7 @@ Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a 
    - WHEN no favorite and no fitting optional tool exist, record `none — no E2E tooling available` in design.md's `## Tooling Decisions` block AND as a story Constraint.
 
    The recommendation/pause happens at triage **only**. The resolved decision is written to design.md's `## Tooling Decisions` block and the relevant E2E/frontend sub-tasks are annotated in tasks.md — the Executor and Test Advisor consume that decision without re-detecting.
-8. Auto-increment story number from existing stories in `.epic/stories/`
+8. Allocate the story number with `bash scripts/next-story-number.sh` — the one tested allocator, used by single create and batch create alike
 9. Propose output path in `NNN-kebab-case`
 10. If no existing stories in `.epic/stories/`: append EARS primer
 
@@ -458,7 +465,7 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
 
 - Default path: `.epic/stories/NNN-<name>/`
 - Naming: `NNN-kebab-case` where NNN is auto-incremented (zero-padded, 001-999)
-- Auto-increment: detect highest existing number across `.epic/stories/` AND `.epic/archive/`, add 1
+- Auto-increment: `scripts/next-story-number.sh` detects the highest existing number across `.epic/stories/` AND `.epic/archive/` and adds 1. It is the single allocator — neither create flow re-implements the scan, and `--reserve N` claims numbers on disk (directory existence is the reservation)
 - Numbers are NEVER recycled — archived stories retain their numbers permanently
 - If 999 is reached: "Maximum story count reached. Archive old stories with `/epic:epic stories archive` to free space."
 - Create directory before writing files
