@@ -1564,61 +1564,155 @@ ROWS
 }
 
 @test "1.4: the window-pattern census cannot be silently disabled or emptied" {
-  # R5.3. WHAT THIS COVERS AND WHAT IT DOES NOT, re-measured by sub-task 5.2
-  # over six mutations on this file rather than restated from the sub-task that
-  # wrote it — because the sentence that stood here claimed a comment-out and
-  # an emptying for all ten rostered cases, and only two of the four columns
-  # below hold across the roster:
+  # R5.3. WHAT THIS COVERS AND WHAT IT DOES NOT, measured by sub-task 6.2 as
+  # 4 mutations x 16 rostered cases, one at a time, each restored before the
+  # next — 64 runs, not a table restated from the sub-task that wrote it.
+  #
+  # The table 5.2 left here read (10 cases, and only 2 of the 4 columns held):
   #
   #                                  the census case   the other nine
   #   a `skip` added                 RED              RED    (file-wide grep)
   #   the case renamed away          RED              RED    (roster below)
-  #   the case commented out         RED              GREEN  <- open
-  #   the body gutted, name intact   RED              GREEN  <- open
+  #   the case commented out         RED              GREEN  <- was open
+  #   the body gutted, name intact   RED              GREEN  <- was open
   #
-  # The two RED columns are the roster and the `skip` grep, which read every
-  # name. The two open cells are the body check further down, which reads ONE
-  # case — the census — by construction: commenting a case out leaves the
-  # roster's `grep -F` matching the commented line, and gutting a body leaves
-  # the name in place, so only a per-case body check reaches either, and there
-  # is one. Closing them means a body check per rostered case, which is an
-  # assertion change and not this comment's to make. In the two cells that are
-  # RED for the census, the census itself reports `ok` — that is the silent
-  # removal, and this case is what turns it Red.
+  # What 6.2 measures (16 cases — the 10 above plus the six `1.1:` cases,
+  # which were rostered nowhere):
+  #
+  #                                  the census case   the other fifteen
+  #   a `skip` added                 SKIP-GREEN <-open RED    (file-wide grep)
+  #   the case renamed away          RED              RED    (roster below)
+  #   the case commented out         RED              RED    (anchored match)
+  #   the body gutted, name intact   GREEN      <-open RED    (per-case tokens)
+  #
+  # 62 of 64 RED. The two former holes are closed, and neither needed a new
+  # mechanism — only the two existing checks applied to every name:
+  #
+  #   COMMENTED OUT was green because the roster matched with `grep -F`, which
+  #   finds `# @test "..." {` as readily as the real header. The match is now
+  #   anchored at COLUMN 1 (`index($0, want) == 1`), the idiom the body walker
+  #   below already used, so a commented header is not a header. Measured on
+  #   the whole case commented out, header through closing brace — the shape a
+  #   silent removal actually takes; the header alone leaves the body as
+  #   top-level shell and the file stops parsing, which Reds for another reason.
+  #
+  #   GUTTED was green because the body check read ONE case — the census — by
+  #   construction. It now runs per rostered case, over that case's own tokens.
+  #
+  # THE TWO CELLS THAT REPLACE THEM ARE BOTH THE CENSUS'S OWN, and they are
+  # narrower than what they replace — nine cases' worth of hole became one
+  # case's, in the two mutations that stop the guard from running at all. A
+  # `skip` here is not caught because the grep that finds a `skip` is in the
+  # body that gets skipped; a gutted body here is not caught because the check
+  # that reads bodies is the body that was gutted. They are the same limit as
+  # deleting this case, one step in: a guard cannot outlive the artifact that
+  # holds it, and a second case asserting THIS one would move the hole rather
+  # than close it. Measured and named, not left to be found.
   #
   # WHAT NOTHING HERE COVERS, stated rather than implied: deleting this file,
-  # deleting this case, or dropping tests/ from the runner. A guard that lives
-  # inside the artifact it guards cannot outlive the artifact, and this story
-  # owns nothing outside tests/ to put it in. The roster below is where the
-  # regress stops.
+  # deleting this case, or dropping tests/ from the runner. This story owns
+  # nothing outside tests/ to put such a guard in. The roster below is where
+  # the regress stops.
   SELF="$PLUGIN_ROOT/tests/assertion-hygiene.bats"
   [ -f "$SELF" ]
 
+  # THE ROSTER IS NOW EVERY REAL CASE IN THIS FILE, not the ten of 5.2. The six
+  # `1.1:` cases were the same hole one file-section up — and the last of them,
+  # `no .bats file in tests/ inverts a command as an assertion`, is the case
+  # that imposes R4.1/R4.2 on the WHOLE suite. It was in no roster and had no
+  # body check: commented out or gutted, it went silently green. Nobody asked
+  # for it; it is the defect this case exists to refuse, one file-section over.
+  #
+  # Each entry is `<case name>|<token>;<token>;...`. The tokens are what the
+  # case CANNOT assert without — its lint function, its fixture, its diagnosis
+  # — so an emptied body loses them while a reworded one keeps them. No name
+  # holds a `|` and no token holds a `;`, measured on this table.
   roster=(
-    "1.4: a window pattern absent from the allowlist is flagged, naming file and line"
-    "1.4: a tree whose every window pattern has a row passes"
-    "1.4: deleting a row while its pattern survives flags the site again"
-    "1.4: a window pattern in a comment or a heredoc body is not a site"
-    "1.4: a row whose pattern no longer occurs is reported as an orphan"
-    "1.4: a row missing a field, a verdict or its marker is a structural defect"
-    "1.4: every window pattern in tests/ carries an allowlist row"
-    "1.4: no allowlist row names a pattern tests/ no longer contains"
-    "1.4: every allowlist row carries file, pattern, verdict and a justifying sentence"
-    "1.4: the window-pattern census cannot be silently disabled or emptied"
+    "1.1: a !-inverted command outside last position is flagged, naming file and line|inverted_commands;line_count;nonfinal.bats"
+    "1.1: a !-inverted command in LAST position is flagged too — no position exemption|inverted_commands;line_count;final.bats"
+    "1.1: [ ! ] , [[ ! ]] and a ! inside an if condition are conforming|inverted_commands;conforming.bats"
+    "1.1: a ! in a comment, a quoted string, an awk program or a heredoc is not a negation|inverted_commands;lookalikes.bats"
+    "1.1: every statement start is caught and every offender is listed, not just the first|inverted_commands;starts.bats;second.bats"
+    "1.1: no .bats file in tests/ inverts a command as an assertion|inverted_commands;PLUGIN_ROOT;return 1"
+    "1.4: a window pattern absent from the allowlist is flagged, naming file and line|window_sites;unlisted_sites;allowlist_rows"
+    "1.4: a tree whose every window pattern has a row passes|unlisted_sites;orphan_rows;row_defects"
+    "1.4: deleting a row while its pattern survives flags the site again|window_sites;unlisted_sites;shrunk"
+    "1.4: a window pattern in a comment or a heredoc body is not a site|window_sites;return 1"
+    "1.4: a row whose pattern no longer occurs is reported as an orphan|orphan_rows;window_sites;allowlist_rows"
+    "1.4: a row missing a field, a verdict or its marker is a structural defect|row_defects;allowlist_rows;return 1"
+    "1.4: every window pattern in tests/ carries an allowlist row|window_sites;allowlist_table;allowlist_rows;unlisted_sites;return 1"
+    "1.4: no allowlist row names a pattern tests/ no longer contains|window_sites;allowlist_table;orphan_rows;return 1"
+    "1.4: every allowlist row carries file, pattern, verdict and a justifying sentence|allowlist_table;allowlist_rows;row_defects;return 1"
+    "1.4: the window-pattern census cannot be silently disabled or emptied|roster;body_of;SELF;return 1"
   )
-  # Matched as `@test "<name>" {`, never as the bare name: the roster lines
-  # here carry the names too, so a bare match would find itself and every
-  # deletion would look like a pass.
-  for name in "${roster[@]}"; do
-    if command grep -qF "@test \"$name\" {" "$SELF"; then
-      continue
-    fi
-    echo "the case named below is gone from tests/assertion-hygiene.bats:"
-    echo "  $name"
+
+  # THE ROSTER IS COMPLETE, AND THAT IS ASSERTED RATHER THAN INTENDED. Every
+  # real case in this file is named `N.N: ...`; every case this file PLANTS in
+  # a fixture is named `planted`. So the two shapes partition the `^@test "`
+  # lines, and the count of the first is the count of cases that must be
+  # rostered. Measured on this tree: 27 header lines, 16 real, 11 planted.
+  #
+  # The partition is checked, not assumed: a fixture planting a `N.N: ` name
+  # would be counted as a real case and would also forge the boundary the body
+  # walker below stops at. If that ever happens this Reds and says so, which is
+  # the only warning either mechanism needs.
+  all_headers="$(command grep -c '^@test "' "$SELF")"
+  real_headers="$(command grep -c '^@test "[0-9]' "$SELF")"
+  planted_headers="$(command grep -c '^@test "planted" {' "$SELF")"
+  if [ "$((real_headers + planted_headers))" -ne "$all_headers" ]; then
+    echo "this file holds a case header that is neither a real \`N.N: \` case nor a"
+    echo "planted \`@test \"planted\" {\` fixture — the roster's census cannot count"
+    echo "it, and the body walker's boundary cannot tell it from a real case:"
+    command grep '^@test "' "$SELF" | command grep -v '^@test "[0-9]' | command grep -v '^@test "planted" {'
     return 1
-  done
+  fi
+  # A case added to this file without a roster entry is the silent removal this
+  # case is about, arriving from the other side. The cost is stated: adding a
+  # case here means adding its row, the same trade the allowlist table takes.
+  if [ "$real_headers" -ne "${#roster[@]}" ]; then
+    echo "this file holds $real_headers real cases but the roster names ${#roster[@]}."
+    echo "Every case in this file carries a roster entry — add one, or remove the"
+    echo "stale entry, so that a deletion cannot pass as a rename."
+    return 1
+  fi
+
+  # THE BODY WALKER, AND ITS BOUNDARY IS THE CASE'S OWN `}` RATHER THAN THE
+  # NEXT HEADER, which is measured rather than preferred: this file puts ~1000
+  # lines of helpers and the allowlist table between the `1.1:` cases and the
+  # `1.4:` ones, so a walk to the next header would hand a gutted `1.1:` case
+  # a thousand lines of other people's code to satisfy its tokens with.
+  #
+  # HEREDOC BODIES ARE CARRIED, NOT PARSED. Eleven fixtures in this file close
+  # with a `}` in column 1 inside a heredoc — the planted case's own brace — so
+  # a walker that stopped at the first `^}` would stop inside the fixture,
+  # before the assertions it was called to read. Every heredoc here opens with
+  # a quoted delimiter and none is `<<-` (measured: 19 opens, 0 dash-stripped),
+  # so the delimiter is the second field when the opening line is split on a
+  # quote, and the body is skipped to the line that equals it.
+  #
+  # A COMMENT IS PROSE AND IS DROPPED BEFORE EITHER RULE LOOKS AT THE LINE,
+  # which is the discrimination `window_sites` makes for the same reason and
+  # is measured here rather than assumed: the first draft of this walker read
+  # the sentence above — which QUOTES a heredoc opener — as an opener, took a
+  # delimiter that never recurs, and ran the census's own body to end of file.
+  # Dropping comments first fixes that at the source and makes the tokens below
+  # code-only for free: a body whose code was deleted keeps its comment block,
+  # and a token quoted in prose must not answer for the assertion that is gone.
+  q="'"
+  body_of() { # $1 = case name -> its code lines, heredoc bodies included
+    awk -v want="@test \"$1\" {" -v q="$q" '
+      index($0, want) == 1 { inb = 1; next }
+      inb == 0 { next }
+      hd != "" { print; if ($0 == hd) hd = ""; next }
+      /^[[:space:]]*#/ { next }
+      index($0, "<<" q) > 0 { split($0, parts, q); hd = parts[2]; print; next }
+      $0 == "}" { exit }
+      { print }
+    ' "$SELF"
+  }
 
   # bats' `skip` disables a case while leaving it green and looking present.
+  # File-wide, because a `skip` anywhere in this file is the same defect.
   disabled="$(command grep -nE '^[[:space:]]*skip([[:space:]]|$)' "$SELF" || true)"
   if [ -n "$disabled" ]; then
     echo "a case in this file is skipped, which reads as green:"
@@ -1626,19 +1720,44 @@ ROWS
     return 1
   fi
 
-  # The census body, gutted, would keep its name and assert nothing.
-  census="1.4: every window pattern in tests/ carries an allowlist row"
-  body="$(awk -v name="$census" '
-    index($0, "@test \"" name "\" {") == 1 { inb = 1; next }
-    inb && /^}/ { inb = 0 }
-    inb
-  ' "$SELF")"
-  for needed in window_sites allowlist_table allowlist_rows unlisted_sites "return 1"; do
-    if printf '%s\n' "$body" | command grep -qF "$needed"; then
-      continue
+  for entry in "${roster[@]}"; do
+    name="${entry%%|*}"
+    tokens="${entry#*|}"
+
+    # Matched at column 1 as `@test "<name>" {`, never as the bare name and
+    # never with `grep -F`: the roster lines here carry the names too, so a
+    # bare match would find itself and every deletion would look like a pass —
+    # and an unanchored match would find the header commented out, which is
+    # the cell 5.2 left open.
+    if awk -v want="@test \"$name\" {" '
+         index($0, want) == 1 { found = 1 }
+         END { exit !found }
+       ' "$SELF"
+    then
+      :
+    else
+      echo "the case named below is gone from tests/assertion-hygiene.bats, or"
+      echo "its header is commented out, which is the same thing to bats:"
+      echo "  $name"
+      return 1
     fi
-    echo "the census case body no longer mentions \`$needed\` — it has been gutted"
-    return 1
+
+    code="$(body_of "$name")"
+    if [ "$(line_count "$code")" -lt 3 ]; then
+      echo "the case named below has fewer than three lines of code left — it has"
+      echo "been emptied:"
+      echo "  $name"
+      return 1
+    fi
+    IFS=';' read -r -a needed <<< "$tokens"
+    for tok in "${needed[@]}"; do
+      if printf '%s\n' "$code" | command grep -qF "$tok"; then
+        continue
+      fi
+      echo "the body of the case named below no longer mentions \`$tok\` — it has"
+      echo "been gutted:"
+      echo "  $name"
+      return 1
+    done
   done
-  [ "$(line_count "$body")" -ge 8 ]
 }
