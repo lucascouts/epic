@@ -150,6 +150,75 @@ EOF
   echo "$output" | grep -q 'SHOULD'
 }
 
+@test "lowercase should in prose is not an EARS error" {
+  # The keyword check listens for SHOUTING. An EARS obligation is written in
+  # uppercase, so lowercase "should" is ordinary English describing behaviour,
+  # not a weakened requirement — and a case-insensitive check cannot tell the
+  # two apart. It used to fail assets/examples/bugfix-complete.md, the document
+  # authors are told to copy, on the prose line of its own Summary. The fixture
+  # below is a `feature` only to isolate the variable: a `bugfix` would also have
+  # to satisfy the mandatory-section check, which is a different rule's job.
+  cat > "$STORY/story.md" <<'EOF'
+---
+story: test-prose-should
+type: feature
+scale: standard
+version: 1
+created: 2026-08-20
+---
+
+## Summary
+Auth errors should fail immediately; retrying the same credentials cannot succeed.
+Callers should not have to wait 21 seconds for a verdict that never changes.
+
+### R1
+WHEN a request fails authentication THE SYSTEM SHALL fail without retrying.
+EOF
+  cat > "$STORY/tasks.md" <<'EOF'
+---
+version: 1
+---
+
+## Task List
+- [ ] 1 - Classify auth errors as non-retryable
+  - Requirements: R1
+EOF
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  [ "$status" -eq 0 ]
+  # Neither counted as an obligation, nor mistaken for the EARS the story does have.
+  [[ "$output" != *"uses of SHOULD"* ]]
+  [[ "$output" != *"No SHALL found"* ]]
+}
+
+@test "lowercase shall in prose does not pass for EARS notation" {
+  # The mirror image: the SHALL check is case-sensitive too, so a story with no
+  # uppercase obligation is still told it is not written in EARS. Without this,
+  # prose alone would satisfy the check that exists to notice its absence.
+  cat > "$STORY/story.md" <<'EOF'
+---
+story: test-prose-shall
+type: feature
+scale: standard
+version: 1
+created: 2026-08-20
+---
+
+### R1
+The system shall respond to the user, or so we intend.
+EOF
+  cat > "$STORY/tasks.md" <<'EOF'
+---
+version: 1
+---
+
+## Task List
+- [ ] 1 - Respond
+  - Requirements: R1
+EOF
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  echo "$output" | grep -q 'No SHALL found'
+}
+
 @test "--strict promotes warnings to errors" {
   # A task list with no Validation or Quality Gates = warnings, not errors
   cat > "$STORY/tasks.md" <<'EOF'

@@ -368,14 +368,29 @@ fi
 if [[ "$HAS_STORY" == true ]]; then
   STORY_FILE="$STORY_DIR/story.md"
 
-  # Check for SHOULD (should be SHALL)
-  SHOULD_COUNT=$(grep -ci '\bSHOULD\b' "$STORY_FILE" 2>/dev/null || true)
+  # Check for SHOULD (should be SHALL).
+  #
+  # CASE-SENSITIVE, deliberately: an EARS keyword is written in UPPERCASE, and
+  # that capitalization is the whole signal that a line states an obligation
+  # rather than describing something. Lowercase "should" is ordinary English
+  # prose — "auth errors should fail immediately" in a bugfix's Summary is a
+  # description of correct behaviour, not a weakened requirement. A `-i` here
+  # cannot tell the two apart, so it turned every such sentence into a hard
+  # ERROR; assets/examples/bugfix-complete.md, the very document authors are
+  # told to imitate, failed validation on its own Summary line because of it.
+  # The obligation lines it was written to catch — "The system SHOULD retry" —
+  # are still caught: those shout, which is exactly why the check can afford
+  # to listen only for shouting.
+  SHOULD_COUNT=$(grep -c '\bSHOULD\b' "$STORY_FILE" 2>/dev/null || true)
   if [[ "$SHOULD_COUNT" -gt 0 ]]; then
     add_error "Found $SHOULD_COUNT uses of SHOULD in story.md — use SHALL instead"
   fi
 
-  # Check for SHALL
-  SHALL_COUNT=$(grep -ci '\bSHALL\b' "$STORY_FILE" 2>/dev/null || true)
+  # Check for SHALL — case-sensitive for the same reason, and here it closes the
+  # mirror-image hole: a story whose only "shall" is lowercase prose is not a
+  # story written in EARS, and a case-insensitive count would have silently
+  # accepted it as one.
+  SHALL_COUNT=$(grep -c '\bSHALL\b' "$STORY_FILE" 2>/dev/null || true)
   if [[ "$SHALL_COUNT" -eq 0 ]]; then
     add_warning "No SHALL found in story.md — requirements may not use EARS notation"
   fi
