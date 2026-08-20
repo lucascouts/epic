@@ -184,15 +184,37 @@ line_count() { # $1 = captured lint output
   printf '%s\n' "$1" | wc -l
 }
 
+# BATS COLLECTS ANY LINE THAT STARTS WITH `@test`, HEREDOC OR NOT, and that is
+# measured rather than assumed: on bats 1.10 — the version `apt` ships on the
+# CI runner's ubuntu-latest — a `@test` inside `<<'BODY'` is registered as a
+# case, indented or in column 1 alike, and then reported as `unknown test
+# name`. Eleven fixtures here plant `@test "planted"`, so that version refused
+# to LOAD this file at all: `Duplicate test name(s) ... test_planted` x10, and
+# because `bats tests/` aborts on a load error, the whole suite went dark on
+# the runner while 1.14 locally ran it green. The file had never reached CI, so
+# nothing said so.
+#
+# The fixtures therefore carry `%%TEST%%` and this turns it back into `@test`
+# on the way to disk. What the lint reads is byte-identical to what it read
+# before; what bats' preprocessor reads no longer contains a case. The census
+# case asserts that no line in this file starts with `@test` except a real
+# header, which is the condition stated as a check rather than as a comment.
+plant() { # $1 = fixture path; body on stdin, `%%TEST%%` for `@test`
+  sed 's/^%%TEST%%/@test/' > "$1"
+}
+
 # --- 1.1: the lint, proved on planted input ----------------------------------
 # Fixtures are written under $WORK, never into tests/: they are input to the
 # lint, not cases bats should collect. They are read, never executed, so what
-# matters about each one is its SHAPE.
+# matters about each one is its SHAPE. Each goes through `plant` and writes
+# `%%TEST%%` where the fixture needs `@test` — "not cases bats should collect"
+# was a statement of intent that bats did not share, and the sentence above
+# stood while the file failed to load on the runner. See `plant`.
 
 @test "1.1: a !-inverted command outside last position is flagged, naming file and line" {
-  cat > "$WORK/nonfinal.bats" <<'BODY'
+  plant "$WORK/nonfinal.bats" <<'BODY'
 #!/usr/bin/env bats
-@test "planted" {
+%%TEST%% "planted" {
   ! true
   [ 1 -eq 1 ]
 }
@@ -206,9 +228,9 @@ BODY
 }
 
 @test "1.1: a !-inverted command in LAST position is flagged too — no position exemption" {
-  cat > "$WORK/final.bats" <<'BODY'
+  plant "$WORK/final.bats" <<'BODY'
 #!/usr/bin/env bats
-@test "planted" {
+%%TEST%% "planted" {
   [ 1 -eq 1 ]
   ! true
 }
@@ -221,9 +243,9 @@ BODY
 }
 
 @test "1.1: [ ! ] , [[ ! ]] and a ! inside an if condition are conforming" {
-  cat > "$WORK/conforming.bats" <<'BODY'
+  plant "$WORK/conforming.bats" <<'BODY'
 #!/usr/bin/env bats
-@test "planted" {
+%%TEST%% "planted" {
   [ ! -f /nonexistent ]
   [[ ! -d /nonexistent ]]
   [[ -f /etc/hosts && ! -d /etc/hosts ]]
@@ -241,10 +263,10 @@ BODY
 }
 
 @test "1.1: a ! in a comment, a quoted string, an awk program or a heredoc is not a negation" {
-  cat > "$WORK/lookalikes.bats" <<'BODY'
+  plant "$WORK/lookalikes.bats" <<'BODY'
 #!/usr/bin/env bats
 # A comment may quote the forbidden shape: `! grep -q x`, and even `; ! true`.
-@test "planted" {
+%%TEST%% "planted" {
   echo "a double-quoted ; ! true"
   echo 'a single-quoted ; ! true'
   awk '
@@ -266,9 +288,9 @@ BODY
 }
 
 @test "1.1: every statement start is caught and every offender is listed, not just the first" {
-  cat > "$WORK/starts.bats" <<'BODY'
+  plant "$WORK/starts.bats" <<'BODY'
 #!/usr/bin/env bats
-@test "planted" {
+%%TEST%% "planted" {
   ! true
   true && ! true
   true || ! true
@@ -278,9 +300,9 @@ BODY
   if false; then :; else ! true; fi
 }
 BODY
-  cat > "$WORK/second.bats" <<'BODY'
+  plant "$WORK/second.bats" <<'BODY'
 #!/usr/bin/env bats
-@test "planted" {
+%%TEST%% "planted" {
   ! true
   [ 1 -eq 1 ]
 }
@@ -1374,15 +1396,16 @@ row_defects() { # stdin = parsed rows
 }
 
 # --- 1.4: the lint, proved on planted input ----------------------------------
-# As in 1.1, fixtures are written under $WORK and read, never executed. Each
-# one cds into $WORK first so the planted table can name `a.bats` literally,
-# the way the real table names a path relative to the repo root.
+# As in 1.1, fixtures are written under $WORK through `plant` and read, never
+# executed. Each one cds into $WORK first so the planted table can name
+# `a.bats` literally, the way the real table names a path relative to the
+# repo root.
 
 @test "1.4: a window pattern absent from the allowlist is flagged, naming file and line" {
   cd "$WORK"
-  cat > a.bats <<'BODY'
+  plant a.bats <<'BODY'
 #!/usr/bin/env bats
-@test "planted" {
+%%TEST%% "planted" {
   command grep -qiE 'listed[^.]{0,40}window' /dev/null
   command grep -qiE 'absent[^.]{0,40}window' /dev/null
 }
@@ -1405,9 +1428,9 @@ ROWS
 
 @test "1.4: a tree whose every window pattern has a row passes" {
   cd "$WORK"
-  cat > a.bats <<'BODY'
+  plant a.bats <<'BODY'
 #!/usr/bin/env bats
-@test "planted" {
+%%TEST%% "planted" {
   command grep -qiE 'listed[^.]{0,40}window' /dev/null
   command grep -qiE 'absent[^.]{0,40}window' /dev/null
 }
@@ -1434,9 +1457,9 @@ ROWS
 
 @test "1.4: deleting a row while its pattern survives flags the site again" {
   cd "$WORK"
-  cat > a.bats <<'BODY'
+  plant a.bats <<'BODY'
 #!/usr/bin/env bats
-@test "planted" {
+%%TEST%% "planted" {
   command grep -qiE 'listed[^.]{0,40}window' /dev/null
   command grep -qiE 'absent[^.]{0,40}window' /dev/null
 }
@@ -1467,10 +1490,10 @@ ROWS
 
 @test "1.4: a window pattern in a comment or a heredoc body is not a site" {
   cd "$WORK"
-  cat > a.bats <<'BODY'
+  plant a.bats <<'BODY'
 #!/usr/bin/env bats
 # A comment may quote the shape under discussion: `the run[^.]{0,40}fail`.
-@test "planted" {
+%%TEST%% "planted" {
   cat > /dev/null <<'INNER'
 PATTERN quoted[^.]{0,40}inside a heredoc body
 an apostrophe here would desync quote tracking if this body were not skipped
@@ -1496,9 +1519,9 @@ BODY
 
 @test "1.4: a row whose pattern no longer occurs is reported as an orphan" {
   cd "$WORK"
-  cat > a.bats <<'BODY'
+  plant a.bats <<'BODY'
 #!/usr/bin/env bats
-@test "planted" {
+%%TEST%% "planted" {
   command grep -qiE 'listed[^.]{0,40}window' /dev/null
 }
 BODY
@@ -1697,26 +1720,36 @@ ROWS
     "1.4: the window-pattern census cannot be silently disabled or emptied|roster;body_of;SELF;return 1"
   )
 
-  # THE ROSTER IS COMPLETE, AND THAT IS ASSERTED RATHER THAN INTENDED. Every
-  # real case in this file is named `N.N: ...`; every case this file PLANTS in
-  # a fixture is named `planted`. So the two shapes partition the `^@test "`
-  # lines, and the count of the first is the count of cases that must be
-  # rostered. Measured on this tree: 27 header lines, 16 real, 11 planted.
+  # NO LINE IN THIS FILE STARTS WITH `@test` EXCEPT A REAL CASE HEADER, and
+  # that check does two jobs at once.
   #
-  # The partition is checked, not assumed: a fixture planting a `N.N: ` name
-  # would be counted as a real case and would also forge the boundary the body
-  # walker below stops at. If that ever happens this Reds and says so, which is
-  # the only warning either mechanism needs.
-  all_headers="$(command grep -c '^@test "' "$SELF")"
-  real_headers="$(command grep -c '^@test "[0-9]' "$SELF")"
-  planted_headers="$(command grep -c '^@test "planted" {' "$SELF")"
-  if [ "$((real_headers + planted_headers))" -ne "$all_headers" ]; then
-    echo "this file holds a case header that is neither a real \`N.N: \` case nor a"
-    echo "planted \`@test \"planted\" {\` fixture — the roster's census cannot count"
-    echo "it, and the body walker's boundary cannot tell it from a real case:"
-    command grep '^@test "' "$SELF" | command grep -v '^@test "[0-9]' | command grep -v '^@test "planted" {'
+  # It keeps the roster's census honest: every real case is named `N.N: ...`,
+  # so if nothing else can start a line with `@test`, the count of `^@test
+  # "[0-9]` lines IS the count of cases that must be rostered — and a fixture
+  # planting a `N.N: ` name would otherwise be counted as a real case and would
+  # forge the boundary the body walker below stops at.
+  #
+  # And it keeps this file LOADABLE, which is not a style rule. bats collects
+  # any line beginning `@test`, heredoc body or not, indented or in column 1 —
+  # measured on bats 1.10, the version `apt` ships on the runner. The eleven
+  # fixtures here used to plant `@test "planted"` verbatim, so that version
+  # answered `Duplicate test name(s) ... test_planted` and refused to load the
+  # file; `bats tests/` aborts on a load error, so the ENTIRE suite went dark
+  # on the runner while 1.14 ran it green locally. The fixtures now carry
+  # `%%TEST%%` and `plant` restores it on the way to disk. This assertion is
+  # what stops the next fixture from re-opening that hole silently, and it is
+  # stated as a check because a comment saying the same thing is what was there.
+  stray="$(command grep -nE '^[[:space:]]*@test' "$SELF" \
+    | command grep -vE '^[0-9]+:@test "[0-9]+\.[0-9]+: ' || true)"
+  if [ -n "$stray" ]; then
+    echo "these lines begin with \`@test\` but are not a real \`N.N: \` case header."
+    echo "bats collects every one of them — a fixture that plants \`@test\` verbatim"
+    echo "makes this file refuse to load on bats 1.10, taking the whole suite with"
+    echo "it. Write \`%%TEST%%\` in the fixture and pipe it through \`plant\`:"
+    printf '%s\n' "$stray"
     return 1
   fi
+  real_headers="$(command grep -c '^@test "[0-9]' "$SELF")"
   # A case added to this file without a roster entry is the silent removal this
   # case is about, arriving from the other side. The cost is stated: adding a
   # case here means adding its row, the same trade the allowlist table takes.
