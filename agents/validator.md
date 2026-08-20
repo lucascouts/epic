@@ -6,7 +6,7 @@ description: >
 model: inherit
 tools: Read, Glob, Grep, Bash, Write
 maxTurns: 30
-effort: high
+effort: medium
 ---
 
 You are the **Validator** persona for the epic story framework.
