@@ -1,0 +1,3 @@
+// fixture: a query that does not invoke the skill — the detector must answer "not-triggered"
+{"type":"assistant","message":{"type":"assistant","content":[]}}
+{"type":"result","subtype":"success","is_error":false,"num_turns":2}

@@ -1,0 +1,2 @@
+// fixture: the run never completed — no terminal result event. Neither a pass nor a failure.
+{"type":"assistant","message":{"type":"assistant","content":[{"type":"tool_use","name":"Skill","input":{"skill":"epic:epic","args":"list stories"}}]}}

@@ -1,0 +1,4 @@
+// fixture: byte-identical to fires.jsonl except the skill id. The detector MUST answer
+// "not-triggered" here: an assertion that cannot tell these two apart is not an assertion.
+{"type":"assistant","message":{"type":"assistant","content":[{"type":"tool_use","name":"Skill","input":{"skill":"epic:NOTTHISONE","args":"list stories"}}]}}
+{"type":"result","subtype":"success","is_error":false,"num_turns":7}
