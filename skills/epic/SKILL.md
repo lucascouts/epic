@@ -7,8 +7,11 @@ description: >
   coding", "break this into tasks", or any request to formalize
   development work. Use when asked to: create, refine, or expand a
   story; list or manage existing stories; run/execute tasks from a
-  story; validate implementation against plan. Also trigger when the
-  user says "document this feature", "structure this sprint", "what
+  story; validate implementation against plan. It also routes the
+  management modes: init, migrate a story to the current format,
+  create --batch to draft many stories from one document, archive,
+  supersede, and teams. Also trigger when the user says "create an epic
+  for X", "document this feature", "structure this sprint", "what
   needs to be done to implement X?", "list stories", "run story",
   "execute tasks", "validate implementation" — even without saying
   "epic" or "story" explicitly.
