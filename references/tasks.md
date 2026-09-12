@@ -101,6 +101,18 @@ A `- [~]` box **MUST** carry a qualifier on the **same line**: a box closed with
 - If a line carries both `deferred:` and a terminal qualifier, **`deferred:` wins** — the work is still owed by someone.
 - Implementing sub-tasks and Quality Gates use the same grammar. There is no per-line-type distinction.
 
+#### Discharging a Deferral
+
+A `deferred:` box is the **only** closed state that can reopen into `[x]`, and only through one call: `close-subtask.sh <story> <box> --fulfill "<evidence>"`. A terminal qualifier cannot. `waived:`, `n-a:` and `superseded-by:` record a decision already taken rather than work still owed, so overwriting one would erase the decision instead of discharging a debt — if the decision itself changed, that is a deliberate edit, not a close call.
+
+The fulfilled line carries both halves, what discharged the debt and the debt it discharged:
+
+```
+- [x] N.N - Title (fulfilled: <evidence>; original deferral — <reason>)
+```
+
+**This paragraph is the shape's only home** — every other file cites it rather than repeating it. The dash spelling is forced by measurement, not by taste: the canonical qualifier regex `(^|[^[:alnum:]_-])deferred:`, shared by every script that reads this grammar in code, still matches the obvious `(was deferred: ...)`. Written that way, an `[x]` box would be read back as an outstanding deferral by every one of those readers and the story could never reach `done`. `original deferral —` carries no qualifier token at all, so it depends on no regex detail surviving.
+
 ### Completion
 
 One definition, used by every mode that reads a task list:

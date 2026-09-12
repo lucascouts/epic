@@ -4,6 +4,7 @@
 #
 # Usage: bash scripts/close-subtask.sh <NNN|story-dir> <N.N|N|gate:<text-prefix>>
 #                                      [--tilde "<qualifier>: <reason>"]
+#                                      [--fulfill "<evidence>"]
 #
 # Exit 0 = the box was closed
 # Exit 1 = refused — NOTHING was written, not even a temp file
@@ -42,6 +43,17 @@
 #   3. census + status transition ....... sub-task 2.1 (implemented — R2.1/R2.2)
 #   4. self-invoked validate-story.sh ... sub-task 2.2 (implemented — R1.5/R2.3/R2.4)
 #
+# `--fulfill` IS A PATH THROUGH THOSE FOUR STEPS, NEVER A FIFTH ONE AND NEVER A
+# SECOND WRITER (story 021, sub-task 4.1 — R4.1/R4.2/R4.3/R4.4). It resolves,
+# locates, marks, censuses and stamps through exactly the code above. Two things
+# only are its own: WHICH state the located box must already be in — `[~]`
+# carrying `deferred:`, an outstanding debt, rather than `[ ]` — and what the
+# marked line then says, which is the debt AND its discharge on one line,
+# because `.epic/` is untracked in this project and a reason dropped from the
+# line is destroyed (R4.2). THE GRAMMAR IS UNCHANGED: still three boxes, still
+# four qualifiers. This adds a transition BETWEEN two of those states, not a
+# fifth one.
+#
 # THE MARKING IS ONE REWRITE, THE STATUS STAMP IS ANOTHER PER ARTIFACT, and that
 # is the strongest shape available rather than a compromise. The box and the
 # group header it settles are ONE rewrite of tasks.md, so R1.7's pair is never
@@ -65,12 +77,12 @@
 
 set -euo pipefail
 
-USAGE='Usage: close-subtask.sh <NNN|story-dir> <N.N|N|gate:<text-prefix>> [--tilde "<qualifier>: <reason>"]'
+USAGE='Usage: close-subtask.sh <NNN|story-dir> <N.N|N|gate:<text-prefix>> [--tilde "<qualifier>: <reason>" | --fulfill "<evidence>"]'
 
 print_help() {
   cat <<'HELP'
 Usage: close-subtask.sh <NNN|story-dir> <N.N|N|gate:<text-prefix>>
-                        [--tilde "<qualifier>: <reason>"]
+                        [--tilde "<qualifier>: <reason>" | --fulfill "<evidence>"]
 
 Closes exactly one checkbox in a live story's tasks.md, runs the status census,
 stamps the story's `status:` and reports the whole transaction as one JSON
@@ -87,6 +99,14 @@ Flags:
                     the work being done. The qualifier is one of the four the
                     shared checkbox grammar defines (references/tasks.md):
                     deferred: / waived: / n-a: / superseded-by: NNN
+  --fulfill "<evidence>"
+                    The work a `[~] (deferred: …)` box was still owed is DONE:
+                    close it as `[x]`, carrying both the evidence and the
+                    original deferral reason on the line. The only transition
+                    out of a deferral, and it accepts nothing else — a terminal
+                    qualifier (waived: / n-a: / superseded-by:) records a
+                    decision already taken, and an `[x]` is already done.
+                    Mutually exclusive with --tilde.
   --help, -h        Show this help (on stderr, exit 2 — stdout is JSON only)
 
 Output: JSON on stdout — {story, task, box, qualifier, census{total, open,
@@ -118,6 +138,13 @@ REASON=""              # human-readable why, for refusals
 # (design.md, component 1).
 TILDE_GIVEN=false
 TILDE_RAW=""
+
+# --fulfill's argument, verbatim, and it is reported through exactly the same
+# door: the EVIDENCE text lands in tasks.md beside the reason it discharged, and
+# `.qualifier` stays `null` — the four qualifiers are four, `fulfilled:` is not a
+# fifth one, and a `[x]` close carries no qualifier token whatever put it there.
+FULFILL_GIVEN=false
+FULFILL_RAW=""
 
 # Checkbox census (sub-task 2.1). Initialized here because the emitter reads
 # them even on the paths where tasks.md was never opened — same reason
@@ -388,6 +415,36 @@ TILDE_TOKEN_RE='(^|[^[:alnum:]_-])(deferred|waived|n-a|superseded-by):'
 TILDE_DEFERRED_RE='(^|[^[:alnum:]_-])deferred:'
 TILDE_TERMINAL_RE='(^|[^[:alnum:]_-])(waived|n-a|superseded-by):'
 
+# THE DEFERRAL AS A WRITER HAS TO READ IT BACK — the one regex in this block
+# that is NOT copied from a reader, because no reader needs it. They ask "is a
+# `deferred:` token anywhere on this line"; this asks WHERE the parenthesis
+# carrying it starts and ends, which is a question you only have to answer if
+# you are going to lift the reason out and write the line again (R4.2). It is
+# therefore not a grammar fork: TILDE_DEFERRED_RE above still decides WHETHER a
+# line is deferred, and this only says where to cut the one it already accepted.
+#
+# THE SHAPE IS THIS SCRIPT'S OWN OUTPUT READ BACKWARDS. --tilde writes
+# ` (<qualifier>: <reason>)` at the end of the line and references/tasks.md
+# states the same shape for a hand-written box — `- [~] N.N - Title (qualifier:
+# reason)`. So the parenthesis ENDS the line; a `deferred:` sitting anywhere
+# else is a line this script did not write and cannot rewrite without GUESSING
+# where the reason stops, and the fulfil arm refuses it by name rather than
+# cutting somewhere plausible.
+#
+# BOTH `.*` ARE GREEDY AND BOTH USES OF THAT ARE LOAD-BEARING: the first runs to
+# the LAST `(deferred:` on the line, the second to the LAST `)`. So a reason
+# carrying its own parentheses comes back WHOLE instead of being cut at the
+# first `)` — measured on this repo's own deferrals, where two of the five
+# (013's 3.2 and 015's 4.1) end `…enabledPlugins=false). The supported path is
+# …, not done here)` and a non-greedy cut would keep a third of the sentence.
+#
+# NO `(^|[^[:alnum:]_-])` PREFIX, and it is not missing: the byte before
+# `deferred:` here is the `(` this regex requires, and `(` is already outside
+# the readers' `[[:alnum:]_-]` class. The anchoring is structural instead of
+# spelled — so `(man-deferred: …)` does NOT match, exactly as it does not match
+# for the readers.
+DEFERRAL_TAIL_RE='^(.*)(\(deferred:[[:space:]]*(.*)\))$'
+
 # The frontmatter delimiter, CRLF-tolerant — archive-story.sh:307 and
 # supersede-story.sh:284, the same constant for the same reason: with
 # core.autocrlf=true every artifact ends `---\r`, and a reader that rejects that
@@ -409,6 +466,30 @@ canon_num() {
   while [[ "$CANON" == 0* && ${#CANON} -gt 1 ]]; do
     CANON="${CANON#0}"
   done
+}
+
+# stowaway_token <text> — the qualifier token hiding inside <text>, into
+# STOWAWAY_TOKEN; returns 1, and leaves it empty, when there is none.
+#
+# ONE READER OF "IS A QUALIFIER IN HERE", THREE PLACES THAT SAY WHAT IT MEANS.
+# The question is asked of three different strings — --tilde's reason, the
+# evidence --fulfill is given, and the deferral reason --fulfill carries forward
+# — and the answer is the same rule in all three, because they all end up on
+# ONE line that every consumer scans whole (TILDE_TOKEN_RE, above). What differs
+# is the consequence, which is why the messages stay at the call sites and only
+# the matching moved here.
+#
+# THE LIFT OUT OF BASH_REMATCH IS THE OTHER REASON THIS IS A FUNCTION. Each call
+# site builds its refusal from other variables, and the next `[[ =~ ]]` anywhere
+# — including one inside a message-building expansion added later — overwrites
+# BASH_REMATCH. Capturing it here, one statement after the match, makes that
+# window as small as it can be, at every site at once.
+STOWAWAY_TOKEN=""
+stowaway_token() {
+  STOWAWAY_TOKEN=""
+  [[ "$1" =~ $TILDE_TOKEN_RE ]] || return 1
+  STOWAWAY_TOKEN="${BASH_REMATCH[2]}"
+  return 0
 }
 
 # same_line <text> — text that cannot break out of its own line. R1.2 puts the
@@ -460,6 +541,20 @@ while [[ $# -gt 0 ]]; do
       TILDE_RAW="$1"
       shift
       ;;
+    --fulfill)
+      # The evidence is REQUIRED, for --tilde's reason read from the other end:
+      # a deferral says why the work is still owed, and the box that discharges
+      # it has to say what discharged it. A `--fulfill` with nothing after it
+      # would write `(fulfilled: )` — a claim with no measurement behind it,
+      # which is the one thing this flag exists to prevent (R4.2).
+      shift
+      if [[ $# -eq 0 ]]; then
+        usage_error '--fulfill requires an argument: --fulfill "<evidence>" — what discharged the deferral'
+      fi
+      FULFILL_GIVEN=true
+      FULFILL_RAW="$1"
+      shift
+      ;;
     --)
       # End of options: everything after it is positional, even if it starts
       # with `-`. Without this, a directory named `-012-x` is unreachable — it
@@ -482,6 +577,16 @@ done
 
 [[ -n "$TARGET" ]] || usage_error "missing story argument — pass a story number (010) or its directory"
 [[ -n "$TASK_ID" ]] || usage_error "missing box argument — say which box to close (1.2, 1, or gate:<text prefix>)"
+
+# THE TWO FLAGS ARE MUTUALLY EXCLUSIVE, and this is exit 2 rather than a
+# refusal: they name two contradictory writes for one box — `--tilde` closes it
+# `[~]` WITHOUT the work being done, `--fulfill` closes it `[x]` BECAUSE the work
+# was done — so the command line says two things at once whatever is on disk.
+# That is the header's rule applied literally: 2 = fix the call, 1 = fix the
+# world, and nothing about the world could make this pair coherent.
+if [[ "$TILDE_GIVEN" == true && "$FULFILL_GIVEN" == true ]]; then
+  usage_error "--tilde and --fulfill contradict each other — --tilde closes a box WITHOUT the work being done, --fulfill closes one BECAUSE the work was done. Pass one of them"
+fi
 
 # The qualifier TOKEN is split out here, as part of parsing; whether it is one
 # of the four the grammar allows is sub-task 1.2's refusal (R1.2), so a bad
@@ -604,6 +709,7 @@ GRP_HDR_BOX=""    # that header's box character
 GRP_HDR_LINES=""  # every line claiming to be that header, space-joined
 GRP_HDR_COUNT=0   # how many headers claim the number: >1 makes the group unreadable
 GRP_OPEN=0        # `[ ]` sub-tasks the target group has, the target INCLUDED
+GRP_OPEN_AFTER=0  # ...and how many of those this one write leaves behind
 
 # locate_box <tasks.md> — fills the block above in a single read. The group
 # state R1.7 needs is gathered in the SAME pass as the target, because a second
@@ -940,12 +1046,29 @@ MARK_LINE=0       # the box the caller asked for
 MARK_CHAR=""      # x | ~
 MARK_SUFFIX=""    # " (qualifier: reason)" on a `[~]` close, empty otherwise
 MARK_HDR_LINE=0   # the group header R1.7 closes with it; 0 = none
+# The box character the target line must STILL carry when the rewrite reaches
+# it. `[ ]` for every close that opens a box's story; `[~]` for --fulfill, the
+# one path whose target is already closed — the debt it discharges is what a
+# `[~] (deferred: …)` records (R4.1).
+MARK_EXPECT=' '
+MARK_STRIP=""     # the `(deferred: …)` --fulfill removes; empty otherwise
 
-# set_box <line> <expected-box> <new-box> <suffix> — the line with its box
-# character replaced and, for a `[~]`, the qualifier appended before the line's
-# own ending. Returns 1 when the line is not the box it was located as, which is
-# how a tasks.md edited between the read and the write stops the rewrite instead
-# of being overwritten by it.
+# set_box <line> <expected-box> <new-box> <suffix> [<strip>] — the line with its
+# box character replaced and, for a `[~]`, the qualifier appended before the
+# line's own ending. Returns 1 when the line is not the box it was located as,
+# which is how a tasks.md edited between the read and the write stops the
+# rewrite instead of being overwritten by it.
+#
+# <strip> IS THE FULFIL PATH'S HALF OF THAT SAME GUARANTEE, and it is empty on
+# every other path. It is the EXACT trailing text to remove before the suffix is
+# appended — the `(deferred: …)` parenthesis the fulfil arm lifted the reason
+# out of, quoted back verbatim rather than re-derived here. Two consequences,
+# both wanted: the reason is never matched twice (a second reader of the same
+# line is a second chance to disagree with the first), and a line that no longer
+# ENDS with that exact text is a line that changed between the read and the
+# write, so the rewrite stops — the same stance the expected-box check takes one
+# statement up, applied to the half of the line the box character does not
+# cover.
 #
 # THE REASON TEXT IS DATA ON EVERY PATH IT TAKES. It arrives as `$4`, is
 # concatenated by parameter expansion, and leaves through `printf '%s'` — never
@@ -958,7 +1081,7 @@ MARK_HDR_LINE=0   # the group header R1.7 closes with it; 0 = none
 # are not interchangeable: 0.10+ reports SC2329 once per function, 0.9 (what CI
 # installs) reports SC2317 once per COMMAND in the body.
 set_box() {
-  local line="$1" expected="$2" char="$3" suffix="$4"
+  local line="$1" expected="$2" char="$3" suffix="$4" strip="${5:-}"
   local head tail cr=""
   [[ "$line" =~ $BOX_SPLIT_RE ]] || return 1
   [[ "${BASH_REMATCH[2]}" == "$expected" ]] || return 1
@@ -969,6 +1092,14 @@ set_box() {
   if [[ "$tail" == *$'\r' ]]; then
     cr=$'\r'
     tail="${tail%$'\r'}"
+  fi
+  if [[ -n "$strip" ]]; then
+    # Trailing whitespace comes off FIRST: the located line may end
+    # `(deferred: r)   `, and the text to remove ends at the `)`. `$tail` always
+    # opens with the `]` BOX_SPLIT_RE matched, so it can never be emptied here.
+    tail="${tail%"${tail##*[![:space:]]}"}"
+    [[ "$tail" == *"$strip" ]] || return 1
+    tail="${tail%"$strip"}"
   fi
   if [[ -n "$suffix" ]]; then
     # Trailing whitespace on the original line would otherwise be preserved
@@ -993,9 +1124,11 @@ mark_lines() {
   while IFS= read -r line || { [[ -n "$line" ]] && terminated=false; }; do
     n=$((n + 1))
     if [[ "$n" -eq "$MARK_LINE" ]]; then
-      out=$(set_box "$line" ' ' "$MARK_CHAR" "$MARK_SUFFIX") || return 1
+      out=$(set_box "$line" "$MARK_EXPECT" "$MARK_CHAR" "$MARK_SUFFIX" "$MARK_STRIP") || return 1
       line="$out"
     elif [[ "$MARK_HDR_LINE" -gt 0 && "$n" -eq "$MARK_HDR_LINE" ]]; then
+      # The header is `[ ]` on EVERY path that reaches here, --fulfill included:
+      # the R1.7 arm below only nominates a header it read as `[ ]`.
       out=$(set_box "$line" ' ' 'x' '') || return 1
       line="$out"
     fi
@@ -1033,16 +1166,43 @@ if [[ "$TILDE_GIVEN" == true ]]; then
   # A SECOND QUALIFIER SMUGGLED IN THE REASON — see TILDE_TOKEN_RE. Refused
   # after the empty check so a bare `--tilde "deferred:"` still gets the message
   # about its missing reason rather than one about a token it does not carry.
-  # The token is lifted into a variable first: `refuse` builds its message from
-  # $QUALIFIER, and the next `[[ =~ ]]` anywhere would overwrite BASH_REMATCH.
-  if [[ "$TILDE_REASON" =~ $TILDE_TOKEN_RE ]]; then
-    TILDE_STOWAWAY="${BASH_REMATCH[2]}"
-    refuse "'--tilde $TILDE_RAW' hides a second qualifier ('$TILDE_STOWAWAY:') inside its reason — every reader of the checkbox grammar matches a qualifier ANYWHERE on the line, and 'deferred:' outranks a terminal one wherever it sits, so this box would be written as '$QUALIFIER' and read back as '$TILDE_STOWAWAY': the file and this report would disagree about the same box. Say the reason without that token — rephrase it, or drop its colon — and re-run. Nothing was modified (R1.2)"
+  # The token comes back in a variable rather than out of BASH_REMATCH — see
+  # stowaway_token, which is also where the other two callers of this same rule
+  # are named.
+  if stowaway_token "$TILDE_REASON"; then
+    refuse "'--tilde $TILDE_RAW' hides a second qualifier ('$STOWAWAY_TOKEN:') inside its reason — every reader of the checkbox grammar matches a qualifier ANYWHERE on the line, and 'deferred:' outranks a terminal one wherever it sits, so this box would be written as '$QUALIFIER' and read back as '$STOWAWAY_TOKEN': the file and this report would disagree about the same box. Say the reason without that token — rephrase it, or drop its colon — and re-run. Nothing was modified (R1.2)"
   fi
   MARK_CHAR='~'
   MARK_SUFFIX=" ($QUALIFIER: $TILDE_REASON)"
 else
   MARK_CHAR='x'
+fi
+
+# --- 2a'. The evidence (--fulfill) -------------------------------------------
+# The half of the fulfilled line that comes from the CALLER, judged here for
+# --tilde's reason and in --tilde's place: it needs nothing from disk, and a
+# caller whose evidence is unusable has to fix that whatever the box turns out
+# to be. The other half — the deferral reason carried forward — comes out of
+# tasks.md and is judged in 2b', where the line it lives on has been read.
+FULFILL_EVIDENCE=""
+if [[ "$FULFILL_GIVEN" == true ]]; then
+  FULFILL_EVIDENCE=$(trim "$FULFILL_RAW")
+  FULFILL_EVIDENCE=$(same_line "$FULFILL_EVIDENCE")
+  if [[ -z "$FULFILL_EVIDENCE" ]]; then
+    refuse "'--fulfill' was given no evidence — a deferral says why the work is still owed, and the box that discharges it has to say what discharged it, on the same line (R4.2). Pass the measurement: --fulfill \"<evidence>\". Nothing was modified"
+  fi
+  # THE STOWAWAY GUARD, ON THE CALLER'S HALF OF THE LINE. --tilde refuses a
+  # second qualifier hidden in its reason because every reader matches a
+  # qualifier ANYWHERE on the line; the evidence lands on that same line, so it
+  # can smuggle one in exactly the same way — and here the consequence is worse
+  # than a disagreement about which bucket a `[~]` falls in. `--fulfill "the
+  # deferred: item shipped"` would write an `[x]` box carrying `deferred:`, and
+  # the seven scripts that read this grammar in code would go on counting a
+  # CLOSED box as an outstanding debt: the story would never reach `done`, which
+  # is the one failure the line shape below exists to prevent.
+  if stowaway_token "$FULFILL_EVIDENCE"; then
+    refuse "'--fulfill $FULFILL_RAW' hides a qualifier ('$STOWAWAY_TOKEN:') inside its evidence — every reader of the checkbox grammar matches a qualifier ANYWHERE on the line, so this box would be written '[x]' and read back as still qualified, and a 'deferred:' there would keep the story from ever reaching done. Say the evidence without that token — rephrase it, or drop its colon — and re-run. Nothing was modified (R4.2)"
+  fi
 fi
 
 # --- 2b. The box ------------------------------------------------------------
@@ -1060,12 +1220,76 @@ if [[ "$LOC_COUNT" -gt 1 ]]; then
   refuse "box '$TASK_ID' names $LOC_COUNT lines of '$TASKS_FILE' (lines ${LOC_LINES// /, }) — which of them the caller meant is not something this script may guess, so it marks none of them; give the duplicates distinct numbers or gate texts. Nothing was modified (R1.3)"
 fi
 
-# Already closed — a REFUSAL that names the state it found, never a silent
-# success. During a resumed run the orchestrator reads this as confirmation, so
-# the message has to carry what is actually on the line (the qualifier included)
-# rather than just "already done".
-if [[ "$LOC_BOX" != ' ' ]]; then
-  refuse "box '$TASK_ID' of story '$STORY_ID' is already closed [$LOC_BOX] — tasks.md line $LOC_LINE reads '$(trim "$LOC_TEXT")'. Re-closing is refused so a genuine double-close is never silent; nothing was modified (R1.3)"
+# --- 2b'. The state the located box must be in -------------------------------
+# ONE QUESTION, TWO ANSWERS, and which one is asked is the whole of what
+# --fulfill changes about locating a box. Every other close opens a box's story
+# and so demands a `[ ]`; --fulfill CLOSES one that was left owed and so demands
+# the one state that records an outstanding debt, `[~]` carrying `deferred:`
+# (R4.1). Both arms refuse by naming the state actually found, and both refuse
+# BEFORE the rewrite, so "nothing was modified" stays a property of the path.
+LOC_SHOWN=$(trim "$LOC_TEXT")
+if [[ "$FULFILL_GIVEN" == true ]]; then
+  if [[ "$LOC_BOX" != '~' ]]; then
+    refuse "box '$TASK_ID' of story '$STORY_ID' is [$LOC_BOX], not a deferral — tasks.md line $LOC_LINE reads '$LOC_SHOWN'. --fulfill discharges a debt, and '[~] (deferred: …)' is the only box that records one: a '[ ]' owes work nobody has deferred (close it with no flag once the work is done) and an '[x]' is already done (R4.3). Nothing was modified"
+  fi
+  if [[ ! "$LOC_TEXT" =~ $TILDE_DEFERRED_RE ]]; then
+    # A TERMINAL QUALIFIER IS A DECISION ALREADY TAKEN, and this is the arm that
+    # keeps --fulfill from being a history eraser wearing a bugfix's clothes: a
+    # waiver, an n-a or a supersede says the work will NOT be done and who said
+    # so, and overwriting one would destroy that record — in a project whose
+    # `.epic/` is untracked, destroy it outright. The token found is named,
+    # because "refused" without it sends the caller back to open the file.
+    if [[ "$LOC_TEXT" =~ $TILDE_TERMINAL_RE ]]; then
+      FULFILL_FOUND="${BASH_REMATCH[2]}"
+      refuse "box '$TASK_ID' of story '$STORY_ID' is closed '$FULFILL_FOUND:' — tasks.md line $LOC_LINE reads '$LOC_SHOWN'. A terminal qualifier records a DECISION already taken, not work still owed, and --fulfill will not overwrite one: that would erase the decision rather than discharge a debt. If the decision itself has changed, edit the line deliberately. Nothing was modified (R4.3)"
+    fi
+    refuse "box '$TASK_ID' of story '$STORY_ID' is [~] but carries none of the four qualifiers the checkbox grammar defines ($TILDE_FORMS) — tasks.md line $LOC_LINE reads '$LOC_SHOWN'. That is a validation error in its own right, and there is no deferral on it to fulfil; fix the line first. Nothing was modified (R4.3)"
+  fi
+
+  # --- The reason, lifted out whole (R4.2) -----------------------------------
+  # `.epic/` is untracked in this project, so a reason dropped from the line is
+  # not recoverable from anywhere — it is destroyed. It is read off the line the
+  # write is about to replace, CR and trailing whitespace taken off first so the
+  # text handed to set_box as <strip> is exactly what that line ends with.
+  LOC_BODY="${LOC_TEXT%$'\r'}"
+  LOC_BODY="${LOC_BODY%"${LOC_BODY##*[![:space:]]}"}"
+  if [[ ! "$LOC_BODY" =~ $DEFERRAL_TAIL_RE ]]; then
+    refuse "the deferral on tasks.md line $LOC_LINE of story '$STORY_ID' is not in a shape this script can rewrite — the grammar is '- [~] <text> (deferred: <reason>)', with the qualifier inside a parenthesis that ENDS the line, and the rewrite has to lift that reason out whole. Line $LOC_LINE reads '$LOC_SHOWN'. Cutting it somewhere plausible would be this script guessing where a reason stops, so it refuses instead; put the deferral in the standard shape and re-run. Nothing was modified (R4.2)"
+  fi
+  MARK_STRIP="${BASH_REMATCH[2]}"
+  FULFILL_REASON=$(trim "${BASH_REMATCH[3]}")
+  if [[ -z "$FULFILL_REASON" ]]; then
+    refuse "the deferral on tasks.md line $LOC_LINE of story '$STORY_ID' records no reason — line $LOC_LINE reads '$LOC_SHOWN'. A '[~]' has to say why on its own line, so there is nothing here to carry forward and the fulfilled box would claim to preserve a reason that never existed (R4.2). Nothing was modified"
+  fi
+  # THE STOWAWAY GUARD AGAIN, ON THE HALF OF THE LINE THAT COMES FROM THE FILE.
+  # Same rule as --tilde's and as the evidence check in 2a', for the same
+  # reason: the preserved reason lands back on the line, and a qualifier token
+  # inside it would be read by every consumer as the box's own. Measured on this
+  # repo: all five real deferral reasons in stories 013 and 015 are clean, so
+  # this arm refuses none of them.
+  if stowaway_token "$FULFILL_REASON"; then
+    refuse "the deferral reason on tasks.md line $LOC_LINE of story '$STORY_ID' hides a second qualifier ('$STOWAWAY_TOKEN:') — carrying it onto the fulfilled line would write an '[x]' box that every reader of the checkbox grammar still reads as qualified, because they match a qualifier ANYWHERE on the line. Line $LOC_LINE reads '$LOC_SHOWN'. Rephrase that reason — or drop its colon — and re-run. Nothing was modified (R4.2)"
+  fi
+
+  # THE LINE SHAPE, AND IT IS FORCED BY A MEASUREMENT RATHER THAN CHOSEN. The
+  # canonical qualifier regex every reader shares is
+  # `(^|[^[:alnum:]_-])deferred:` — TILDE_DEFERRED_RE above, verbatim. The
+  # obvious spelling `(was deferred: <reason>; fulfilled: <evidence>)` MATCHES
+  # it: the byte before `deferred:` is a space. Seven scripts would then score
+  # this CLOSED box as an outstanding deferral, and the story could never reach
+  # `done` — the exact outcome R4.4 asks for, defeated by a word. Spelling it
+  # `was-deferred:` would pass, but only because `-` happens to sit inside the
+  # excluded class, which is a subtlety no reader states and none is obliged to
+  # keep. `original deferral —` carries NO qualifier token at all, so it does
+  # not depend on any regex detail surviving.
+  MARK_EXPECT='~'
+  MARK_SUFFIX=" (fulfilled: $FULFILL_EVIDENCE; original deferral — $FULFILL_REASON)"
+elif [[ "$LOC_BOX" != ' ' ]]; then
+  # Already closed — a REFUSAL that names the state it found, never a silent
+  # success. During a resumed run the orchestrator reads this as confirmation,
+  # so the message has to carry what is actually on the line (the qualifier
+  # included) rather than just "already done".
+  refuse "box '$TASK_ID' of story '$STORY_ID' is already closed [$LOC_BOX] — tasks.md line $LOC_LINE reads '$LOC_SHOWN'. Re-closing is refused so a genuine double-close is never silent; nothing was modified (R1.3)"
 fi
 
 # --- 2c. What this one close implies for the group header (R1.7) -------------
@@ -1074,8 +1298,20 @@ fi
 # writer, so it never leaves one half of it for a later invocation to fix.
 case "$TARGET_KIND" in
   sub)
-    # The target is open (refused above if not), so it is one of GRP_OPEN.
-    if [[ $((GRP_OPEN - 1)) -eq 0 && "$GRP_HDR_BOX" == ' ' ]]; then
+    # HOW MANY `[ ]` CHILDREN THE GROUP HAS ONCE THIS WRITE LANDS. On every path
+    # but --fulfill the target was refused above unless it is `[ ]`, so it is one
+    # of GRP_OPEN and closing it removes one. A --fulfill target is `[~]`, which
+    # GRP_OPEN never counted (locate_box counts `[ ]` and only `[ ]`), so
+    # subtracting there would make the projection -1 — never zero, so a group
+    # whose last owed child was just fulfilled would keep an open header over
+    # children that owe nothing, which validate-story.sh reports as an error in
+    # its own words: "group N is open ([ ]) but no sub-task is still open".
+    if [[ "$FULFILL_GIVEN" == true ]]; then
+      GRP_OPEN_AFTER=$GRP_OPEN
+    else
+      GRP_OPEN_AFTER=$((GRP_OPEN - 1))
+    fi
+    if [[ "$GRP_OPEN_AFTER" -eq 0 && "$GRP_HDR_BOX" == ' ' ]]; then
       if [[ "$GRP_HDR_COUNT" -eq 1 ]]; then
         # `[x]` and not `[~]`: a `[~]` header would need a qualifier of its own
         # (an unqualified one is a validation error), and this script has no

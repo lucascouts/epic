@@ -216,7 +216,7 @@ The protocol **remains six steps**. Steps 2 and 5 are *conditional* — their wo
 5. **Refactor** (test-first sub-task) **/ Tests** (test-after sub-task) — for a test-first sub-task, improve the implementation while the pre-authored test and the validation command stay green. For a test-after sub-task, create/run the tests listed in the sub-task's `Tests:` field. On failure, STOP.
 6. **Report** — structured report back to the main agent, ending in a machine-liftable **closing block**: the sub-task id, the outcome (`done`, `close-tilde` with a qualifier and a reason, or `failed`), and the pre-authored commit message the executor validated against.
 
-The closing block is where the protocol hands off, and it hands off a *report*, never a write. **The executor marks no box and runs no `git commit`** — marking is script-mediated: the main agent lifts the block into `scripts/close-subtask.sh`, which marks the box, takes the census, stamps `status:` and validates the story in one transaction, and it commits post-merge with the pre-authored message verbatim. A `failed` outcome makes no call at all: the box stays `[ ]`.
+The closing block is where the protocol hands off, and it hands off a *report*, never a write. **The executor marks no box and runs no `git commit`** — marking is script-mediated: the main agent lifts the block into `scripts/close-subtask.sh`, which marks the box, takes the census, stamps `status:` and validates the story in one transaction, and it commits post-merge with the pre-authored message verbatim. A `failed` outcome makes no call at all: the box stays `[ ]`. A box left `[~] (deferred: …)` is discharged later by the same script's `--fulfill` flag — the one exit from a deferral, defined in [references/tasks.md](references/tasks.md#discharging-a-deferral).
 
 The main agent does not implement code; the executor does not make scope decisions, and does not write the record of its own completion. This separation is load-bearing for the auditor's effectiveness.
 
@@ -332,6 +332,7 @@ Common contributions and where they go:
 | New validation rule | Extend `scripts/validate-story.sh` (errors vs warnings), add a `bats` test under `tests/` |
 | New user-config field | Add schema entry under `userConfig` in `.claude-plugin/plugin.json`, read via `${CLAUDE_PLUGIN_CONFIG_*}` env in scripts |
 | New eval case | Add under `evals/` (trigger-query + expected artifacts), runnable via `scripts/run-evals.sh` |
+| New trigger verdict | `scripts/trigger-detect.sh` is the single scorer of a trigger run — it reads a transcript and answers `triggered` / `not-triggered` / `error`; `run-evals.sh` matches nothing inline |
 
 Before adding a new reference file under `references/`, check whether existing ones can absorb the content — reference fragmentation hurts skill-load discoverability.
 

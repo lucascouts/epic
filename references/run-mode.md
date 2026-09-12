@@ -142,9 +142,12 @@ The Executor's step-6 report ends with a machine-liftable **closing block** (def
 |---|---|
 | `done` | `close-subtask.sh <story> <task>` — a plain `[x]` |
 | `close-tilde` | `close-subtask.sh <story> <task> --tilde "<qualifier>: <reason>"` — a `[~]`, closed **without** the work being done |
+| `fulfill` | `close-subtask.sh <story> <task> --fulfill "<evidence>"` — an outstanding `[~] (deferred: …)` becomes `[x]`, carrying both the debt and its discharge ([tasks.md](tasks.md#discharging-a-deferral)) |
 | `failed` | **no call at all** |
 
 `<qualifier>` is one of the four the grammar defines — `deferred:`, `waived:`, `n-a:`, `superseded-by:` ([tasks.md](tasks.md#checkbox-grammar)) — and the reason is passed through verbatim, into the file rather than into the report.
+
+**`fulfill` is not an Executor outcome.** The closing-block enum stays `done` / `close-tilde` / `failed`: an Executor closes a box it just worked, and a deferral is by definition work it could not do. The orchestrator makes this call later, when the external actor the deferral named has finally acted and the evidence exists. It refuses on every state that is not an outstanding deferral, so it cannot be used to tidy a box.
 
 **A `failed` outcome makes no close call.** It routes through step 6's FAIL path — report to the user, ask how to proceed — and the box stays `[ ]` with nothing written anywhere. The enum's third arm is consumed here, by *not* closing.
 
