@@ -111,6 +111,8 @@ The fulfilled line carries both halves, what discharged the debt and the debt it
 - [x] N.N - Title (fulfilled: <evidence>; original deferral — <reason>)
 ```
 
+**When the reason itself goes stale**, the box stays `[~]` and only its text changes: `close-subtask.sh <story> <box> --restate "<reason>"`. The debt is still owed — this says why it is owed *now* — so the census, the `status:` stamp and the group header are all untouched. It accepts the one state `--fulfill` accepts and refuses the same others, so it cannot tidy a decision away, and it is the only tool that can repair a `(deferred: )` carrying no reason at all.
+
 **This paragraph is the shape's only home** — every other file cites it rather than repeating it. The dash spelling is forced by measurement, not by taste: the canonical qualifier regex `(^|[^[:alnum:]_-])deferred:`, shared by every script that reads this grammar in code, still matches the obvious `(was deferred: ...)`. Written that way, an `[x]` box would be read back as an outstanding deferral by every one of those readers and the story could never reach `done`. `original deferral —` carries no qualifier token at all, so it depends on no regex detail surviving.
 
 ### Completion

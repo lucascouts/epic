@@ -77,12 +77,13 @@
 
 set -euo pipefail
 
-USAGE='Usage: close-subtask.sh <NNN|story-dir> <N.N|N|gate:<text-prefix>> [--tilde "<qualifier>: <reason>" | --fulfill "<evidence>"]'
+USAGE='Usage: close-subtask.sh <NNN|story-dir> <N.N|N|gate:<text-prefix>> [--tilde "<qualifier>: <reason>" | --fulfill "<evidence>" | --restate "<reason>"]'
 
 print_help() {
   cat <<'HELP'
 Usage: close-subtask.sh <NNN|story-dir> <N.N|N|gate:<text-prefix>>
-                        [--tilde "<qualifier>: <reason>" | --fulfill "<evidence>"]
+                        [--tilde "<qualifier>: <reason>" | --fulfill "<evidence>"
+                         | --restate "<reason>"]
 
 Closes exactly one checkbox in a live story's tasks.md, runs the status census,
 stamps the story's `status:` and reports the whole transaction as one JSON
@@ -107,6 +108,13 @@ Flags:
                     qualifier (waived: / n-a: / superseded-by:) records a
                     decision already taken, and an `[x]` is already done.
                     Mutually exclusive with --tilde.
+  --restate "<reason>"
+                    The reason a `[~] (deferred: …)` box carries is no longer
+                    true: replace it, leaving the box deferred. The debt is
+                    still owed — this says why it is owed NOW. Accepts the one
+                    state --fulfill accepts and refuses the same others, so it
+                    cannot be used to tidy a decision away.
+                    Mutually exclusive with --tilde and --fulfill.
   --help, -h        Show this help (on stderr, exit 2 — stdout is JSON only)
 
 Output: JSON on stdout — {story, task, box, qualifier, census{total, open,
@@ -145,6 +153,13 @@ TILDE_RAW=""
 # fifth one, and a `[x]` close carries no qualifier token whatever put it there.
 FULFILL_GIVEN=false
 FULFILL_RAW=""
+
+# --restate's argument, verbatim. It REPLACES the reason on a box that stays
+# `[~] (deferred: …)`, so unlike --fulfill's evidence it is not joined to
+# anything already on the line — the old reason is discarded, deliberately,
+# because the whole point is that it stopped being true.
+RESTATE_GIVEN=false
+RESTATE_RAW=""
 
 # Checkbox census (sub-task 2.1). Initialized here because the emitter reads
 # them even on the paths where tasks.md was never opened — same reason
@@ -555,6 +570,19 @@ while [[ $# -gt 0 ]]; do
       FULFILL_RAW="$1"
       shift
       ;;
+    --restate)
+      # Required for the same reason --fulfill's evidence is. The flag exists to
+      # replace a reason that went stale; `--restate` with nothing after it would
+      # write `(deferred: )` — a box that says it owes work and refuses to say
+      # why, which is a validation error this script would be authoring.
+      shift
+      if [[ $# -eq 0 ]]; then
+        usage_error '--restate requires an argument: --restate "<reason>" — why the work is owed NOW'
+      fi
+      RESTATE_GIVEN=true
+      RESTATE_RAW="$1"
+      shift
+      ;;
     --)
       # End of options: everything after it is positional, even if it starts
       # with `-`. Without this, a directory named `-012-x` is unreachable — it
@@ -584,8 +612,14 @@ done
 # was done — so the command line says two things at once whatever is on disk.
 # That is the header's rule applied literally: 2 = fix the call, 1 = fix the
 # world, and nothing about the world could make this pair coherent.
-if [[ "$TILDE_GIVEN" == true && "$FULFILL_GIVEN" == true ]]; then
-  usage_error "--tilde and --fulfill contradict each other — --tilde closes a box WITHOUT the work being done, --fulfill closes one BECAUSE the work was done. Pass one of them"
+# Counted rather than compared pairwise: three flags make three pairs, and a
+# fourth would make six. The count says the same thing once and keeps saying it.
+FLAGS_GIVEN=0
+if [[ "$TILDE_GIVEN"   == true ]]; then FLAGS_GIVEN=$((FLAGS_GIVEN + 1)); fi
+if [[ "$FULFILL_GIVEN" == true ]]; then FLAGS_GIVEN=$((FLAGS_GIVEN + 1)); fi
+if [[ "$RESTATE_GIVEN" == true ]]; then FLAGS_GIVEN=$((FLAGS_GIVEN + 1)); fi
+if [[ "$FLAGS_GIVEN" -gt 1 ]]; then
+  usage_error "--tilde, --fulfill and --restate name different writes for one box — --tilde closes it WITHOUT the work being done, --fulfill closes it BECAUSE the work was done, --restate leaves it open and replaces its reason. The command line says more than one of those at once, whatever is on disk. Pass exactly one"
 fi
 
 # The qualifier TOKEN is split out here, as part of parsing; whether it is one
@@ -1178,6 +1212,49 @@ else
   MARK_CHAR='x'
 fi
 
+# THE PRECONDITION --fulfill AND --restate SHARE, WRITTEN ONCE.
+#
+# Both act on the one state that records an outstanding debt — a `[~]` carrying
+# `deferred:` — and both refuse every other state by naming what they found.
+# Two copies of four refusals drift, and the drift surfaces as one flag
+# accepting a box the other rejects: a disagreement nobody notices until it
+# writes. <verb> completes the sentence "<flag> <verb>" in the first refusal.
+#
+# Sets MARK_STRIP (the `(deferred: …)` tail the rewrite replaces) and
+# DEFERRAL_REASON (that tail's text, lifted out whole). Whether an EMPTY reason
+# is fatal is left to the caller: --fulfill has nothing to carry forward without
+# one, while --restate is the only tool that can repair it.
+DEFERRAL_REASON=""
+require_outstanding_deferral() {
+  local flag="$1" verb="$2"
+  if [[ "$LOC_BOX" != '~' ]]; then
+    refuse "box '$TASK_ID' of story '$STORY_ID' is [$LOC_BOX], not a deferral — tasks.md line $LOC_LINE reads '$LOC_SHOWN'. $flag $verb, and '[~] (deferred: …)' is the only box that records one: a '[ ]' owes work nobody has deferred (close it with no flag once the work is done) and an '[x]' is already done (R4.3). Nothing was modified"
+  fi
+  if [[ ! "$LOC_TEXT" =~ $TILDE_DEFERRED_RE ]]; then
+    # A TERMINAL QUALIFIER IS A DECISION ALREADY TAKEN. A waiver, an n-a or a
+    # supersede says the work will NOT be done and who said so; overwriting one
+    # destroys that record — in a project whose `.epic/` is untracked, destroys
+    # it outright. The token found is named, because "refused" without it sends
+    # the caller back to open the file.
+    if [[ "$LOC_TEXT" =~ $TILDE_TERMINAL_RE ]]; then
+      local found="${BASH_REMATCH[2]}"
+      refuse "box '$TASK_ID' of story '$STORY_ID' is closed '$found:' — tasks.md line $LOC_LINE reads '$LOC_SHOWN'. A terminal qualifier records a DECISION already taken, not work still owed, and $flag will not overwrite one: that would erase the decision rather than act on a debt. If the decision itself has changed, edit the line deliberately. Nothing was modified (R4.3)"
+    fi
+    refuse "box '$TASK_ID' of story '$STORY_ID' is [~] but carries none of the four qualifiers the checkbox grammar defines ($TILDE_FORMS) — tasks.md line $LOC_LINE reads '$LOC_SHOWN'. That is a validation error in its own right, and there is no deferral on it for $flag to act on; fix the line first. Nothing was modified (R4.3)"
+  fi
+  # `.epic/` is untracked in this project, so a reason dropped from the line is
+  # not recoverable from anywhere. It is read off the line the write is about to
+  # replace, CR and trailing whitespace taken off first so the text handed to
+  # set_box as <strip> is exactly what that line ends with.
+  local body="${LOC_TEXT%$'\r'}"
+  body="${body%"${body##*[![:space:]]}"}"
+  if [[ ! "$body" =~ $DEFERRAL_TAIL_RE ]]; then
+    refuse "the deferral on tasks.md line $LOC_LINE of story '$STORY_ID' is not in a shape this script can rewrite — the grammar is '- [~] <text> (deferred: <reason>)', with the qualifier inside a parenthesis that ENDS the line, and the rewrite has to lift that reason out whole. Line $LOC_LINE reads '$LOC_SHOWN'. Cutting it somewhere plausible would be this script guessing where a reason stops, so it refuses instead; put the deferral in the standard shape and re-run. Nothing was modified (R4.2)"
+  fi
+  MARK_STRIP="${BASH_REMATCH[2]}"
+  DEFERRAL_REASON=$(trim "${BASH_REMATCH[3]}")
+}
+
 # --- 2a'. The evidence (--fulfill) -------------------------------------------
 # The half of the fulfilled line that comes from the CALLER, judged here for
 # --tilde's reason and in --tilde's place: it needs nothing from disk, and a
@@ -1220,6 +1297,27 @@ if [[ "$LOC_COUNT" -gt 1 ]]; then
   refuse "box '$TASK_ID' names $LOC_COUNT lines of '$TASKS_FILE' (lines ${LOC_LINES// /, }) — which of them the caller meant is not something this script may guess, so it marks none of them; give the duplicates distinct numbers or gate texts. Nothing was modified (R1.3)"
 fi
 
+# --- 2a''. The new reason (--restate) ----------------------------------------
+# Judged here, in --fulfill's place and for its reason: it needs nothing from
+# disk, so a caller whose reason is unusable has to fix that whatever the box
+# turns out to be.
+RESTATE_REASON=""
+if [[ "$RESTATE_GIVEN" == true ]]; then
+  RESTATE_REASON=$(trim "$RESTATE_RAW")
+  RESTATE_REASON=$(same_line "$RESTATE_REASON")
+  if [[ -z "$RESTATE_REASON" ]]; then
+    refuse "'--restate' was given no reason — a '[~]' has to say why the work is still owed, on the same line, and replacing a stale reason with nothing would write a box that owes work and refuses to say why (R1.2). Pass the reason: --restate \"<reason>\". Nothing was modified"
+  fi
+  # THE STOWAWAY GUARD, ON THE CALLER'S TEXT. The reason lands inside
+  # `(deferred: …)`, and every reader of this grammar matches a qualifier
+  # ANYWHERE on the line — so a `waived:` smuggled into the reason would have
+  # the box written as deferred and read back as waived, which is the file and
+  # this report disagreeing about one box.
+  if stowaway_token "$RESTATE_REASON"; then
+    refuse "'--restate $RESTATE_RAW' hides a qualifier ('$STOWAWAY_TOKEN:') inside its reason — every reader of the checkbox grammar matches a qualifier ANYWHERE on the line, so this box would be written 'deferred' and read back as '$STOWAWAY_TOKEN'. Say the reason without that token — rephrase it, or drop its colon — and re-run. Nothing was modified (R1.2)"
+  fi
+fi
+
 # --- 2b'. The state the located box must be in -------------------------------
 # ONE QUESTION, TWO ANSWERS, and which one is asked is the whole of what
 # --fulfill changes about locating a box. Every other close opens a box's story
@@ -1229,44 +1327,17 @@ fi
 # BEFORE the rewrite, so "nothing was modified" stays a property of the path.
 LOC_SHOWN=$(trim "$LOC_TEXT")
 if [[ "$FULFILL_GIVEN" == true ]]; then
-  if [[ "$LOC_BOX" != '~' ]]; then
-    refuse "box '$TASK_ID' of story '$STORY_ID' is [$LOC_BOX], not a deferral — tasks.md line $LOC_LINE reads '$LOC_SHOWN'. --fulfill discharges a debt, and '[~] (deferred: …)' is the only box that records one: a '[ ]' owes work nobody has deferred (close it with no flag once the work is done) and an '[x]' is already done (R4.3). Nothing was modified"
-  fi
-  if [[ ! "$LOC_TEXT" =~ $TILDE_DEFERRED_RE ]]; then
-    # A TERMINAL QUALIFIER IS A DECISION ALREADY TAKEN, and this is the arm that
-    # keeps --fulfill from being a history eraser wearing a bugfix's clothes: a
-    # waiver, an n-a or a supersede says the work will NOT be done and who said
-    # so, and overwriting one would destroy that record — in a project whose
-    # `.epic/` is untracked, destroy it outright. The token found is named,
-    # because "refused" without it sends the caller back to open the file.
-    if [[ "$LOC_TEXT" =~ $TILDE_TERMINAL_RE ]]; then
-      FULFILL_FOUND="${BASH_REMATCH[2]}"
-      refuse "box '$TASK_ID' of story '$STORY_ID' is closed '$FULFILL_FOUND:' — tasks.md line $LOC_LINE reads '$LOC_SHOWN'. A terminal qualifier records a DECISION already taken, not work still owed, and --fulfill will not overwrite one: that would erase the decision rather than discharge a debt. If the decision itself has changed, edit the line deliberately. Nothing was modified (R4.3)"
-    fi
-    refuse "box '$TASK_ID' of story '$STORY_ID' is [~] but carries none of the four qualifiers the checkbox grammar defines ($TILDE_FORMS) — tasks.md line $LOC_LINE reads '$LOC_SHOWN'. That is a validation error in its own right, and there is no deferral on it to fulfil; fix the line first. Nothing was modified (R4.3)"
-  fi
-
-  # --- The reason, lifted out whole (R4.2) -----------------------------------
-  # `.epic/` is untracked in this project, so a reason dropped from the line is
-  # not recoverable from anywhere — it is destroyed. It is read off the line the
-  # write is about to replace, CR and trailing whitespace taken off first so the
-  # text handed to set_box as <strip> is exactly what that line ends with.
-  LOC_BODY="${LOC_TEXT%$'\r'}"
-  LOC_BODY="${LOC_BODY%"${LOC_BODY##*[![:space:]]}"}"
-  if [[ ! "$LOC_BODY" =~ $DEFERRAL_TAIL_RE ]]; then
-    refuse "the deferral on tasks.md line $LOC_LINE of story '$STORY_ID' is not in a shape this script can rewrite — the grammar is '- [~] <text> (deferred: <reason>)', with the qualifier inside a parenthesis that ENDS the line, and the rewrite has to lift that reason out whole. Line $LOC_LINE reads '$LOC_SHOWN'. Cutting it somewhere plausible would be this script guessing where a reason stops, so it refuses instead; put the deferral in the standard shape and re-run. Nothing was modified (R4.2)"
-  fi
-  MARK_STRIP="${BASH_REMATCH[2]}"
-  FULFILL_REASON=$(trim "${BASH_REMATCH[3]}")
+  require_outstanding_deferral '--fulfill' 'discharges a debt'
+  FULFILL_REASON="$DEFERRAL_REASON"
   if [[ -z "$FULFILL_REASON" ]]; then
     refuse "the deferral on tasks.md line $LOC_LINE of story '$STORY_ID' records no reason — line $LOC_LINE reads '$LOC_SHOWN'. A '[~]' has to say why on its own line, so there is nothing here to carry forward and the fulfilled box would claim to preserve a reason that never existed (R4.2). Nothing was modified"
   fi
-  # THE STOWAWAY GUARD AGAIN, ON THE HALF OF THE LINE THAT COMES FROM THE FILE.
-  # Same rule as --tilde's and as the evidence check in 2a', for the same
-  # reason: the preserved reason lands back on the line, and a qualifier token
-  # inside it would be read by every consumer as the box's own. Measured on this
-  # repo: all five real deferral reasons in stories 013 and 015 are clean, so
-  # this arm refuses none of them.
+  # THE STOWAWAY GUARD, ON THE HALF OF THE LINE THAT COMES FROM THE FILE. Same
+  # rule as --tilde's and as the evidence check in 2a', for the same reason: the
+  # preserved reason lands back on the line, and a qualifier token inside it
+  # would be read by every consumer as the box's own. Measured on this repo: all
+  # five real deferral reasons in stories 013 and 015 are clean, so this arm
+  # refuses none of them.
   if stowaway_token "$FULFILL_REASON"; then
     refuse "the deferral reason on tasks.md line $LOC_LINE of story '$STORY_ID' hides a second qualifier ('$STOWAWAY_TOKEN:') — carrying it onto the fulfilled line would write an '[x]' box that every reader of the checkbox grammar still reads as qualified, because they match a qualifier ANYWHERE on the line. Line $LOC_LINE reads '$LOC_SHOWN'. Rephrase that reason — or drop its colon — and re-run. Nothing was modified (R4.2)"
   fi
@@ -1284,6 +1355,21 @@ if [[ "$FULFILL_GIVEN" == true ]]; then
   # not depend on any regex detail surviving.
   MARK_EXPECT='~'
   MARK_SUFFIX=" (fulfilled: $FULFILL_EVIDENCE; original deferral — $FULFILL_REASON)"
+elif [[ "$RESTATE_GIVEN" == true ]]; then
+  # THE BOX DOES NOT MOVE. Every other path here changes a box's state; this one
+  # changes only what the box SAYS. It is the one edit the grammar had no tool
+  # for — a deferral whose reason went stale could be corrected only by hand,
+  # outside the transaction that takes the census, stamps `status:` and
+  # validates, which is exactly what "close-subtask.sh is the only writer of the
+  # checkbox grammar" was meant to prevent.
+  require_outstanding_deferral '--restate' 'replaces the reason on a debt'
+  # The old reason is DISCARDED, and that is the flag's whole purpose: it stopped
+  # being true. An empty one is not refused here — a `(deferred: )` box is a
+  # validation error, and this is the only tool that can repair it.
+  MARK_EXPECT='~'
+  MARK_CHAR='~'
+  QUALIFIER='deferred'
+  MARK_SUFFIX=" (deferred: $RESTATE_REASON)"
 elif [[ "$LOC_BOX" != ' ' ]]; then
   # Already closed — a REFUSAL that names the state it found, never a silent
   # success. During a resumed run the orchestrator reads this as confirmation,
@@ -1299,14 +1385,16 @@ fi
 case "$TARGET_KIND" in
   sub)
     # HOW MANY `[ ]` CHILDREN THE GROUP HAS ONCE THIS WRITE LANDS. On every path
-    # but --fulfill the target was refused above unless it is `[ ]`, so it is one
-    # of GRP_OPEN and closing it removes one. A --fulfill target is `[~]`, which
-    # GRP_OPEN never counted (locate_box counts `[ ]` and only `[ ]`), so
-    # subtracting there would make the projection -1 — never zero, so a group
-    # whose last owed child was just fulfilled would keep an open header over
-    # children that owe nothing, which validate-story.sh reports as an error in
-    # its own words: "group N is open ([ ]) but no sub-task is still open".
-    if [[ "$FULFILL_GIVEN" == true ]]; then
+    # but --fulfill and --restate the target was refused above unless it is
+    # `[ ]`, so it is one of GRP_OPEN and closing it removes one. A --fulfill or
+    # --restate target is `[~]`, which GRP_OPEN never counted (locate_box counts
+    # `[ ]` and only `[ ]`), so subtracting there would make the projection -1 —
+    # never zero, so a group whose last owed child was just fulfilled would keep
+    # an open header over children that owe nothing, which validate-story.sh
+    # reports as an error in its own words: "group N is open ([ ]) but no
+    # sub-task is still open". --restate reaches this for a stronger reason
+    # still: it closes nothing at all, so the projection must not move.
+    if [[ "$FULFILL_GIVEN" == true || "$RESTATE_GIVEN" == true ]]; then
       GRP_OPEN_AFTER=$GRP_OPEN
     else
       GRP_OPEN_AFTER=$((GRP_OPEN - 1))
