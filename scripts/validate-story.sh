@@ -472,6 +472,10 @@ if [[ "$HAS_STORY" == true ]]; then
       # `SHALL` THE SYSTEM SHALL warn"). A lint that reddens on prose describing
       # itself is a lint people learn to ignore. Stripping is symmetric: a
       # trigger word mentioned inside a span is likewise not a trigger.
+      # SC2016 is silenced on the next line: the backticks are the LITERAL span
+      # delimiters sed strips, not a command substitution, so single quotes are
+      # the correct quoting — and CI's shellcheck exits 1 even at info level.
+      # shellcheck disable=SC2016
       bare=$(printf '%s' "$text" | sed 's/`[^`]*`//g')
       if [[ ! "$text" =~ $ears_label_re ]]; then
         add_error "story.md line $line: acceptance criterion has no Rn.m label — an unlabeled criterion cannot be referenced by a task, so nothing downstream can trace it"

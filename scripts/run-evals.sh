@@ -277,14 +277,18 @@ run_trigger() {
   # `stream-json` — the only format that emits the tool_use event at all;
   # `--output-format json` returns the final result alone, which is why the old
   # scorer could only ever match the skill's failure payload.
+  # The brace group makes the guard's scope explicit: a failed `cd` OR a
+  # failed `claude` both land on `|| true`, so neither aborts the suite under
+  # `set -e`. Written as a bare `A && B || C` chain, shellcheck 0.9 (the CI
+  # runner's) reads it as a mistaken if/else and fails the lint (SC2015).
   local output
   output=$(
-    cd "$workdir" &&
-    claude -p "$phrase" \
-      --plugin-dir "$ROOT" \
-      --allowedTools "Read,Glob,Grep,Agent,Skill" \
-      --output-format stream-json --verbose \
-      </dev/null 2>"$cli_err" || true
+    { cd "$workdir" &&
+      claude -p "$phrase" \
+        --plugin-dir "$ROOT" \
+        --allowedTools "Read,Glob,Grep,Agent,Skill" \
+        --output-format stream-json --verbose \
+        </dev/null 2>"$cli_err"; } || true
   )
 
   # The transcript is piped in EXPLICITLY. The scorer reads stdin whole, so
