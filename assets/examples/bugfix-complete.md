@@ -83,9 +83,7 @@ Add authentication error pattern matching to the retry classifier. Surgical chan
     - Validation: `npm test -- retry-classifier` passes with all regression cases
     - Requirements: Unchanged Behavior (all 3 items)
 
-  - [ ] 1.3 - Commit
-    - Validation: All unit tests pass (fix + regression), no existing tests broken
-    - Commit: "fix: classify auth errors as non-retryable in retry logic"
+  - Commit: "fix: classify auth errors as non-retryable in retry logic"
 
 ## Quality Gates
 

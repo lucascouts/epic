@@ -755,7 +755,16 @@ verdict_cell() {
 # lifecycle story — the single outcome this branch exists to prevent.
 #
 # status_cell therefore keeps its OWN precedence: it reads the row's story.md and
-# falls back to tasks.md. That is a DELIBERATE, REGISTERED EXCEPTION to the shared
+# falls back to tasks.md. That fallback covers `status` as well as `scale`, and for
+# the same reason: a `fast` or `spike` story HAS no story.md, so story.md-only
+# resolution renders an em dash for a story whose status is right there in tasks.md
+# — which is what this index did for every Fast row until it was measured. The
+# precedence itself is not invented here and is not this file's to define: a
+# lifecycle field lives in story.md when there is one and in tasks.md when there
+# is not, which is how the archiver reads one too, so a row and an archive entry
+# never disagree about the same story. `scale:` is the one field that does NOT
+# work that way anywhere else in the project — the paragraph below is entirely
+# about why this function may still read it locally. That is a DELIBERATE, REGISTERED EXCEPTION to the shared
 # scale rule — `tasks.md` is authoritative for `scale:` — which is stated in full
 # at validate-story.sh's resolution loop (search it for "THE SHARED SCALE RULE")
 # and which names this function as the fifth of its five readers, so the
@@ -783,7 +792,7 @@ status_cell() {
     verdict_cell "$tasks"
     return 0
   fi
-  status=$(front_value "$f" status) || status=""
+  status=$(front_value "$f" status) || status=$(front_value "$tasks" status) || status=""
   if [[ -z "$status" ]]; then
     printf '%s' '—'
     return 0

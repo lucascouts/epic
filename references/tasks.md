@@ -43,9 +43,7 @@ created: <date>
     - Validation: [...]
     - Requirements: R1.2
 
-  - [ ] 1.3 - Commit
-    - Validation: All tests from 1.1 and 1.2 pass
-    - Commit: "feat: description of what this group achieves"
+  - Commit: "feat(NNN): description of what this group achieves"
 
 - [ ] 2 - [Next Task]
   - _Complexity: [level] | Tests: [summary] | Risks: [summary] | Dependencies: Task 1_
@@ -103,6 +101,20 @@ A `- [~]` box **MUST** carry a qualifier on the **same line**: a box closed with
 - If a line carries both `deferred:` and a terminal qualifier, **`deferred:` wins** — the work is still owed by someone.
 - Implementing sub-tasks and Quality Gates use the same grammar. There is no per-line-type distinction.
 
+#### Discharging a Deferral
+
+A `deferred:` box is the **only** closed state that can reopen into `[x]`, and only through one call: `close-subtask.sh <story> <box> --fulfill "<evidence>"`. A terminal qualifier cannot. `waived:`, `n-a:` and `superseded-by:` record a decision already taken rather than work still owed, so overwriting one would erase the decision instead of discharging a debt — if the decision itself changed, that is a deliberate edit, not a close call.
+
+The fulfilled line carries both halves, what discharged the debt and the debt it discharged:
+
+```
+- [x] N.N - Title (fulfilled: <evidence>; original deferral — <reason>)
+```
+
+**When the reason itself goes stale**, the box stays `[~]` and only its text changes: `close-subtask.sh <story> <box> --restate "<reason>"`. The debt is still owed — this says why it is owed *now* — so the census, the `status:` stamp and the group header are all untouched. It accepts the one state `--fulfill` accepts and refuses the same others, so it cannot tidy a decision away, and it is the only tool that can repair a `(deferred: )` carrying no reason at all.
+
+**This paragraph is the shape's only home** — every other file cites it rather than repeating it. The dash spelling is forced by measurement, not by taste: the canonical qualifier regex `(^|[^[:alnum:]_-])deferred:`, shared by every script that reads this grammar in code, still matches the obvious `(was deferred: ...)`. Written that way, an `[x]` box would be read back as an outstanding deferral by every one of those readers and the story could never reach `done`. `original deferral —` carries no qualifier token at all, so it depends on no regex detail surviving.
+
 ### Completion
 
 One definition, used by every mode that reads a task list:
@@ -133,6 +145,20 @@ This is the **strictest** of the places where terminal and deferred `[~]` part w
 
 The asymmetry between the last two is real and intended: a story whose only non-`[x]` boxes are deferred is `done-except-external` — nothing here is pending — yet a task depending on one of those boxes must still wait, because the thing it needs does not exist yet.
 
+### Authoring Ceiling
+
+**A plan warns when it passes 32KB or 60 checkboxes, whichever comes first.** This paragraph is the threshold's only home: every consumer cites it rather than repeating the numbers, so raising the ceiling is one edit and not a hunt.
+
+The numbers come from the corpus, not from taste. Across the 2026-07 measurement a healthy `tasks.md` sits around 11KB; the plans that had to be split afterwards ran 51-109KB. The box arm exists because size in bytes and size in work are not the same thing — a plan can carry sixty-five checkboxes in three kilobytes of terse lines and still be more work than one person can hold.
+
+It is a **warning at every site, never a block**:
+
+- **At Phase 3**, the orchestrator offers a split into a wave — interactively as a question, headless as a logged note that proceeds.
+- **At validation**, `validate-story.sh` warns, so a plan that shipped oversized stays visible afterwards and not only at the moment it was written.
+- **In batch create**, the warning surfaces in the approval block and the split is deferred to a post-batch create — the live interview is never re-entered. See [batch-create.md](batch-create.md).
+
+A story that genuinely needs a large plan keeps it: the ceiling asks the question, the author answers it.
+
 ### Metadata Line Fields
 
 The metadata line appears on parent tasks and optionally on sub-tasks (only overridden fields).
@@ -152,7 +178,7 @@ Content fields appear in sub-task bodies. Include only fields that are applicabl
 |---|---|---|
 | Context | Sub-task needs research before implementation | Files to read, Docs (MCP), Research (MCP) |
 | Objective | Always | What this achieves (1 line) |
-| ToDo | Always (except Commit sub-tasks) | Steps to implement |
+| ToDo | Always (implementing sub-tasks) | Steps to implement |
 | Tests | Sub-task produces testable code (set by Test Advisor) | Type · `path` — scenarios to cover |
 | Acceptance | Fast-mode sub-task without a `Tests` field | 1-3 observable-behavior statements |
 | Validation | Always | Command or check proving completion |
@@ -200,16 +226,17 @@ Format: a bullet list of 1-3 observable-behavior statements, placed in the sub-t
 
 - **Optional** — present only on sub-tasks that have no `Tests` field. A sub-task carries one or the other, never both.
 - **Fast-only** — Standard and Full sub-tasks use the EARS R-number in their `Requirements` field as the anchor, so the `Acceptance` field does not exist there.
-- **Sub-task-level** — never on a parent task; never on a Commit sub-task.
+- **Sub-task-level** — never on a parent task, and never beside a group-level `Commit:` field (that field implements nothing).
 - **EARS-lite** — plain statements of what is observably true, with no EARS `SHALL` ceremony. Describe the behavior, not how it is built.
 
-### Commit Sub-tasks
+### Commit Field
 
-- Last sub-task of each task group when the group has 2+ working sub-tasks.
-- Contains only **Validation** (aggregated from the group) and **Commit** message.
-- If a task has only 1 working sub-task, the Commit field goes inline on that sub-task — no separate Commit sub-task needed.
+- **One `Commit:` field per task group**, written on the group itself, carrying the message the whole group commits under.
+- **It is a field, never a checkbox.** A Commit checkbox is never the unit of work — it exists to carry a message — and as a box it leaves every group reading as partially open. That false-partial shape is the one this framework retired; `scripts/migrate-story.sh` converts the legacy form, message verbatim.
+- A group with a single working sub-task may carry the field on that sub-task instead.
+- **Dependency satisfaction reads the boxes that exist.** With no Commit box in the group, nothing waits on one: a dependency is satisfied by the boxes the plan actually declares.
 - Commit messages follow conventional commits: `feat:`, `fix:`, `chore:`, `refactor:`, `test:`.
-- **Story anchor (recommended).** Scope the subject with the story number — `type(NNN): subject`, e.g. `feat(012): add retry queue` — and name the branch `feat/NNN-slug`. These are the two anchors `scripts/story-git-status.sh` reads integration from (a merged `feat/NNN-*` branch, or a subject carrying `(NNN)` or `NNN-slug` as a delimited token); a commit with neither is invisible to it. Recommended, not enforced — nothing gates on the shape yet.
+- **Story anchor (recommended).** Scope the subject with the story number — `type(NNN): subject`, e.g. `feat(012): add retry queue` — and name the branch `feat/NNN-slug`. These are the two anchors `scripts/story-git-status.sh` reads integration from (a merged `feat/NNN-*` branch, or a subject carrying `(NNN)` or `NNN-slug` as a delimited token); a commit with neither is invisible to it. Checked, not gated: `scripts/validate-story.sh` warns on any `Commit:` field whose subject carries no `type(NNN):` anchor for its own story number (zero-padded or not). A warning, never an error — a foreign commit convention stays usable, but drift is no longer silent.
 
 ### Complexity Guide
 
@@ -261,7 +288,7 @@ When generating tasks for fast scale (no story.md):
 - Omit `Requirements` field (no requirements to reference)
 - Keep the same structure otherwise (metadata line, content fields)
 - Quality Gates section is still mandatory
-- **Test-or-Acceptance contract rule:** every implementing (non-Commit) sub-task carries either a `Tests` field or an `Acceptance` field — a sub-task with testable logic gets a `Tests` field, a structural sub-task with no testable logic gets an `Acceptance` field. Commit sub-tasks are exempt (they implement nothing).
+- **Test-or-Acceptance contract rule:** every implementing sub-task carries either a `Tests` field or an `Acceptance` field — a sub-task with testable logic gets a `Tests` field, a structural sub-task with no testable logic gets an `Acceptance` field. A group-level `Commit:` field is exempt (it implements nothing).
 - If during generation the scope appears larger than expected, recommend upgrading to standard scale
 
 ## Spike Scale Adaptations

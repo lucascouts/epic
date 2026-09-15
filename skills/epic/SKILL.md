@@ -7,12 +7,15 @@ description: >
   coding", "break this into tasks", or any request to formalize
   development work. Use when asked to: create, refine, or expand a
   story; list or manage existing stories; run/execute tasks from a
-  story; validate implementation against plan. Also trigger when the
-  user says "document this feature", "structure this sprint", "what
+  story; validate implementation against plan. It also routes the
+  management modes: init, migrate a story to the current format,
+  create --batch to draft many stories from one document, archive,
+  supersede, and teams. Also trigger when the user says "create an epic
+  for X", "document this feature", "structure this sprint", "what
   needs to be done to implement X?", "list stories", "run story",
   "execute tasks", "validate implementation" — even without saying
   "epic" or "story" explicitly.
-argument-hint: "[description] or [stories] or [stories full] or [stories run|validate|refine NNN] or [stories supersede NNN --by MMM] or [stories NNN run N|all] or [init]"
+argument-hint: "[description] or [stories migrate NNN] or [stories create --batch <doc>] or [stories] or [stories full] or [stories run|validate|refine NNN] or [stories supersede NNN --by MMM] or [stories NNN run N|all] or [init]"
 allowed-tools:
   - Read
   - Glob
@@ -132,17 +135,17 @@ Sub-agents with specialized roles. Scale determines which personas are activated
 
 | Persona | Role | Scale | Agent file |
 |---|---|---|---|
-| **Executor** | Implements a sub-task following the strict 6-step protocol; step 5 is conditional (Refactor for test-first sub-tasks, Tests for test-after) | all scales (Simple+ complexity) | `agents/executor.md` |
-| **Tech Reviewer** | Reviews implementation at technology boundaries | all scales (multi-tech tasks) | `agents/tech-reviewer.md` |
+| **Executor** | Implements a sub-task following the strict 6-step protocol; step 5 is conditional (Refactor for test-first sub-tasks, Tests for test-after). Ends its report with a machine-liftable **closing block** — sub-task id, outcome (`done` / `close-tilde` + qualifier + reason / `failed`) and the pre-authored commit message it validated against. **Marks no box and runs no `git commit`**: the orchestrator lifts that block into `scripts/close-subtask.sh`, the one writer of the checkbox grammar | all scales (Simple+ complexity) | `agents/executor.md` |
+| **Tech Reviewer** | Reviews implementation at technology boundaries; holds `Bash` for measurement only (never mutating files or git state), so a finding resting on a runnable check carries the command and its output | all scales (multi-tech tasks) | `agents/tech-reviewer.md` |
 
 ### Post-Implementation Personas (validation)
 
 | Persona | Role | Scale | Agent file |
 |---|---|---|---|
-| **Validator** | Runs validation commands and tests per completed task | all scales | `agents/validator.md` |
-| **Auditor** | Compares implemented code against story + design artifacts | all scales | `agents/auditor.md` |
+| **Validator** | Runs validation commands and tests per completed task, writing the verdict to `.draft/validation-report.yaml` before any prose summary | all scales | `agents/validator.md` |
+| **Auditor** | Compares implemented code against story + design artifacts, writing `.draft/audit-report.yaml` before any prose summary | all scales | `agents/auditor.md` |
 
-The **main agent** (this skill) orchestrates: generates artifacts (story.md, design.md, tasks.md) during planning, delegates to Executors during run-mode, and coordinates Validators/Auditors during validation. The main agent retains conversation context with the user and handles git operations (commits).
+The **main agent** (this skill) orchestrates: generates artifacts (story.md, design.md, tasks.md) during planning, delegates to Executors during run-mode, and coordinates Validators/Auditors during validation. The main agent retains conversation context with the user and handles git operations (commits) — post-merge, with the pre-authored message verbatim. It closes boxes too, but never by editing one: it invokes `scripts/close-subtask.sh` with the Executor's closing block, and the script performs the marking, the census and the `status:` stamp in a single transaction (a `failed` outcome makes no call at all).
 
 ### MCP Integration
 
@@ -168,6 +171,16 @@ $ARGUMENTS parsing:
 
 "init"
   → INIT mode (project configuration wizard)
+
+"stories migrate NNN [--apply]"
+  → MIGRATE mode (normalize a legacy story into the canonical shapes;
+    dry run by default — scripts/migrate-story.sh writes nothing without --apply)
+
+"stories create --batch <doc>"
+  → BATCH-CREATE mode (one interview, N stories derived from a source document)
+    ORDER IS THE GUARD: this arm is matched BEFORE the bare "stories" arm below.
+    The cascade is prefix-loose, so placing it lower would let LIST claim the
+    invocation and the mode would be unreachable.
 
 "stories"
   → LIST mode (summary)
@@ -225,6 +238,8 @@ When a command references `NNN`:
 | Mode | Trigger | Reference to load |
 |---|---|---|
 | **Create** | `/epic:epic` or `/epic:epic <description>` | Continue below (Triage + Clarify + Phases) |
+| **Migrate** | `/epic:epic stories migrate NNN [--apply]` | Run `scripts/migrate-story.sh` (or `bin/epic-migrate`) — dry run by default; it reports the rewrites as JSON and the diff on stderr, and writes only with `--apply` |
+| **Batch Create** | `/epic:epic stories create --batch <doc>` | Load [batch-create.md](../../references/batch-create.md) — one interview, N stories; numbers come from `scripts/next-story-number.sh` |
 | **Init** | `/epic:epic init` | Load [init-mode.md](../../references/init-mode.md) |
 | **List** | `/epic:epic stories [full] [NNN]` | Load [list-mode.md](../../references/list-mode.md) |
 | **Run** | `/epic:epic stories run NNN` or `NNN run N\|all` | Load [run-mode.md](../../references/run-mode.md) |
@@ -284,7 +299,7 @@ Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a 
    - WHEN no favorite and no fitting optional tool exist, record `none — no E2E tooling available` in design.md's `## Tooling Decisions` block AND as a story Constraint.
 
    The recommendation/pause happens at triage **only**. The resolved decision is written to design.md's `## Tooling Decisions` block and the relevant E2E/frontend sub-tasks are annotated in tasks.md — the Executor and Test Advisor consume that decision without re-detecting.
-8. Auto-increment story number from existing stories in `.epic/stories/`
+8. Allocate the story number with `bash scripts/next-story-number.sh` — the one tested allocator, used by single create and batch create alike
 9. Propose output path in `NNN-kebab-case`
 10. If no existing stories in `.epic/stories/`: append EARS primer
 
@@ -414,6 +429,8 @@ Before entering any phase, load the corresponding reference files:
 - For reference files per phase (ears-notation, requirements, design-guide, etc.): see table in phase-gates.md
 - On format doubts, load the relevant example from `assets/examples/`
 
+**Authoring ceiling at Phase 3.** When the generated `tasks.md` passes the threshold defined in [tasks.md](../../references/tasks.md) (Authoring Ceiling), warn and offer a split into a wave — interactively as a question, headless as a logged note that proceeds. It is a warning, never a block: a story that genuinely needs a large plan keeps it. In batch create the offer is not re-entered into the live interview; the warning surfaces in the approval block and the split happens post-batch (see [batch-create.md](../../references/batch-create.md)).
+
 ## Persistence and Recovery
 
 ### Draft Saving (Standard and Full modes only)
@@ -458,7 +475,7 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
 
 - Default path: `.epic/stories/NNN-<name>/`
 - Naming: `NNN-kebab-case` where NNN is auto-incremented (zero-padded, 001-999)
-- Auto-increment: detect highest existing number across `.epic/stories/` AND `.epic/archive/`, add 1
+- Auto-increment: `scripts/next-story-number.sh` detects the highest existing number across `.epic/stories/` AND `.epic/archive/` and adds 1. It is the single allocator — neither create flow re-implements the scan, and `--reserve N` claims numbers on disk (directory existence is the reservation)
 - Numbers are NEVER recycled — archived stories retain their numbers permanently
 - If 999 is reached: "Maximum story count reached. Archive old stories with `/epic:epic stories archive` to free space."
 - Create directory before writing files
@@ -509,13 +526,14 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
 | Value | Written by |
 |---|---|
 | `draft` | CREATE — when the artifacts are first written |
-| `in-progress` | RUN — when execution of the story starts; RUN **or** REFINE when a census finds open work on a story reading `done` or `validated` (the reopen edge, R1.7/R1.8) |
-| `done` | RUN — when a marking satisfies rule 1 of the [status transition table](../../references/run-mode.md#status-transitions); a deferred `[~]` blocks it (R1.3) |
+| `in-progress` | RUN — when execution of the story starts, written by `scripts/close-subtask.sh` inside the close; RUN **or** REFINE when a census finds open work on a story reading `done` or `validated` (the reopen edge, R1.7/R1.8) — REFINE performs that one `Edit` itself, since a refinement adds boxes and closes none |
+| `done` | RUN — written by `scripts/close-subtask.sh` when a marking satisfies rule 1 of the [status transition table](../../references/run-mode.md#status-transitions); a deferred `[~]` blocks it (R1.3) |
 | `validated` | VALIDATE — after Validator and Auditor pass |
 | `superseded` | the supersede operation |
 | `archived` | the archive operation |
 
 - **Engine-written, never hand-edited.** The writer list above is exhaustive — no other mode touches the field. A human editing it is tolerated, not blocked: validation only flags the result. A value outside the six is an **error**; `done` or `validated` while a `[ ]` box is still open is a **warning** (the status is ahead of the checkboxes).
+- **In RUN the write is script-mediated — the orchestrator does not perform it.** `scripts/close-subtask.sh` marks the box, takes the census, applies the transition table and stamps every artifact that carries frontmatter, all inside the invocation that closed the box; the orchestrator supplies the Executor's closing block and reads back `status_written` from the returned JSON. Neither the orchestrator nor the Executor edits the field — or the box — by hand (R3.2). The other writers in the table above perform their own `Edit`, because no close call is passing through to carry it.
 - **Same value in every artifact** of the story, exactly like `version`. Artifacts declaring **different** values raise a warning naming them. An artifact with no `status:` carries no opinion and is never counted as divergent.
 - **Absence is legal and silent.** A story with no `status:` anywhere is neither an error nor a warning — stories written before the field validate byte-identically. The field is never required by validation.
 - **Persisted values only.** `done-except-external` is not a `status:` value: it is a condition computed from the checkboxes at read time (see [tasks.md](../../references/tasks.md#completion)), never written to a file.

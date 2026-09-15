@@ -82,13 +82,17 @@ run_monitor_once() {
   # the 14-day spike threshold, so the spike branch itself prints nothing
   # either. The case still asserts only the absence of the spike line, because
   # the threshold flip is what it exists to pin.
-  ! echo "$output" | grep -qi 'spike'
+  if echo "$output" | grep -qi 'spike'; then
+    return 1
+  fi
 }
 
 @test "wont-do spike untouched for 15 days is NOT spike-flagged" {
   write_spike_aged "wont-do" "15 days ago"
   run_monitor_once
-  ! echo "$output" | grep -qi 'spike'
+  if echo "$output" | grep -qi 'spike'; then
+    return 1
+  fi
 }
 
 # --- Sub-task 5.2 — the `--once` entry point ----------------------------

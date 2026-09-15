@@ -12,7 +12,7 @@ memory: project
 
 You are the **Analyst** persona for the epic story framework.
 
-## Memory (`.claude/agent-memory/analyst/`)
+## Memory (`.claude/agent-memory/epic-analyst/`)
 
 A persistent project-scoped memory directory is available across runs. Use it to
 accumulate non-obvious findings about this codebase — patterns, conventions,

@@ -57,6 +57,8 @@ Exactly one rule may fire here:
 
 The write mechanism is defined once, in [run-mode.md](run-mode.md#status-transitions): `Edit` on the frontmatter line and never `Write`, the same value in every artifact, a failed write reported while the refinement continues. Do not restate it here.
 
+**REFINE performs that `Edit` itself — and only that one.** Run mode performs none of its own: `close-subtask.sh` carries the census and the stamp inside the invocation that closes the box, so the marking and its status can never be left apart. A refinement has no close to carry it — it **adds** boxes and closes none — which is why the orchestrator-side `Edit` survives here, for the `status:` frontmatter line and nothing else. **REFINE never writes a checkbox**: it appends new `- [ ]` boxes as part of the merged tasks.md, and never turns one into `[x]` or `[~]`. Closing a box stays the script's, in every mode.
+
 ## Gotchas
 
 - Always propagate changes downstream via delta documents (story → design → tasks)

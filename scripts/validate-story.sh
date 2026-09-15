@@ -368,14 +368,29 @@ fi
 if [[ "$HAS_STORY" == true ]]; then
   STORY_FILE="$STORY_DIR/story.md"
 
-  # Check for SHOULD (should be SHALL)
-  SHOULD_COUNT=$(grep -ci '\bSHOULD\b' "$STORY_FILE" 2>/dev/null || true)
+  # Check for SHOULD (should be SHALL).
+  #
+  # CASE-SENSITIVE, deliberately: an EARS keyword is written in UPPERCASE, and
+  # that capitalization is the whole signal that a line states an obligation
+  # rather than describing something. Lowercase "should" is ordinary English
+  # prose — "auth errors should fail immediately" in a bugfix's Summary is a
+  # description of correct behaviour, not a weakened requirement. A `-i` here
+  # cannot tell the two apart, so it turned every such sentence into a hard
+  # ERROR; assets/examples/bugfix-complete.md, the very document authors are
+  # told to imitate, failed validation on its own Summary line because of it.
+  # The obligation lines it was written to catch — "The system SHOULD retry" —
+  # are still caught: those shout, which is exactly why the check can afford
+  # to listen only for shouting.
+  SHOULD_COUNT=$(grep -c '\bSHOULD\b' "$STORY_FILE" 2>/dev/null || true)
   if [[ "$SHOULD_COUNT" -gt 0 ]]; then
     add_error "Found $SHOULD_COUNT uses of SHOULD in story.md — use SHALL instead"
   fi
 
-  # Check for SHALL
-  SHALL_COUNT=$(grep -ci '\bSHALL\b' "$STORY_FILE" 2>/dev/null || true)
+  # Check for SHALL — case-sensitive for the same reason, and here it closes the
+  # mirror-image hole: a story whose only "shall" is lowercase prose is not a
+  # story written in EARS, and a case-insensitive count would have silently
+  # accepted it as one.
+  SHALL_COUNT=$(grep -c '\bSHALL\b' "$STORY_FILE" 2>/dev/null || true)
   if [[ "$SHALL_COUNT" -eq 0 ]]; then
     add_warning "No SHALL found in story.md — requirements may not use EARS notation"
   fi
@@ -383,6 +398,128 @@ if [[ "$HAS_STORY" == true ]]; then
   # Check hierarchical numbering
   if ! grep -qE '^###\s+R[0-9]+' "$STORY_FILE" 2>/dev/null; then
     add_warning "No hierarchical requirement numbering (R1, R2...) found in story.md"
+  fi
+
+  # --- EARS form lint (story 014, sub-task 1.1 — R1.1, R1.2, R1.3, R1.4, R1.5)
+  #
+  # THREE CHECKS, ONE SEVERITY EACH, and the split is the story's Constraint
+  # rather than a preference: only (a) is an error, because only (a) makes a
+  # criterion invisible to the whole traceability chain — an unlabeled bullet
+  # cannot be referenced by a task, so cross-reference.sh cannot see it and the
+  # Auditor cannot trace it. (b) and (c) are shape advice about a criterion
+  # everything downstream can still find, so they warn.
+  #
+  #   (a) a criterion bullet with no `Rn.m:` label ......... ERROR   (R1.1)
+  #   (b) a labeled criterion carrying 2+ SHALL ............ warning (R1.2)
+  #   (c) a labeled criterion with no EARS trigger, whose
+  #       opening is not the ubiquitous form ............... warning (R1.3)
+  #
+  # WHERE IT LOOKS. Only bullets under a `#### Acceptance Criteria` heading,
+  # and the block ends at the next heading of any level (R1.5). A fenced block
+  # is never scanned: an illustrative criterion inside a fence is documentation
+  # showing the shape, not a claim about this story. The fence state is tracked
+  # with the same idiom and the same regex the checkbox walker below uses, so
+  # this file keeps ONE fence policy rather than two that can drift.
+  #
+  # WHY CONTINUATION LINES ARE JOINED. A criterion in this repository routinely
+  # wraps across three or four lines — the SHALL is often not on the bullet's
+  # first line at all. Evaluating the first line alone would report the
+  # majority of the live corpus as trigger-less, which is how a lint teaches
+  # people to ignore it. The bullet and its continuations are therefore
+  # buffered and evaluated as one criterion, and the line reported is the
+  # bullet's own first line, which is where an author would go to fix it.
+  #
+  # SCALE GATING (R1.4). The whole block is skipped for fast and spike, which
+  # have no requirements chain — a leftover story.md in a Fast story is not a
+  # requirements document and must not be linted as one.
+  #
+  # --strict PROMOTION. Under `--strict`, warnings are promoted to errors, so
+  # (b) and (c) become blocking there. That is the flag's existing meaning and
+  # is stated here because this block is the largest new source of warnings in
+  # the script.
+  #
+  # BSD-SAFE SPELLINGS ONLY: no `\b`, no `\d`, no `\s` in any pattern below.
+  if scale_has_requirements_chain; then
+    ears_fence_re='^(```|~~~)'
+    ears_heading_re='^#{1,6}[[:space:]]'
+    ears_ac_re='^####[[:space:]]+Acceptance[[:space:]]+Criteria[[:space:]]*$'
+    ears_bullet_re='^[[:space:]]*-[[:space:]]+'
+    ears_label_re='^[[:space:]]*-[[:space:]]+R[0-9]+\.[0-9]+:'
+    ears_trigger_re='(^|[^[:alnum:]_])(WHEN|WHILE|WHERE|IF)([^[:alnum:]_]|$)'
+    # The ubiquitous form keeps its component slot: `THE <COMPONENT> SHALL` is
+    # legal EARS and subject drift beyond that is out of this story's scope.
+    # Case is load-bearing — EARS keywords are CAPS, so a prose opener like
+    # "The exporter SHALL" is not the ubiquitous form and does warn.
+    ears_ubiquitous_re='^[[:space:]]*-[[:space:]]+R[0-9]+\.[0-9]+:[[:space:]]+THE[[:space:]]+[A-Z][A-Z0-9_ -]*SHALL([^[:alnum:]_]|$)'
+
+    ears_in_fence=false
+    ears_in_ac=false
+    ears_buf=""
+    ears_buf_line=0
+    ears_line_no=0
+
+    # Evaluates one buffered criterion. Called when the buffer closes, which is
+    # at the next bullet, the next heading, a fence, a blank line, or EOF —
+    # never from inside the loop's own accumulation branch.
+    ears_flush() {
+      local text="$1" line="$2" shall_count bare
+      [[ -n "$text" ]] || return 0
+      # An inline code span is a MENTION, not an obligation — the same rule the
+      # fence applies to a block, applied to a span. Measured on this repo's own
+      # corpus: without it, a criterion that merely names `SHALL` while stating
+      # a rule about SHALL counts as compound and warns, which flagged story
+      # 014's own R1.2 ("WHEN a labeled criterion contains more than one
+      # `SHALL` THE SYSTEM SHALL warn"). A lint that reddens on prose describing
+      # itself is a lint people learn to ignore. Stripping is symmetric: a
+      # trigger word mentioned inside a span is likewise not a trigger.
+      # SC2016 is silenced on the next line: the backticks are the LITERAL span
+      # delimiters sed strips, not a command substitution, so single quotes are
+      # the correct quoting — and CI's shellcheck exits 1 even at info level.
+      # shellcheck disable=SC2016
+      bare=$(printf '%s' "$text" | sed 's/`[^`]*`//g')
+      if [[ ! "$text" =~ $ears_label_re ]]; then
+        add_error "story.md line $line: acceptance criterion has no Rn.m label — an unlabeled criterion cannot be referenced by a task, so nothing downstream can trace it"
+        return 0
+      fi
+      # SHALL CONTINUE TO is the bugfix Unchanged-Behavior verb, not a second
+      # obligation, so it is removed before the count rather than matched around.
+      shall_count=$(printf '%s' "${bare//SHALL CONTINUE TO/}" | grep -o 'SHALL' | grep -c 'SHALL' || true)
+      if [[ "$shall_count" -gt 1 ]]; then
+        add_warning "story.md line $line: acceptance criterion carries $shall_count SHALL obligations — one condition per requirement, each independently testable"
+      fi
+      if [[ ! "$bare" =~ $ears_trigger_re && ! "$text" =~ $ears_ubiquitous_re ]]; then
+        add_warning "story.md line $line: acceptance criterion has no EARS trigger (WHEN/WHILE/WHERE/IF) — the accepted exception is the ubiquitous form, THE SYSTEM SHALL ..."
+      fi
+    }
+
+    while IFS= read -r ears_line || [[ -n "$ears_line" ]]; do
+      ears_line_no=$((ears_line_no + 1))
+
+      if [[ "$ears_line" =~ $ears_fence_re ]]; then
+        ears_flush "$ears_buf" "$ears_buf_line"; ears_buf=""
+        if [[ "$ears_in_fence" == true ]]; then ears_in_fence=false; else ears_in_fence=true; fi
+        continue
+      fi
+      [[ "$ears_in_fence" == false ]] || continue
+
+      if [[ "$ears_line" =~ $ears_heading_re ]]; then
+        ears_flush "$ears_buf" "$ears_buf_line"; ears_buf=""
+        if [[ "$ears_line" =~ $ears_ac_re ]]; then ears_in_ac=true; else ears_in_ac=false; fi
+        continue
+      fi
+      [[ "$ears_in_ac" == true ]] || continue
+
+      if [[ "$ears_line" =~ $ears_bullet_re ]]; then
+        ears_flush "$ears_buf" "$ears_buf_line"
+        ears_buf="$ears_line"
+        ears_buf_line=$ears_line_no
+      elif [[ -z "${ears_line// /}" ]]; then
+        ears_flush "$ears_buf" "$ears_buf_line"; ears_buf=""
+      elif [[ -n "$ears_buf" ]]; then
+        ears_buf="$ears_buf $ears_line"
+      fi
+    done < "$STORY_FILE"
+    ears_flush "$ears_buf" "$ears_buf_line"
   fi
 
   # Bugfix: check Unchanged Behavior section
@@ -407,6 +544,91 @@ if [[ "$HAS_TASKS" == true ]]; then
   if [[ "$OLD_FORMAT_COUNT" -gt 0 ]]; then
     add_warning "Found $OLD_FORMAT_COUNT tasks using old [T1]/[T2]/[T3] prefix format — use new format: - [ ] N - Name"
   fi
+
+  # --- Commit-field anchor lint (R4.1) ---
+  # A `Commit:` message whose subject is not scoped with this story's number is
+  # INVISIBLE to integration detection: scripts/story-git-status.sh finds a
+  # story's work through `(NNN)` in a subject or a merged `feat/NNN-*` branch and
+  # through nothing else, so `feat: add the thing` is a commit no reader can ever
+  # attribute back to the story that authored it. references/tasks.md has always
+  # recommended the anchor; this is the recommendation becoming observable.
+  #
+  # A WARNING, NEVER AN ERROR, and the severity is the point rather than a
+  # softening: a foreign commit convention stays perfectly usable — the plugin
+  # does not own its host repository's commit style — but drift stops being
+  # silent. Every scale is linted, fast and spike included: those commit too.
+  # It also has to be quiet by default because scripts/close-subtask.sh
+  # self-invokes this validator on every box it closes, so a lint that fires
+  # loosely would surface on every marking in the system.
+  #
+  # THE FIELD IS WHAT IS MATCHED, NEVER THE CHECKBOX. Today the message lives in
+  # the body of a Commit sub-task (`- [ ] 1.6 - Commit` / `  - Commit: "…"`) and
+  # story 015 of this wave moves it to a group-level `- Commit: "…"` on the
+  # parent task body, dropping the box entirely. Both shapes are the SAME line —
+  # `- Commit:` in a body — so keying on the field rather than on the box is what
+  # lets one lint span the migration without knowing which side of it it is on.
+  #
+  # THIS STORY'S NUMBER COMES FROM THE DIRECTORY NAME, as it does for every other
+  # reader of a story's identity (story-git-status.sh:533-538 derives the same
+  # two tokens the same way): no artifact's frontmatter carries the number, so
+  # the directory is the only place it exists. A directory with no leading number
+  # — `story`, a bare slug, a checkout root — yields nothing to anchor against,
+  # and the lint is then SKIPPED WHOLE rather than guessed at: not computable
+  # must never dress up as a finding (references/validate-mode.md).
+  #
+  # TWO SPELLINGS OF ONE NUMBER, and both are needed. NUM is padding-free and
+  # feeds the regex through a leading `0*`, so `010-x` accepts `feat(010):` and
+  # `fix(10):` alike (R4.1: zero-padded and unpadded both). LABEL is the number
+  # AS THE DIRECTORY SPELLS IT and is what the message quotes — the same rule the
+  # group-header check above states for its own label, so grepping the file for
+  # the number the warning names finds the line it names.
+  COMMIT_STORY_NAME="$STORY_DIR"
+  while [[ "$COMMIT_STORY_NAME" == */ ]]; do
+    COMMIT_STORY_NAME="${COMMIT_STORY_NAME%/}"
+  done
+  COMMIT_STORY_NAME="${COMMIT_STORY_NAME##*/}"
+  # `.` and `..` name a directory without spelling it, and `validate-story.sh`
+  # with no argument defaults to `.` — resolve those to the real basename so a
+  # run from inside the story dir lints exactly like a run from outside it. The
+  # subshell cannot leak a `cd` and a failure leaves the name empty, which the
+  # skip below already handles.
+  if [[ -z "$COMMIT_STORY_NAME" || "$COMMIT_STORY_NAME" == "." || "$COMMIT_STORY_NAME" == ".." ]]; then
+    COMMIT_STORY_NAME=$(cd "$STORY_DIR" 2>/dev/null && printf '%s' "${PWD##*/}") ||
+      COMMIT_STORY_NAME=""
+  fi
+  COMMIT_STORY_LABEL=""  # `010` — the number as the directory spells it
+  COMMIT_STORY_NUM=""    # `10`  — the same number with its padding stripped
+  commit_anchor_re=""    # empty = no number to anchor against, so no lint
+  if [[ "$COMMIT_STORY_NAME" =~ ^(0*)([0-9]+)(-.*)?$ ]]; then
+    COMMIT_STORY_LABEL="${BASH_REMATCH[1]}${BASH_REMATCH[2]}"
+    COMMIT_STORY_NUM="${BASH_REMATCH[2]}"
+    # The conventional-commit prefix with this story's number as its scope:
+    # `type(0*NNN):`, with the optional `!` a breaking change carries. Built
+    # once, and COMMIT_STORY_NUM is a digit run captured above — never input.
+    commit_anchor_re="^[[:alnum:]][[:alnum:]_-]*\(0*${COMMIT_STORY_NUM}\)!?:"
+    # The expected shape the warning names (R4.1), spelled ONCE and hoisted out
+    # of the loop: it is a constant of the run, not of the offending line.
+    # The second example is CONDITIONAL because the two spellings collapse into
+    # one for a directory that writes its number unpadded — `10-slug` has
+    # LABEL == NUM, and an unguarded skeleton then offers `feat(10)` and
+    # `fix(10)` as if they were alternatives, which reads as a bug in the
+    # message. Padding stays flexible either way, so the parenthetical does not.
+    COMMIT_ANCHOR_HINT="'type($COMMIT_STORY_LABEL): <subject>' (zero-padded or not"
+    if [[ "$COMMIT_STORY_LABEL" != "$COMMIT_STORY_NUM" ]]; then
+      COMMIT_ANCHOR_HINT+=" — 'fix($COMMIT_STORY_NUM): …' anchors too"
+    fi
+    COMMIT_ANCHOR_HINT+=")"
+  fi
+  # The FIELD in a body — `- Commit: <message>` at any indent — and never the
+  # `- [ ] N.M - Commit` header, whose next character after the dash is `[`.
+  # `[Cc]` rather than a lowercased comparison because the VALUE is reported
+  # verbatim and must not be case-folded; same idiom as `[Vv]erdict` below.
+  commit_field_re='^[[:space:]]*-[[:space:]]+[Cc]ommit:[[:space:]]*(.*)$'
+  # Trailing whitespace is what this actually removes — the capture above already
+  # starts at the first non-space. The leading half is kept anyway so the two
+  # regexes stay independent: the anchor test is `^`-anchored, and it would fail
+  # on a leading space the day someone loosens the field regex.
+  commit_trim_re='^[[:space:]]*(.*[^[:space:]])[[:space:]]*$'
 
   # --- Checkbox census (R3.1, R3.2, R3.5) ---
   # One line grammar, three box states:
@@ -525,6 +747,44 @@ if [[ "$HAS_TASKS" == true ]]; then
       if [[ "$in_fence" == true ]]; then in_fence=false; else in_fence=true; fi
     elif [[ "$in_fence" == false && "$in_gates" == false && "${line,,}" =~ $gates_re ]]; then
       in_gates=true
+    fi
+    # The Commit-field anchor lint (R4.1), argued in full at its own section
+    # above. It rides THIS loop rather than opening a second pass for one
+    # reason: the fence state is already tracked here, and an illustrative
+    # `- Commit:` inside a fenced block is documentation showing the format, not
+    # a claim about a commit — exactly the reading the group-state gathering
+    # below applies to a fenced checkbox. Reusing that state is what keeps the
+    # file to ONE fence policy instead of two that can drift apart.
+    # It sits ABOVE the checkbox filter because it reads a FIELD: the filter
+    # discards every line that is not a box, and no Commit field is one.
+    # `in_gates` is deliberately NOT consulted — that exclusion exists because a
+    # numbered Quality Gate is shaped exactly like a group header and has to be
+    # disambiguated from one. A `- Commit:` field collides with no gate syntax,
+    # so there is nothing to disambiguate and nothing to suppress.
+    if [[ -n "$commit_anchor_re" && "$in_fence" == false && "$line" =~ $commit_field_re ]]; then
+      commit_msg="${BASH_REMATCH[1]}"
+      # Trim, then take what the QUOTES enclose: the template writes the message
+      # quoted (`- Commit: "feat(NNN): …"`), so the quotes are the field's
+      # punctuation and the subject being checked is what sits between them.
+      #
+      # UP TO THE CLOSING QUOTE, not "strip a matching outer pair", and the
+      # difference is a measured false positive rather than a nicety.
+      # .epic/archive/006-git-aware-lifecycle/tasks.md:429 writes
+      # `- Commit: "fix(006): …" — widened from the planned "…", which named …`:
+      # a correctly anchored message with an editorial note appended after the
+      # closing quote. That value neither starts nor ends as a matched pair, so
+      # a pair-strip left the leading `"` in place, the anchor regex could not
+      # see the `fix(` behind it, and a properly anchored field warned. Reading
+      # to the first closing quote gets the message right for both shapes, and
+      # an unquoted or unterminated value simply keeps what it has.
+      if [[ "$commit_msg" =~ $commit_trim_re ]]; then commit_msg="${BASH_REMATCH[1]}"; fi
+      case "$commit_msg" in
+        '"'*) commit_msg="${commit_msg#\"}"; commit_msg="${commit_msg%%\"*}" ;;
+        "'"*) commit_msg="${commit_msg#\'}"; commit_msg="${commit_msg%%\'*}" ;;
+      esac
+      if ! [[ "$commit_msg" =~ $commit_anchor_re ]]; then
+        add_warning "tasks.md line $LINE_NO: Commit message carries no story anchor — expected the subject scoped with this story's number, $COMMIT_ANCHOR_HINT, found: $commit_msg — without the anchor story-git-status.sh cannot see this commit"
+      fi
     fi
     [[ "$line" =~ $box_re ]] || continue
     box_char="${BASH_REMATCH[1]}"
@@ -757,9 +1017,60 @@ if [[ "$HAS_TASKS" == true ]]; then
   # Check for Commit fields or sub-tasks
   COMMIT_COUNT=$(grep -ci '^\s*- Commit:' "$TASKS_FILE" 2>/dev/null || true)
   COMMIT_SUBTASK_COUNT=$(grep -ciE '^\s*- \[[ x~]\].*[Cc]ommit' "$TASKS_FILE" 2>/dev/null || true)
+  # TWO COUNTS, because the two questions are not the same question.
+  #
+  # The count above is DELIBERATELY loose: it answers "does this group have a
+  # commit point at all", and for that purpose any box that mentions a commit
+  # counts. The count below is the one the legacy nudge may use, and it is the
+  # migrator's own COMMIT_BOX_RE verbatim (scripts/migrate-story.sh) — a box
+  # titled exactly `N.M - Commit` and nothing else.
+  #
+  # They must not be the same number, because the nudge NAMES A TOOL and tells
+  # the reader to run it. Counting with the loose pattern counted sub-tasks that
+  # merely mention the word — `- [x] 2.3 - Variant 5: Commit sub-task → group
+  # field` is a real line in story 015 — and then promised that `migrate --apply`
+  # would convert them. It does not: it converts the exact shape, so the reader
+  # ran the tool, saw `commit_subtasks: 0`, and got the identical warning again.
+  # An advisory that survives doing what it asks is worse than no advisory.
+  COMMIT_LEGACY_COUNT=$(grep -cE '^[[:space:]]*-[[:space:]]+\[[ x~]\][[:space:]]+[0-9]+\.[0-9]+[[:space:]]+-[[:space:]]+Commit[[:space:]]*$' "$TASKS_FILE" 2>/dev/null || true)
   TOTAL_COMMITS=$((COMMIT_COUNT + COMMIT_SUBTASK_COUNT))
   if [[ "$PARENT_TASK_COUNT" -gt 0 && "$TOTAL_COMMITS" -eq 0 ]]; then
     add_warning "No Commit fields or Commit sub-tasks found — every task group should have a commit point"
+  fi
+
+  # The legacy nudge (story 015, R3.2). A Commit CHECKBOX is still accepted —
+  # 400-odd stories carry the shape and none of them is wrong — but it is the
+  # form `migrate-story.sh` converts, and a checkbox that is never the unit of
+  # work is what made every group read as partially open. The nudge names both
+  # the shape and the tool, so the reader is not left to search for either.
+  if [[ "$COMMIT_LEGACY_COUNT" -gt 0 ]]; then
+    add_warning "tasks.md carries $COMMIT_LEGACY_COUNT Commit sub-task checkbox(es) — the legacy shape. The canonical form is a group-level 'Commit:' field; 'bash scripts/migrate-story.sh <NNN> --apply' converts it, message verbatim"
+  fi
+
+  # --- Authoring ceiling (story 014, sub-task 3.1 — R3.3)
+  #
+  # The threshold has ONE home, references/tasks.md § Authoring Ceiling, and
+  # the warning CITES it rather than restating the numbers. A value repeated in
+  # a message is a second place to edit and a second place to be wrong; the two
+  # constants below are the arms, and the sentence points at the paragraph that
+  # justifies them.
+  #
+  # WHY BOTH ARMS. Bytes and work are not the same measure. A plan can carry
+  # sixty-five checkboxes in three kilobytes of terse lines and still be more
+  # than one story should hold, and a plan can run to 36KB of prose around a
+  # single task. Whichever arm trips first is enough to ask the question.
+  #
+  # A WARNING, NEVER AN ERROR: an oversized plan is a judgement call the author
+  # is entitled to make. This site exists so a plan that shipped oversized stays
+  # visible after authoring time, not only at the Phase 3 offer.
+  CEILING_BYTES=32768
+  CEILING_BOXES=60
+  TASKS_BYTES=$(wc -c < "$TASKS_FILE" 2>/dev/null | tr -d '[:space:]' || echo 0)
+  TASKS_BOXES=$(grep -cE '^[[:space:]]*- \[([ x~])\]' "$TASKS_FILE" 2>/dev/null || true)
+  if [[ "${TASKS_BYTES:-0}" -gt "$CEILING_BYTES" ]]; then
+    add_warning "tasks.md is ${TASKS_BYTES} bytes, past the authoring ceiling — see references/tasks.md (Authoring Ceiling) for the threshold and the split offer"
+  elif [[ "${TASKS_BOXES:-0}" -gt "$CEILING_BOXES" ]]; then
+    add_warning "tasks.md carries ${TASKS_BOXES} checkboxes, past the authoring ceiling — see references/tasks.md (Authoring Ceiling) for the threshold and the split offer"
   fi
 
   # Check for Validation fields
@@ -1093,10 +1404,57 @@ if [[ "$CROSS_REF" == true && "$HAS_STORY" == true && "$HAS_TASKS" == true ]] &&
     fi
   done
 
+
+  # --- satisfied-by: the sanctioned non-code deliverable (story 014, R2.1-R2.3)
+  #
+  # A criterion whose deliverable is NOT code — a regression guard, a feasibility
+  # verdict, a decision record — has no task to reference it and therefore reads
+  # as an orphan. The corpus invented this shape six times before it was grammar.
+  # The suffix makes the intent declarable:
+  #
+  #   - R1.2: THE SYSTEM SHALL keep the regression guarded (satisfied-by: tests/regression.bats)
+  #
+  # TOKEN-ANCHORED, like the `[~]` qualifier it is modelled on: the artifact is
+  # read from `(satisfied-by: ...)`, and the leaf it binds to is the most recent
+  # `- Rn.m:` label, so a criterion wrapped over four lines can still carry the
+  # suffix at its end. A heading resets the binding — a suffix cannot reach
+  # across a requirement group into the next one.
+  #
+  # AN EMPTY ARTIFACT DOES NOT SATISFY. `(satisfied-by: )` names nothing, so the
+  # leaf stays an orphan and validate-story.sh warns about the blank (R2.3). The
+  # class legalizes a deliverable, not a way to silence the check.
+  #
+  # MOVERS — this parser is duplicated, deliberately (no shared library):
+  #   1. scripts/cross-reference.sh  — the orphan_requirements/satisfied_by split (the JSON side)
+  #   2. scripts/validate-story.sh   — the --cross-ref orphan advisory
+  # Both read the same grammar and must move together.
+  declare -A XR_SATISFIED=()
+  while IFS='|' read -r xr_leaf xr_art; do
+    [[ -n "$xr_leaf" ]] && XR_SATISFIED["$xr_leaf"]="$xr_art"
+  done < <(awk '
+  /^[[:space:]]*-[[:space:]]+R[0-9]+\.[0-9]+:/ { cur = $0; sub(/^[[:space:]]*-[[:space:]]+/, "", cur); sub(/:.*/, "", cur) }
+  /^#/ { cur = "" }
+  {
+    if (cur != "" && match($0, /\(satisfied-by:[^)]*\)/)) {
+      s = substr($0, RSTART, RLENGTH)
+      sub(/^\(satisfied-by:[[:space:]]*/, "", s); sub(/\)$/, "", s)
+      gsub(/[[:space:]]+$/, "", s)
+      print cur "|" s
+      cur = ""
+    }
+  }' "$STORY_DIR/story.md" 2>/dev/null || true)
+
+  for xr_leaf in "${!XR_SATISFIED[@]}"; do
+    if [[ -z "${XR_SATISFIED[$xr_leaf]}" ]]; then
+      add_warning "Requirement $xr_leaf carries an empty 'satisfied-by:' suffix — name the artifact that answers for it, or drop the suffix"
+    fi
+  done
+
   if [[ ${#XR_STORY_REQS[@]} -gt 0 && ${#XR_TASK_TOKENS[@]} -gt 0 ]]; then
-    # Story leaf requirements with no matching task reference (orphans).
+    # Story leaf requirements with no matching task reference (orphans), minus
+    # those a non-empty satisfied-by suffix answers for.
     for xr_req in "${XR_STORY_REQS[@]}"; do
-      if ! xr_in_list "$xr_req" "${XR_TASK_TOKENS[@]}"; then
+      if ! xr_in_list "$xr_req" "${XR_TASK_TOKENS[@]}" && [[ -z "${XR_SATISFIED[$xr_req]:-}" ]]; then
         add_warning "Requirement $xr_req in story.md has no matching reference in tasks.md"
       fi
     done

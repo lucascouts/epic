@@ -1,20 +1,43 @@
 #!/usr/bin/env bats
 # Story 004, sub-tasks 2.3 and 5.3/5.4 — cross-regression harness (R4.1, R5.1,
-# R3.3, R3.4).
-# ONE mixed fixture ([x] / [ ] / [~] terminal / [~] deferred) is passed
-# through the SIX checkbox consumers — validate-story.sh, cross-reference.sh,
-# hook-task-completed.sh, monitor-stale.sh, hook-precompact.sh,
-# hook-post-tool-failure.sh — asserting they agree on which boxes exist and
-# which work is open. This pins the duplicated regex so one drifted copy cannot
+# R3.3, R3.4); seventh consumer added by story 016, sub-task 1.2; the roster
+# moved out to tests/lib/checkbox-consumers.sh in story 017, sub-task 1.3.
+# ONE mixed fixture ([x] / [ ] / [~] terminal / [~] deferred) is passed through
+# the checkbox consumers, asserting they agree on which boxes exist and which
+# work is open. This pins the duplicated regex so one drifted copy cannot
 # silently reopen the false-clean/false-orphan class fixed in e890d02.
+#
+# WHICH SCRIPTS THOSE ARE IS DECLARED AS DATA, NOT LISTED HERE.
+# tests/lib/checkbox-consumers.sh carries the roster — CHECKBOX_CONSUMERS — and
+# the scan that derives the same set from scripts/; tests/consumer-roster.bats
+# reddens and NAMES the script when the two disagree. Each @test title below
+# says which consumer that case drives, so this file states what it compares
+# without restating who they are: one list, in one place, that can fail.
+#
+# THE ROSTER HOLDS A WRITER, NOT ONLY READERS. close-subtask.sh WRITES the
+# grammar — the one sanctioned writer (story 010) — and every other consumer
+# only reads it. That puts it further inside the roster, not outside it: a
+# reader that drifts mis-counts a file someone else wrote, while a writer that
+# drifts produces the file every reader then mis-counts. It is compared here
+# through the `census` object of its stdout JSON, which is its own reading of
+# the boxes as they now stand — the same statement the readers make directly in
+# their output.
 #
 # Three enumerations of that list have now been wrong: the design said "6 regex
 # places across 4 scripts", sub-task 5.3 raised it to 5 and still missed
 # hook-post-tool-failure.sh, which the second validate-mode pass found (task
 # 6.4). The lesson is the harness itself — a prose list of consumers cannot
-# fail, and this file can. If a seventh appears, it belongs here.
+# fail, and this file can. If a seventh appears, it belongs here. One did:
+# story 010 copied these regexes into close-subtask.sh and left the roster at
+# six, so the count was stale a fourth time — this time in the very file whose
+# job is to make it fail. The rule is unchanged; an eighth belongs here too.
 #
-# Mixed fixture totals (the shared truth all four must agree on):
+# THAT HISTORY IS KEPT DELIBERATELY, as the argument for the derivation rather
+# than as a claim anyone still has to maintain: story 017 found the enumeration
+# wrong a fifth time and moved the roster into the library named above, where
+# the set is derived from scripts/ instead of counted by hand.
+#
+# Mixed fixture totals (the shared truth every consumer must agree on):
 #   total = 5 boxes · closed = 3 ([x] 1.1, 1.2 + terminal [~] 1.3)
 #   deferred = 1 ([~] 1.4) · open = 1 ([ ] 1.5)
 #
@@ -22,6 +45,8 @@
 # produces BYTE-IDENTICAL validate-story and cross-reference JSON vs the
 # golden output recorded from the pre-change scripts (2026-08-02, branch
 # fix/epic-traceability).
+
+bats_require_minimum_version 1.5.0
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -55,7 +80,7 @@ created: 2026-08-02
 ---
 
 ## Introduction
-Shared mixed-grammar fixture for the four checkbox consumers.
+Shared mixed-grammar fixture for the checkbox consumers.
 
 ### R1. First requirement
 #### Acceptance Criteria
@@ -91,7 +116,7 @@ created: 2026-08-02
 - [ ] 1.5 - Still open
   - Requirements: R1.5
   - Validation: bats green
-  - Commit: "feat: mixed"
+  - Commit: "feat(010): mixed"
 
 ## Quality Gates
 - Counts consistent
@@ -175,6 +200,35 @@ created: 2026-01-10
 EOF
 }
 
+# snapshot_fixture / assert_fixture_untouched — R2.4. The shared fixture is read
+# by every case in this file; a comparison that writes to it would make the
+# suite order-dependent, which is the one failure a cross-regression harness
+# cannot afford. Snapshot before the run, diff after.
+snapshot_fixture() {
+  rm -rf "$WORK/fixture-before"
+  cp -r "$MIXED" "$WORK/fixture-before"
+}
+
+assert_fixture_untouched() {
+  if ! diff -r "$WORK/fixture-before" "$MIXED"; then
+    echo "the consumer under comparison wrote to the SHARED fixture"
+    return 1
+  fi
+}
+
+# load_roster — the declared roster (story 017 sub-task 1.1), used by the
+# closing case. MERGE NOTE: if tests/checkbox-grammar.bats ends up defining
+# this helper elsewhere, keep one copy.
+load_roster() {
+  local lib="$PLUGIN_ROOT/tests/lib/checkbox-consumers.sh"
+  if [ ! -f "$lib" ]; then
+    echo "the declared consumer roster does not exist yet: $lib"
+    return 1
+  fi
+  # shellcheck disable=SC1090
+  source "$lib"
+}
+
 @test "R4.1: validate-story accepts the mixed fixture with zero errors" {
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$MIXED"
   [ "$status" -eq 0 ]
@@ -224,7 +278,7 @@ EOF
   refute_grep '010-mixed'
 }
 
-@test "R4.1: hook-precompact renders the census the other four parse" {
+@test "R4.1: hook-precompact renders the census the other consumers parse" {
   cd "$WORK/proj"
   run bash "$PLUGIN_ROOT/scripts/hook-precompact.sh"
   [ "$status" -eq 0 ]
@@ -327,6 +381,165 @@ EOF
   [ "$output" = "- Tasks: 3/5 completed (+1 deferred)" ]
 }
 
+@test "R4.1: close-subtask — the seventh consumer, and the only one that WRITES" {
+  # A WRITER IS COMPARED THROUGH ITS `census` OBJECT. That object is the
+  # script's own reading of the grammar — it re-reads tasks.md after marking it
+  # — so it is the comparable surface every reader above hands over directly in
+  # its output. Drift then shows up here as a disagreement about the same five
+  # boxes, in the same terms, rather than as a diff of the file it wrote.
+  #
+  # The close lands on a COPY: $MIXED is the shared fixture the cases above
+  # read, and this is the one consumer that would write to it. The copy keeps
+  # the proj/.epic/stories/010-mixed shape so the script resolves the story
+  # exactly as a real caller's does.
+  COPY=$(mktemp -d "$WORK/seventh.XXXXXX")
+  mkdir -p "$COPY/proj/.epic/stories"
+  cp -r "$MIXED" "$COPY/proj/.epic/stories/010-mixed"
+  cd "$COPY/proj"
+
+  # Diagnostics go to stderr and a clean close emits none, so $output is the
+  # JSON object. (bats merges the two streams by default, so a stray diagnostic
+  # would redden this case as a parse failure rather than pass unnoticed.)
+  run bash "$PLUGIN_ROOT/scripts/close-subtask.sh" .epic/stories/010-mixed 1.5
+  [ "$status" -eq 0 ]
+
+  # The header's shared truth, advanced by that one close: 1.5 stops being the
+  # open box, the terminal [~] 1.3 still counts as closed, and the deferred
+  # [~] 1.4 still counts apart from both. The report also carries a validate
+  # verdict; it is not this harness's subject, and this script never rolls a
+  # landed marking back on it.
+  echo "$output" | jq -e '.census.total == 5 and .census.open == 0 and .census.closed == 4 and .census.deferred == 1'
+}
+
+@test "R2.1/R2.4: archive-story.sh — the same five boxes, partitioned for the manifest" {
+  # THE MAPPING THIS CASE ASSERTS, MEASURED RATHER THAN ASSUMED. archive-story
+  # reports three DISJOINT numbers a manifest reader must be able to add up, so
+  # `closed` is [x] AND ONLY [x], and EVERY [~] — terminal or deferred — is
+  # `deferred`. Against the shared truth that is:
+  #   total 5   == 5   (identical)
+  #   open  1   == 1   (identical)
+  #   closed 2  = shared closed 3 MINUS the terminal [~] 1.3
+  #   deferred 2 = shared deferred 1 PLUS that same terminal [~] 1.3
+  # so the two readings differ by exactly one box, in one direction, and their
+  # sum is the same 4 settled boxes. Asserting `closed == 3` here would not
+  # detect drift — it would demand archive-story change an aggregation it
+  # documents on purpose, which this story puts out of scope.
+  #
+  # The verdict path used is the REFUSAL: one box is still open, so the story
+  # is incomplete and nothing is moved — and the census is reported anyway,
+  # because a refusal reports what it measured. That keeps the comparison on
+  # the reading, not on the move.
+  snapshot_fixture
+  COPY=$(mktemp -d "$WORK/archive.XXXXXX")
+  mkdir -p "$COPY/proj/.epic/stories"
+  cp -r "$MIXED" "$COPY/proj/.epic/stories/010-mixed"
+  cd "$COPY/proj"
+
+  # archive-story TALKS on stderr, and bats merges the streams — dropping
+  # stderr is what keeps $output one parseable JSON object.
+  run bash -c "bash '$PLUGIN_ROOT/scripts/archive-story.sh' .epic/stories/010-mixed 2>/dev/null"
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "refused" and .moved == false'
+
+  # Identical on the two totals that are not a matter of aggregation.
+  echo "$output" | jq -e '.tasks.total == 5 and .tasks.open == 1'
+  # The partition itself, and the fact that it partitions: the three numbers
+  # are disjoint and exhaust the total.
+  echo "$output" | jq -e '.tasks.closed == 2 and .tasks.deferred == 2'
+  echo "$output" | jq -e '.tasks.closed + .tasks.deferred + .tasks.open == .tasks.total'
+  # The mapping onto the shared truth: 4 settled boxes, one open, however the
+  # settled four are split.
+  echo "$output" | jq -e '.tasks.closed + .tasks.deferred == 4'
+
+  assert_fixture_untouched
+}
+
+@test "R2.2/R2.4: epic-index.sh — the census the index renders folds the terminal [~] into done" {
+  # epic-index RENDERS FOR A HUMAN and reuses hook-precompact's split verbatim:
+  # a terminal [~] closes the box, `deferred:` is reported apart. It emits no
+  # `open` field at all, so the shared open count is recovered as
+  # total − done − deferred — that arithmetic is the agreement, and it is
+  # asserted on the numbers PARSED OUT OF THE RENDERED CELL, never on literals.
+  snapshot_fixture
+  COPY=$(mktemp -d "$WORK/index.XXXXXX")
+  cp -r "$WORK/proj" "$COPY/proj"
+  printf '# Epic\n\n<!-- epic:index:start -->\n<!-- epic:index:end -->\n' \
+    > "$COPY/proj/.epic/EPIC.md"
+  cd "$COPY/proj"
+
+  run bash -c "bash '$PLUGIN_ROOT/scripts/epic-index.sh' 2>/dev/null"
+  [ "$status" -eq 0 ]
+
+  # Column 5 of the story's row is the progress cell: `done/total (+N deferred)`.
+  prog=$(awk -F'|' '$2 ~ /010/ { gsub(/^[[:space:]]+|[[:space:]]+$/, "", $5); print $5 }' \
+    "$COPY/proj/.epic/EPIC.md")
+  if [[ ! "$prog" =~ ^([0-9]+)/([0-9]+)\ \(\+([0-9]+)\ deferred\)$ ]]; then
+    echo "the index rendered no parseable census for the mixed fixture: '$prog'"
+    return 1
+  fi
+  idx_done="${BASH_REMATCH[1]}"
+  idx_total="${BASH_REMATCH[2]}"
+  idx_deferred="${BASH_REMATCH[3]}"
+
+  [ "$idx_total" -eq 5 ]
+  [ "$idx_done" -eq 3 ]
+  [ "$idx_deferred" -eq 1 ]
+  # The shared open count, recovered from a report that never states it.
+  [ "$((idx_total - idx_done - idx_deferred))" -eq 1 ]
+
+  assert_fixture_untouched
+}
+
+@test "R2.3/R2.4: supersede-story.sh — the scope it carries is the open-or-deferred SET" {
+  # supersede's reading of the grammar decides WHAT MOVES: every `[ ]` and every
+  # `[~] (deferred: …)` is scope still owed and must land in the successor;
+  # `[x]` and a TERMINAL `[~]` are settled, and a row for either would claim
+  # work moved that never did. Against the shared truth that set is exactly
+  # {1.4, 1.5} — the deferred box and the open one.
+  #
+  # THE SET IS ASSERTED, NOT THE COUNT. `remap_rows == 2` is true of a script
+  # that carried 1.1 and 1.3 instead; the numbers themselves are what pins the
+  # grammar, so they are read off both surfaces the operation produces — the
+  # banner table, and the boxes it closed in tasks.md.
+  snapshot_fixture
+  COPY=$(mktemp -d "$WORK/supersede.XXXXXX")
+  cp -r "$WORK/proj" "$COPY/proj"
+  SUCCESSOR="$COPY/proj/.epic/stories/011-successor"
+  mkdir -p "$SUCCESSOR"
+  for f in story.md tasks.md; do
+    printf -- '---\nstory: successor\ntype: feature\nscale: standard\nversion: 1\ncreated: 2026-08-16\n---\n\n# %s\n' \
+      "$f" > "$SUCCESSOR/$f"
+  done
+  cd "$COPY/proj"
+
+  run bash -c "bash '$PLUGIN_ROOT/scripts/supersede-story.sh' .epic/stories/010-mixed --by 011 2>/dev/null"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.status == "superseded" and .remap_rows == 2 and .closed_subtasks == 2'
+
+  SUPERSEDED="$COPY/proj/.epic/stories/010-mixed"
+
+  # Surface 1 — the remap table written into the superseded story: which scope
+  # was declared to have moved.
+  carried=$(grep -oE '^> \| task [0-9]+\.[0-9]+' "$SUPERSEDED/story.md" \
+    | grep -oE '[0-9]+\.[0-9]+' | sort | tr '\n' ' ')
+  [ "$carried" = "1.4 1.5 " ]
+
+  # Surface 2 — the boxes it closed: the same set, or the two surfaces
+  # disagree with each other about the same five boxes.
+  closed=$(grep -oE '^- \[~\] [0-9]+\.[0-9]+ .*\(superseded-by: 011\)' "$SUPERSEDED/tasks.md" \
+    | grep -oE '^- \[~\] [0-9]+\.[0-9]+' | grep -oE '[0-9]+\.[0-9]+' | sort | tr '\n' ' ')
+  [ "$closed" = "1.4 1.5 " ]
+
+  # And the settled boxes were left alone — the terminal [~] keeps its own
+  # qualifier rather than being re-closed as superseded.
+  # `--` because the pattern opens with a dash, which grep would read as a flag.
+  grep -qF -- '- [~] 1.3 - Waived gate (waived: tool absent)' "$SUPERSEDED/tasks.md"
+  grep -qE '^- \[x\] 1\.1 ' "$SUPERSEDED/tasks.md"
+  grep -qE '^- \[x\] 1\.2 ' "$SUPERSEDED/tasks.md"
+
+  assert_fixture_untouched
+}
+
 @test "R5.1: legacy story — validate-story output is byte-identical to the pre-change golden" {
   write_legacy_fixture
   cd "$WORK/legacy"
@@ -347,6 +560,14 @@ GOLDEN
   [ "$output" = "$expected" ]
 }
 
+# GOLDEN UPDATED ONCE SINCE, DELIBERATELY, and this is the second time. The key
+# set of cross-reference.sh grew `scale` (recorded at that script's emit block)
+# and now `satisfied_by` (story 014, R2.2), which reports a leaf answered by a
+# named non-code artifact instead of dropping it from the orphan list unnamed.
+# Both are contract EXTENSIONS: no existing key changed name, type or value, and
+# a legacy story still emits the empty list. This golden's job is to make such a
+# change deliberate rather than to forbid it — it caught this one, which is the
+# case working.
 @test "R5.1: legacy story — cross-reference output is byte-identical to the pre-change golden" {
   write_legacy_fixture
   cd "$WORK/legacy"
@@ -360,6 +581,7 @@ GOLDEN
   "traced": 2,
   "orphan_requirements": [],
   "phantom_references": [],
+  "satisfied_by": [],
   "coverage": "2/2",
   "mapping": {"R1.1": ["1.1"], "R1.2": ["1.2"]},
   "status": "clean"
@@ -369,4 +591,69 @@ GOLDEN
   run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" story
   [ "$status" -eq 0 ]
   [ "$output" = "$expected" ]
+}
+
+@test "R2.1/R2.4: migrate-story.sh — the eleventh consumer, and the only one that REWRITES the grammar" {
+  # It reads the same five boxes to decide there is nothing to normalize. Every
+  # shape in the shared fixture is already canonical — [x], terminal [~],
+  # deferred [~], [ ] — and the group carries a Commit FIELD rather than a
+  # Commit box, so a correct reading produces a byte-identical no-op. A
+  # consumer that disagreed with the others about what a box is would show up
+  # here as a rewrite nobody asked for.
+  cd "$WORK/proj"
+  before=$(sha256sum "$MIXED/tasks.md" | cut -d' ' -f1)
+  run bash "$PLUGIN_ROOT/scripts/migrate-story.sh" .epic/stories/010-mixed --apply
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '[.rewrites[]] | add == 0' > /dev/null
+  [ "$(sha256sum "$MIXED/tasks.md" | cut -d' ' -f1)" = "$before" ]
+
+  # And the other direction: give the group a legacy Commit BOX and migrate
+  # converts exactly that, leaving all five graded boxes untouched.
+  cat >> "$MIXED/tasks.md" <<'LEGACY'
+
+- [x] 1.6 - Commit
+  - Validation: All tests pass
+  - Commit: "feat(010): the legacy shape"
+LEGACY
+  run --separate-stderr bash "$PLUGIN_ROOT/scripts/migrate-story.sh" .epic/stories/010-mixed --apply
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.rewrites.commit_subtasks == 1' > /dev/null
+  # the five graded boxes are all still there, states intact
+  [ "$(grep -cE '^- \[[ x~]\] 1\.[1-5] - ' "$MIXED/tasks.md")" -eq 5 ]
+  grep -qE '^- \[~\] 1\.4 - .*deferred: real hardware' "$MIXED/tasks.md"
+  if grep -qE '^[[:space:]]*- \[[ x~]\][[:space:]]+1\.6[[:space:]]+-[[:space:]]+Commit' "$MIXED/tasks.md"; then
+    echo "the legacy Commit box survived the conversion"
+    return 1
+  fi
+  grep -qF -- '- Commit: "feat(010): the legacy shape"' "$MIXED/tasks.md"
+}
+
+@test "R1.5/R2.5: every declared consumer is compared by a case in this harness" {
+  # THE LOOP CLOSER. Story 017's derivation reddens when a script under
+  # scripts/ reads the grammar and is not on the roster. This is the other
+  # direction: a name ON the roster that no case here compares. Without it,
+  # registering a script — one line of data — turns the derivation green while
+  # its copy of the regex stays unmeasured, which is exactly the state the
+  # three consumers pinned above were in.
+  #
+  # The check is on @test TITLES, so the convention it enforces is that a
+  # comparison case names the consumer it compares. That convention is what
+  # makes this harness readable at all, and it is already true of every case
+  # here.
+  load_roster
+  HARNESS="$PLUGIN_ROOT/tests/checkbox-grammar.bats"
+  [ -f "$HARNESS" ]
+
+  missing=()
+  for s in "${CHECKBOX_CONSUMERS[@]}"; do
+    stem="${s%.sh}"
+    if ! grep -E '^@test ' "$HARNESS" | grep -qF "$stem"; then
+      missing+=("$s")
+    fi
+  done
+
+  if [ "${#missing[@]}" -gt 0 ]; then
+    echo "declared consumers with no comparison case in ${HARNESS##*/}: ${missing[*]}"
+    return 1
+  fi
 }

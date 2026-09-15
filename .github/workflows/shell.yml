@@ -1,5 +1,14 @@
 name: shell-ci
 
+# The default GITHUB_TOKEN is scoped down here rather than left to the
+# repository setting. That setting reads `read` today, but it lives outside the
+# repo — invisible in a diff, changeable by any admin, and unversioned. Every
+# job below only checks out, apt-installs and runs tests; none writes to the
+# repo, comments on a PR or publishes anything, so `contents: read` is the whole
+# of what they need. Raised by CodeQL's actions/missing-workflow-permissions.
+permissions:
+  contents: read
+
 on:
   pull_request:
     paths:
@@ -38,8 +47,9 @@ jobs:
         # went dark here — including the cross-regression harness whose entire
         # job is to catch checkbox-grammar drift.
         #
-        # RUNNING THIS JOB UNDER `act`: expect 14 failures in
-        # tests/archive-story.bats, and they are NOT a regression. act's runner
+        # RUNNING THIS JOB UNDER `act`: expect 14 failures — 11 in
+        # tests/archive-story.bats and 3 in tests/epic-index.bats (measured
+        # 2026-09-14) — and they are NOT a regression. act's runner
         # image executes as root (uid 0); this runner is the non-root `runner`
         # user. Those 14 cases assert the script refuses when a file or tree
         # cannot be read — root suffers no denial, so it reads what should have

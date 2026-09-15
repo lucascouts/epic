@@ -774,13 +774,62 @@ comment_blocks() {
   DOC="$PLUGIN_ROOT/references/tasks.md"
   [ -f "$DOC" ]
   # Flattened to one line: the statement may wrap, and `[^.]` keeps a match from
-  # spanning a sentence boundary.
+  # spanning a sentence boundary. The whole file, not one section — measured
+  # 2.3: exactly one span satisfies each pattern below, so no sentence
+  # elsewhere in the file can answer for the rule this case is about.
   FLAT=$(tr '\n' ' ' < "$DOC")
-  grep -qiE "tasks\.md[^.]{0,160}authoritative|authoritative[^.]{0,160}tasks\.md" <<< "$FLAT"
+  # THE POLARITY IS REFUSED, NOT SPELLED. Measured 2.3 — the predecessor,
+  # `tasks\.md[^.]{0,160}authoritative`, stayed GREEN when line 68 became
+  # "`tasks.md` is not authoritative ... — `story.md` is", because a negation
+  # parks between two anchors as easily as anything else does. 2.3 answered
+  # that by writing the polarity into the match as the literal `is (the )?`,
+  # and 6.4 replaces it: a LITERAL VERB PHRASE IS NOT A POLARITY, it is one
+  # phrasing of it. Measured, on prose that states the rule exactly as it
+  # stands — `is always authoritative`, `is strictly authoritative`, `is and
+  # remains authoritative` — all three RED against `is (the )?`, all three
+  # rule-preserving. That false Red fired THIS case at THIS line, the same
+  # place a real inversion fires, so a reader seeing `not ok` could not tell a
+  # reverted rule from an inserted adverb without diffing the prose.
+  #
+  # The form is 2.2's, the one that survived this story's own hostile pass
+  # (`never refuse to mutate`, `never say no to mutating`): match the anchors
+  # POSITIVELY and refuse a negation on the word that carries the direction.
+  # A rewording may then say anything between them, and a reversal has nowhere
+  # to park — the negation must sit next to `authoritative` to reverse it.
+  #
+  # THE WINDOW IS SLACK, NOT REACH, and that is measured rather than argued:
+  # this file yields ONE span at 24, at 40 and at 60 characters alike, so 40 is
+  # room for a qualifier and nothing more. Swapping the subject at :68 to
+  # `story.md` still Reds — the nearest surviving `tasks.md` is far outside any
+  # of the three windows.
+  grep -qiE "tasks\.md[^.]{0,40}authoritative" <<< "$FLAT"
+  # The refusal. Measured RED on `is not authoritative`, `is never
+  # authoritative`, `is not the authoritative one`, and on the 1.5 inversion
+  # this case exists for (`is not authoritative ... — `story.md` is`). Measured
+  # SILENT on the unmutated file — 0 hits, and the file does write `never a
+  # leftover` two clauses away, which the 1-to-3-character leash keeps out. The
+  # hedge list is the file's own plus `the`, which its :271 sentence needs.
+  if grep -qiE "(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely|the)[^A-Za-z]{1,3})?authoritative" <<< "$FLAT"; then
+    echo "the tasks.md-is-authoritative rule is stated with a negation on it — the rule is reversed"
+    return 1
+  fi
   # Half a rule is not the rule: the reader also has to be told what happens to
   # the artifact that disagrees — it is REPORTED, not honoured, and not silently
-  # ignored either.
-  grep -qiE "story\.md[^.]{0,200}(reported|not honoured|not honored)" <<< "$FLAT"
+  # ignored either. Here the polarity IS the pairing, so both halves are pinned.
+  # Measured 2.3 — the predecessor accepted the bare token `reported`, which
+  # the reversed sentence "is honoured, not reported" still contains, so it
+  # read prose stating the opposite rule as a pass. `never` is admitted beside
+  # `not` because it negates the same verb; what is not admitted is either word
+  # standing alone.
+  #
+  # BOTH ORDERS, WHICH IS 3.1'S REPAIR APPLIED HERE (6.4). 2.3 pinned the pair
+  # in the ORDER the rule happens to state them, and an order is not a polarity
+  # either: `is not honoured but merely reported` says the identical rule with
+  # the halves swapped and Redded — a pure stylistic flip, measured. The
+  # alternation admits both arrangements and refuses neither half standing
+  # alone, so the reversal `is **honoured**, not reported` still Reds: it holds
+  # `reported` and it holds a negation, but never a negation on `honoured`.
+  grep -qiE "story\.md[^.]{0,200}(reported[^.]{0,40}(not|never) honou?red|(not|never) honou?red[^.]{0,40}reported)" <<< "$FLAT"
 }
 
 @test "3.2: no comment in validate-story.sh still claims story.md wins for scale" {
@@ -790,9 +839,65 @@ comment_blocks() {
   BLOCKS=$(comment_blocks "$PLUGIN_ROOT/scripts/validate-story.sh")
   SCALE_BLOCKS=$(grep -i 'scale' <<< "$BLOCKS" || true)
   [ -n "$SCALE_BLOCKS" ]
-  # The retraction, stated: some comment about scale says tasks.md owns it.
-  if ! grep -qiE "tasks\.md[^.]{0,120}(owns|authoritative|wins)|(authoritative)[^.]{0,120}tasks\.md" <<< "$SCALE_BLOCKS"; then
-    echo "expected a comment stating that tasks.md owns/is authoritative for 'scale'"
+  # THE RETRACTION, STATED AT EVERY SITE THAT STATES IT AND IN THE DIRECTION IT
+  # STATES. This file carries the rule in THREE comment spans — the shared-rule
+  # header (:136), the written-contract paragraph (:148) and the disagreement
+  # warning's rationale (:233) — and the predecessor asked only whether ONE of
+  # them existed. Measured 3.3, that is exactly what it did: a `not` inserted
+  # into ALL THREE left it GREEN, and each span's rule deleted outright left it
+  # GREEN too. Six mutations, six greens, one at a time. Both halves are
+  # repaired here, because either alone leaves the other open (R3.2, R1.1).
+  #
+  # COUNTED OVER THE FLATTENED BLOCKS, the representation measured rather than
+  # assumed. `grep -c` counts matching LINES, and `comment_blocks` joins a run
+  # of `#` lines — a bare `#` continues the run — so :136 and :148 land on ONE
+  # line: it answers 2 here, and still answers 2 with either of those two spans'
+  # rule deleted. It cannot see them apart at all. Counting MATCHES answers 3,
+  # and 2 for every one-site removal. Counting over the raw file instead fails
+  # the other way: each of the three spans reworded across a line break drops a
+  # raw `grep -c` to 1 — a false Red on prose that still states the rule three
+  # times — while this form still answers 3. All three forms measured, on the
+  # same mutations.
+  #
+  # THE POLARITY IS NOT THE COUNT'S JOB, which is why a count alone would not
+  # close this. 1.5's negation PREFIXES the anchor — `is not authoritative` —
+  # and no count reaches a prefix: three negated spans would still count three.
+  # 2.3 answered by folding the literal `is (the )?` into the pattern; 6.4
+  # replaces that here for the reason the case above states at length — a
+  # literal verb phrase is one phrasing of a rule, not its direction, and it
+  # false-Redded `is always authoritative`. THE TWO SITES MOVE TOGETHER because
+  # they are ONE allowlist key: `file:pattern` is the unit, so a pattern edited
+  # at one site and not the other silently splits a row in two, one of them an
+  # orphan. Measured after the edit: this scope yields 3 spans at 24, 40 and 60
+  # alike, so the wider window buys rewording slack and no reach.
+  #
+  # The direction is refused rather than spelled, by the guard below — the form
+  # 2.2 uses. Measured: the three-span negation counts 3 here and Reds there,
+  # where 2.3's pattern counted 0 and Redded here; either way the mutation is
+  # caught, and the rewordings that used to false-Red no longer do.
+  #
+  # EXACTLY THREE, AND THE COST IS MEASURED RATHER THAN PREFERRED: a legitimate
+  # FOURTH statement of the rule false-Reds — measured, a restatement added
+  # inside the :136 block counts 4. `-ge 3` Reds all six removals just as well
+  # and buys that fourth span silence; exactness is taken because DUPLICATION is
+  # what blinded this site — the rule already stands at three places, which is
+  # why one could vanish unnoticed — so a fourth belongs in front of a reader
+  # rather than under a green. The trade 3.2 took at the `.draft/` carve-out,
+  # for the same reason.
+  #
+  # The count is captured before it is compared rather than inlined into
+  # `[ "$(…)" ]`: the window-pattern census keys a row on the WHOLE quoted span,
+  # and inlining would key one nobody would recognise. Measured on both shapes.
+  spans=$(grep -oiE 'tasks\.md[^.]{0,40}authoritative' <<< "$SCALE_BLOCKS" | wc -l)
+  # The refusal, on the same scope the count reads. Measured RED with a `not`
+  # inserted at one span, at two, and at all three; measured SILENT on the
+  # unmutated comment blocks — 0 hits.
+  if grep -qiE "(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely|the)[^A-Za-z]{1,3})?authoritative" <<< "$SCALE_BLOCKS"; then
+    echo "a scale comment in validate-story.sh states the authoritative rule with a negation on it — the rule is reversed"
+    return 1
+  fi
+  if [ "$spans" -ne 3 ]; then
+    echo "expected 3 comment spans stating that tasks.md is authoritative for 'scale', found $spans"
     # Truncated: these blocks are paragraphs, and dumping them whole buries the
     # one line of diagnosis under a page of prose.
     echo "the scale-mentioning comment blocks (first 120 chars each) were:"

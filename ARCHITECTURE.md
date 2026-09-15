@@ -70,7 +70,7 @@ The plugin surface maps to Claude Code's extension points:
 | `references/` | — | Mode-specific operational guides loaded on-demand by the skill. |
 | `.claude-plugin/plugin.json` | Manifest | Plugin metadata + `userConfig` schema. |
 | `assets/examples/` | — | Reference artifacts for each scale, used as format anchors. |
-| `evals/` | — | Trigger-query + test-case suite. |
+| `evals/` | — | Trigger-query + test-case suite, and `README.md` — the measurement methodology, including why a trigger eval must not gate anything. |
 | `tests/` | — | `bats` unit tests for scripts. |
 
 ---
@@ -101,10 +101,30 @@ Each sub-agent runs in its own context window. The main agent selects inputs (fi
 Each `agents/*.md` declares its allowed tools. Narrower scopes catch drift early:
 
 - `executor`: `Read, Write, Edit, Bash, Glob, Grep` (implements code)
-- `auditor`: adds `LSP` (reads symbols, writes deviation register)
+- `auditor`: `Read, Glob, Grep, Bash, LSP, Write` — `LSP` reads symbols; `Write` reaches exactly one path, `.draft/audit-report.yaml`
 - `test-advisor`: `Read, Write, Bash, Glob, Grep` — no longer a read-only surface. It authors the failing tests for test-first sub-tasks (`Write`) and runs them to capture Red evidence (`Bash`). Its scope now covers `E2E` sub-tasks in addition to `Unit`/`Integration` — an `E2E` test is authored against the story's selected E2E tool (see [Preferred-tooling policy](#preferred-tooling-policy)) with Red-phase verification **deferred to Run mode**, so for those sub-tasks the Test Advisor writes the file but does not run `Bash`.
-- `analyst`, `architect`, `reviewer`, `tech-reviewer`: read-only surfaces
-- `validator`: `Read, Glob, Grep, Bash` (runs validation commands, no writes)
+- `analyst`, `architect`, `reviewer`: read-only surfaces
+- `tech-reviewer`: `Read, Glob, Grep, Bash, WebFetch, WebSearch` — `Bash` is measurement only (linters, compilers, greps, query plans), never a mutation of files or git state, so a finding that rests on a runnable check can carry the command and the output backing it
+- `validator`: `Read, Glob, Grep, Bash, Write` — `Write` reaches exactly one path, `.draft/validation-report.yaml`
+
+Both report writes are **carve-outs, not licences**: each agent names its one file, creates `.draft/` on demand, and treats any other write as a protocol violation. Nothing enforces that at runtime — the guard is the exact-set grant assertion in `tests/reports-by-artifact-policy.bats`, which reddens when a tool lands on an agent this list does not name.
+
+### Effort tiers
+
+Each `agents/*.md` also declares a reasoning `effort:`. The tier is a cost decision, and this table is the policy itself — not a summary of one kept elsewhere:
+
+| Agent | Effort | Why |
+| --- | --- | --- |
+| `executor` | `max` | Writes the code. A wrong implementation is the most expensive thing to discover late. |
+| `auditor` | `max` | Holds the semantic judgment the rest of the pipeline is priced against — it is what makes the Validator's `medium` affordable. |
+| `architect` | `high` | Reads an unfamiliar codebase for the patterns a design must not contradict. |
+| `reviewer` | `high` | Cross-artifact gaps are found by reasoning over three documents at once. |
+| `tech-reviewer` | `high` | Correctness at technology boundaries — the defect is precisely what a generalist would not think to look for. |
+| `test-advisor` | `high` | Authoring a test that fails for the right reason is a design act, not a transcription. |
+| `analyst` | `medium` | Discovery: scans structure, samples representative files, reports what it found. |
+| `validator` | `medium` | Mechanical verification: runs the commands the sub-tasks name and compares output. The judgment lives with the Auditor. |
+
+**The table is enforced, not descriptive.** `tests/agent-effort-policy.bats` derives the tiers from the frontmatters and compares them against these rows, so a change on either side reddens until both agree. It also pins `max` on the Executor and the Auditor by name: they are the mitigation the Validator's `medium` was traded against, and a silent drop there would keep the saving while removing the safety net.
 
 ---
 
@@ -173,7 +193,7 @@ All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — 
 | `PreCompact` | — | `hook-precompact.sh` | Snapshot active-story state before autocompaction | 2.1.105 |
 | `SessionStart` | `compact` | `hook-session-restore.sh` | Restore state after a compaction rewake | 2.1.105 |
 | `SessionEnd` | `clear` | `hook-session-end-cleanup.sh` | Clean transient drafts on explicit clear | 2.1.85 |
-| `TaskCompleted` | — (asyncRewake) | `hook-task-completed.sh` | Update tasks.md status markers from Executor reports | 2.1.85 |
+| `TaskCompleted` | — (asyncRewake) | `hook-task-completed.sh` | Run `validate-story.sh` on the active story when a TodoWrite item completes — it **writes nothing**: tasks.md markers are written only by `scripts/close-subtask.sh` | 2.1.85 |
 | `PostToolUseFailure` | `Bash` | `hook-post-tool-failure.sh` | Capture failing validation context into the story's notes | 2.1.85 |
 | `CwdChanged` | — | `hook-cwd-changed.sh` | Detect project switch; reset story cache | 2.1.85 |
 | `FileChanged` | `constitution.md` | `hook-file-changed.sh` | Re-evaluate constitution constraints when it changes | 2.1.85 |
@@ -194,9 +214,11 @@ The protocol **remains six steps**. Steps 2 and 5 are *conditional* — their wo
 3. **Design fidelity check** — diff the implementation's signatures, error paths, data structures, and contracts against `design.md`. Classify deviations as INTENTIONAL (with rationale, appended to deviation register) or ACCIDENTAL (fix before proceeding).
 4. **Validation** — run the sub-task's `Validation:` command; report full output. On failure, STOP.
 5. **Refactor** (test-first sub-task) **/ Tests** (test-after sub-task) — for a test-first sub-task, improve the implementation while the pre-authored test and the validation command stay green. For a test-after sub-task, create/run the tests listed in the sub-task's `Tests:` field. On failure, STOP.
-6. **Report** — structured report back to the main agent.
+6. **Report** — structured report back to the main agent, ending in a machine-liftable **closing block**: the sub-task id, the outcome (`done`, `close-tilde` with a qualifier and a reason, or `failed`), and the pre-authored commit message the executor validated against.
 
-The main agent does not implement code; the executor does not make scope decisions. This separation is load-bearing for the auditor's effectiveness.
+The closing block is where the protocol hands off, and it hands off a *report*, never a write. **The executor marks no box and runs no `git commit`** — marking is script-mediated: the main agent lifts the block into `scripts/close-subtask.sh`, which marks the box, takes the census, stamps `status:` and validates the story in one transaction, and it commits post-merge with the pre-authored message verbatim. A `failed` outcome makes no call at all: the box stays `[ ]`. A box left `[~] (deferred: …)` is discharged later by the same script's `--fulfill` flag — the one exit from a deferral — or has its reason replaced in place by `--restate`, both defined in [references/tasks.md](references/tasks.md#discharging-a-deferral).
+
+The main agent does not implement code; the executor does not make scope decisions, and does not write the record of its own completion. This separation is load-bearing for the auditor's effectiveness.
 
 ---
 
@@ -310,6 +332,7 @@ Common contributions and where they go:
 | New validation rule | Extend `scripts/validate-story.sh` (errors vs warnings), add a `bats` test under `tests/` |
 | New user-config field | Add schema entry under `userConfig` in `.claude-plugin/plugin.json`, read via `${CLAUDE_PLUGIN_CONFIG_*}` env in scripts |
 | New eval case | Add under `evals/` (trigger-query + expected artifacts), runnable via `scripts/run-evals.sh` |
+| New trigger verdict | `scripts/trigger-detect.sh` is the single scorer of a trigger run — it reads a transcript and answers `triggered` / `not-triggered` / `error`; `run-evals.sh` matches nothing inline |
 
 Before adding a new reference file under `references/`, check whether existing ones can absorb the content — reference fragmentation hurts skill-load discoverability.
 

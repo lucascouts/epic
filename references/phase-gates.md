@@ -157,7 +157,7 @@ After the main agent generates the task list structure (with Objective, ToDo, Va
 > - Every acceptance criterion in story.md must be covered by at least one test across all tasks
 > - If design.md defines a testing strategy, ensure all levels (unit, integration, E2E) mentioned there have at least one corresponding task
 > - Be conservative: skip tests for Trivial/Simple complexity tasks that are purely structural
-> - Commit sub-tasks never have tests
+> - A group's `Commit:` field never has tests
 > - Format: `Type · \`path/to/test_file\` — scenario1, scenario2, scenario3`
 > - Type is always explicit: Unit, Integration, E2E (because test conventions vary across languages)
 > - **Side-effect verification rule:** For state-changing operations in **synchronous architectures** (create, update, delete), at least one integration test per operation MUST verify the resulting state after the operation — not just the HTTP/response status. Example: after POST /items returns 303, query the store/database to confirm the item exists with correct fields. An integration test that only checks the HTTP status code without verifying the side effect is a **shallow test** — flag it with: `⚠ Shallow: verify state after operation`. For **asynchronous or eventually-consistent architectures** (event-driven, CQRS), the test should verify the command was accepted AND include a note on how eventual side-effects are verified (polling, test event listener, or explicit scope exclusion).
@@ -172,7 +172,7 @@ After the main agent generates the task list structure (with Objective, ToDo, Va
 >
 > ### Part 2 — Author the test files
 >
-> For each sub-task whose final Tests field type is `Unit`, `Integration`, or `E2E`, author a test file before Phase 3 completes. A `Unit` or `Integration` test is authored as a failing test and Red-verified during Phase 3; an `E2E` test is authored with the story's selected E2E tool and its Red-phase verification is DEFERRED to Run mode — it is not run during Phase 3. Never author for `None`, `Covered by`, or Commit sub-tasks.
+> For each sub-task whose final Tests field type is `Unit`, `Integration`, or `E2E`, author a test file before Phase 3 completes. A `Unit` or `Integration` test is authored as a failing test and Red-verified during Phase 3; an `E2E` test is authored with the story's selected E2E tool and its Red-phase verification is DEFERRED to Run mode — it is not run during Phase 3. Never author for `None`, `Covered by`, or a group's `Commit:` field.
 >
 > **Context boundary — author from the contract, not the implementation.** When authoring a test for a sub-task you may use ONLY: the sub-task's EARS requirement text, the sub-task Objective, the sub-task Tests scenarios, the project test conventions, and — Full mode only — the relevant design.md contract excerpt. You are NOT given the sub-task's `ToDo` field and MUST NOT request or rely on it. The test must describe *what* the behavior should be (its contract), never *how* the implementer will build it.
 >
@@ -217,7 +217,7 @@ For Fast mode, the main agent decides Tests inline (no sub-agent) using this 4-c
    → YES: verify existing tests still pass (add to Validation)
    → NO: apply rules 1-2 above
 
-4. **Contract rule.** Every implementing (non-Commit) sub-task carries either a `Tests` field or an `Acceptance` field — a sub-task with testable logic gets a `Tests` field, a structural sub-task with no testable logic gets an `Acceptance` field. Commit sub-tasks are exempt (they implement nothing).
+4. **Contract rule.** Every implementing sub-task carries either a `Tests` field or an `Acceptance` field — a sub-task with testable logic gets a `Tests` field, a structural sub-task with no testable logic gets an `Acceptance` field. A group-level `Commit:` field is exempt (it implements nothing).
    → checks 1-3 say a test is needed: add the `Tests` field
    → checks 1-3 say no test is needed: add an `Acceptance` field (1-3 observable-behavior statements)
 

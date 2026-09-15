@@ -136,10 +136,10 @@ Fields for an `E2E` entry:
 - Be conservative: skip tests for Trivial/Simple complexity tasks that are purely structural; do not over-prescribe tests for trivial structural work.
 - Be exhaustive on state-changing operations and integration boundaries.
 - For every requirement asserting that two things are the SAME or DIFFERENT (identity, uniqueness, deduplication, distinguishability), author the hostile case — the fixture that makes the rule fire wrongly — BEFORE the benign one, in both converse directions; see *Hostile-half rule*.
-- Commit sub-tasks never have tests.
+- A group's `Commit:` field never has tests.
 - Format: `` Type · `path/to/test_file` — scenario1, scenario2, scenario3 ``.
 - Type is always explicit: Unit, Integration, E2E (because test conventions vary across languages).
-- Author tests for `Unit`, `Integration`, and `E2E` sub-tasks; never author for `None`, `Covered by`, or Commit sub-tasks — those preserve the test-after behavior.
+- Author tests for `Unit`, `Integration`, and `E2E` sub-tasks; never author for `None`, `Covered by`, or a group's `Commit:` field — those preserve the test-after behavior.
 - Author tests only for Standard and Full stories; Fast stories return the mapping only.
 - When authoring, never use the sub-task's `ToDo` field — the test is an independent contract, not an implementation mirror.
 - Every authored `Unit` or `Integration` test MUST be confirmed Red (failing for the expected reason) before Phase 3 completes; record the failure in `.draft/red-evidence.yaml`.

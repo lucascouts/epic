@@ -11,6 +11,138 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+Twelve stories (`010`–`021`). The through-line is **one deterministic writer for
+the checkbox grammar**, and then making everything that *reads* that grammar
+honest: verdicts land as files instead of chat text, assertions pin direction
+instead of co-occurrence, and the eval harness reports what it actually measured.
+
+**Minimum Claude Code:** unchanged from 0.2.0. `scripts/run-evals.sh` is dev
+tooling and needs a `--plugin-dir`-capable CLI; nothing in the plugin runtime
+does.
+
+### Added
+
+- **`scripts/close-subtask.sh` — the one sanctioned writer of the checkbox
+  grammar** (story `010-executor-owns-marking`). Closing a finished sub-task used
+  to cost model output in the most expensive context there is: the orchestrator
+  hand-edited `tasks.md`, re-read it for the census, and hand-ran the status
+  transition. One invocation now marks the box, closes the parent group header
+  when no open child remains, takes the census, applies run-mode's four status
+  rules, stamps `status:` in every artifact carrying frontmatter, self-invokes
+  `validate-story.sh`, and reports all of it as one JSON object. Its box regex
+  and qualifier grammar are the existing readers' own, copied verbatim, so it is
+  a *writer of* that grammar rather than a variant of it.
+  - **`--fulfill "<evidence>"`** (story `021`) — the one exit from a
+    `[~] (deferred: …)`. The box becomes `[x]` carrying both the evidence and the
+    original reason. The line shape is forced by measurement, not taste: the
+    canonical qualifier regex every reader shares matches the obvious
+    `(was deferred: …)` spelling, which would have seven scripts go on counting a
+    *closed* box as an outstanding deferral, and the story could never reach
+    `done`.
+  - **`--restate "<reason>"`** — the box does not move; only its reason does.
+    For a deferral that still stands after its explanation stopped being true.
+    Census unchanged, no status transition, group header untouched. It is also
+    the only tool that can repair a `(deferred: )` carrying no reason at all.
+  - Both accept **only** `[~]` carrying `deferred:` and refuse every other state
+    by naming what they found. A terminal qualifier records a decision already
+    taken, and neither flag will overwrite one.
+
+- **Verdicts are artifacts, not chat text** (story `011-reports-by-artifact`).
+  The validator and auditor write `.draft/validation-report.yaml` and
+  `.draft/audit-report.yaml`; the validate flow concludes from those files. A
+  sub-agent that ends on intermediate prose no longer loses the whole suite it
+  just ran. The tech-reviewer gains `Bash` under a measurement-only protocol —
+  its findings are measured rather than argued.
+
+- **`stories create --batch <doc>`** (story `013-quick-create`) — one interview,
+  N stories, a per-story verdict. Both create flows now draw numbers from one
+  tested allocator (`scripts/next-story-number.sh`), so two stories can no longer
+  claim the same number.
+
+- **EARS form lint, `satisfied-by`, and an authoring ceiling** (story
+  `014-ears-lint-authoring-ceiling`). An unlabeled acceptance criterion is an
+  error — nothing downstream can trace it. A criterion carrying more than one
+  `SHALL`, or a trigger word outside a code span, warns. `satisfied-by` lets a
+  legitimately non-code requirement close without a task, accepted by both orphan
+  sites. A plan passing **32 KB or 60 checkboxes** warns at Phase 3, at
+  validation, and in batch create — a warning at every site, never a block.
+
+- **`scripts/migrate-story.sh`** (story `015-migrate-commit-field`) — a
+  dry-run-first normalizer that converts legacy stories, fence-aware, with its
+  proof embedded. Five corpus variants round-trip through one apply to a clean
+  validate.
+
+- **`scripts/trigger-detect.sh`** (story `021`) — the single scorer of a trigger
+  run. It reads a transcript and answers `triggered` / `not-triggered` / `error`,
+  so a run that could not be measured never scores as one that did not fire.
+
+- **`evals/README.md`** — the measurement methodology, which had no home.
+
+### Changed
+
+- **`Commit:` is a group field** (story `015`), not a per-sub-task one — in the
+  template, in the ordering, and in every consumer copy. A group commits once,
+  after its last box closes.
+
+- **The skill `description` names every routed mode** (story `021`). `init`,
+  `migrate`, `batch`, `archive`, `supersede` and `teams` were routable by the
+  cascade and absent from the description, so they were unreachable by the
+  phrasings they introduced. `tests/skill-description-coverage.bats` now fails on
+  **either** side of a divergence — a declared term missing from the description,
+  or a cascade arm with no row in the table.
+
+- **`scripts/run-evals.sh` grades this working tree, and says how much it
+  measured** (story `021`). It refuses outright when an installed plugin of the
+  same name is enabled, because `--plugin-dir` does not outrank it and the suite
+  would silently grade the cache. It reports `ran: N case(s), M trigger(s)`, so a
+  suite that measured nothing can no longer read as a suite that passed.
+
+- **The validator runs at `effort: medium`** (story `012-adaptive-effort`), down
+  from `high`. Its work is majority-mechanical — running scripts, comparing
+  outputs — while semantic judgment stays with the auditor at `max`. The full
+  per-agent policy is pinned by a test, so future edits are deliberate rather
+  than drift.
+
+- **A trigger eval is no longer treated as a gate.** Measured on this repo, same
+  commit and same `SKILL.md` md5: one query read **0/30** across two weeks and
+  then **5/5** ten hours later, while another went **3/3 → 1/5** in the same
+  window. One rose while the other fell — a routing change on the service side,
+  not noise. Any gate of the form *"query X must fire"* flaps with no code
+  changing, and *"no query that fired before may fail now"* fails identically
+  against a tree carrying **no edit at all**: it measures the calendar, not the
+  diff. Assertions belong in a deterministic lint; trigger evals belong in
+  monitoring. `evals/README.md` carries the full record.
+
+### Fixed
+
+- **Tests that asserted nothing** (stories `019-pin-assertion-polarity`,
+  `020-close-the-polarity-census`). An assertion matching *co-occurrence* passes
+  whichever direction the text runs, and a negated assertion outside last
+  position is inert — it cannot fail. Assertions now pin direction, and a census
+  lint with a **measured allowlist** rejects a negation that cannot fail. The
+  allowlist is data the suite derives, so a row naming a pattern the tree no
+  longer contains is itself an error.
+
+- **Facts an audit found stated but unmeasured** (stories `016`, `017`, `018`).
+  The consumer roster became data the suite derives rather than a hand-kept list
+  — an enumerated list silently drops every entry added after it.
+
+- **A tasks-only story rendered `—` for its status.** `epic-index.sh` promised a
+  fallback in its comment and only implemented it for `scale`, so every Fast
+  story showed no status at all.
+
+- **An EARS keyword is uppercase, and the check now listens for it.**
+
+- **The legacy nudge counts what `migrate` actually converts**, not what it was
+  assumed to.
+
+- **The `shellcheck` CI job passes on the runner's shellcheck**, not only on the
+  host's. Found by running the workflow locally with `act` before the branch's
+  first push: the host's 0.11.0 was clean, the runner's apt 0.9.0 was not, and
+  the job exits 1 even at info severity. `run-evals.sh`'s `cd … && claude … ||
+  true` is now an explicit brace group — same semantics, no directive, clean on
+  both versions.
+
 ## [0.4.0] — 2026-08-13
 
 Feature release. Adds a **git-aware story lifecycle** — Epic can now tell

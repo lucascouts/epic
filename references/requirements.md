@@ -65,6 +65,14 @@ created: <date>
 
 1. **Number hierarchically.** Each requirement is a group header `### Rn.` (`R1`, `R2`…). Each acceptance criterion under it is a leaf, labelled `Rn.m` (`R1.1`, `R1.2`…). Tasks reference the leaf `Rn.m` numbers — so every criterion must carry one.
 2. **One requirement = one testable behavior.** If you can't write a single test for it, split it.
+2b. **A criterion whose deliverable is not code says so.** Some criteria are answered by an artifact rather than by a task: a regression guard, a feasibility verdict, a decision record. Append the sanctioned suffix and both orphan readers — `cross-reference.sh` and `validate-story.sh --cross-ref` — treat the criterion as satisfied instead of untraced:
+
+   ```
+   - R1.2: THE SYSTEM SHALL keep the CRLF round-trip guarded (satisfied-by: tests/close-subtask-roundtrip.bats)
+   - R3.4: THE SYSTEM SHALL record the feasibility verdict for the native runner (satisfied-by: design.md#tooling-decisions)
+   ```
+
+   The artifact must be named: `(satisfied-by: )` with nothing after the colon is a validation warning, because the class legalizes a deliverable, not a way to silence the check. The suffix binds to the criterion it closes, so a criterion wrapped over several lines can carry it at the end.
 3. **User stories are optional** for technical/infrastructure requirements. Use them for user-facing features.
 4. **Acceptance criteria use EARS notation.** See `ears-notation.md` for keyword reference.
 5. **Out of Scope is mandatory.** Explicitly stating what you're NOT building prevents scope creep.

@@ -164,7 +164,7 @@ Both halves are load-bearing: **never create the story without asking** (a promo
 
 **Computed live, stored nowhere, blocking nothing.** A `done` or `validated` status says the work is finished; whether it ever reached the main branch is a separate fact, and this is where the list surfaces it.
 
-**The annotation is one script, never a prose rendering.** [`scripts/story-git-status.sh`](../scripts/story-git-status.sh) measures and prints `{story, main_branch, integrated, evidence, checked_at}`; [`scripts/render-integration.sh`](../scripts/render-integration.sh) turns that JSON into the label. This mode pipes one into the other and appends what comes back — it never derives the label itself. A rendering rule written down twice is two things to keep in step, and the copy the test suite exercises must be the copy the command runs.
+**The annotation is one script, never a prose rendering.** [`scripts/story-git-status.sh`](../scripts/story-git-status.sh) measures and prints `{story, main_branch, integrated, evidence, anchored_commits, checked_at}`; [`scripts/render-integration.sh`](../scripts/render-integration.sh) turns that JSON into the label. This mode pipes one into the other and appends what comes back — it never derives the label itself. A rendering rule written down twice is two things to keep in step, and the copy the test suite exercises must be the copy the command runs.
 
 ```
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir> \
@@ -232,7 +232,6 @@ Same as summary, plus expand each story's task list showing checkbox state, task
 
   - [x] 1 - Project Scaffolding
     - [x] 1.1 - Install dependencies
-    - [x] 1.2 - Commit
   - [x] 2 - Database Layer
     - [x] 2.1 - Schema and migrations
   ...
@@ -248,7 +247,6 @@ Render every box as the file writes it, qualifier included. Under the gate count
 
   - [x] 1 - Webhook Receiver
     - [x] 1.1 - Signature verification
-    - [x] 1.2 - Commit
   - [x] 2 - Provider Handshake
     - [~] 2.1 - Register the production callback URL (deferred: needs the provider's live account)
     - [~] 2.2 - Verify the first live event (deferred: needs a real payment in production)

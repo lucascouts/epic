@@ -179,7 +179,14 @@ EOF
   # And it is NOT the other arm. This fixture HAS a `## Verdict` carrying a
   # `status:` line; reporting it as missing would send the author off to write a
   # section that is already sitting in the file.
-  ! echo "$output" | jq -r '.error_details[]' | grep -q "has no readable"
+  #
+  # `if … then return 1; fi` rather than `! echo …`: bash exempts a `!`-inverted
+  # command from errexit, so with the error-count assertion following it this
+  # negation was inert — measured green with its pattern widened to match every
+  # detail. Canonical: tests/reports-by-artifact-policy.bats:49-67.
+  if echo "$output" | jq -r '.error_details[]' | grep -q "has no readable"; then
+    return 1
+  fi
   # Exactly one error, which is the if/elif made observable: the two arms are
   # mutually exclusive by construction and must never both fire on one file.
   # Safe to assert as a count because the conforming case at the top of this file
