@@ -11,6 +11,8 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-15
+
 Twelve stories (`010`–`021`). The through-line is **one deterministic writer for
 the checkbox grammar**, and then making everything that *reads* that grammar
 honest: verdicts land as files instead of chat text, assertions pin direction
@@ -683,7 +685,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/lucascouts/epic/releases/tag/v0.5.0
 [0.4.0]: https://github.com/lucascouts/epic/releases/tag/v0.4.0
 [0.3.1]: https://github.com/lucascouts/epic/releases/tag/v0.3.1
 [0.3.0]: https://github.com/lucascouts/epic/releases/tag/v0.3.0
