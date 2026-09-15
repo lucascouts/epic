@@ -1,5 +1,14 @@
 name: shell-ci
 
+# The default GITHUB_TOKEN is scoped down here rather than left to the
+# repository setting. That setting reads `read` today, but it lives outside the
+# repo — invisible in a diff, changeable by any admin, and unversioned. Every
+# job below only checks out, apt-installs and runs tests; none writes to the
+# repo, comments on a PR or publishes anything, so `contents: read` is the whole
+# of what they need. Raised by CodeQL's actions/missing-workflow-permissions.
+permissions:
+  contents: read
+
 on:
   pull_request:
     paths:
