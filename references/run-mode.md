@@ -65,14 +65,29 @@ The `tech_profile` is passed to the Executor sub-agent prompt. Boundaries trigge
 
 ## Execution Threshold
 
-| Task Complexity | Executor | Tech Review | Context Gathering |
-|-----------------|----------|-------------|-------------------|
-| Trivial | Main agent (inline) | No | Optional |
-| Simple | Sub-agent | Only if multi-tech boundary | Required if Context field exists |
-| Moderate | Sub-agent | Yes, if multi-tech boundary | Required |
-| High | Sub-agent | Always (even single-tech) | Required + extra research |
+**The route is chosen per sub-task, and it is not read off `Complexity`.** `Complexity` is a parent-task field — [tasks.md](tasks.md#metadata-line-fields) makes it *Always on parent* and merely optional on the sub-task — so routing on it alone sends every sub-task of a `Moderate` parent to a sub-agent, the ones whose spec is already closed included. That is the expensive mistake: a sub-agent starts with an empty context and has to re-read what the orchestrator is already holding, so delegating a closed spec buys isolation nobody needed and pays for it in rediscovery.
 
-For `--auto` flag: threshold unchanged. Sub-agents still run, but gates between tasks are removed (only stop on failure).
+Read the sub-task's own body and take the **first** route that matches.
+
+| The sub-task is… | How you can tell, from its body | Route | Why |
+|---|---|---|---|
+| **Verification** | its Objective is to review, audit or validate work that is already done | **Sub-agent, always** | here the fresh context *is* the product — whoever did not watch the author work is the only one who can see what the author cannot |
+| **Exploratory** | `Context.Files` lists many files, or names a directory instead of files, or the ToDo says where to look rather than what to change | **Sub-agent** | the throwaway reading dies with the sub-agent instead of settling into the orchestrator's context for the rest of the run |
+| **Closed spec** | the ToDo names the files to create or modify, `Validation` carries a runnable command, and `Context` is absent or lists at most a couple of files | **Main agent, inline** | every input is already in hand; a sub-agent would spend its first minutes re-deriving them |
+| anything else | — | **Sub-agent** | when the sub-task does not say enough to route it, the isolated context is the safe default |
+
+`Complexity` still governs the two columns the route does not decide. A sub-task carrying its own `Complexity` override uses that value; otherwise it inherits the parent's:
+
+| Task Complexity | Tech Review | Context Gathering |
+|-----------------|-------------|-------------------|
+| Trivial | No | Optional |
+| Simple | Only if multi-tech boundary | Required if Context field exists |
+| Moderate | Yes, if multi-tech boundary | Required |
+| High | Always (even single-tech) | Required + extra research |
+
+**The route never relaxes the protocol.** Inline means the main agent runs the same six steps an Executor would (see Inline Route — Main Agent), gathers context whenever a Context field exists, and closes the box through `close-subtask.sh` like everyone else. It is the same work done in a cheaper place — never less work.
+
+For `--auto` flag: routing unchanged. Sub-agents still run wherever the table sends them, but gates between tasks are removed (only stop on failure).
 
 ## Task Execution Flow
 
@@ -95,17 +110,17 @@ A sub-task with no `Tests` field is implemented against its `Acceptance` field p
 
 **Unexpected green (Fast and spike).** If a test authored at run time **passes on its first run**, the sub-task is blocked — the test is not establishing Red. Revise the test **once** so it fails for the expected reason. If it still passes after that single revision, **escalate to the user** rather than proceed — describe the test, the sub-task, and why it will not fail. Never weaken or delete assertions to force a failure. This is lighter than the Standard/Full 2-attempt cap.
 
-The two paths below — Trivial inline and Simple+ via the Executor — apply this ordering; Standard/Full sub-tasks are unaffected.
+The two routes below — inline and delegated — apply this ordering; Standard/Full sub-tasks are unaffected.
 
-### Trivial Complexity — Main Agent Inline
+### Inline Route — Main Agent
 
 The main agent executes directly but MUST follow the same step sequence as the Executor. No step may be skipped. If a Context field exists, context MUST be gathered before implementation.
 
-For a **Trivial** sub-task under the run-time ordering above (Fast or spike, `Tests` present), the main agent is the **single author** for the whole cycle: it authors the test, runs it, confirms **Red** (for the right reason), then implements inline to **Green**, validates, and **Refactors** — all in the one inline execution. The unexpected-green rule above applies: revise once, then escalate.
+For an **inline-routed** sub-task under the run-time ordering above (Fast or spike, `Tests` present), the main agent is the **single author** for the whole cycle: it authors the test, runs it, confirms **Red** (for the right reason), then implements inline to **Green**, validates, and **Refactors** — all in the one inline execution. The unexpected-green rule above applies: revise once, then escalate.
 
 **The box is closed the same way it is on the Executor path** — one `close-subtask.sh` invocation, never a hand edit (see Closing a Box). Being the single author makes the main agent the executor here; it does not make it a second writer of the checkbox grammar. It produces the same closing block for itself that an Executor would have reported, and feeds it to the same script.
 
-### Simple+ Complexity — Executor Sub-agent
+### Delegated Route — Executor Sub-agent
 
 Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent section. The orchestrator:
 
@@ -117,7 +132,7 @@ Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent se
 6. If FAIL — the report's closing block carries `outcome: failed`: report to user, ask how to proceed. **No close call is made**: the box stays `[ ]` and nothing is written
 7. After all reviews pass: **close the box** — one invocation of `close-subtask.sh` carrying the report's closing block (see Closing a Box). The orchestrator never edits the checkbox itself, and never re-reads tasks.md afterwards: the census and the status transition come back inside the script's JSON
 
-For a **Simple-or-higher** sub-task under the run-time ordering above (Fast or spike, `Tests` present), the test-first cycle is **split** between the orchestrator and the Executor — but the Executor protocol itself is **reused unchanged**:
+For a **delegated** sub-task under the run-time ordering above (Fast or spike, `Tests` present), the test-first cycle is **split** between the orchestrator and the Executor — but the Executor protocol itself is **reused unchanged**:
 
 - **Before spawning the Executor**, the orchestrator (main agent) authors the test, runs it, and confirms **Red** (for the right reason). The unexpected-green rule above applies: revise once, then escalate to the user. The test is written directly into the project's real test tree — neither scale has `.draft/` staging.
 - The orchestrator then passes that confirmed-failing test to the Executor as the read-only **"Pre-Authored Test"** input (its path and contents in the Executor prompt section of the same name). The Executor consumes it exactly like a materialized Standard/Full pre-authored test.
@@ -125,7 +140,7 @@ For a **Simple-or-higher** sub-task under the run-time ordering above (Fast or s
 
 ### Closing a Box
 
-**Every `[x]` and every `[~]` this engine writes is written by one script.** The orchestrator does not edit a checkbox: not after an Executor, not on the Trivial inline path, not when settling a Quality Gate, and never inside a worktree.
+**Every `[x]` and every `[~]` this engine writes is written by one script.** The orchestrator does not edit a checkbox: not after an Executor, not on the inline route, not when settling a Quality Gate, and never inside a worktree.
 
 ```
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/close-subtask.sh" <NNN|story-dir> <N.N|N|gate:<text-prefix>> \
@@ -678,9 +693,11 @@ When multiple pending tasks share the same dependency set and all dependencies a
 
 ### Detection
 
-1. Build dependency graph from tasks.md parent task `Dependencies` field
-2. Identify parallel group: tasks where all deps are **satisfied** ([tasks.md](tasks.md#dependency-satisfaction) — `[x]` or terminal `[~]`; a dep closed as `[~] (deferred: …)` is **not**) and no task in the group depends on another task in the same group
-3. Verify no file conflicts: tasks that modify the same files should NOT be parallelized
+**Run the detection at both levels — parent tasks *and* sibling sub-tasks.** Reading only the parent `Dependencies` field finds parallelism one layer above where the work actually is: what a run executes one at a time is sub-tasks, and a parent whose siblings are all sequential still hides independent sub-tasks inside itself. **Numbering is not dependency.** Sub-tasks 2.1 and 2.2 are written in order because a list has an order; they are dependent only when one of them says so.
+
+1. Build the dependency graph from the `Dependencies` field on parent tasks, **and from the sibling sub-tasks inside each pending parent**. A sub-task depends on a sibling only when it names one (`Task 2.1`) or when its ToDo consumes something the sibling creates — a file, a symbol, a migration. Otherwise the siblings are independent
+2. Identify parallel group: items where all deps are **satisfied** ([tasks.md](tasks.md#dependency-satisfaction) — `[x]` or terminal `[~]`; a dep closed as `[~] (deferred: …)` is **not**) and no item in the group depends on another item in the same group
+3. Verify no file conflicts: items that modify the same files are NOT parallelized. At sub-task granularity this is the usual disqualifier — siblings edit one file far more often than sibling *tasks* do, and `tasks.md` rule 9 already forbids splitting a task across the same file, which makes the check cheap to run and usually decisive
 4. Present to user: "Tasks N, M, P are independent (all depend only on satisfied tasks). Execute in parallel? [y/n]"
 
 ### Execution

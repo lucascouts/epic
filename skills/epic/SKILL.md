@@ -135,7 +135,7 @@ Sub-agents with specialized roles. Scale determines which personas are activated
 
 | Persona | Role | Scale | Agent file |
 |---|---|---|---|
-| **Executor** | Implements a sub-task following the strict 6-step protocol; step 5 is conditional (Refactor for test-first sub-tasks, Tests for test-after). Ends its report with a machine-liftable **closing block** — sub-task id, outcome (`done` / `close-tilde` + qualifier + reason / `failed`) and the pre-authored commit message it validated against. **Marks no box and runs no `git commit`**: the orchestrator lifts that block into `scripts/close-subtask.sh`, the one writer of the checkbox grammar | all scales (Simple+ complexity) | `agents/executor.md` |
+| **Executor** | Implements a sub-task following the strict 6-step protocol; step 5 is conditional (Refactor for test-first sub-tasks, Tests for test-after). Ends its report with a machine-liftable **closing block** — sub-task id, outcome (`done` / `close-tilde` + qualifier + reason / `failed`) and the pre-authored commit message it validated against. **Marks no box and runs no `git commit`**: the orchestrator lifts that block into `scripts/close-subtask.sh`, the one writer of the checkbox grammar | all scales (delegated route) | `agents/executor.md` |
 | **Tech Reviewer** | Reviews implementation at technology boundaries; holds `Bash` for measurement only (never mutating files or git state), so a finding resting on a runnable check carries the command and its output | all scales (multi-tech tasks) | `agents/tech-reviewer.md` |
 
 ### Post-Implementation Personas (validation)
@@ -309,9 +309,21 @@ Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a 
 |---|---|---|---|
 | **Trivial** | 1-2 files, single concern | Fast | No formal traceability or design docs |
 | **Simple** | 3-5 files, clear scope | Standard | No design docs; upgrade to Full if architectural decisions appear |
-| **Moderate** | 5-10 files, design decisions | Full | More upfront time, but traceable requirements and documented design |
+| **Moderate** | 5-10 files, design decisions | Standard | Traceable requirements and a task breakdown, with no design doc to write and keep current; upgrade to Full only on an architectural signal (below) |
 | **High** | 10+ files, cross-cutting | Full | Highest upfront cost, but prevents scope drift and design mismatches |
 | **Exploratory** | "probe", "spike", "experiment", "harness", "find out whether" / "descobrir se" — the goal of the request is to learn something; no deliverable is committed to yet | Spike | Tasks-only and time-boxed: no requirements chain, no design doc; ends in a Verdict that promotes to a real story or closes the question |
+
+**Full is opt-in on an architectural signal, not on file count.** A design doc earns its cost only when there is a decision to record *before* the code exists. Propose Full when the request carries at least one of:
+
+- a **new contract between systems** — an API, an event, a schema that two components must agree on
+- a **data migration**, or any change to the shape of something already persisted
+- a **cross-cutting change with no established pattern** in the codebase to follow
+- **2+ independent tracks** that have to be designed to fit together (the same signal the Agent-Teams proposal reads)
+- the user asking for Full explicitly
+
+Absent every one of them, a Moderate story is **Standard** however many files it touches: file count measures typing, not design risk.
+
+**Downgrading is as legitimate as upgrading.** The upgrade rule on the Simple row has a mirror. WHEN the clarify phase resolves the open questions and no architectural signal survives, **propose dropping to the lighter mode** — Full to Standard, or Standard to Fast — and name what the user gives up: Full to Standard loses the design doc, Standard to Fast loses the requirements chain and its traceability. The proposal is the user's to accept or refuse; the skill never downgrades silently. One downgrade is forbidden outright, and it is the subject of the next note.
 
 **Exploratory is a shape, not a size.** Propose Spike only when the request's own goal is to find something out, or when the user asks for one explicitly. A small feature is **Fast**, never Spike — the skill **never auto-downgrades a feature to a spike**: doing so would trade a deliverable for a question the user never asked.
 

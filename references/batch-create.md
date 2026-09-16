@@ -34,10 +34,12 @@ Read the document for **story-shaped items**: a stated problem with a stated rem
 
 One block, N rows, one confirmation:
 
-| # | Proposed story | Type | Complexity | Scale |
-|---|---|---|---|---|
-| 1 | `<slug>` | feature | Moderate | full |
-| 2 | `<slug>` | bugfix | Trivial | fast |
+| # | Proposed story | Type | Complexity | Scale | Why this scale |
+|---|---|---|---|---|---|
+| 1 | `<slug>` | feature | Moderate | full | new contract between services — the architectural signal Full asks for |
+| 2 | `<slug>` | bugfix | Trivial | fast | — |
+
+**A Moderate row is `standard` unless it names an architectural signal.** Scale per row follows the same rule a single create follows ([SKILL.md](../skills/epic/SKILL.md#complexity--mode-recommendation)): Full is opt-in on a signal, never on file count. Row 1 above earns its `full` in the last column — a row that cannot fill that column is a `standard`.
 
 Below the rows, the batch-wide context gathered once in step 2 — the runtime dependency check, the MCP health-check results and the resolved preferred tooling — then a single "Confirm or adjust?".
 

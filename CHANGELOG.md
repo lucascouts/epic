@@ -11,6 +11,50 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Changed
+
+- **Execution routing is decided per sub-task, not read off the parent's
+  `Complexity`** (`references/run-mode.md`). `Complexity` is a parent-task field
+  — `references/tasks.md` makes it *Always on parent* and merely optional on the
+  sub-task — so the old Execution Threshold sent every sub-task of a `Moderate`
+  parent to its own Executor, the ones whose spec was already closed included.
+  That is rediscovery sold as isolation: the sub-agent starts empty and re-reads
+  what the orchestrator is already holding. The threshold now reads the
+  sub-task's own body and takes the first matching route — verification always
+  delegates (the fresh context *is* the product), exploration delegates (the
+  throwaway reading dies with the sub-agent), a closed spec runs inline, and
+  anything that does not say enough to route itself delegates by default.
+  `Complexity` keeps the two columns the route does not decide, Tech Review and
+  Context Gathering. The route changes *where* the work happens and never what
+  it is: inline still runs the six steps, still gathers context when a Context
+  field exists, and still closes its box through `close-subtask.sh`.
+  - The two sub-sections are renamed to the routes they now describe —
+    **Inline Route — Main Agent** and **Delegated Route — Executor Sub-agent**.
+    "Trivial Complexity" had stopped being true of either.
+- **Parallel detection runs at both levels, parent tasks and sibling sub-tasks**
+  (`references/run-mode.md`). Building the graph from the parent `Dependencies`
+  field alone looks for parallelism one layer above where the work is: a run
+  executes sub-tasks, and a parent whose siblings are sequential can still hold
+  independent sub-tasks. **Numbering is not dependency** — 2.1 and 2.2 are in
+  order because a list has an order, and are dependent only when one says so.
+  File conflicts stay the disqualifier, and are the usual one at this
+  granularity.
+- **Full is opt-in on an architectural signal, not on file count**
+  (`skills/epic/SKILL.md`). The `Moderate` row of the complexity table now
+  recommends **Standard**; Full asks for at least one stated signal — a new
+  contract between systems, a data migration, a cross-cutting change with no
+  established pattern, 2+ tracks that must be designed to fit together, or the
+  user asking for it. A design doc earns its cost only when there is a decision
+  to record before the code exists, and file count measures typing rather than
+  design risk.
+  - **Downgrade is now as legitimate as upgrade.** The upgrade rule on the
+    `Simple` row gains its mirror: when clarify resolves the open questions and
+    no architectural signal survives, the lighter mode is *proposed*, naming what
+    the user gives up. Never silent, and never a feature demoted to a spike.
+  - The triage examples in `output-styles/epic.md` and
+    `references/batch-create.md` name the signal that earns their `Full`, instead
+    of letting `Moderate` read as the reason.
+
 ## [0.5.0] — 2026-09-15
 
 Twelve stories (`010`–`021`). The through-line is **one deterministic writer for
