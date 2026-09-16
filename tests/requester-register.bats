@@ -94,6 +94,9 @@ has() { # has <label> <block> <keyword>
   has "Q7 budget" "$block" "budget"
   has "Q7 layperson" "$block" "layperson"
   has "Q7 show" "$block" "run and show"
+  has "Q7 report file" "$block" "run-report.md"
+  tf=$(section "$ROOT/references/run-mode.md" '^### Run-time test-first ordering' '^### ')
+  has "Q7 red stays in the file" "$tf" "layperson"
 }
 
 @test "Q8: preferred-tooling.md never pauses for a layperson" {
