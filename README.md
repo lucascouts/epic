@@ -217,6 +217,23 @@ bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" .epic/stories/001-feature/ --
 
 When the plugin is active, the scripts are also on PATH as `epic-validate`, `epic-xref` and `epic-archive`.
 
+### What a story actually cost
+
+`scripts/story-telemetry.sh` reads a session transcript and reports what was spent — **in tokens and wall clock, never in money**. It writes no files and makes no network call.
+
+```bash
+bash "$EPIC_PLUGIN_ROOT/scripts/story-telemetry.sh"                      # this project's latest session
+bash "$EPIC_PLUGIN_ROOT/scripts/story-telemetry.sh" --since 2026-09-16T18:00:00Z   # one phase, by window
+```
+
+One JSON object on stdout: tokens split `main` / `subagent` (input, cache creation, cache read, output), models seen, wall clock, and `events` beside `unique_messages`.
+
+Three things it deliberately does **not** do, each for a stated reason:
+
+- **No dollars.** The transcript carries usage and no price. A price table shipped inside a plugin ages into a confident wrong answer; the reader knows the current prices.
+- **No silent summing.** The transcript repeats a message's usage on every content block — measured at **462 events for 190 messages**, a 2.4x inflation — so usage is summed per distinct `message.id`, and both counts are emitted so you can see that it happened.
+- **No claim it cannot back.** `subagent_split_verified` is `false` until the run actually saw a sidechain event, so a zeroed `subagent` block reads as *none seen*, never as *confirmed none*.
+
 Generate stories programmatically with the Agent SDK:
 
 ```bash
