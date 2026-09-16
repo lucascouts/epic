@@ -31,6 +31,42 @@ gracefully (see README "Prerequisites").
   called, and no secret is copied into a page. Sub-agents get no memory tool and
   their own `.claude/agent-memory/` stores are untouched — moving those to pages
   waits until the path-rewrite supersession has proven itself here.
+- **Triage reads who is asking, and a layperson gets a plain register, a
+  question budget and Fast** (`references/plain-register.md`;
+  `skills/epic/SKILL.md` Triage and Clarify; `references/phase-gates.md`,
+  `references/run-mode.md`, `references/preferred-tooling.md`,
+  `references/init-mode.md`, `references/context-discovery.md`). Measured on a
+  persona simulation of one beginner, three runs: the same request drew Fast
+  once and Standard twice, and Fast served her best by every measure; the
+  chat carried executor ×6, framework ×4, box ×4, commit ×8 and story ×3;
+  she was asked 1 question out of her reach in Fast and 5–8 in Standard —
+  how to commit on `master`, whether to version a data file, and to approve
+  requirements documents she could not evaluate ("Aprovo, pode seguir",
+  three times); and the same data file was gitignored in two runs and
+  versioned in the third. Four changes answer those four measurements.
+  - **Requester, read from the request alone, never from a question** —
+    `developer` or `layperson`, `developer` when unsure. A layperson changes
+    two things and nothing else: Fast is proposed and held unless they ask
+    for more, and the chat switches to the plain register. Files, protocols
+    and sub-agents are untouched.
+  - **The plain register** — process words stay in the files and the chat
+    says what happens in the requester's terms; decisions they cannot
+    evaluate are taken from defaults and mentioned in one clause; a gate is
+    one line, not a file review; run and show instead of "run it yourself";
+    a stop promised per group is one group per turn; ~1,500 visible
+    characters per turn.
+  - **One question budget per story**, counted from triage to the last box
+    across Clarify rounds, phase gates and run-time questions — layperson
+    Fast 1 / Standard 3, developer Fast 2 / Standard 5 / Full 7. Spent
+    budget means defaults and recorded assumptions, not more questions. And
+    **each round is built from what the last one left open**: an
+    out-of-scope answer removes its branch, a default removes its
+    follow-ups, an answer in tool vocabulary re-reads the requester; when
+    triage was unsure, round 1 opens with one calibration question.
+  - **`## Defaults` in the constitution**, written by init whether or not
+    the questions are answered — data files gitignored, tests silent in
+    Fast, free text validated as text, the current branch — so the same
+    request gets the same answer on every run.
 
 ### Changed
 

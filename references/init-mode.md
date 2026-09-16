@@ -23,6 +23,14 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
    - Create custom sub-agents? Common templates:
      [1] Code reviewer [2] Test writer [3] None (default)
 
+   **Defaults — decisions the requester is never asked** (written into `.epic/constitution.md` as a `## Defaults` block; triage, Clarify and Run read it, and the [plain register](plain-register.md#decisions-the-requester-is-not-asked) relies on it):
+   - Data files the program creates? [1] gitignored (default) [2] versioned
+   - Tests in Fast stories? [1] written silently (default) [2] asked each time
+   - Free-text fields? [1] validated as text (default) [2] fixed lists where the domain has one
+   - Branch for story commits? [1] the current branch (default) [2] one branch per story
+
+   Unanswered items take the default, and the block is written either way — so the same request gets the same answer on every run. Measured before this block existed: the same data file was gitignored in two runs and versioned in the third, and tests were silent in one run and asked-and-declined in two.
+
 4. **Generate files** — create all requested files with sensible defaults based on scan
 5. **Ask the versioning-policy question** — measure first, offer exactly two options, then write the chosen state. Defined once, below: [Versioning Policy](#versioning-policy). A non-interactive run never asks and never starts tracking (R3.4)
 6. **Report** — list all files created, and name the policy that was recorded
@@ -32,6 +40,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 - Never overwrite existing files without confirmation
 - Auto-detect as much as possible from the project (language, framework, patterns)
 - Defaults should be safe and conservative
+- **The `## Defaults` block is declared once, here, and read everywhere.** Triage, Clarify and Run take its answers silently; a question about one of them later is a defect, not diligence
 - Each generated file includes comments explaining its purpose
 - **Init writes files and nothing else.** It never runs `git add`, `git rm --cached`, `git commit` or `git checkout` — not in either policy branch, not in a headless run. Choosing to version artifacts is a declaration; committing them is the user's next action, and this is the wizard that must never make it for them
 

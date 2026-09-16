@@ -45,6 +45,7 @@ When a story requires E2E testing and no favorite E2E tool (`playwright`, `chrom
 2. **If the user installs:** re-run detection for that tool and select the favorite.
 3. **If the user proceeds without installing:** continue using the best available tool that fits the task context — an installed optional E2E tool when one fits (see "Priority order"), otherwise record `no E2E tooling available` as a story constraint. For a frontend task with no `frontend-design`, fall back to the Executor's default approach.
 4. **Headless / non-interactive session:** do **not** pause and do **not** call `AskUserQuestion`. Emit the recommendation as a logged note and proceed immediately with the best available tool (or the recorded constraint). The recommendation is informative, never gating, in a headless session.
+5. **`layperson` requester ([plain-register.md](plain-register.md)):** the headless branch applies in an interactive session too — no pause, no `AskUserQuestion`; take the best installed tool and record the note. A beginner cannot evaluate an install recommendation, and the question would spend a round of a budget that holds one.
 
 ## Rules
 

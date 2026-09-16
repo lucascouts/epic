@@ -286,10 +286,12 @@ Bugfix always follows: P1: story.md (bug analysis) > P2: design.md (root cause) 
 
 Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a **single proposal** for confirmation. Never ask each decision separately.
 
+**Read who is asking first — from the request alone, never from a question.** Two registers. A **`developer`** names files, tools, patterns or a stack, and uses git / npm / test vocabulary. A **`layperson`** describes an outcome rather than a mechanism, self-describes as starting or learning, and shows no tool vocabulary — "the black window", "a program that stores things". When unsure, **`developer`**: a wrong `layperson` patronizes an expert, while a wrong `developer` costs one calibration question in Clarify. Record `requester` and the signals it rests on in the proposal and, where a `.draft/` exists, in `meta.yaml`. A `layperson` changes **two things and nothing else**: **Fast is proposed and stays Fast unless they ask for more** — the measured triage proposed Standard to a beginner twice for one request, and the Fast run served her best by every measure — and the chat switches to the [plain register](../../references/plain-register.md). The files, the protocols and the sub-agents do not change.
+
 1. Detect event from request context
 2. Classify type (feature vs bugfix)
 3. **Assess overall story complexity** (see table below)
-4. **Recommend mode with trade-off explanation**
+4. **Recommend mode with trade-off explanation** — a `layperson` gets Fast, held unless they ask for more (above)
 5. Suggest workflow variant (full mode only)
 6. Check for context files — load [context-discovery.md](../../references/context-discovery.md)
 7. **Health-check candidate MCPs** — load [mcp-integration.md](../../references/mcp-integration.md)
@@ -341,6 +343,7 @@ Present as:
 > "Based on your request:
 > - **Event:** Create / Refine / Expand
 > - **Type:** Feature / Bugfix
+> - **Requester:** developer / layperson (the signals, in a few words)
 > - **Complexity:** Trivial / Simple / Moderate / High (justification)
 > - **Mode:** Fast / Standard / Full (reason + trade-offs)
 > - **Workflow:** Requirements-First / Design-First (full mode only)
@@ -351,6 +354,8 @@ Present as:
 > - **Output:** `.epic/stories/NNN-<proposed-name>/`
 >
 > Confirm or adjust?"
+
+For a `layperson`, the same decisions are presented in the [plain register](../../references/plain-register.md): three lines in their words, one question — go on, or change something. The table above is what gets recorded, not what they are shown.
 
 ### Agent-teams proposal (Full mode only, structural)
 
@@ -398,11 +403,30 @@ clarifications using the `AskUserQuestion` tool. Multiple-choice prompts are
 faster for the user than free-text confirmations and yield structured answers
 the orchestrator can route on without re-parsing prose.
 
-- Use up to **3 rounds** of clarification. Each `AskUserQuestion` call may
-  bundle 3–7 related questions; the user answers them together. If ambiguities
-  remain after 3 rounds, document assumptions explicitly in story.md and
-  proceed. Quality matters more than speed, but infinite clarification defeats
-  the purpose.
+- **One question budget per story, counted from triage to the last box.**
+  Every `AskUserQuestion` call (or its numbered-list fallback), every phase
+  gate and every question asked during Run is one round against the same
+  budget: **`layperson` — Fast 1, Standard 3; `developer` — Fast 2,
+  Standard 5, Full 7.** Measured before the budget existed: 1 out-of-reach
+  question in Fast and 5–8 in Standard, for one beginner and one request.
+  When the budget is spent, decide by the constitution's `## Defaults` and the
+  [plain register](../../references/plain-register.md#decisions-the-requester-is-not-asked)
+  table, write each decision as an assumption in story.md (Fast: in the run
+  report) and proceed. Infinite clarification defeats the purpose — and so
+  does a question the requester cannot answer.
+- **Each round is built from what the last one left open.** Before composing
+  round N+1, apply round N's answers: an `out-of-scope` answer removes its
+  whole branch; a default taken removes the follow-ups that default implies;
+  an answer given in tool vocabulary re-reads the requester as `developer`
+  for the rest of the story, and one given in outcome words keeps
+  `layperson`. A question whose answer no longer changes the plan is not
+  asked. When triage was unsure of the requester, round 1 opens with **one
+  calibration question** — "How do you want me to work with you?" with two
+  options in plain words: *explain in plain words and decide the technical
+  details for me* / *ask me the technical questions* — and every round after
+  it follows that answer.
+- Each `AskUserQuestion` call may bundle 3–7 related questions; the user
+  answers them together.
 - For each ambiguity, build a question with **2–4 mutually-exclusive options**.
   When the answer is binary, prefer `[yes / no / out-of-scope]` over open
   phrasings.
@@ -442,6 +466,7 @@ Before entering any phase, load the corresponding reference files:
 - For Phase Gates, Checkpoint Recovery, Cascade Rollback, sub-agents: load [phase-gates.md](../../references/phase-gates.md)
 - For reference files per phase (ears-notation, requirements, design-guide, etc.): see table in phase-gates.md
 - On format doubts, load the relevant example from `assets/examples/`
+- For a `layperson` requester, every phase gate takes the one-line shape in [plain-register.md](../../references/plain-register.md#gates-are-one-line) and counts against the question budget
 
 **Authoring ceiling at Phase 3.** When the generated `tasks.md` passes the threshold defined in [tasks.md](../../references/tasks.md) (Authoring Ceiling), warn and offer a split into a wave — interactively as a question, headless as a logged note that proceeds. It is a warning, never a block: a story that genuinely needs a large plan keeps it. In batch create the offer is not re-entered into the live interview; the warning surfaces in the approval block and the split happens post-batch (see [batch-create.md](../../references/batch-create.md)).
 
@@ -464,6 +489,8 @@ Draft metadata (`meta.yaml`):
 phase: 2
 approved: 2026-04-01
 project-hash: <short SHA of HEAD at approval time>
+requester: layperson        # developer | layperson — read at triage, re-read from Clarify answers
+questions_asked: 2          # rounds spent against the story's question budget
 analyst_output: |
   <cached output from Codebase Analysis Analyst>
 ```

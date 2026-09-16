@@ -54,7 +54,7 @@ Results are saved to `.draft/meta.yaml` under `analyst_output` key and passed as
 
 | File | Applied At |
 |---|---|
-| `.epic/constitution.md` | Before Phase 1 (all scales) |
+| `.epic/constitution.md` | Before Phase 1 (all scales); its `## Defaults` block again at Clarify and Run, as decisions taken silently |
 | `CLAUDE.md` | Phase 2 (design) + Phase 3 (tasks) |
 | `AGENTS.md` | Phase 2 (design) + Phase 3 (tasks) |
 | Analyst output | Triage + Completeness Checklist + Phase 2 (design) |
@@ -64,6 +64,7 @@ Results are saved to `.draft/meta.yaml` under `analyst_output` key and passed as
 - Content is injected as context, not modified
 - Conflicts between context files and user input → user input wins
 - Constitution constraints appear as `[CONSTITUTION]` tags in story requirements
+- Constitution `## Defaults` are applied, never re-asked — [plain-register.md](plain-register.md#decisions-the-requester-is-not-asked)
 
 ## Completeness Checklist
 
