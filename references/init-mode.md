@@ -6,6 +6,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 
 1. **Scan project** — detect language, framework, dependencies, existing config files
 2. **Check existing files** — report which of `CLAUDE.md`, `.claude/agents/`, `.epic/constitution.md` already exist
+2a. **Check memory** — one `memory_status` call ([mcp-integration.md](mcp-integration.md#memory-mcp)). WHEN `ai-memory` answers and the nearest `.ai-memory.toml`, if any, has no `ignore_paths` entry covering `.epic/**`, add one line to the final report: `ai-memory detected — add ignore_paths = [".epic/**"] to .ai-memory.toml so its hooks do not capture the artifacts Epic versions`. Informative, never gating; a non-interactive run prints the same line and asks nothing
 3. **Interactive questionnaire** — ask questions in a single numbered block:
 
    **For `.epic/constitution.md`:**

@@ -11,6 +11,27 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Added
+
+- **`ai-memory` as an optional, detected dependency** (`references/mcp-integration.md`
+  § Memory MCP; triage step 7a in `skills/epic/SKILL.md`; § Prior Knowledge in
+  `references/context-discovery.md`; `references/run-mode.md`,
+  `references/validate-mode.md`, `references/init-mode.md`; `userConfig.aiMemory`).
+  One local `memory_status` call at triage — every scale, Fast included — decides
+  for the whole story. When the server answers, the story is enriched at three
+  points: prior knowledge before the Analyst, prior deviations and discoveries in
+  every Executor's Project State, and prior structural audit findings handed to
+  the Auditor as things to verify. The orchestrator writes two kinds of page from
+  files that already exist — the deviation register at End of Run, structural
+  audit findings after the verdict — at stable paths, so a rewrite is the
+  supersession (`memory_write_page` has no `supersedes`; the path is the
+  identity). When the server does not answer, nothing changes and nothing is said
+  beyond one line in the proposal. Three rules are hard: memory is never evidence
+  (a finding still needs the file and the line), `memory_feedback` is never
+  called, and no secret is copied into a page. Sub-agents get no memory tool and
+  their own `.claude/agent-memory/` stores are untouched — moving those to pages
+  waits until the path-rewrite supersession has proven itself here.
+
 ### Changed
 
 - **Execution routing is decided per sub-task, not read off the parent's

@@ -33,6 +33,12 @@
       "description": "Override artifact language. Claude performs best in English; change only if your organisation mandates another language for written artifacts.",
       "default": "en"
     },
+    "aiMemory": {
+      "type": "string",
+      "title": "ai-memory integration",
+      "description": "auto (default): detect the ai-memory MCP server with one local call at triage and, when it answers, recall prior knowledge at triage, prior deviations at run and prior audit findings at validate, and write deviation and audit pages. off: never call it. A server that is not there behaves like off, silently.",
+      "default": "auto"
+    },
     "enableStaleMonitor": {
       "type": "boolean",
       "title": "Enable stale-story monitor",

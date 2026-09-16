@@ -293,6 +293,7 @@ Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a 
 5. Suggest workflow variant (full mode only)
 6. Check for context files — load [context-discovery.md](../../references/context-discovery.md)
 7. **Health-check candidate MCPs** — load [mcp-integration.md](../../references/mcp-integration.md)
+7a. **Detect memory** — `ai-memory`, per the Memory MCP section of [mcp-integration.md](../../references/mcp-integration.md#memory-mcp). One local `memory_status` call, in **all modes including Fast**; skipped only by `aiMemory: "off"`. WHEN available, gather Prior Knowledge before the Analyst runs — [context-discovery.md](../../references/context-discovery.md#prior-knowledge). WHEN unavailable, say so in the proposal's `**Memory:**` line and change nothing else.
 7b. **Detect preferred tooling** — load [preferred-tooling.md](../../references/preferred-tooling.md). Runs in **all modes, including Fast** (unlike step 7, which Fast skips). Detect every favorite and optional E2E tool plus the `frontend-design` aid, then resolve the selection:
    - WHEN a favorite is available, select it (`playwright` by default; `chrome-devtools` when the task is Chrome-specific). For a frontend story with `frontend-design` available, designate it the preferred implementation aid.
    - WHEN no favorite is available, recommend installing one and **pause** for the user's `[y/n]` decision. The pause reuses the Runtime dependency precheck's interactive/headless signal — `TaskCreate` present = interactive session, so pause; in a **headless** session do not pause, emit a logged note instead and proceed. WHEN the user proceeds without installing, select the best installed optional tool that fits the task context (per [preferred-tooling.md](../../references/preferred-tooling.md)).
@@ -345,6 +346,7 @@ Present as:
 > - **Workflow:** Requirements-First / Design-First (full mode only)
 > - **Context:** [files found and how they'll be used]
 > - **MCPs:** [verified MCPs and any substitutions]
+> - **Memory:** [ai-memory — N pages recalled | not detected]
 > - **Tooling:** [detected E2E tools + `frontend-design`; resolved E2E/frontend selection; any favorite-absent install recommendation]
 > - **Output:** `.epic/stories/NNN-<proposed-name>/`
 >
