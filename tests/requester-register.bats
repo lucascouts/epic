@@ -71,6 +71,7 @@ has() { # has <label> <block> <keyword>
   done
   ceiling=$(section "$f" '^## Ceiling' '^## ')
   has "Q4 ceiling" "$ceiling" "1,500"
+  has "Q4 by form" "$ceiling" "between them"
   show=$(section "$f" '^## Run and show' '^## ')
   has "Q4 show" "$show" "never"
 }
@@ -95,6 +96,7 @@ has() { # has <label> <block> <keyword>
   has "Q7 layperson" "$block" "layperson"
   has "Q7 show" "$block" "run and show"
   has "Q7 report file" "$block" "run-report.md"
+  has "Q7 between tools" "$block" "between tool calls"
   tf=$(section "$ROOT/references/run-mode.md" '^### Run-time test-first ordering' '^### ')
   has "Q7 red stays in the file" "$tf" "layperson"
 }
