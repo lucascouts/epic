@@ -191,7 +191,7 @@ $ARGUMENTS parsing:
 "stories NNN"
   → LIST mode (detailed, single story NNN)
 
-"stories run NNN [--auto|--batch=N|--gate=commit]"
+"stories run NNN [--auto|--batch=N|--gate=commit|--serial]"
   → RUN mode (all pending tasks of story NNN)
 
 "stories validate NNN"
@@ -210,7 +210,7 @@ $ARGUMENTS parsing:
 "stories teams {status|enable|disable}"
   → TEAMS mode (manage experimental agent-teams flag for this project)
 
-"stories NNN run all [--auto|--batch=N|--gate=commit]"
+"stories NNN run all [--auto|--batch=N|--gate=commit|--serial]"
   → RUN mode (all pending tasks of story NNN)
 
 "stories NNN run N"

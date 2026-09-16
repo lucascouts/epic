@@ -67,8 +67,40 @@ gracefully (see README "Prerequisites").
     the questions are answered — data files gitignored, tests silent in
     Fast, free text validated as text, the current branch — so the same
     request gets the same answer on every run.
+- **The archive guard refuses a `node_modules/` tree, once, by directory**
+  (`scripts/archive-story.sh`). Three projects in the July 2026 corpus carried
+  one under `.epic/`, left by an executor's `npm install`, and every file in it
+  is small enough to pass the 10 MB check on its own. The tree is now the
+  offender — one violation naming the directory, its files neither scanned nor
+  counted — and the guard refuses rather than deletes: nothing destructive runs
+  before step 4, and a reinstallable tree is still the user's to remove.
+  `--allow-heavy` archives it as it is and records the override, as for any
+  other guard finding.
+- **Init keeps the plugin's own litter out of the repository**
+  (`references/init-mode.md`). `.epic/.gitignore` gains `node_modules/` beside
+  `.draft/` and `*.wip`; and a new step, under either policy, offers — default
+  yes, consent-gated, additive — to append `.claude/agent-memory/` to the root
+  `.gitignore`: Claude Code writes the auditor's and analyst's project memory
+  there, and a persona simulation found those notes untracked and unignored in
+  a beginner's repo. Headless never edits; it logs the recommendation.
 
 ### Changed
+
+- **A proven parallel group runs without asking** (`references/run-mode.md`).
+  Detection's fourth step used to ask "Execute in parallel? [y/n]", and Run
+  mode's first rule was "Sequential by default" — so the measured story ran its
+  nine executors in series while the platform allows twenty. A group that
+  passed the three checks (satisfied dependencies, no dependency inside the
+  group, no shared file) is proven independent and is now *stated* in the
+  execution plan, not asked; everything not proven runs in order as before.
+  `--serial` is the one way to decline, for the whole run. The question also
+  cost a round of the question budget on every run that had a group.
+- **The story's evidence stays in `.draft/` by decision, and init says so**
+  (`references/init-mode.md`, README). `deviations.yaml`, `red-evidence.yaml`
+  and the validation and audit reports are a working record; their durable
+  forms are the archive's summary and, where `ai-memory` is detected, the pages
+  the orchestrator writes. Decided, not defaulted — the prior wording left it
+  looking like an omission.
 
 - **Execution routing is decided per sub-task, not read off the parent's
   `Complexity`** (`references/run-mode.md`). `Complexity` is a parent-task field

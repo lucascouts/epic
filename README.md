@@ -123,6 +123,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 | `/epic:epic stories run NNN --auto` | Run non-stop, only halt on failure |
 | `/epic:epic stories run NNN --batch=N` | Gate every N task groups |
 | `/epic:epic stories run NNN --gate=commit` | Gate only at Commit sub-tasks |
+| `/epic:epic stories run NNN --serial` | No parallel groups — every task in order, whatever detection finds |
 | `/epic:epic stories validate NNN` | Run Validator + Auditor on NNN |
 | `/epic:epic stories refine NNN` | Delta refinement (versioned) |
 | `/epic:epic stories supersede NNN --by MMM` | Replace story NNN with MMM via `references/supersede-mode.md` — supersede banner, per-task remap, `superseded` status in every artifact, archive offer |
@@ -178,10 +179,10 @@ epic/
 
 | Option | What init writes | Recorded in `.epic/.gitpolicy` |
 |---|---|---|
-| **Versioned artifacts** (recommended) | `.epic/.gitignore` with `.draft/` and `*.wip`; offers to remove a root-`.gitignore` rule that ignores `.epic/` — quoting the line, never silently | `tracked-md` |
+| **Versioned artifacts** (recommended) | `.epic/.gitignore` with `.draft/`, `*.wip` and `node_modules/`; offers to remove a root-`.gitignore` rule that ignores `.epic/` — quoting the line, never silently | `tracked-md` |
 | **Local-only** | `.epic/` appended to the root `.gitignore` | `local-only` |
 
-Versioned tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `archive/manifest.yaml`. **`.draft/` is never versioned under either policy** — it is scratch space: run logs, authored tests, phase snapshots, `*.wip`.
+Versioned tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `archive/manifest.yaml`. **`.draft/` is never versioned under either policy** — it is scratch space: run logs, authored tests, phase snapshots, `*.wip`, and the story's evidence files (`deviations.yaml`, `red-evidence.yaml`, the validation and audit reports) — the last by decision: their durable forms are the archive's summary and, where `ai-memory` is detected, the pages the orchestrator writes.
 
 **Why it is a question and not a default.** In a 26-project corpus, having no declared policy is what destroyed lifecycle history: a track→untrack transition **wiped 54 stories** in one project, a squash left **9 zombie duplicates** split across `stories/` and `archive/` in another, one project had **47 `.epic` files committed through a `.gitignore` that said they were never committed**, and another **flip-flopped its policy five times**. The three projects with the most auditable lifecycle had all deliberately broken the older "never commit `.epic`" doctrine and converged on the same model — version the `.md` artifacts, ignore `.draft/`. That is why versioned is *recommended*; it is still *asked*, because every failure above came from a policy nobody said out loud.
 

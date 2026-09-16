@@ -1117,6 +1117,36 @@ open(p, "wb").write(d)
   grep -q 'allow-heavy' "$MANIFEST"
 }
 
+@test "2.1: a node_modules/ tree blocks once, naming the directory, whatever its files weigh" {
+  make_story 005-deps complete
+  local story="$PROJ/.epic/stories/005-deps"
+  mkdir -p "$story/node_modules/left-pad" "$story/node_modules/.bin"
+  echo 'module.exports = () => 1' > "$story/node_modules/left-pad/index.js"
+  echo '{"name":"left-pad"}' > "$story/node_modules/left-pad/package.json"
+  echo '#!/bin/sh' > "$story/node_modules/.bin/pad"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-deps
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "blocked"' > /dev/null
+  # The tree is the offender: one violation, not one per file (three files here).
+  echo "$output" | jq -e '(.guard.violations | length) == 1' > /dev/null
+  echo "$output" | jq -e '.guard.violations[0].file | endswith("node_modules/")' > /dev/null
+  echo "$output" | jq -e '.guard.violations[0].reason | contains("node_modules")' > /dev/null
+  # Refused, never deleted: the tree is still there for the user to remove.
+  [ -f "$story/node_modules/left-pad/index.js" ]
+  [ ! -d "$PROJ/.epic/archive/005-deps" ]
+}
+
+@test "2.1: --allow-heavy archives a node_modules/ tree as it is and records the override" {
+  make_story 005-deps-allowed complete
+  local story="$PROJ/.epic/stories/005-deps-allowed"
+  mkdir -p "$story/node_modules/left-pad"
+  echo 'module.exports = () => 1' > "$story/node_modules/left-pad/index.js"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-deps-allowed --allow-heavy
+  [ "$status" -eq 0 ]
+  [ -f "$PROJ/.epic/archive/005-deps-allowed/node_modules/left-pad/index.js" ]
+  grep -q 'allow-heavy' "$MANIFEST"
+}
+
 # ADDITIVE 2.1 cases appended at execution time. Each pins behavior the ToDo
 # mandates that the four authored cases above leave unpinned. No assertion above
 # was modified, weakened or deleted, and every case below was mutation-checked

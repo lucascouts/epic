@@ -17,7 +17,7 @@ Triggered by `/epic:epic stories run NNN`, `/epic:epic stories NNN run all`, or 
 7. **Materialize pre-authored tests (Standard/Full only)** — before any task execution, copy every file under the story's `.draft/authored-tests/**` into the real test tree at its mirrored path. This step is **idempotent**: if a target test path already exists in the real tree, **skip that file and emit a warning** (it may already exist from a prior Run, a partial `run N.N`, or a manual executor edit — never overwrite it). Files that do not yet exist are copied. Materialization runs once per Run, ahead of step 8. This step applies to **Standard and Full scales only** — they are the two that stage Test Advisor-authored tests in `.draft/authored-tests/`. **Fast and spike have no `.draft/`**, so a Fast or spike Run has nothing to materialize and skips this step: Fast writes its tests at run time straight into the real test tree (see Task Execution Flow), and a spike is tasks-only by contract — `tasks.md` and nothing else ([tasks.md](tasks.md#spike-scale-adaptations)). Materialization only **copies** files — it never runs them. A materialized E2E test whose `.draft/red-evidence.yaml` entry carries `red_deferred: true` has its Red confirmed at task-execution time, not here (see Deferred Red for E2E sub-tasks under Task Execution Flow).
 
    **Materialization also checks the converse, because copying what exists cannot see what is absent.** Before copying, cross the pending task list against `.draft/`: a sub-task whose `Tests:` field is **not `None`** and which has **neither** a file under `.draft/authored-tests/` **nor** an entry in `.draft/red-evidence.yaml` never went through Phase 3. **Do not execute it — stop and report it by number**, then offer to author it now via the Test Advisor (the same one-sub-task flow [refine-mode.md](refine-mode.md#red-evidence-for-added-sub-tasks) defines) or to proceed with the sub-task's `Tests:` field explicitly waived and the waiver recorded in `.draft/deviations.yaml`. Running it as if it were test-first is the one option that is not available: the Executor would be handed a test-first sub-task with no test, and its conditional step 5 would branch on a premise that is false. **The usual cause is a refinement that added the sub-task after Phase 3 ran**, which is why the producing side is fixed there and this is the guard rather than the fix — one end of the wire is not a wire. **Fast and spike are exempt from this check exactly as they are from the copy**: neither has a `.draft/` for the cross to read, so the absence it hunts for is their normal state and never evidence of a skipped Phase 3. The exemption is load-bearing for a spike, whose `Tests` field is **optional but permitted** ([tasks.md](tasks.md#spike-scale-adaptations)) — a spike sub-task that does carry `Tests:` would otherwise be refused execution here by a guard about a phase a spike never runs.
-8. **Present execution plan** — show which tasks will be executed, in order, highlighting parallel groups and executor assignment
+8. **Present execution plan** — show which tasks will be executed, in order, highlighting parallel groups and executor assignment. A parallel group is **stated, not asked**: it runs as a group unless `--serial` was passed (see Parallel Execution)
 9. **Wait for user confirmation** before executing
 
 ## Execution Flags
@@ -30,6 +30,7 @@ Parse flags from `$ARGUMENTS` after the run command:
 | `--auto` | Only stop on validation/test failure |
 | `--batch=N` | Gate every N task groups |
 | `--gate=commit` | Gate only where a group's `Commit:` field is executed |
+| `--serial` | Run every task and sub-task in order, including the ones detection proved independent — for a run that must read as a sequence |
 
 Examples:
 ```
@@ -37,6 +38,7 @@ Examples:
 /epic:epic stories run 004 --auto             ← only stop on failure
 /epic:epic stories run 004 --batch=3          ← gate every 3 groups
 /epic:epic stories run 004 --gate=commit      ← gate only at commits
+/epic:epic stories run 004 --serial           ← no parallel groups, whatever detection finds
 ```
 
 ## Tech Stack Detection
@@ -700,11 +702,11 @@ When multiple pending tasks share the same dependency set and all dependencies a
 1. Build the dependency graph from the `Dependencies` field on parent tasks, **and from the sibling sub-tasks inside each pending parent**. A sub-task depends on a sibling only when it names one (`Task 2.1`) or when its ToDo consumes something the sibling creates — a file, a symbol, a migration. Otherwise the siblings are independent
 2. Identify parallel group: items where all deps are **satisfied** ([tasks.md](tasks.md#dependency-satisfaction) — `[x]` or terminal `[~]`; a dep closed as `[~] (deferred: …)` is **not**) and no item in the group depends on another item in the same group
 3. Verify no file conflicts: items that modify the same files are NOT parallelized. At sub-task granularity this is the usual disqualifier — siblings edit one file far more often than sibling *tasks* do, and `tasks.md` rule 9 already forbids splitting a task across the same file, which makes the check cheap to run and usually decisive
-4. Present to user: "Tasks N, M, P are independent (all depend only on satisfied tasks). Execute in parallel? [y/n]"
+4. **State the group in the execution plan and go** — "Tasks N, M, P are independent: they depend only on satisfied tasks and touch no common file, so they run in parallel." No question is asked. A group that passed steps 1–3 is proven independent, and asking cost more than it protected: one round of the question budget per run, and every run where nobody said yes — the measured story ran its nine executors in series with the detection looking one layer too high and this gate defaulting to no. `--serial` declines, for the whole run
 
 ### Execution
 
-If confirmed:
+For each parallel group, unless `--serial` was passed:
 1. **Create an isolated worktree per task** using the native `EnterWorktree` tool (Claude Code v2.1.105+). Each worktree branches from the current HEAD into `.epic/worktrees/<story>-<task>/` so parallel Executors cannot collide on the same files.
    - **Fallback (< v2.1.105):** spawn each Executor with `isolation: "worktree"` (Agent tool option) or manually create worktrees via `Bash + git worktree add`.
 2. Each Executor follows the full 6-step protocol in its isolated worktree — and closes **no** box there: tasks.md is never edited inside a worktree
@@ -717,7 +719,7 @@ If confirmed:
 
 - **Boxes are closed only in the main tree, sequentially, after each merge — never inside a worktree copy of tasks.md (R3.3).** A worktree branches from HEAD with its own copy of the file, so a box closed there is closed in a copy the merge then has to reconcile, and two Executors closing at once are two rewrites of one file. Serialising the closes behind the merges — which are already sequential — also makes each returned `census` a census of the file everyone else will read
 - A group's `Commit:` field is ALWAYS executed sequentially (post-merge), by the main agent, using the pre-authored message verbatim (R3.4)
-- If user declines parallel execution, fall back to sequential (no worktrees created)
+- `--serial` runs every group in order with no worktree created — the one way to decline parallel execution, and it applies to the whole run
 - Maximum parallel Executors: 5 (to avoid resource exhaustion)
 - Each parallel Executor gets the full story context (story.md, design.md relevant sections)
 - Deviation register is merged after parallel execution completes (before commit)
@@ -725,8 +727,7 @@ If confirmed:
 
 ## Run Mode Rules
 
-- **Sequential by default** — tasks run in order, respecting dependencies
-- **Parallel when possible** — independent tasks can be parallelized (see Parallel Execution)
+- **Parallel when proven, sequential otherwise** — a group that passed the three detection checks (see Parallel Execution) runs in parallel without asking; everything not proven independent runs in order, respecting dependencies. `--serial` forces order for the whole run
 - **Stop on failure** — if validation or tests fail, stop and report. Do not continue to next task.
 - **No step skipping** — every step in the Executor protocol is mandatory. Context Gathering is not optional when a Context field exists. Validation commands must be executed and their output reported. This is the fundamental rule of Run Mode.
 - **Run-time questions count against the story's question budget** ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)). A decision with a default in the constitution's `## Defaults` block or in the [plain register](plain-register.md#decisions-the-requester-is-not-asked) table is taken and mentioned, never asked — the measured run asked a beginner how to commit on `master`, with three branch options

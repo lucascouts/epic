@@ -33,6 +33,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 
 4. **Generate files** — create all requested files with sensible defaults based on scan
 5. **Ask the versioning-policy question** — measure first, offer exactly two options, then write the chosen state. Defined once, below: [Versioning Policy](#versioning-policy). A non-interactive run never asks and never starts tracking (R3.4)
+5a. **Offer to ignore the sub-agents' memory directories** — under either policy, consent-gated and additive: [Agent memory hygiene](#agent-memory-hygiene)
 6. **Report** — list all files created, and name the policy that was recorded
 
 ## Rules
@@ -48,7 +49,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 
 **Why this is a question and not a default.** Across a 26-project corpus, the absence of a *declared* policy is what destroyed lifecycle history. A track→untrack transition **wiped 54 stories** in one project; a squash left **9 zombie duplicates** straddling `stories/` and `archive/` in another. One project (`kpranois`) had **47 `.epic` files committed THROUGH a `.gitignore` that said they were never committed**, and another (`bentoolkit`) **flip-flopped its policy five times**. Meanwhile the three projects with the most auditable lifecycle had all deliberately broken the older "never commit `.epic`" doctrine and converged on the same model: **version the `.md` artifacts, ignore `.draft/`**. That model is option 1 and it is *recommended* because it is the measured winner; it is still a *question* because every failure above came from a policy nobody ever said out loud.
 
-**The recommended policy tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `archive/manifest.yaml` — never `.draft/`.** `.draft/` is scratch space (run logs, authored tests, phase snapshots, `*.wip`) and is in no policy's tracked set.
+**The recommended policy tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `archive/manifest.yaml` — never `.draft/`.** `.draft/` is scratch space (run logs, authored tests, phase snapshots, `*.wip`) and is in no policy's tracked set. **That includes the story's evidence — `deviations.yaml`, `red-evidence.yaml`, `validation-report.yaml`, `audit-report.yaml` — by decision, not by omission** (September 2026): the register is a working record, and its durable forms live elsewhere — the archive's prune keeps a summary, and where the `ai-memory` server is detected the orchestrator writes the register and the structural audit findings as pages ([mcp-integration.md](mcp-integration.md#memory-mcp)). A reviewer who wants the evidence reads it from the story before it is archived, or from the page.
 
 **The per-project choice supersedes any global doctrine.** A global rule that says "never commit `.epic`" — in a user-level `CLAUDE.md` or a personal convention — is superseded by whatever this question records for this project. Init never reads, edits or reports on the user's global configuration; it asks, and the answer governs this repository.
 
@@ -110,9 +111,12 @@ Three writes, in this order. The gitignore step is second because it is the only
 # Epic scratch space — never versioned under any policy.
 .draft/
 *.wip
+# A dependency tree under .epic/ is never an artifact — three projects in the
+# July 2026 corpus carried one, left by an `npm install` inside a story.
+node_modules/
 ```
 
-The two patterns are the contract; the comment is the Rules' "each generated file includes comments explaining its purpose". If the file already exists with different content, confirm before overwriting — the Rules forbid overwriting an existing file silently — and keep any extra patterns the user added.
+The three patterns are the contract; the comment is the Rules' "each generated file includes comments explaining its purpose". If the file already exists with different content, confirm before overwriting — the Rules forbid overwriting an existing file silently — and keep any extra patterns the user added.
 
 **b. The root-gitignore rule — gated on the source file AND on consent.**
 
@@ -232,6 +236,18 @@ Epic versioning policy: local-only applied (non-interactive run — the conserva
 default; nothing under .epic/ will be committed). Run `/epic:epic init` in an
 interactive session to choose versioned artifacts instead.
 ```
+
+### Agent memory hygiene
+
+Claude Code writes the Epic auditor's and analyst's project memory into `.claude/agent-memory/epic-*/` **inside the user's repository** — their agent definitions declare `memory: project` — and a persona simulation (September 2026) found those notes sitting untracked and unignored in a beginner's repo. The directory is outside `.epic/`, so neither policy branch above touches it; this step does, under both.
+
+WHEN `git check-ignore -q .claude/agent-memory/` fails — nothing ignores it yet — offer, default **yes**, to append one line to the root `.gitignore`:
+
+```
+.claude/agent-memory/
+```
+
+Appending is not the destructive edit of step 5.3b, which is why the default flips: nothing the user wrote is removed. It is still a question, because the root `.gitignore` is theirs. Already ignored → say nothing. Not a git repository → skip and say so. Headless → never edit; log the recommendation and proceed (R3.4).
 
 ### After init — making a `tracked-md` declaration real
 

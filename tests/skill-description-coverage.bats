@@ -51,13 +51,13 @@ stories create --batch <doc>|batch
 stories|stories,story
 stories full|stories,story
 stories NNN|stories,story
-stories run NNN [--auto|--batch=N|--gate=commit]|run
+stories run NNN [--auto|--batch=N|--gate=commit|--serial]|run
 stories validate NNN|validate
 stories refine NNN|refine
 stories archive NNN[-MMM]|--done|archive
 stories supersede NNN --by MMM|supersede
 stories teams {status|enable|disable}|teams
-stories NNN run all [--auto|--batch=N|--gate=commit]|run
+stories NNN run all [--auto|--batch=N|--gate=commit|--serial]|run
 stories NNN run N|run
 stories NNN run N.N|run
 archive|archive
