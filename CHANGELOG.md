@@ -11,6 +11,31 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-09-16
+
+Seven commits, one through-line: **measure, then move.** A 59-minute Standard
+run was decomposed first — 49% of the clock inside sub-agents, 49% in the
+orchestrator, 1.9% doing the work — and a persona simulation of one beginner
+was run three times against the same request. Every change below answers a
+number from one of the two. Execution routes per sub-task and no longer
+delegates a closed spec; a proven parallel group runs without asking; Full is
+opt-in on an architectural signal; triage reads who is asking and gives a
+layperson Fast, a plain register and a question budget; `ai-memory` is an
+optional, detected dependency; the archive refuses a `node_modules/` tree.
+
+Measured after, same beginner, same request, four runs: scale went from
+Fast-once / Standard-twice to Fast 4/4; questions from 6–18 to 1; sub-agents
+from 6–9 to 0; wall clock from 33–59 minutes to 9–15; cost from US$ 11–24 to
+5–9; and every run shipped a working program with its tests green. Residual,
+fixed in the last two commits and measured once: the orchestrator narrated its
+test steps between tool calls, so a layperson's build turn now speaks once, at
+the end.
+
+**Minimum Claude Code:** unchanged from 0.2.0. `--serial`, the requester
+profile and the memory category are prose the orchestrator follows; nothing in
+the runtime moved. `subagent_type: "fork"` was measured **absent** in
+`claude -p` (2.1.269 and 2.1.273) and nothing here relies on it.
+
 ### Added
 
 - **`ai-memory` as an optional, detected dependency** (`references/mcp-integration.md`
@@ -818,7 +843,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/lucascouts/epic/releases/tag/v0.6.0
 [0.5.0]: https://github.com/lucascouts/epic/releases/tag/v0.5.0
 [0.4.0]: https://github.com/lucascouts/epic/releases/tag/v0.4.0
 [0.3.1]: https://github.com/lucascouts/epic/releases/tag/v0.3.1
