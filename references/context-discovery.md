@@ -10,6 +10,20 @@
 
 Include findings assertively in triage. If user mentions files directly, use them without asking.
 
+## Prior Knowledge
+
+Runs in **all scales**, and only when triage step 7a found memory available ([mcp-integration.md](mcp-integration.md#memory-mcp)). Two calls, before the Analyst is spawned and before any inline question is asked:
+
+1. `memory_recent` with `limit: 5` — what the last sessions on this project left behind
+2. one `memory_query` whose query is the request's own nouns joined by `OR` — the entities, actions and files the user named — with `limit: 10`
+
+The hits are injected as a **Prior Knowledge** block in the triage proposal and in the Analyst prompt below, one line per hit: path, title, snippet. Rules:
+
+- **A hit is a lead, not a fact.** The Analyst verifies it against the code before it reaches the story; a stale page loses to the file every time, and a hit no file supports is dropped without comment
+- Prior knowledge never replaces the Codebase Analysis — it points the Analyst at what past stories found surprising, so the scan starts there instead of from zero
+- Nothing here asks the user anything; a user who mentioned files directly still has them used without asking
+- Absent memory, this section is skipped in silence and the flow below is unchanged
+
 ## Codebase Analysis (standard + full scales)
 
 If existing code is detected, spawn the **Analyst** sub-agent:
@@ -19,6 +33,7 @@ If existing code is detected, spawn the **Analyst** sub-agent:
 > User request: [original request]
 > Context files found: [list]
 > Available MCPs: [list of relevant MCPs approved by user]
+> Prior knowledge (from memory — verify against the code before using any of it): [Prior Knowledge hits, or "none"]
 >
 > Tasks:
 > 1. Scan directory structure — detect architectural pattern, framework, key dependencies
@@ -39,15 +54,17 @@ Results are saved to `.draft/meta.yaml` under `analyst_output` key and passed as
 
 | File | Applied At |
 |---|---|
-| `.epic/constitution.md` | Before Phase 1 (all scales) |
+| `.epic/constitution.md` | Before Phase 1 (all scales); its `## Defaults` block again at Clarify and Run, as decisions taken silently |
 | `CLAUDE.md` | Phase 2 (design) + Phase 3 (tasks) |
 | `AGENTS.md` | Phase 2 (design) + Phase 3 (tasks) |
 | Analyst output | Triage + Completeness Checklist + Phase 2 (design) |
+| Prior knowledge (memory, when detected) | Triage + Codebase Analysis — as leads to verify, never as facts |
 
 - Files are read if they exist, silently skipped if absent
 - Content is injected as context, not modified
 - Conflicts between context files and user input → user input wins
 - Constitution constraints appear as `[CONSTITUTION]` tags in story requirements
+- Constitution `## Defaults` are applied, never re-asked — [plain-register.md](plain-register.md#decisions-the-requester-is-not-asked)
 
 ## Completeness Checklist
 

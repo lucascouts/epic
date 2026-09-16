@@ -11,6 +11,164 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-09-16
+
+Seven commits, one through-line: **measure, then move.** A 59-minute Standard
+run was decomposed first — 49% of the clock inside sub-agents, 49% in the
+orchestrator, 1.9% doing the work — and a persona simulation of one beginner
+was run three times against the same request. Every change below answers a
+number from one of the two. Execution routes per sub-task and no longer
+delegates a closed spec; a proven parallel group runs without asking; Full is
+opt-in on an architectural signal; triage reads who is asking and gives a
+layperson Fast, a plain register and a question budget; `ai-memory` is an
+optional, detected dependency; the archive refuses a `node_modules/` tree.
+
+Measured after, same beginner, same request, four runs: scale went from
+Fast-once / Standard-twice to Fast 4/4; questions from 6–18 to 1; sub-agents
+from 6–9 to 0; wall clock from 33–59 minutes to 9–15; cost from US$ 11–24 to
+5–9; and every run shipped a working program with its tests green. Residual,
+fixed in the last two commits and measured once: the orchestrator narrated its
+test steps between tool calls, so a layperson's build turn now speaks once, at
+the end.
+
+**Minimum Claude Code:** unchanged from 0.2.0. `--serial`, the requester
+profile and the memory category are prose the orchestrator follows; nothing in
+the runtime moved. `subagent_type: "fork"` was measured **absent** in
+`claude -p` (2.1.269 and 2.1.273) and nothing here relies on it.
+
+### Added
+
+- **`ai-memory` as an optional, detected dependency** (`references/mcp-integration.md`
+  § Memory MCP; triage step 7a in `skills/epic/SKILL.md`; § Prior Knowledge in
+  `references/context-discovery.md`; `references/run-mode.md`,
+  `references/validate-mode.md`, `references/init-mode.md`; `userConfig.aiMemory`).
+  One local `memory_status` call at triage — every scale, Fast included — decides
+  for the whole story. When the server answers, the story is enriched at three
+  points: prior knowledge before the Analyst, prior deviations and discoveries in
+  every Executor's Project State, and prior structural audit findings handed to
+  the Auditor as things to verify. The orchestrator writes two kinds of page from
+  files that already exist — the deviation register at End of Run, structural
+  audit findings after the verdict — at stable paths, so a rewrite is the
+  supersession (`memory_write_page` has no `supersedes`; the path is the
+  identity). When the server does not answer, nothing changes and nothing is said
+  beyond one line in the proposal. Three rules are hard: memory is never evidence
+  (a finding still needs the file and the line), `memory_feedback` is never
+  called, and no secret is copied into a page. Sub-agents get no memory tool and
+  their own `.claude/agent-memory/` stores are untouched — moving those to pages
+  waits until the path-rewrite supersession has proven itself here.
+- **Triage reads who is asking, and a layperson gets a plain register, a
+  question budget and Fast** (`references/plain-register.md`;
+  `skills/epic/SKILL.md` Triage and Clarify; `references/phase-gates.md`,
+  `references/run-mode.md`, `references/preferred-tooling.md`,
+  `references/init-mode.md`, `references/context-discovery.md`). Measured on a
+  persona simulation of one beginner, three runs: the same request drew Fast
+  once and Standard twice, and Fast served her best by every measure; the
+  chat carried executor ×6, framework ×4, box ×4, commit ×8 and story ×3;
+  she was asked 1 question out of her reach in Fast and 5–8 in Standard —
+  how to commit on `master`, whether to version a data file, and to approve
+  requirements documents she could not evaluate ("Aprovo, pode seguir",
+  three times); and the same data file was gitignored in two runs and
+  versioned in the third. Four changes answer those four measurements.
+  - **Requester, read from the request alone, never from a question** —
+    `developer` or `layperson`, `developer` when unsure. A layperson changes
+    two things and nothing else: Fast is proposed and held unless they ask
+    for more, and the chat switches to the plain register. Files, protocols
+    and sub-agents are untouched.
+  - **The plain register** — process words stay in the files and the chat
+    says what happens in the requester's terms; decisions they cannot
+    evaluate are taken from defaults and mentioned in one clause; a gate is
+    one line, not a file review; run and show instead of "run it yourself";
+    a stop promised per group is one group per turn; ~1,500 visible
+    characters per turn.
+  - **One question budget per story**, counted from triage to the last box
+    across Clarify rounds, phase gates and run-time questions — layperson
+    Fast 1 / Standard 3, developer Fast 2 / Standard 5 / Full 7. Spent
+    budget means defaults and recorded assumptions, not more questions. And
+    **each round is built from what the last one left open**: an
+    out-of-scope answer removes its branch, a default removes its
+    follow-ups, an answer in tool vocabulary re-reads the requester; when
+    triage was unsure, round 1 opens with one calibration question.
+  - **`## Defaults` in the constitution**, written by init whether or not
+    the questions are answered — data files gitignored, tests silent in
+    Fast, free text validated as text, the current branch — so the same
+    request gets the same answer on every run.
+- **The archive guard refuses a `node_modules/` tree, once, by directory**
+  (`scripts/archive-story.sh`). Three projects in the July 2026 corpus carried
+  one under `.epic/`, left by an executor's `npm install`, and every file in it
+  is small enough to pass the 10 MB check on its own. The tree is now the
+  offender — one violation naming the directory, its files neither scanned nor
+  counted — and the guard refuses rather than deletes: nothing destructive runs
+  before step 4, and a reinstallable tree is still the user's to remove.
+  `--allow-heavy` archives it as it is and records the override, as for any
+  other guard finding.
+- **Init keeps the plugin's own litter out of the repository**
+  (`references/init-mode.md`). `.epic/.gitignore` gains `node_modules/` beside
+  `.draft/` and `*.wip`; and a new step, under either policy, offers — default
+  yes, consent-gated, additive — to append `.claude/agent-memory/` to the root
+  `.gitignore`: Claude Code writes the auditor's and analyst's project memory
+  there, and a persona simulation found those notes untracked and unignored in
+  a beginner's repo. Headless never edits; it logs the recommendation.
+
+### Changed
+
+- **A proven parallel group runs without asking** (`references/run-mode.md`).
+  Detection's fourth step used to ask "Execute in parallel? [y/n]", and Run
+  mode's first rule was "Sequential by default" — so the measured story ran its
+  nine executors in series while the platform allows twenty. A group that
+  passed the three checks (satisfied dependencies, no dependency inside the
+  group, no shared file) is proven independent and is now *stated* in the
+  execution plan, not asked; everything not proven runs in order as before.
+  `--serial` is the one way to decline, for the whole run. The question also
+  cost a round of the question budget on every run that had a group.
+- **The story's evidence stays in `.draft/` by decision, and init says so**
+  (`references/init-mode.md`, README). `deviations.yaml`, `red-evidence.yaml`
+  and the validation and audit reports are a working record; their durable
+  forms are the archive's summary and, where `ai-memory` is detected, the pages
+  the orchestrator writes. Decided, not defaulted — the prior wording left it
+  looking like an omission.
+
+- **Execution routing is decided per sub-task, not read off the parent's
+  `Complexity`** (`references/run-mode.md`). `Complexity` is a parent-task field
+  — `references/tasks.md` makes it *Always on parent* and merely optional on the
+  sub-task — so the old Execution Threshold sent every sub-task of a `Moderate`
+  parent to its own Executor, the ones whose spec was already closed included.
+  That is rediscovery sold as isolation: the sub-agent starts empty and re-reads
+  what the orchestrator is already holding. The threshold now reads the
+  sub-task's own body and takes the first matching route — verification always
+  delegates (the fresh context *is* the product), exploration delegates (the
+  throwaway reading dies with the sub-agent), a closed spec runs inline, and
+  anything that does not say enough to route itself delegates by default.
+  `Complexity` keeps the two columns the route does not decide, Tech Review and
+  Context Gathering. The route changes *where* the work happens and never what
+  it is: inline still runs the six steps, still gathers context when a Context
+  field exists, and still closes its box through `close-subtask.sh`.
+  - The two sub-sections are renamed to the routes they now describe —
+    **Inline Route — Main Agent** and **Delegated Route — Executor Sub-agent**.
+    "Trivial Complexity" had stopped being true of either.
+- **Parallel detection runs at both levels, parent tasks and sibling sub-tasks**
+  (`references/run-mode.md`). Building the graph from the parent `Dependencies`
+  field alone looks for parallelism one layer above where the work is: a run
+  executes sub-tasks, and a parent whose siblings are sequential can still hold
+  independent sub-tasks. **Numbering is not dependency** — 2.1 and 2.2 are in
+  order because a list has an order, and are dependent only when one says so.
+  File conflicts stay the disqualifier, and are the usual one at this
+  granularity.
+- **Full is opt-in on an architectural signal, not on file count**
+  (`skills/epic/SKILL.md`). The `Moderate` row of the complexity table now
+  recommends **Standard**; Full asks for at least one stated signal — a new
+  contract between systems, a data migration, a cross-cutting change with no
+  established pattern, 2+ tracks that must be designed to fit together, or the
+  user asking for it. A design doc earns its cost only when there is a decision
+  to record before the code exists, and file count measures typing rather than
+  design risk.
+  - **Downgrade is now as legitimate as upgrade.** The upgrade rule on the
+    `Simple` row gains its mirror: when clarify resolves the open questions and
+    no architectural signal survives, the lighter mode is *proposed*, naming what
+    the user gives up. Never silent, and never a feature demoted to a spike.
+  - The triage examples in `output-styles/epic.md` and
+    `references/batch-create.md` name the signal that earns their `Full`, instead
+    of letting `Moderate` read as the reason.
+
 ## [0.5.0] — 2026-09-15
 
 Twelve stories (`010`–`021`). The through-line is **one deterministic writer for
@@ -685,7 +843,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/lucascouts/epic/releases/tag/v0.6.0
 [0.5.0]: https://github.com/lucascouts/epic/releases/tag/v0.5.0
 [0.4.0]: https://github.com/lucascouts/epic/releases/tag/v0.4.0
 [0.3.1]: https://github.com/lucascouts/epic/releases/tag/v0.3.1

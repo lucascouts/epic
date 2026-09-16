@@ -1,6 +1,6 @@
 {
   "name": "epic",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Scale-adaptive story framework for features and bugfixes: structured requirements (EARS), design, task breakdown, and execution with specialized sub-agents for analysis, architecture, implementation, validation, and audit.",
   "author": {
     "name": "Lucas CS",
@@ -32,6 +32,12 @@
       "title": "Artifact language",
       "description": "Override artifact language. Claude performs best in English; change only if your organisation mandates another language for written artifacts.",
       "default": "en"
+    },
+    "aiMemory": {
+      "type": "string",
+      "title": "ai-memory integration",
+      "description": "auto (default): detect the ai-memory MCP server with one local call at triage and, when it answers, recall prior knowledge at triage, prior deviations at run and prior audit findings at validate, and write deviation and audit pages. off: never call it. A server that is not there behaves like off, silently.",
+      "default": "auto"
     },
     "enableStaleMonitor": {
       "type": "boolean",

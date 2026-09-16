@@ -16,6 +16,8 @@ Each phase: generate artifact > **write to disk** > notify user > gate (approve 
 - If the user edits the file directly, read the updated version before proceeding to the next phase
 - If the user aborts, delete the entire story directory
 
+**For a `layperson` requester the gate is one line, not a file review** — what will be built, in their words, and two answers: go on, or change something ([plain-register.md](plain-register.md#gates-are-one-line)). The artifact is written exactly as for anyone else; what changes is what they are asked to read. Measured: a beginner approved every document she was shown ("Aprovo, pode seguir") without being able to evaluate one. Every gate counts against the story's question budget ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)).
+
 ## Cascade Rollback
 
 When a user rejects Phase N, determine the cause:

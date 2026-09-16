@@ -54,7 +54,7 @@ Arguments:
   <NNN|story-dir>   Story number (005) or its directory (.epic/stories/005-slug)
 
 Flags:
-  --allow-heavy     Archive despite files >10 MB or non-text (recorded)
+  --allow-heavy     Archive despite files >10 MB, non-text files or a node_modules/ tree (recorded)
   --skip-secrets    Skip the secrets scan (recorded)
   --keep-logs       Keep .draft/logs/ instead of collapsing it to a summary (recorded)
   --keep-copies     Keep .draft/ files identical to their promoted sibling (recorded)
@@ -833,7 +833,7 @@ is_text() {
 # EVERY failure is a violation, never a silent pass: a file the guard cannot
 # measure or cannot read is a file it cannot clear (fail-closed, R1.2).
 scan_weight_binary() {
-  local tmp find_err list_err="" f display size rc
+  local tmp find_err list_err="" f display size rc rel nm_root nm_seen=""
   local files=()
   GUARD_SCANNED=0
 
@@ -864,6 +864,26 @@ scan_weight_binary() {
   fi
 
   for f in ${files[@]+"${files[@]}"}; do
+    # A dependency tree is never a story artifact — three projects in the July
+    # 2026 corpus carried a node_modules/ under .epic/, left by an executor's
+    # `npm install` — and its files are small enough to pass the size check one
+    # by one. So the DIRECTORY is the offender: reported once, its files never
+    # scanned and never counted. The guard refuses, it does not delete: nothing
+    # destructive runs before step 4, and a tree the user can reinstall in a
+    # minute is still the user's to remove.
+    rel="/${f#"$STORY_ABS"/}"
+    if [[ "$rel" == */node_modules/* ]]; then
+      nm_root="${rel%%/node_modules/*}/node_modules"
+      nm_root="${nm_root#/}"
+      case " $nm_seen " in
+        *" $nm_root "*) ;;
+        *)
+          nm_seen="${nm_seen:+$nm_seen }$nm_root"
+          add_violation "$STORY_PATH/$nm_root/" "" "a node_modules/ tree — dependencies are never a story artifact; delete it (rm -r), or re-run with --allow-heavy to archive it as it is"
+          ;;
+      esac
+      continue
+    fi
     GUARD_SCANNED=$((GUARD_SCANNED + 1))
     # Reported relative to the path the CALLER used, so the offender can be
     # copy-pasted into an `ls` or an `rm` from where the command was run — the
@@ -2935,7 +2955,7 @@ elif scan_weight_binary; then
 else
   printf 'archive-story: guard=weight-binary verdict=blocked violations=%d files_scanned=%d\n' \
     "$GUARD_VIOLATION_COUNT" "$GUARD_SCANNED" >&2
-  block "$GUARD_VIOLATION_COUNT file(s) fail the weight/binary guard (limit ${GUARD_MAX_BYTES} bytes, and the content must be text): $GUARD_OFFENDER_TEXT — nothing was moved and no manifest entry was written: the guard runs before both (R1.2). Remove or shrink them, re-encode a UTF-16/UTF-32 artifact as UTF-8 (its ASCII-range characters carry NUL bytes, which is what makes it read as binary), or re-run with --allow-heavy to archive them as they are (the override is recorded in the manifest entry)"
+  block "$GUARD_VIOLATION_COUNT file(s) fail the weight/binary guard (limit ${GUARD_MAX_BYTES} bytes, and the content must be text): $GUARD_OFFENDER_TEXT — nothing was moved and no manifest entry was written: the guard runs before both (R1.2). Remove or shrink them, re-encode a UTF-16/UTF-32 artifact as UTF-8 (its ASCII-range characters carry NUL bytes, which is what makes it read as binary), delete a node_modules/ tree (reinstallable, never an artifact), or re-run with --allow-heavy to archive them as they are (the override is recorded in the manifest entry)"
 fi
 
 # ============================================================================

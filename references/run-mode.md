@@ -13,10 +13,11 @@ Triggered by `/epic:epic stories run NNN`, `/epic:epic stories NNN run all`, or 
 4. **Check dependencies** — if a pending task depends on a task that is not **satisfied**, warn the user. Satisfied is defined once, in [tasks.md](tasks.md#dependency-satisfaction): every box `[x]` or terminal `[~]`, and a `[~] (deferred: …)` dependency is **not** satisfied
 5. **Detect parallel groups** — identify non-blocking tasks (see Parallel Execution)
 6. **Tech stack detection** — scan tasks to build tech profiles (see Tech Stack Detection)
+6a. **Recall prior deviations (when memory is available)** — one `memory_query` per run, `deviation OR discovery OR gotcha` plus the tech names from step 6, `limit: 10`. The hits go into every Executor's Project State beside this run's own register, as leads to verify. Absent memory, nothing is added ([mcp-integration.md](mcp-integration.md#memory-mcp))
 7. **Materialize pre-authored tests (Standard/Full only)** — before any task execution, copy every file under the story's `.draft/authored-tests/**` into the real test tree at its mirrored path. This step is **idempotent**: if a target test path already exists in the real tree, **skip that file and emit a warning** (it may already exist from a prior Run, a partial `run N.N`, or a manual executor edit — never overwrite it). Files that do not yet exist are copied. Materialization runs once per Run, ahead of step 8. This step applies to **Standard and Full scales only** — they are the two that stage Test Advisor-authored tests in `.draft/authored-tests/`. **Fast and spike have no `.draft/`**, so a Fast or spike Run has nothing to materialize and skips this step: Fast writes its tests at run time straight into the real test tree (see Task Execution Flow), and a spike is tasks-only by contract — `tasks.md` and nothing else ([tasks.md](tasks.md#spike-scale-adaptations)). Materialization only **copies** files — it never runs them. A materialized E2E test whose `.draft/red-evidence.yaml` entry carries `red_deferred: true` has its Red confirmed at task-execution time, not here (see Deferred Red for E2E sub-tasks under Task Execution Flow).
 
    **Materialization also checks the converse, because copying what exists cannot see what is absent.** Before copying, cross the pending task list against `.draft/`: a sub-task whose `Tests:` field is **not `None`** and which has **neither** a file under `.draft/authored-tests/` **nor** an entry in `.draft/red-evidence.yaml` never went through Phase 3. **Do not execute it — stop and report it by number**, then offer to author it now via the Test Advisor (the same one-sub-task flow [refine-mode.md](refine-mode.md#red-evidence-for-added-sub-tasks) defines) or to proceed with the sub-task's `Tests:` field explicitly waived and the waiver recorded in `.draft/deviations.yaml`. Running it as if it were test-first is the one option that is not available: the Executor would be handed a test-first sub-task with no test, and its conditional step 5 would branch on a premise that is false. **The usual cause is a refinement that added the sub-task after Phase 3 ran**, which is why the producing side is fixed there and this is the guard rather than the fix — one end of the wire is not a wire. **Fast and spike are exempt from this check exactly as they are from the copy**: neither has a `.draft/` for the cross to read, so the absence it hunts for is their normal state and never evidence of a skipped Phase 3. The exemption is load-bearing for a spike, whose `Tests` field is **optional but permitted** ([tasks.md](tasks.md#spike-scale-adaptations)) — a spike sub-task that does carry `Tests:` would otherwise be refused execution here by a guard about a phase a spike never runs.
-8. **Present execution plan** — show which tasks will be executed, in order, highlighting parallel groups and executor assignment
+8. **Present execution plan** — show which tasks will be executed, in order, highlighting parallel groups and executor assignment. A parallel group is **stated, not asked**: it runs as a group unless `--serial` was passed (see Parallel Execution)
 9. **Wait for user confirmation** before executing
 
 ## Execution Flags
@@ -29,6 +30,7 @@ Parse flags from `$ARGUMENTS` after the run command:
 | `--auto` | Only stop on validation/test failure |
 | `--batch=N` | Gate every N task groups |
 | `--gate=commit` | Gate only where a group's `Commit:` field is executed |
+| `--serial` | Run every task and sub-task in order, including the ones detection proved independent — for a run that must read as a sequence |
 
 Examples:
 ```
@@ -36,6 +38,7 @@ Examples:
 /epic:epic stories run 004 --auto             ← only stop on failure
 /epic:epic stories run 004 --batch=3          ← gate every 3 groups
 /epic:epic stories run 004 --gate=commit      ← gate only at commits
+/epic:epic stories run 004 --serial           ← no parallel groups, whatever detection finds
 ```
 
 ## Tech Stack Detection
@@ -65,14 +68,29 @@ The `tech_profile` is passed to the Executor sub-agent prompt. Boundaries trigge
 
 ## Execution Threshold
 
-| Task Complexity | Executor | Tech Review | Context Gathering |
-|-----------------|----------|-------------|-------------------|
-| Trivial | Main agent (inline) | No | Optional |
-| Simple | Sub-agent | Only if multi-tech boundary | Required if Context field exists |
-| Moderate | Sub-agent | Yes, if multi-tech boundary | Required |
-| High | Sub-agent | Always (even single-tech) | Required + extra research |
+**The route is chosen per sub-task, and it is not read off `Complexity`.** `Complexity` is a parent-task field — [tasks.md](tasks.md#metadata-line-fields) makes it *Always on parent* and merely optional on the sub-task — so routing on it alone sends every sub-task of a `Moderate` parent to a sub-agent, the ones whose spec is already closed included. That is the expensive mistake: a sub-agent starts with an empty context and has to re-read what the orchestrator is already holding, so delegating a closed spec buys isolation nobody needed and pays for it in rediscovery.
 
-For `--auto` flag: threshold unchanged. Sub-agents still run, but gates between tasks are removed (only stop on failure).
+Read the sub-task's own body and take the **first** route that matches.
+
+| The sub-task is… | How you can tell, from its body | Route | Why |
+|---|---|---|---|
+| **Verification** | its Objective is to review, audit or validate work that is already done | **Sub-agent, always** | here the fresh context *is* the product — whoever did not watch the author work is the only one who can see what the author cannot |
+| **Exploratory** | `Context.Files` lists many files, or names a directory instead of files, or the ToDo says where to look rather than what to change | **Sub-agent** | the throwaway reading dies with the sub-agent instead of settling into the orchestrator's context for the rest of the run |
+| **Closed spec** | the ToDo names the files to create or modify, `Validation` carries a runnable command, and `Context` is absent or lists at most a couple of files | **Main agent, inline** | every input is already in hand; a sub-agent would spend its first minutes re-deriving them |
+| anything else | — | **Sub-agent** | when the sub-task does not say enough to route it, the isolated context is the safe default |
+
+`Complexity` still governs the two columns the route does not decide. A sub-task carrying its own `Complexity` override uses that value; otherwise it inherits the parent's:
+
+| Task Complexity | Tech Review | Context Gathering |
+|-----------------|-------------|-------------------|
+| Trivial | No | Optional |
+| Simple | Only if multi-tech boundary | Required if Context field exists |
+| Moderate | Yes, if multi-tech boundary | Required |
+| High | Always (even single-tech) | Required + extra research |
+
+**The route never relaxes the protocol.** Inline means the main agent runs the same six steps an Executor would (see Inline Route — Main Agent), gathers context whenever a Context field exists, and closes the box through `close-subtask.sh` like everyone else. It is the same work done in a cheaper place — never less work.
+
+For `--auto` flag: routing unchanged. Sub-agents still run wherever the table sends them, but gates between tasks are removed (only stop on failure).
 
 ## Task Execution Flow
 
@@ -89,23 +107,23 @@ For a **Fast- or spike-scale** sub-task carrying a `Tests` field, the test is au
 3. **Green** — implement until the test passes and the Validation command passes.
 4. **Refactor** — improve the code while keeping the test and Validation green; revert any refactor that breaks either.
 
-Neither scale authors tests at plan time — there is no Test Advisor sub-agent, no `.draft/authored-tests/`, and no `red-evidence.yaml`. Test authorship is done by the **main agent** at run time (the `test-advisor` sub-agent is not spawned), and the authored test is written **directly into the project's real test tree** — no `.draft/` staging, which is why step 7 (Materialize pre-authored tests) does not apply to either. Red confirmation lives in the run report only; it is not persisted to a file. This mirrors the "Plan time vs run time" note in `phase-gates.md` — the Test Advisor Lite checklist decides *whether* a test is needed; this section is *when* the test-first ordering happens.
+Neither scale authors tests at plan time — there is no Test Advisor sub-agent, no `.draft/authored-tests/`, and no `red-evidence.yaml`. Test authorship is done by the **main agent** at run time (the `test-advisor` sub-agent is not spawned), and the authored test is written **directly into the project's real test tree** — no `.draft/` staging, which is why step 7 (Materialize pre-authored tests) does not apply to either. Red confirmation lives in the run report only; it is not persisted to a file. **For a `layperson` requester it lives there and nowhere else — and what keeps it there is form, not vocabulary: between tool calls, a build turn writes nothing to the chat.** Each step's note — the test authored, its Red and why it was valid, the Green — is collected as it happens and written into `run-report.md` **once, at the end of the turn**: one `Write`, not an `Edit` per step (measured: writing the report as it happened cost six edits and a third of the turn's tool calls). The turn's only visible text is its closing three lines. Measured three times: with the vocabulary rule alone, every run still narrated "Red confirmado (…). Agora o código:" between one tool call and the next. The words leak in the interstitial text, never in the closing message ([plain-register.md](plain-register.md#ceiling-per-turn)). This mirrors the "Plan time vs run time" note in `phase-gates.md` — the Test Advisor Lite checklist decides *whether* a test is needed; this section is *when* the test-first ordering happens.
 
 A sub-task with no `Tests` field is implemented against its `Acceptance` field plus the Validation command — no test is authored. **The two scales differ in what may be absent**: Fast requires one of `Tests` or `Acceptance` on every implementing sub-task, while a spike may carry neither ([tasks.md](tasks.md#spike-scale-adaptations)) — probe code is throwaway and the Verdict is the deliverable. A spike sub-task carrying only `Validation` is therefore well-formed, and is implemented against that alone.
 
 **Unexpected green (Fast and spike).** If a test authored at run time **passes on its first run**, the sub-task is blocked — the test is not establishing Red. Revise the test **once** so it fails for the expected reason. If it still passes after that single revision, **escalate to the user** rather than proceed — describe the test, the sub-task, and why it will not fail. Never weaken or delete assertions to force a failure. This is lighter than the Standard/Full 2-attempt cap.
 
-The two paths below — Trivial inline and Simple+ via the Executor — apply this ordering; Standard/Full sub-tasks are unaffected.
+The two routes below — inline and delegated — apply this ordering; Standard/Full sub-tasks are unaffected.
 
-### Trivial Complexity — Main Agent Inline
+### Inline Route — Main Agent
 
 The main agent executes directly but MUST follow the same step sequence as the Executor. No step may be skipped. If a Context field exists, context MUST be gathered before implementation.
 
-For a **Trivial** sub-task under the run-time ordering above (Fast or spike, `Tests` present), the main agent is the **single author** for the whole cycle: it authors the test, runs it, confirms **Red** (for the right reason), then implements inline to **Green**, validates, and **Refactors** — all in the one inline execution. The unexpected-green rule above applies: revise once, then escalate.
+For an **inline-routed** sub-task under the run-time ordering above (Fast or spike, `Tests` present), the main agent is the **single author** for the whole cycle: it authors the test, runs it, confirms **Red** (for the right reason), then implements inline to **Green**, validates, and **Refactors** — all in the one inline execution. The unexpected-green rule above applies: revise once, then escalate.
 
 **The box is closed the same way it is on the Executor path** — one `close-subtask.sh` invocation, never a hand edit (see Closing a Box). Being the single author makes the main agent the executor here; it does not make it a second writer of the checkbox grammar. It produces the same closing block for itself that an Executor would have reported, and feeds it to the same script.
 
-### Simple+ Complexity — Executor Sub-agent
+### Delegated Route — Executor Sub-agent
 
 Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent section. The orchestrator:
 
@@ -117,7 +135,7 @@ Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent se
 6. If FAIL — the report's closing block carries `outcome: failed`: report to user, ask how to proceed. **No close call is made**: the box stays `[ ]` and nothing is written
 7. After all reviews pass: **close the box** — one invocation of `close-subtask.sh` carrying the report's closing block (see Closing a Box). The orchestrator never edits the checkbox itself, and never re-reads tasks.md afterwards: the census and the status transition come back inside the script's JSON
 
-For a **Simple-or-higher** sub-task under the run-time ordering above (Fast or spike, `Tests` present), the test-first cycle is **split** between the orchestrator and the Executor — but the Executor protocol itself is **reused unchanged**:
+For a **delegated** sub-task under the run-time ordering above (Fast or spike, `Tests` present), the test-first cycle is **split** between the orchestrator and the Executor — but the Executor protocol itself is **reused unchanged**:
 
 - **Before spawning the Executor**, the orchestrator (main agent) authors the test, runs it, and confirms **Red** (for the right reason). The unexpected-green rule above applies: revise once, then escalate to the user. The test is written directly into the project's real test tree — neither scale has `.draft/` staging.
 - The orchestrator then passes that confirmed-failing test to the Executor as the read-only **"Pre-Authored Test"** input (its path and contents in the Executor prompt section of the same name). The Executor consumes it exactly like a materialized Standard/Full pre-authored test.
@@ -125,7 +143,7 @@ For a **Simple-or-higher** sub-task under the run-time ordering above (Fast or s
 
 ### Closing a Box
 
-**Every `[x]` and every `[~]` this engine writes is written by one script.** The orchestrator does not edit a checkbox: not after an Executor, not on the Trivial inline path, not when settling a Quality Gate, and never inside a worktree.
+**Every `[x]` and every `[~]` this engine writes is written by one script.** The orchestrator does not edit a checkbox: not after an Executor, not on the inline route, not when settling a Quality Gate, and never inside a worktree.
 
 ```
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/close-subtask.sh" <NNN|story-dir> <N.N|N|gate:<text-prefix>> \
@@ -380,6 +398,7 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 >
 > Files created/modified by previous tasks: [list with paths]
 > Design deviations from previous tasks: [deviation register entries, if any]
+> Prior deviations and discoveries on this project (from memory — verify before relying on any): [memory hits from step 6a, if any]
 >
 > ## Pre-Authored Test
 >
@@ -678,14 +697,16 @@ When multiple pending tasks share the same dependency set and all dependencies a
 
 ### Detection
 
-1. Build dependency graph from tasks.md parent task `Dependencies` field
-2. Identify parallel group: tasks where all deps are **satisfied** ([tasks.md](tasks.md#dependency-satisfaction) — `[x]` or terminal `[~]`; a dep closed as `[~] (deferred: …)` is **not**) and no task in the group depends on another task in the same group
-3. Verify no file conflicts: tasks that modify the same files should NOT be parallelized
-4. Present to user: "Tasks N, M, P are independent (all depend only on satisfied tasks). Execute in parallel? [y/n]"
+**Run the detection at both levels — parent tasks *and* sibling sub-tasks.** Reading only the parent `Dependencies` field finds parallelism one layer above where the work actually is: what a run executes one at a time is sub-tasks, and a parent whose siblings are all sequential still hides independent sub-tasks inside itself. **Numbering is not dependency.** Sub-tasks 2.1 and 2.2 are written in order because a list has an order; they are dependent only when one of them says so.
+
+1. Build the dependency graph from the `Dependencies` field on parent tasks, **and from the sibling sub-tasks inside each pending parent**. A sub-task depends on a sibling only when it names one (`Task 2.1`) or when its ToDo consumes something the sibling creates — a file, a symbol, a migration. Otherwise the siblings are independent
+2. Identify parallel group: items where all deps are **satisfied** ([tasks.md](tasks.md#dependency-satisfaction) — `[x]` or terminal `[~]`; a dep closed as `[~] (deferred: …)` is **not**) and no item in the group depends on another item in the same group
+3. Verify no file conflicts: items that modify the same files are NOT parallelized. At sub-task granularity this is the usual disqualifier — siblings edit one file far more often than sibling *tasks* do, and `tasks.md` rule 9 already forbids splitting a task across the same file, which makes the check cheap to run and usually decisive
+4. **State the group in the execution plan and go** — "Tasks N, M, P are independent: they depend only on satisfied tasks and touch no common file, so they run in parallel." No question is asked. A group that passed steps 1–3 is proven independent, and asking cost more than it protected: one round of the question budget per run, and every run where nobody said yes — the measured story ran its nine executors in series with the detection looking one layer too high and this gate defaulting to no. `--serial` declines, for the whole run
 
 ### Execution
 
-If confirmed:
+For each parallel group, unless `--serial` was passed:
 1. **Create an isolated worktree per task** using the native `EnterWorktree` tool (Claude Code v2.1.105+). Each worktree branches from the current HEAD into `.epic/worktrees/<story>-<task>/` so parallel Executors cannot collide on the same files.
    - **Fallback (< v2.1.105):** spawn each Executor with `isolation: "worktree"` (Agent tool option) or manually create worktrees via `Bash + git worktree add`.
 2. Each Executor follows the full 6-step protocol in its isolated worktree — and closes **no** box there: tasks.md is never edited inside a worktree
@@ -698,7 +719,7 @@ If confirmed:
 
 - **Boxes are closed only in the main tree, sequentially, after each merge — never inside a worktree copy of tasks.md (R3.3).** A worktree branches from HEAD with its own copy of the file, so a box closed there is closed in a copy the merge then has to reconcile, and two Executors closing at once are two rewrites of one file. Serialising the closes behind the merges — which are already sequential — also makes each returned `census` a census of the file everyone else will read
 - A group's `Commit:` field is ALWAYS executed sequentially (post-merge), by the main agent, using the pre-authored message verbatim (R3.4)
-- If user declines parallel execution, fall back to sequential (no worktrees created)
+- `--serial` runs every group in order with no worktree created — the one way to decline parallel execution, and it applies to the whole run
 - Maximum parallel Executors: 5 (to avoid resource exhaustion)
 - Each parallel Executor gets the full story context (story.md, design.md relevant sections)
 - Deviation register is merged after parallel execution completes (before commit)
@@ -706,10 +727,11 @@ If confirmed:
 
 ## Run Mode Rules
 
-- **Sequential by default** — tasks run in order, respecting dependencies
-- **Parallel when possible** — independent tasks can be parallelized (see Parallel Execution)
+- **Parallel when proven, sequential otherwise** — a group that passed the three detection checks (see Parallel Execution) runs in parallel without asking; everything not proven independent runs in order, respecting dependencies. `--serial` forces order for the whole run
 - **Stop on failure** — if validation or tests fail, stop and report. Do not continue to next task.
 - **No step skipping** — every step in the Executor protocol is mandatory. Context Gathering is not optional when a Context field exists. Validation commands must be executed and their output reported. This is the fundamental rule of Run Mode.
+- **Run-time questions count against the story's question budget** ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)). A decision with a default in the constitution's `## Defaults` block or in the [plain register](plain-register.md#decisions-the-requester-is-not-asked) table is taken and mentioned, never asked — the measured run asked a beginner how to commit on `master`, with three branch options
+- **For a `layperson` requester** ([plain-register.md](plain-register.md)): run and show — never ask them to run a command; a stop promised per group is one group per turn; visible text per turn stays under ~1,500 characters, the rest goes to files. **A build turn writes nothing to the chat between tool calls**: the step-by-step is collected as it happens and written into `run-report.md` once at the end of the turn — one `Write`, never an `Edit` per step (Fast already writes that report) — and the turn's only visible text is its closing three lines — what to type, what it does, and one choice that was made for them. Measured three times: the interstitial notes were what carried "Red confirmado" into the chat, and what pushed the build turn to 1,420–1,766 characters
 - **User gates** — controlled by execution flags (default: gate after every task group)
 - **Context is fresh** — each Executor reads files directly. The orchestrator passes only metadata (paths, deviations, discoveries) between tasks.
 - **Commit granularity** — follow the Commit fields defined in tasks. Never commit in the middle of a task group.
@@ -729,6 +751,8 @@ A completed run finishes with these three steps, in this order:
 1. **Validator offer** — "All tasks completed. Run Validator to verify? (y/n)"
 2. **Archive offer** — made here **only** when the Validator offer was declined or not made. If the user accepted it, VALIDATE runs and makes the archive offer at its own pass point ([validate-mode.md](validate-mode.md#archive-offer), step 3 of the ordering table), where the gate is true anyway because the pass has just written `validated`. The user is asked once, not twice
 3. **Index refresh** — last, for the same reason it is last at the pass point: it renders what the steps before it changed. A zero-diff no-op when VALIDATE already refreshed it
+
+**One memory write precedes the three, when memory is available and the register is not empty.** Write the deviation register as one page at `epic/deviations/NNN-<slug>.md`: an H1 `# Deviations of story NNN — <title>` and then the register's entries — deviations and discoveries — as they stand in `.draft/deviations.yaml`, with no secret carried over. One page per story at a stable path, so a re-run of the story rewrites it instead of adding a second. An empty register writes nothing; unavailable memory calls nothing ([mcp-integration.md](mcp-integration.md#memory-mcp)).
 
 **The trigger is the transition, not the census.** Run mode offers the archive only when *this run* wrote `done` — rule 1 of Status Transitions — and it reads that from the closing call's **`status_written.to == "done"`**. Same trigger as before, new source. A run that ends with the story still `in-progress`, or that changed no status at all, makes no offer: the offer marks the moment a story became finished, and a story that was already `done` before the run started did not become finished here. **Never re-derive the trigger from the census.** `census.open == 0` with `census.deferred == 0` is equally true of the story that arrived already `done`, and on that story `status_written` comes back `null` — the field is null on every close that wrote no transition, which is exactly the distinction the offer needs and the only one the census cannot make.
 

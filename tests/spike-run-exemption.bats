@@ -114,18 +114,18 @@ refute_grep_file() {
 # --- C3: run-time test-first ordering ---------------------------------------
 
 @test "C3a R1.1: run-mode's run-time test-first ordering section is scoped to spike too" {
-  block=$(section_between '^### Run-time test-first ordering' '^### Trivial Complexity' "$RUN_MODE")
+  block=$(section_between '^### Run-time test-first ordering' '^### Inline Route' "$RUN_MODE")
   assert_names_spike "run-mode.md run-time test-first ordering" "$block"
 }
 
-@test "C3b R1.1: the Trivial Complexity sub-section carries no Fast-only scale scoping" {
-  block=$(section_between '^### Trivial Complexity' '^### Simple[+] Complexity' "$RUN_MODE")
-  assert_no_fast_only_scoping "run-mode.md Trivial Complexity" "$block"
+@test "C3b R1.1: the inline-route sub-section carries no Fast-only scale scoping" {
+  block=$(section_between '^### Inline Route' '^### Delegated Route' "$RUN_MODE")
+  assert_no_fast_only_scoping "run-mode.md Inline Route" "$block"
 }
 
-@test "C3c R1.1: the Simple+ Complexity sub-section carries no Fast-only scale scoping" {
-  block=$(section_between '^### Simple[+] Complexity' '^### Status Transitions' "$RUN_MODE")
-  assert_no_fast_only_scoping "run-mode.md Simple+ Complexity" "$block"
+@test "C3c R1.1: the delegated-route sub-section carries no Fast-only scale scoping" {
+  block=$(section_between '^### Delegated Route' '^### Status Transitions' "$RUN_MODE")
+  assert_no_fast_only_scoping "run-mode.md Delegated Route" "$block"
 }
 
 # --- C4: completeness checklist scale scoping -------------------------------

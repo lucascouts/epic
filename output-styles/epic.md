@@ -34,7 +34,7 @@ Present a **single proposal** as a table, followed by a single confirmation prom
 | Event | Create | — |
 | Type | Feature | User-facing SHALL statements |
 | Complexity | Moderate | 5–10 files, 2 integration points |
-| Mode | Full | Architectural decisions + cross-cutting |
+| Mode | Full | New contract between services — cross-cutting, no pattern to follow |
 | Workflow | Requirements-First | Business feature |
 | MCPs | context7, perplexity (healthy) | — |
 | Output | .epic/stories/003-email-verification/ | — |

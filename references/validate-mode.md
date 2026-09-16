@@ -75,6 +75,8 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 > - [path to tasks.md]
 > - [path to .draft/deviations.yaml] (if exists)
 >
+> Prior structural findings on this project (from memory — verify each against the code, and cite only what a file shows; a finding resting on this list alone is a protocol violation): [memory hits, or "none"]
+>
 > Check:
 > 1. Every requirement in story.md is implemented (trace to actual code, not just task checkboxes). A criterion carrying the `(satisfied-by: <artifact>)` suffix is traced to THAT ARTIFACT instead — confirm it exists and answers the criterion, and do not report it as a coverage gap. A suffix naming an artifact that does not exist IS a finding.
 > 2. Every component in design.md exists in the codebase with the specified interfaces
@@ -136,10 +138,11 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 1. Resolve story directory from NNN
 2. Read tasks.md and take the checkbox census. A story is **complete** when **no `[ ]` remains**: it is **`done`** when every box is `[x]` or terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), and **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`. `done-except-external` is computed at read time, never written to a file. Only `[x]` sub-tasks have an implementation to validate — see [tasks.md](tasks.md#completion)
 3. Delete the stale `.draft/validation-report.yaml`, then spawn the Validator sub-agent — it runs each task's validation command and tests, and writes that file as its last step. Take the verdict from the file
-4. If `.draft/validation-report.yaml` reads `verdict: pass`, delete the stale `.draft/audit-report.yaml`, then spawn the Auditor sub-agent — compares code against story + design, reviews the deviation register — and take its verdict from that file the same way. On `verdict: fail` the Auditor is not spawned
+4. If `.draft/validation-report.yaml` reads `verdict: pass`, delete the stale `.draft/audit-report.yaml`, then spawn the Auditor sub-agent — compares code against story + design, reviews the deviation register — and take its verdict from that file the same way. On `verdict: fail` the Auditor is not spawned. When memory is available, the spawn prompt carries prior structural findings recalled with one `memory_query` — `audit OR scope-creep OR false-positive OR recurring`, `limit: 10` — as things to verify ([mcp-integration.md](mcp-integration.md#memory-mcp))
 5. Present the combined results to the user, composed from the two files: the Validator's `results[]` and `gates[]`, the Auditor's `gaps[]`, `unmet_gates[]`, `deviations_reviewed[]`, `scope_creep[]`, `missing_red[]` and `findings[]`
 6. If gaps found, offer to create new tasks to address them
 7. Apply the status transition for this verdict — see Status Transition (`validated`)
+7a. **Memory write (when memory is available)** — for each `findings[]` entry that is structural by the Auditor's own criterion (likely to recur in this codebase: a recurring scope-creep pattern, a false-positive deviation, a project-specific gate failure) and for each `deviations_reviewed[]` entry with `accurate: false`, write or rewrite one page at `epic/audit/<subject-slug>.md`: H1 = the subject, body = the finding, the story it came from and the file/line evidence. Same subject, same path — a finding seen again rewrites its page, and that rewrite is the supersession. A story-specific bug gets no page; it belongs to the tasks step 6 offers ([mcp-integration.md](mcp-integration.md#memory-mcp))
 8. On a passing verdict, surface **at most one** integration warning when it applies — run `story-git-status.sh` once, then either report its `anchored_commits == 0` sentence or pipe the same JSON into `bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --validate <NNN>`, which writes the sentence or nothing — then offer the archive and refresh the index. See Ordering at the pass point, then Integration Warning (and its precedence table), Archive Offer and Index Refresh
 
 ### The verdict is the file; the reply is a courtesy (R2.1)

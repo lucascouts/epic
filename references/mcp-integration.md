@@ -2,7 +2,7 @@
 
 Epic sub-agents can use MCP (Model Context Protocol) servers when available. The goal is to **prefer what is already installed** on the user's system, respect cost, and fall back gracefully to Claude Code's native web tools (`WebFetch`, `WebSearch`) when no research MCP is present.
 
-This document covers **research** MCPs (docs, web search). For the policy on selecting an E2E testing tool or a frontend implementation aid — favorite vs. optional tiers, detection, and the recommend-and-pause fallback — see [preferred-tooling.md](preferred-tooling.md).
+This document covers **research** MCPs (docs, web search) and, in its own section below, the **memory** MCP. For the policy on selecting an E2E testing tool or a frontend implementation aid — favorite vs. optional tiers, detection, and the recommend-and-pause fallback — see [preferred-tooling.md](preferred-tooling.md).
 
 ## Priority order
 
@@ -58,11 +58,41 @@ If no research MCP is detected (empty category after health-check):
 
 Never hard-block triage on missing MCPs. The suggestion is informative, not gating.
 
+## Memory MCP
+
+A second category, separate from research: **memory**. One candidate, `ai-memory`, the long-term project-memory server. It is **optional and recommended**: when it is reachable the story is enriched by what the project already knows; when it is not, nothing changes — every reader of memory below degrades to today's behaviour, and the only trace is one line in the triage proposal.
+
+### Detection
+
+- **Health check:** one call to `memory_status`. It is local and free, so — unlike the research checks — it runs in **every scale, Fast and spike included**. A success marks memory as available for the whole story; a failure, or a tool that is not there at all, marks it unavailable, silently.
+- **Opt-out:** `aiMemory: "off"` in the plugin's userConfig skips the check and every memory read or write below.
+- **Scope is the server's rule, not ours.** A session-aware client omits `workspace` and `project` for the current repository. A static client must pass both on every project-scoped call, read from the nearest `.ai-memory.toml` that declares them. When neither applies — no session identity and no declaring `.ai-memory.toml` — treat memory as **unavailable**: never guess the two names from a directory name, and never rely on the server's last active project.
+- Record the outcome once, in the triage proposal's `**Memory:**` line, and reuse it for the whole story — the same reuse rule the research MCPs follow.
+
+### Where memory is read and written
+
+| Point | Read | Write |
+|---|---|---|
+| Triage / Phase 1 — [context-discovery.md](context-discovery.md#prior-knowledge) | `memory_recent` (5) and one `memory_query` built from the request's own nouns | — |
+| Run — [run-mode.md](run-mode.md#procedure) | one `memory_query` per run for prior deviations, discoveries and gotchas on the detected techs, passed to every Executor as Project State | at End of Run, the deviation register as one page: `epic/deviations/NNN-<slug>.md` |
+| Validate — [validate-mode.md](validate-mode.md#auditor-sub-agent) | prior structural audit findings, handed to the Auditor as things to verify | after the verdict, one page per structural finding: `epic/audit/<subject>.md` |
+
+**The orchestrator is the only writer.** Pages are composed from files that already exist — `.draft/deviations.yaml`, `.draft/audit-report.yaml` — so no sub-agent needs a memory tool in its grant, and the sub-agents' own `.claude/agent-memory/` directories are untouched by this section.
+
+**Supersession is by path.** `memory_write_page` versions a page in place: writing the same `path` again replaces what search returns, and there is no `supersedes` argument to pass. So every page above lives at a **stable path** — the story number for deviations, the subject for audit findings — and an updated finding is a rewrite of that path, never a second page beside the old one. Start each body with an H1 and omit the `title` argument.
+
+### Hard rules
+
+- **Memory is never evidence.** A recalled page says where to look; a finding still needs the file and the line that show it. An audit gap, a deviation verdict or a coverage claim resting on memory alone is a protocol violation — memory is an input to verify, not a source to quote. (Measured, not hypothetical: an audit that took a memory note as evidence in September 2026 reported a defect the code did not have.)
+- **Never call `memory_feedback`**, and never write a handoff by hand — the server's own lifecycle hooks capture sessions and hand off between them. The Epic writes durable pages and nothing else.
+- **Never copy a secret, a token or personal data** into a page. The register and the audit report are the sources; if one of them carries such a value, it is dropped from the page, not carried over.
+- **Recommend `ignore_paths = [".epic/**"]`** in the user's `.ai-memory.toml`, once, the first time memory is detected on a project — the server's hooks would otherwise capture the artifacts the Epic already versions, and the two records would drift. Informative, never gating.
+
 ## Rules
 
 - Only suggest MCPs relevant to the current mode (don't list all installed MCPs unconditionally).
 - Always health-check before suggesting — never recommend an untested MCP.
 - Research-capable sub-agents (analyst, architect, executor, tech-reviewer) carry native `WebFetch`/`WebSearch` as a guaranteed fallback; a sub-agent calls a research/docs MCP only when its own tool grant includes it. The verified MCP list is passed in the sub-agent prompt as a preference — MCP-based research is most reliable from the orchestrator, which has full tool access.
-- For **Fast mode**: skip MCP detection entirely — the overhead outweighs the gain for 1–2 file changes.
+- For **Fast mode**: skip MCP detection entirely — the overhead outweighs the gain for 1–2 file changes. The one exception is the memory check (see Memory MCP): a single local call, so Fast runs it too.
 - For **Standard/Full mode**: run the health-check once during triage and reuse the result for the whole story.
 - Perplexity's cost rule applies even during clarify rounds: never auto-call it.
