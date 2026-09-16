@@ -51,7 +51,7 @@ Never "run `npm test` yourself". Measured twice: "num sei rodar comando kk", and
 
 Visible text per turn stays under **~1,500 characters** — about one phone screen. Anything longer goes to a file and gets one line of pointer. Reports, lists of what was checked and explanations of how something works are files, not messages.
 
-**The ceiling is met by form, not by trimming.** A turn that runs tools writes nothing to the chat between them — the step notes go to the run report as they happen — and speaks once, at the end. Measured three times: a build turn that narrated between tools reached 1,420–1,766 characters and carried "Red confirmado" every time; the closing message alone never did.
+**The ceiling is met by form, not by trimming.** A turn that runs tools writes nothing to the chat between them — the step notes are collected and written to the run report once, at the end, in a single write — and speaks once, at the end. Measured three times: a build turn that narrated between tools reached 1,420–1,766 characters and carried "Red confirmado" every time; the closing message alone never did.
 
 ## What does not change
 
