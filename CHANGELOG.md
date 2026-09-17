@@ -181,6 +181,19 @@ gracefully (see README "Prerequisites").
   `tests/run-defaults.bats` D6, which also fails on any spawn site asking for
   the background.
 
+- **A request for speed changes the words, not the steps; a downgrade is a
+  question** (`references/developer-register.md`, `skills/epic/SKILL.md`).
+  Measured on the developer's JS run (2026-09-17): after "pode ir direto pro
+  código", the orchestrator announced a Standard-to-Fast downgrade instead of
+  proposing it, then wrote tests and implementation in one batch "because
+  seventeen red/green cycles would be too many turns", and closed no box —
+  33 open, 18 files, 69 green tests, zero `close-subtask.sh` calls. The
+  beginner asked to skip the same step and was refused; the developer
+  register lacked the sentence. Now it has it — speed is fewer words and no
+  waiting, never fewer steps — and the downgrade rule says the proposal is a
+  one-line gate whose answer alone changes the mode. Pinned by
+  `tests/requester-register.bats` Q18.
+
 ## [0.6.0] — 2026-09-16
 
 Seven commits, one through-line: **measure, then move.** A 59-minute Standard

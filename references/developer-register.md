@@ -18,6 +18,7 @@ The seed of `requester.always` and `requester.never` for `level: developer` — 
 - An analogy in place of the term: here the term is the shortest correct word
 - A question whose answer the request already gave
 - A question whose answer would not change the plan
+- Skip or batch a protocol step because the requester asked for speed. Speed is fewer words and no waiting, never fewer steps: the test-first cycle, the box closing and the gates are the same at every register. Measured on 2026-09-17: "pode ir direto pro código" was answered with tests and code written in one batch — 18 files, 69 green tests, and zero closed boxes
 
 ## What does not change
 

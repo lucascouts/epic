@@ -31,6 +31,8 @@
 #   Q15 the budget is counted in questions, the orientation round counts one
 #   Q16 the Question shape example carries a labelled recommendation
 #   Q17 the Analyst's checklist speaks in consequences and is asked in rounds
+#   Q18 a request for speed changes the words, not the steps; a downgrade is
+#       a gate question and the mode changes only on the answer (story 027)
 #
 # Note on awk patterns: passed as strings, so no backslash escapes; literal
 # punctuation goes in a bracket class.
@@ -226,4 +228,16 @@ has() { # has <label> <block> <keyword>
   [ -n "$rules" ]
   has "Q17 rounds" "$rules" "rounds"
   has "Q17 fallback" "$rules" "fallback"
+}
+
+@test "Q18: speed changes the words, not the steps — the developer register says so, and a downgrade is a gate question" {
+  never=$(section "$ROOT/references/developer-register.md" '^## Never' '^## ')
+  has "Q18 speed" "$never" "speed"
+  has "Q18 protocol" "$never" "protocol step"
+  has "Q18 boxes" "$never" "box closing"
+  down=$(section "$ROOT/skills/epic/SKILL.md" '^[*][*]Downgrading is as legitimate' '^[*][*]Exploratory is a shape')
+  [ -n "$down" ]
+  has "Q18 gate" "$down" "gate"
+  has "Q18 answer" "$down" "only on the answer"
+  has "Q18 speed rule" "$down" "fewer words"
 }
