@@ -35,13 +35,17 @@
 # summed per DISTINCT `message.id`, and both counts are emitted side by side so
 # a consumer can see the deduplication happened rather than trust that it did.
 #
-# WHY `subagent_split_verified` EXISTS. The split between orchestrator and
-# sub-agent reads `isSidechain`, which is present on every assistant event and
-# was `false` on every event of every transcript available when this was
-# written — no session had run a sub-agent, so the true branch is UNEXERCISED
-# against real data. The field says so: `true` once this run actually saw a
-# sidechain event, `false` when it did not. A zeroed `subagent` block therefore
-# means "none seen", never "confirmed none".
+# TWO STREAM SHAPES MARK A SUB-AGENT DIFFERENTLY, and both are read. An
+# interactive session transcript carries `isSidechain` on every assistant event;
+# a `claude -p` stream has no `isSidechain` at all and marks a child by a
+# non-null `parent_tool_use_id` instead (measured: 135 of 358 assistant events
+# in one `-p` run). Reading only the first would attribute every sub-agent token
+# to the orchestrator, silently, on exactly the runs where delegation is what
+# you are trying to measure.
+#
+# WHY `subagent_split_verified` EXISTS. It is `true` once this run actually saw
+# a child event by either marker, and `false` when it did not — so a zeroed
+# `subagent` block means "none seen", never "confirmed none".
 #
 # This script writes NO files, ever, and makes no network call.
 
@@ -152,7 +156,7 @@ jq -R -s \
   # kept on its own (it cannot be a repeat of anything).
   ( $events
     | group_by(.message.id // .uuid)
-    | map({ sidechain: (.[0].isSidechain == true),
+    | map({ sidechain: (.[0].isSidechain == true or (.[0].parent_tool_use_id != null)),
             model:     .[0].message.model,
             usage:     .[0].message.usage }) ) as $messages
   |

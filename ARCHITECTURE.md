@@ -361,3 +361,4 @@ Epic deliberately does not do these things. Adding them would conflict with the 
 - [`references/mcp-integration.md`](references/mcp-integration.md) — MCP health-check procedure
 - [`references/constitution.md`](references/constitution.md) — project-level constraints on stories
 - [`CHANGELOG.md`](CHANGELOG.md) — release notes per version
+- [`RELEASING.md`](RELEASING.md) — what a version cut involves, and the traps in it

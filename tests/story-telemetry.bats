@@ -97,6 +97,20 @@ msg() {
   echo "$output" | jq -e '.subagent_split_verified == true' > /dev/null
 }
 
+@test "T5: a claude -p stream marks a sub-agent by parent_tool_use_id, not isSidechain" {
+  # The two stream shapes differ, and reading only isSidechain would attribute
+  # every sub-agent token to the orchestrator on exactly the runs where
+  # delegation is what you are measuring. Measured: a `-p` stream carries no
+  # isSidechain field at all, and marks a child with a non-null parent.
+  printf '{"type":"assistant","uuid":"p1","timestamp":"2026-09-16T10:00:00.000Z","message":{"id":"mp","model":"claude-opus-5","usage":{"input_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":50}}}\n' >> "$T"
+  printf '{"type":"assistant","uuid":"c1","parent_tool_use_id":"toolu_abc","timestamp":"2026-09-16T10:00:01.000Z","message":{"id":"mc","model":"claude-haiku-4-5","usage":{"input_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":3}}}\n' >> "$T"
+  run --separate-stderr bash "$SCRIPT" --transcript "$T"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.main.output == 50' > /dev/null
+  echo "$output" | jq -e '.subagent.output == 3' > /dev/null
+  echo "$output" | jq -e '.subagent_split_verified == true' > /dev/null
+}
+
 @test "T6: with no sidechain event, the split is reported unverified" {
   msg m1 false 2026-09-16T10:00:00.000Z 1 1 1 1
   run --separate-stderr bash "$SCRIPT" --transcript "$T"

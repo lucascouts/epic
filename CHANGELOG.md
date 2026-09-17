@@ -13,6 +13,34 @@ gracefully (see README "Prerequisites").
 
 ### Added
 
+- **`RELEASING.md` — what a version cut actually involves, and the traps in
+  it.** Written from the 0.5.0 and 0.6.0 cuts; every step in it has been
+  executed. It names the four version sites that must agree, the CHANGELOG
+  link-block repoint, the merge-commit convention this repository uses, and
+  the annotated tag on the merge commit. Two traps are stated rather than left
+  to be rediscovered: **`bats` must run as a normal user**, because 14 cases
+  make a file unreadable and require a refusal that root cannot trigger (11 in
+  `archive-story.bats`, 3 in `epic-index.bats`) — which is why `act -j bats` is
+  not the faithful run — and **`Analyze`/`CodeQL` have no local equivalent**,
+  the one part of a release that cannot be verified before the push.
+  - It also fixes the release step the plan asked for and the repository had
+    nowhere to put: **take a triage-variance sample and record the
+    distribution in the release's CHANGELOG entry.** Scale instability — the
+    same request drawing Fast once and Standard twice on v0.5.0 — is invisible
+    to the test suite, because it is a property of a model's judgement rather
+    than of a script. It is a **monitor, never a gate**: one run that disagrees
+    is information, and a gate of that shape was already measured flapping
+    0/30 then 5/5 against a tree with no edit at all.
+
+- **`story-telemetry.sh` reads both sub-agent markers.** The two stream shapes
+  differ and only one was handled: an interactive session transcript carries
+  `isSidechain` on every assistant event, while a `claude -p` stream has no
+  `isSidechain` at all and marks a child with a non-null `parent_tool_use_id`
+  (measured: 135 of 358 assistant events in one `-p` run). Reading only the
+  first attributed every sub-agent token to the orchestrator, silently, on
+  exactly the runs where delegation is what you are trying to measure. Both are
+  now read, and a case pins the `-p` shape.
+
 - **`scripts/story-telemetry.sh` — what a story cost, without mining a
   transcript by hand.** Reads a session transcript and reports tokens and wall
   clock as one JSON object on stdout, split orchestrator vs sub-agent, with an
