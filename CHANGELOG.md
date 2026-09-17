@@ -11,6 +11,31 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Added
+
+- **`scripts/story-telemetry.sh` — what a story cost, without mining a
+  transcript by hand.** Reads a session transcript and reports tokens and wall
+  clock as one JSON object on stdout, split orchestrator vs sub-agent, with an
+  optional `--since` / `--until` window for a single phase. Writes no files and
+  makes no network call.
+  - **Tokens, never dollars.** The transcript carries `message.usage` and no
+    price; a price table shipped inside the plugin would age into a confident
+    wrong answer. The reader knows the current prices.
+  - **Summed per distinct `message.id`.** The transcript writes one event per
+    content block and repeats the same usage on each — measured at 462 events
+    for 190 messages, a 2.4x inflation. `events` and `unique_messages` are both
+    emitted so the deduplication is visible rather than promised.
+  - **`subagent_split_verified`** is `false` until a run actually saw an
+    `isSidechain` event, so a zeroed `subagent` block reads as *none seen*
+    rather than *confirmed none*. No transcript available when this was written
+    had run a sub-agent, and the field says so instead of implying otherwise.
+  - A malformed trailing line is skipped rather than fatal: a live session's
+    transcript is being written while you read it.
+  - This is the on-demand half of the planned cost telemetry. The other half —
+    writing the figures into the story and surfacing them in `epic-index` —
+    was **deliberately not built**: it would put the plugin back to writing
+    files into the user's repository, which 0.6.0 had just stopped doing.
+
 ## [0.6.0] — 2026-09-16
 
 Seven commits, one through-line: **measure, then move.** A 59-minute Standard

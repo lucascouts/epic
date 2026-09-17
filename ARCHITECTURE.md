@@ -174,6 +174,7 @@ All files in a story share the same `version`. It's an integer, not semver; bump
 - `design.md` components reference R-numbers they satisfy.
 - `tasks.md` sub-tasks reference the R-number(s) they realize and the design component(s) they implement.
 - `scripts/cross-reference.sh` enforces traceability (required for `--strict`).
+- `scripts/story-telemetry.sh` reports tokens and wall clock from a session transcript — read-only, no writes, no network, deduplicated by `message.id`.
 
 ### Archive immutability
 
