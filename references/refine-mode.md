@@ -27,12 +27,12 @@ Triggered by `/epic:epic stories refine NNN`.
 4. Delta shown for approval before merging into original
 5. Propagation: story change > update design > update tasks. Design change > update tasks. Tasks change > no propagation.
 6. Original files untouched until all gates pass
-7. If the merged `tasks.md` gained a sub-task whose `Tests:` field is not `None`, author its test and record its Red **before** the census — see [Red Evidence for Added Sub-tasks](#red-evidence-for-added-sub-tasks)
+7. If the merged `tasks.md` gained a sub-task whose `Tests:` field is not `None` and the story is at engineering level `project` or `product`, author its test and record its Red **before** the census — see [Red Evidence for Added Sub-tasks](#red-evidence-for-added-sub-tasks)
 8. After the merged tasks.md is written, take the checkbox census and apply the status transition — see [Status Census](#status-census)
 
 ## Red Evidence for Added Sub-tasks
 
-**Standard and Full only.** Refine is the one mode that can add a sub-task to a story whose Phase 3 has already run. Phase 3 is where the Test Advisor authors a test per `Unit`/`Integration`/`E2E` sub-task, confirms it Red, and records that in `.draft/red-evidence.yaml` ([phase-gates.md](phase-gates.md#phase-3)). A refinement that adds a task and stops at propagation produces a sub-task that **carries a `Tests:` field and has no authored test and no Red entry** — and nothing downstream notices, because every consumer was written assuming Phase 3 ran for the whole task list.
+**Standard and Full at engineering level `project` or `product` only** ([engineering-level.md](engineering-level.md)). At `experiment` or `tool` a refine-added sub-task's test is written at run time like every other test of that story, and this section does not apply. Refine is the one mode that can add a sub-task to a story whose Phase 3 has already run. Phase 3 is where the Test Advisor authors a test per `Unit`/`Integration`/`E2E` sub-task, confirms it Red, and records that in `.draft/red-evidence.yaml` ([phase-gates.md](phase-gates.md#phase-3)). A refinement that adds a task and stops at propagation produces a sub-task that **carries a `Tests:` field and has no authored test and no Red entry** — and nothing downstream notices, because every consumer was written assuming Phase 3 ran for the whole task list.
 
 That assumption is stated as an absolute in two places: [validate-mode.md](validate-mode.md) and [auditor.md](../agents/auditor.md) both say *"every sub-task with a pre-authored test has an entry in `.draft/red-evidence.yaml` with `failed: true`; a missing entry is reported as a finding."* The finding is only ever reported for a sub-task that **has** a pre-authored test. A refine-added sub-task has none, so it is not missing evidence — it is invisible to the check, which is a different and quieter failure.
 

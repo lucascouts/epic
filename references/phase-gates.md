@@ -105,6 +105,7 @@ On detecting a `.wip` file:
 
 For Fast mode, `tasks.md` and `quality-catalog.md` are loaded — the legend lives at the top of `tasks.md`.
 For Standard mode, Phase 1 + Phase 3 references are loaded.
+[engineering-level.md](engineering-level.md) is loaded with `tasks.md` in every mode: the plan ceiling and the shape of Phase 3 are read from it.
 
 On format doubts, load the relevant example from `assets/examples/`.
 
@@ -134,6 +135,8 @@ The Architect output is injected as context when generating design.md. Skipped f
 **Gotcha propagation rule:** When the Architect identifies implementation gotchas, the main agent MUST incorporate them into the relevant task ToDo fields as concrete implementation notes — not as vague references to patterns. Example: instead of "use base layout pattern", write "parse each page template together with base.html into a separate template set — calling ExecuteTemplate on the page name alone will produce empty output". The gotcha must survive from research → design → task without losing specificity.
 
 ## Test Advisor Sub-agent (Standard + Full, during Phase 3)
+
+**Only at engineering level `project` or `product`** ([engineering-level.md](engineering-level.md)). An `experiment` or `tool` story, whatever its scale, takes the Lite checklist below and writes its tests at run time — no Test Advisor is spawned, and no `.draft/authored-tests/` or `red-evidence.yaml` exists for it. Measured on 2026-09-17: the Advisor authoring 22 tests before any code cost about 25 minutes in each of two tool-shaped developer runs, for plans of 43 and 47 boxes.
 
 After the main agent generates the task list structure (with Objective, ToDo, Validation, Requirements — but **without Tests fields**), spawn the **Test Advisor** sub-agent (`subagent_type: test-advisor`, defined in `agents/test-advisor.md`) — in the foreground, `run_in_background: false`: Phase 3 cannot complete without its Red evidence, and a turn ended to wait for it is a turn the requester spends waiting ([SKILL.md](../skills/epic/SKILL.md#personas)) — to define testing requirements per sub-task **and author one test file per Unit/Integration/E2E sub-task** (Unit/Integration are Red-verified in Phase 3; E2E defers Red to Run mode):
 
@@ -207,7 +210,7 @@ The main agent merges the Test Advisor mapping into the task list before writing
 
 ### Test Advisor Lite (Fast mode)
 
-For Fast mode, the main agent decides Tests inline (no sub-agent) using this 4-check checklist:
+For Fast mode — and for a Standard or Full story at engineering level `experiment` or `tool` ([engineering-level.md](engineering-level.md)) — the main agent decides Tests inline (no sub-agent) using this 4-check checklist:
 
 1. **State change?** Does this sub-task create/update/delete data?
    → YES: add at least 1 test that verifies resulting state (not just return code)
@@ -227,7 +230,9 @@ For Fast mode, the main agent decides Tests inline (no sub-agent) using this 4-c
 
 Keep it lightweight — 1-2 test entries max per sub-task.
 
-**Plan time vs run time.** Unlike Standard/Full Phase 3, Fast does **not** author tests at plan time — there is no Test Advisor sub-agent, no `.draft/authored-tests/`, and no `red-evidence.yaml`. This checklist only decides *whether* a test is needed and records that decision as the `Tests` or `Acceptance` field. The test-first ordering itself — authoring the test, confirming Red, then implementing — happens at run time (see `run-mode.md`).
+**For a Standard or Full story at `experiment` or `tool` level**, check 4 does not apply: a structural sub-task carries `Tests: None` with a one-line reason, as the Advisor would write, and anchors on its `Requirements` field; at `experiment` the `Tests` field is optional, as in a spike, and `Validation` is the proof.
+
+**Plan time vs run time.** Unlike the full Phase 3, Fast — and an `experiment` or `tool` story at any scale — does **not** author tests at plan time — there is no Test Advisor sub-agent, no `.draft/authored-tests/`, and no `red-evidence.yaml`. This checklist only decides *whether* a test is needed and records that decision as the `Tests` or `Acceptance` field. The test-first ordering itself — authoring the test, confirming Red, then implementing — happens at run time (see `run-mode.md`).
 
 ## Reviewer Sub-agent (Full mode only)
 

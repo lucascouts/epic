@@ -9,6 +9,7 @@ Use this template for the `story.md` file in feature stories.
 story: <story-name>
 type: feature
 scale: standard | full
+engineering: experiment | tool | project | product
 version: 1
 created: <date>
 ---
@@ -83,4 +84,4 @@ created: <date>
 4. **Acceptance criteria use EARS notation.** See `ears-notation.md` for keyword reference.
 5. **Out of Scope is mandatory.** Explicitly stating what you're NOT building prevents scope creep.
 6. **Constraints inform design.** List anything that limits architectural choices.
-7. **Quality requirements are the story's legend.** One line per active item of the [quality catalog](quality-catalog.md), numbered `Qn` in catalog order, each with the command that proves it on this project. The set starts from the constitution's `## Quality` block and adds what the Analyst detected and the request asked. Sub-tasks cite the lines in a `Quality:` field, the Quality Gates section of `tasks.md` carries one box per line, and `cross-reference.sh` reports which lines no sub-task cites.
+7. **Quality requirements are the story's legend.** One line per active item of the [quality catalog](quality-catalog.md), numbered `Qn` in catalog order, each with the command that proves it on this project. The set starts from the constitution's `## Quality` block and adds what the Analyst detected and the request asked. Sub-tasks cite the lines in a `Quality:` field, the Quality Gates section of `tasks.md` carries one box per line, and `cross-reference.sh` reports which lines no sub-task cites. The engineering level bounds the set ([engineering-level.md](engineering-level.md)): an `experiment` legend reads `none`, a `tool` carries the always tier, a `project` adds the context items with a signal, a `product` adds the CI-shaped ones.

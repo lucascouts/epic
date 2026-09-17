@@ -2,7 +2,7 @@
 
 Triggered by `/epic:epic stories create --batch <doc>`. One interview, N stories.
 
-The interview is the expensive part of creating a story, and creating stories one at a time repeats it wholesale: ~951k fresh tokens for an isolated create against 163-366k per story in a batch, measured across the 2026-07 corpus, with 39% of create-mode output happening before the first artifact touches disk. This mode amortizes the **conversation**. It amortizes nothing else — every story still runs its scale's full pipeline, including Phase 3 with the Test Advisor, and every materialized story still has to pass validation clean.
+The interview is the expensive part of creating a story, and creating stories one at a time repeats it wholesale: ~951k fresh tokens for an isolated create against 163-366k per story in a batch, measured across the 2026-07 corpus, with 39% of create-mode output happening before the first artifact touches disk. This mode amortizes the **conversation**. It amortizes nothing else — every story still runs its scale's full pipeline, including Phase 3 with the Test Advisor at engineering level `project` or `product`, and every materialized story still has to pass validation clean.
 
 `<doc>` is a path: an audit report, a proposal, an improvement plan. A batch with no document is out of scope — the inline-list variant was deferred at clarify.
 
@@ -86,7 +86,7 @@ Every clarification for every Standard/Full member goes into **one round-set**.
 
 Each approved story runs the phases its scale prescribes. Batch collapses the conversation around the pipeline; it does not shorten the pipeline.
 
-**Phase 3 runs the Test Advisor for every Standard/Full member** — authored tests and `.draft/red-evidence.yaml` — before materialization. This is not a quality preference: Run mode's materialization guard refuses a story that arrives without it, so a batch that skipped Phase 3 would produce stories that cannot be run. Advisors for independent stories are parallel-safe and may run concurrently.
+**Phase 3 runs the Test Advisor for every Standard/Full member at engineering level `project` or `product`** ([engineering-level.md](engineering-level.md)) — authored tests and `.draft/red-evidence.yaml` — before materialization; an `experiment` or `tool` member writes its tests at run time and has nothing to materialize. This is not a quality preference: Run mode's materialization guard refuses a story that arrives without it, so a batch that skipped Phase 3 would produce stories that cannot be run. Advisors for independent stories are parallel-safe and may run concurrently.
 
 **Materialization requires a clean `validate-story.sh` pass** for that story. A story that does not validate is not materialized; it is reported `blocked` in the approval block with the validator's own error text.
 

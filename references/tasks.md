@@ -150,14 +150,22 @@ The asymmetry between the last two is real and intended: a story whose only non-
 
 ### Authoring Ceiling
 
-**A plan warns when it passes 32KB or 60 checkboxes, whichever comes first.** This paragraph is the threshold's only home: every consumer cites it rather than repeating the numbers, so raising the ceiling is one edit and not a hunt.
+**A plan warns when it passes 32 KB, or the box ceiling of its engineering level — `experiment` 5, `tool` 12, `project` 24, `product` 40 Task List boxes — whichever comes first.** A story that declares no level keeps the pre-level ceiling of 60 boxes, so a story written before the field validates as it did. This paragraph is the threshold's only home: every consumer cites it rather than repeating the numbers, so recalibrating a ceiling is one edit and not a hunt. The levels themselves are defined in [engineering-level.md](engineering-level.md).
 
-The numbers come from the corpus, not from taste. Across the 2026-07 measurement a healthy `tasks.md` sits around 11KB; the plans that had to be split afterwards ran 51-109KB. The box arm exists because size in bytes and size in work are not the same thing — a plan can carry sixty-five checkboxes in three kilobytes of terse lines and still be more work than one person can hold.
+The numbers come from the corpus and the harness, not from taste. Across the 2026-07 measurement a healthy `tasks.md` sits around 11 KB; the plans that had to be split afterwards ran 51–109 KB. The box arm exists because size in bytes and size in work are not the same thing — a plan can carry sixty-five checkboxes in three kilobytes of terse lines and still be more work than one person can hold — and it is **per level** because the measured pace is about one box per minute: the plan is where the multiple is decided, before any code. The single ceiling of 60 let plans of 43 and 47 boxes for a tool-shaped request through without a word (2026-09-17); at `tool` both stop at 12.
 
-It is a **warning at every site, never a block**:
+**The box arm counts the Task List only.** The Quality Gates section grows with the legend and not with the work, and the five fixed gates alone would fill an `experiment`; a box inside a code fence is documentation. Bytes keep their single arm at every level.
 
-- **At Phase 3**, the orchestrator offers a split into a wave — interactively as a question, headless as a logged note that proceeds.
-- **At validation**, `validate-story.sh` warns, so a plan that shipped oversized stays visible afterwards and not only at the moment it was written.
+It is a **warning at every site, never a block**, and it makes three offers:
+
+- **Cut** the scope — some of the boxes are not what was asked for
+- **Split** the plan into waves — the scope is right and too big for one story
+- **Go down a level** — the plan was written for a longer life than the requester asked for; regenerated at the lower level it carries fewer quality items and fewer boxes
+
+The three sites, unchanged:
+
+- **At Phase 3**, the orchestrator makes the offers — interactively as a question, headless as a logged note that proceeds.
+- **At validation**, `validate-story.sh` warns, naming the level, so a plan that shipped oversized stays visible afterwards and not only at the moment it was written.
 - **In batch create**, the warning surfaces in the approval block and the split is deferred to a post-batch create — the live interview is never re-entered. See [batch-create.md](batch-create.md).
 
 A story that genuinely needs a large plan keeps it: the ceiling asks the question, the author answers it.
@@ -216,7 +224,7 @@ For an `E2E` sub-task the format carries the selected E2E tool as an explicit se
 - When a sub-task's logic is already tested by another task: `Covered by Task X.Y`
 - The Tests field is populated by the **Test Advisor** sub-agent (see SKILL.md), not by the main agent.
 
-**Standard + Full scales — the Tests field is _authored_, not merely specified.** During Phase 3, the test-advisor writes the actual test file under the story's `.draft/authored-tests/` directory, mirroring the target test path (the `path` shown in the Tests field). A `Unit` or `Integration` test is authored as a failing test and Red-verified during Phase 3 — the test-advisor runs it to confirm it fails for the right reason and records that Red verification in `.draft/red-evidence.yaml`. An `E2E` test is authored at plan time too, using the story's selected E2E tool, but its Red-phase verification is **DEFERRED to Run mode** — it is not run during Phase 3 (E2E tests need the running application and an E2E environment Phase 3 does not set up); the test-advisor records a deferred-Red entry instead. The `path` in the Tests field is therefore the target location an executor will copy the authored test into — the test itself already exists in `.draft/authored-tests/` before implementation begins.
+**Standard + Full scales at engineering level `project` or `product` — the Tests field is _authored_, not merely specified** ([engineering-level.md](engineering-level.md)). During Phase 3, the test-advisor writes the actual test file under the story's `.draft/authored-tests/` directory, mirroring the target test path (the `path` shown in the Tests field). A `Unit` or `Integration` test is authored as a failing test and Red-verified during Phase 3 — the test-advisor runs it to confirm it fails for the right reason and records that Red verification in `.draft/red-evidence.yaml`. An `E2E` test is authored at plan time too, using the story's selected E2E tool, but its Red-phase verification is **DEFERRED to Run mode** — it is not run during Phase 3 (E2E tests need the running application and an E2E environment Phase 3 does not set up); the test-advisor records a deferred-Red entry instead. The `path` in the Tests field is therefore the target location an executor will copy the authored test into — the test itself already exists in `.draft/authored-tests/` before implementation begins. **At `experiment` or `tool` level a Standard or Full story stages nothing:** the main agent decides the field with the Test Advisor Lite checklist ([phase-gates.md](phase-gates.md#test-advisor-lite-fast-mode)) and the test is written at run time, exactly as for Fast ([run-mode.md](run-mode.md#run-time-test-first-ordering)); at `experiment` the field is optional, as in a spike.
 
 ### Acceptance Field
 
@@ -292,6 +300,7 @@ The five gates in the template are fixed. After them, the section carries **one 
 - Every task group must have a Commit field (inline or as sub-task)
 - Sub-tasks inherit parent metadata — only override what differs
 - A `Quality:` field cites legend lines (`Q2, Q5`); a generated gate carries its command; neither is hand-numbered outside the legend
+- `engineering:` in the frontmatter is one of `experiment`, `tool`, `project`, `product`; `tasks.md` is authoritative for it, as for `scale:`, and the box ceiling is read from it ([engineering-level.md](engineering-level.md))
 
 ## Fast Scale Adaptations
 
@@ -300,6 +309,7 @@ When generating tasks for fast scale (no story.md):
 - Keep the same structure otherwise (metadata line, content fields)
 - Quality Gates section is still mandatory
 - **The legend lives at the top of `tasks.md`** — a `## Quality Requirements` section before `## Task List`, since Fast has no story.md ([quality-catalog.md](quality-catalog.md)); sub-tasks cite it in `Quality:` and the generated gates follow it like any scale
+- At engineering level `experiment` the legend reads `none` — the proof is that it runs ([engineering-level.md](engineering-level.md)); the section is still present, no gate is generated from it, and the five fixed gates stay
 - **Test-or-Acceptance contract rule:** every implementing sub-task carries either a `Tests` field or an `Acceptance` field — a sub-task with testable logic gets a `Tests` field, a structural sub-task with no testable logic gets an `Acceptance` field. A group-level `Commit:` field is exempt (it implements nothing).
 - If during generation the scope appears larger than expected, recommend upgrading to standard scale
 

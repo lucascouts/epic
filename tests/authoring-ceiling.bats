@@ -149,3 +149,117 @@ EOF
     return 1
   fi
 }
+
+# --- 0.7.0: the ceiling is per engineering level, and counts the Task List ---
+# Contract (references/tasks.md § Authoring Ceiling, references/engineering-level.md):
+#   - a declared `engineering:` sets the box arm: experiment 5, tool 12,
+#     project 24, product 40 — silent AT the ceiling, warning one over, the
+#     warning naming the level and still citing references/tasks.md;
+#   - only Task List boxes count: Quality Gates boxes and boxes inside a code
+#     fence never do;
+#   - an invented level is an ERROR naming the four values;
+#   - no level keeps the pre-level 60, so a legacy story validates as it did;
+#   - tasks.md is authoritative over story.md, and story.md is read when
+#     tasks.md declares nothing.
+
+# level_fixture <engineering line or ""> <task boxes> <gate boxes> [with-story]
+# A Fast-shaped tasks.md with a fenced example (two boxes that must not count),
+# N Task List boxes, M Quality Gates boxes. With a 4th argument, every task
+# also carries `Requirements: R1.1` so it pairs with a story.md written by
+# level_story.
+level_fixture() {
+  local eng="$1" tasks="$2" gates="$3" req="${4:-}" i
+  {
+    printf -- '---\nstory: ceiling-level\ntype: feature\n'
+    if [ -n "$eng" ]; then printf '%s\n' "$eng"; fi
+    printf 'version: 1\ncreated: 2026-09-17\n---\n\n## Overview\n\n'
+    printf '```markdown\n- [ ] a box inside a fence is documentation\n- [ ] and so is this one\n```\n\n## Task List\n'
+    for i in $(seq 1 "$tasks"); do
+      printf -- '- [ ] %d - Pad step %d\n  - Validation: ok\n' "$i" "$i"
+      if [ -n "$req" ]; then printf '  - Requirements: R1.1\n'; fi
+    done
+    printf '\n## Quality Gates\n'
+    for i in $(seq 1 "$gates"); do printf -- '- [ ] gate %d\n' "$i"; done
+  } > "$STORY/tasks.md"
+}
+
+level_story() { # level_story <engineering line or "">
+  {
+    printf -- '---\nstory: ceiling-level\ntype: feature\n'
+    if [ -n "$1" ]; then printf '%s\n' "$1"; fi
+    printf 'version: 1\ncreated: 2026-09-17\n---\n\n## Introduction\nLevel fixture.\n\n### R1. First requirement\n\n#### Acceptance Criteria\n\n- R1.1: WHEN x THE SYSTEM SHALL y.\n'
+  } > "$STORY/story.md"
+}
+
+no_ceiling_warning() { # the negative shared by every silent case
+  if echo "$output" | jq -r '.warning_details[]' | grep -q 'references/tasks.md'; then
+    echo "$1: drew a ceiling warning: $(echo "$output" | jq -r '.warning_details[]' | grep 'references/tasks.md')"
+    return 1
+  fi
+  if echo "$output" | jq -r '.warning_details[]' | grep -qiE 'threshold|ceiling|oversiz'; then
+    echo "$1: drew a ceiling-shaped warning"
+    return 1
+  fi
+}
+
+@test "0.7.0: at each level's ceiling the Task List is silent — gates and fenced boxes are not counted" {
+  local pair level n
+  for pair in "experiment 5" "tool 12" "project 24" "product 40"; do
+    level=${pair% *}; n=${pair#* }
+    # n Task List boxes + 5 gate boxes + 2 fenced boxes: over every ceiling if
+    # any of the two were counted, exactly at it when only the Task List is.
+    level_fixture "engineering: $level" "$n" 5
+    run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+    echo "$output" | jq -e . > /dev/null
+    echo "$output" | jq -e '.errors == 0' > /dev/null
+    no_ceiling_warning "$level at $n"
+  done
+}
+
+@test "0.7.0: one box over each level's ceiling warns, naming the level and citing references/tasks.md" {
+  local pair level n
+  for pair in "experiment 6" "tool 13" "project 25" "product 41"; do
+    level=${pair% *}; n=${pair#* }
+    level_fixture "engineering: $level" "$n" 0
+    run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+    echo "$output" | jq -e . > /dev/null
+    echo "$output" | jq -e '.errors == 0' > /dev/null
+    if ! echo "$output" | jq -r '.warning_details[]' | grep 'references/tasks.md' | grep -q "'$level'"; then
+      echo "$level at $n: no ceiling warning naming the level; warnings were:"
+      echo "$output" | jq -r '.warning_details[]'
+      return 1
+    fi
+  done
+}
+
+@test "0.7.0: an invented engineering level is an error naming the four values" {
+  level_fixture "engineering: throwaway" 3 0
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  echo "$output" | jq -e . > /dev/null
+  echo "$output" | jq -e '.errors >= 1' > /dev/null
+  echo "$output" | grep -q "engineering"
+  echo "$output" | grep -q "experiment, tool, project, product"
+}
+
+@test "0.7.0: PIN no level keeps the pre-level ceiling — 60 Task List boxes stay silent" {
+  level_fixture "" 60 5
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  echo "$output" | jq -e . > /dev/null
+  echo "$output" | jq -e '.errors == 0' > /dev/null
+  no_ceiling_warning "no level at 60"
+}
+
+@test "0.7.0: tasks.md is authoritative for the level, and story.md is read when tasks.md is silent" {
+  # tasks.md experiment, story.md product, 6 boxes: experiment's ceiling fires.
+  level_story "engineering: product"
+  level_fixture "engineering: experiment" 6 0 with-story
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  echo "$output" | jq -e . > /dev/null
+  echo "$output" | jq -r '.warning_details[]' | grep 'references/tasks.md' | grep -q "'experiment'"
+  # story.md tool, tasks.md silent, 13 boxes: tool's ceiling fires from story.md.
+  level_story "engineering: tool"
+  level_fixture "" 13 0 with-story
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  echo "$output" | jq -e . > /dev/null
+  echo "$output" | jq -r '.warning_details[]' | grep 'references/tasks.md' | grep -q "'tool'"
+}

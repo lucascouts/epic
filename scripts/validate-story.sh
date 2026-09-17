@@ -217,6 +217,29 @@ for SCALE_SRC in story.md design.md tasks.md; do
   esac
 done
 
+# --- Read the DECLARED engineering level (0.7.0) ---
+# `engineering:` is one of four values, defined once in
+# references/engineering-level.md. It is read the way `scale:` is — tasks.md
+# first, because it is the one artifact every scale has — and it decides the
+# box ceiling of the authoring-ceiling block below. Fail-CLOSED on a value
+# outside the four (an invented level is an error naming the set), fail-OPEN on
+# absence (no field means the pre-level ceiling, so a story written before the
+# field validates as it did). A disagreement between artifacts is not reported:
+# tasks.md wins, as it does for the scale, and the value in force is the one
+# named in the ceiling warning.
+ENGINEERING_ENUM='experiment|tool|project|product'
+ENGINEERING_ENUM_TEXT=${ENGINEERING_ENUM//|/, }
+DECLARED_ENGINEERING=""
+for ENG_SRC in tasks.md story.md design.md; do
+  ENG_VAL=$(frontmatter_field "$STORY_DIR/$ENG_SRC" engineering)
+  [[ -n "$ENG_VAL" ]] || continue
+  if ! [[ "$ENG_VAL" =~ ^($ENGINEERING_ENUM)$ ]]; then
+    add_error "$ENG_SRC frontmatter 'engineering' is not an engineering level: found '$ENG_VAL' — must be one of: $ENGINEERING_ENUM_TEXT"
+    continue
+  fi
+  [[ -n "$DECLARED_ENGINEERING" ]] || DECLARED_ENGINEERING="$ENG_VAL"
+done
+
 # --- Artifacts disagreeing about the scale (R2.1, R2.2) ---
 # One story, one scale, so artifacts declaring different values disagree about
 # the SHAPE OF THE WORK — the same defect the `status:` collector below reports
@@ -1047,11 +1070,11 @@ if [[ "$HAS_TASKS" == true ]]; then
     add_warning "tasks.md carries $COMMIT_LEGACY_COUNT Commit sub-task checkbox(es) — the legacy shape. The canonical form is a group-level 'Commit:' field; 'bash scripts/migrate-story.sh <NNN> --apply' converts it, message verbatim"
   fi
 
-  # --- Authoring ceiling (story 014, sub-task 3.1 — R3.3)
+  # --- Authoring ceiling (story 014, sub-task 3.1 — R3.3; per level since 0.7.0)
   #
   # The threshold has ONE home, references/tasks.md § Authoring Ceiling, and
   # the warning CITES it rather than restating the numbers. A value repeated in
-  # a message is a second place to edit and a second place to be wrong; the two
+  # a message is a second place to edit and a second place to be wrong; the
   # constants below are the arms, and the sentence points at the paragraph that
   # justifies them.
   #
@@ -1060,17 +1083,45 @@ if [[ "$HAS_TASKS" == true ]]; then
   # than one story should hold, and a plan can run to 36KB of prose around a
   # single task. Whichever arm trips first is enough to ask the question.
   #
+  # WHY THE BOX ARM IS PER LEVEL. The measured pace is about one box per minute,
+  # so the plan is where a story's cost is decided; the single ceiling of 60 let
+  # 43- and 47-box plans for a tool-shaped request through without a word
+  # (2026-09-17). The level's ceiling — 5 / 12 / 24 / 40 — is read from the
+  # `engineering:` frontmatter resolved above; no level keeps 60, so a story
+  # written before the field validates exactly as it did.
+  #
+  # WHAT IS COUNTED. Task List boxes only: the Quality Gates section grows with
+  # the legend and not with the work (five fixed gates alone would fill an
+  # `experiment`), and a box inside a code fence is documentation. The section
+  # test is the census's own: a heading whose text carries "quality gates"
+  # opens it, the next heading closes it.
+  #
   # A WARNING, NEVER AN ERROR: an oversized plan is a judgement call the author
   # is entitled to make. This site exists so a plan that shipped oversized stays
   # visible after authoring time, not only at the Phase 3 offer.
   CEILING_BYTES=32768
-  CEILING_BOXES=60
+  case "$DECLARED_ENGINEERING" in
+    experiment) CEILING_BOXES=5 ;;
+    tool)       CEILING_BOXES=12 ;;
+    project)    CEILING_BOXES=24 ;;
+    product)    CEILING_BOXES=40 ;;
+    *)          CEILING_BOXES=60 ;;
+  esac
   TASKS_BYTES=$(wc -c < "$TASKS_FILE" 2>/dev/null | tr -d '[:space:]' || echo 0)
-  TASKS_BOXES=$(grep -cE '^[[:space:]]*- \[([ x~])\]' "$TASKS_FILE" 2>/dev/null || true)
+  TASKS_BOXES=$(awk '
+    /^```/ { fence = !fence; next }
+    fence { next }
+    /^#+[[:space:]]/ { gates = (tolower($0) ~ /quality gates/) ? 1 : 0; next }
+    !gates && /^[[:space:]]*- \[([ x~])\]/ { n++ }
+    END { print n + 0 }' "$TASKS_FILE" 2>/dev/null || echo 0)
   if [[ "${TASKS_BYTES:-0}" -gt "$CEILING_BYTES" ]]; then
     add_warning "tasks.md is ${TASKS_BYTES} bytes, past the authoring ceiling — see references/tasks.md (Authoring Ceiling) for the threshold and the split offer"
   elif [[ "${TASKS_BOXES:-0}" -gt "$CEILING_BOXES" ]]; then
-    add_warning "tasks.md carries ${TASKS_BOXES} checkboxes, past the authoring ceiling — see references/tasks.md (Authoring Ceiling) for the threshold and the split offer"
+    if [[ -n "$DECLARED_ENGINEERING" ]]; then
+      add_warning "tasks.md carries ${TASKS_BOXES} Task List checkboxes, past the authoring ceiling for engineering level '${DECLARED_ENGINEERING}' — see references/tasks.md (Authoring Ceiling) for the thresholds and the three offers"
+    else
+      add_warning "tasks.md carries ${TASKS_BOXES} checkboxes, past the authoring ceiling — see references/tasks.md (Authoring Ceiling) for the threshold and the split offer"
+    fi
   fi
 
   # Check for Validation fields

@@ -127,7 +127,7 @@ Sub-agents with specialized roles. Scale determines which personas are activated
 |---|---|---|---|
 | **Analyst** | Context discovery, domain research, checklist generation | standard + full | `agents/analyst.md` |
 | **Architect** | Codebase pattern research, design context gathering | full only | `agents/architect.md` |
-| **Test Advisor** | Authors one failing test per Unit/Integration sub-task during Phase 3, runs Red verification, records red-evidence | standard + full (Phase 3, and per added sub-task in Refine) | `agents/test-advisor.md` |
+| **Test Advisor** | Authors one failing test per Unit/Integration sub-task during Phase 3, runs Red verification, records red-evidence | standard + full at engineering level `project` or `product` (Phase 3, and per added sub-task in Refine); an `experiment` or `tool` story writes its tests at run time, as Fast does ([engineering-level.md](../../references/engineering-level.md)) | `agents/test-advisor.md` |
 | **Reviewer** | Cross-artifact review, gap detection, consistency check | full only | `agents/reviewer.md` |
 
 ### Execution Personas (task implementation)
@@ -274,6 +274,8 @@ Fast mode is **test-first at run time**: a sub-task carrying a `Tests` field has
 
 Spike mode is **exploration, not delivery**: the story exists to answer a question, and the answer is the mandatory `## Verdict` section of its `tasks.md`. A spike is tasks-only — no `story.md`, no `design.md`, no `.draft/` — and has **no requirements chain**: an R-reference such as `R1.1` inside a spike is a validation error, because no story.md exists for it to point at. It takes every Fast carve-out in this document (no runtime-dependency precheck, no MCP detection, no drafts, no phase gate) and stays single-author. What makes a spike terminal is the Verdict, not the checkboxes: `promote` (the orchestrator offers CREATE for the follow-up story, pre-filled with the conclusion, and records `promoted-to: NNN`) or `wont-do`. A Verdict left `open` is the failure mode this scale exists to prevent — LIST surfaces stale open spikes so they get promoted or closed. Template and grammar: [tasks.md](../../references/tasks.md#spike-scale-adaptations).
 
+**The scale is one axis; the engineering level is the other.** The scale says which artifacts are written. The engineering level — `experiment`, `tool`, `project`, `product` — says how long the thing must last, and from that how much of the quality catalog, of Phase 3 and of the plan the story pays for. It is defined once in [engineering-level.md](../../references/engineering-level.md), read at triage (below), and it never changes the scale.
+
 ## Workflow Variants (Full mode, feature only)
 
 | Variant | When to suggest | Phase order |
@@ -305,9 +307,12 @@ requester:
 
 **The level changes four things and nothing else — the register the chat is written in, the question budget, the defaults taken silently, and the shape of a gate — and it never changes the scale.** The scale follows the request and the complexity table below, for every level. The 0.6.0 rule that held a layperson at Fast came from one trivial request; what had made Standard hurt a beginner — out-of-reach questions, document reviews, 23k-character turns — is closed by the register, the budget and the defaults, and a beginner who asks for something Full-shaped is owed Full, with its gates in one line. The files, the protocols and the sub-agents do not change.
 
+**Read what it is for next — the engineering level — from the request, and propose it with its price.** Four levels, defined in [engineering-level.md](../../references/engineering-level.md): `experiment` (disposable, 1×), `tool` (kept and fixed when it breaks, 2–3×), `project` (maintained, others depend on it, 4–6×), `product` (may be published or sold, 8×+). Read it from the words the request carries — "for a class", "to see if it works", "my team", "customers" — record it in the proposal and, where a `.draft/` exists, in `meta.yaml` beside the `requester` block, and take **`tool` when the request does not settle it**: `experiment` and `product` are never assumed, since the first drops every check and the second buys every one. The proposal states the level in one line with its multiple, in the register's words, so the triage gate confirms it without spending a question; when triage was unsure, round 0 of Clarify fishes for it with the indirect questions that file lists — never "which level is this?" — and the line is restated once if the answer moves it. The level never changes the scale and never changes the requester level: the three are read independently and recorded side by side.
+
 1. Detect event from request context
 2. Classify type (feature vs bugfix)
 3. **Assess overall story complexity** (see table below)
+3a. **Read the engineering level** (above) — from the request, `tool` when unsettled, proposed with its multiple in one line
 4. **Recommend mode with trade-off explanation** — from the request and the table, for every level; the level never changes the mode (above)
 5. Suggest workflow variant (full mode only)
 6. Check for context files — load [context-discovery.md](../../references/context-discovery.md)
@@ -361,6 +366,7 @@ Present as:
 > - **Event:** Create / Refine / Expand
 > - **Type:** Feature / Bugfix
 > - **Requester:** level — persona (the evidence, in a few words)
+> - **Engineering:** experiment / tool / project / product — what it means for this request, and the multiple, in one line
 > - **Complexity:** Trivial / Simple / Moderate / High (justification)
 > - **Mode:** Fast / Standard / Full (reason + trade-offs)
 > - **Workflow:** Requirements-First / Design-First (full mode only)
@@ -434,7 +440,12 @@ the plain register, and both get the context and the example.
   it, what exists today, what "done" looks like — or one open question in
   the requester's own words: "describe it as you would to a friend".
   Skipped when the request already answers them; a question the request
-  answered is a defect in either register.
+  answered is a defect in either register. When triage could not settle
+  the engineering level, this round carries its indirect questions — will
+  you open this again, when it breaks do you fix it or redo it, will anyone
+  besides you run it, could it be published or sold
+  ([engineering-level.md](../../references/engineering-level.md)) — asked as
+  consequences, inside the same count.
 - **Ask the consequence, never the mechanism.** "What happens to the data
   when the program closes?" decides persistence; "JSON or SQLite?" asks the
   requester to be the architect. The consequence is what they can observe
@@ -525,7 +536,7 @@ Before entering any phase, load the corresponding reference files:
 - On format doubts, load the relevant example from `assets/examples/`
 - For a `layperson` requester, every phase gate takes the one-line shape in [plain-register.md](../../references/plain-register.md#gates-are-one-line) and counts against the question budget
 
-**Authoring ceiling at Phase 3.** When the generated `tasks.md` passes the threshold defined in [tasks.md](../../references/tasks.md) (Authoring Ceiling), warn and offer a split into a wave — interactively as a question, headless as a logged note that proceeds. It is a warning, never a block: a story that genuinely needs a large plan keeps it. In batch create the offer is not re-entered into the live interview; the warning surfaces in the approval block and the split happens post-batch (see [batch-create.md](../../references/batch-create.md)).
+**Authoring ceiling at Phase 3.** When the generated `tasks.md` passes the threshold for the story's engineering level — one ceiling per level, defined once in [tasks.md](../../references/tasks.md) (Authoring Ceiling) and read from [engineering-level.md](../../references/engineering-level.md) — warn and make the three offers: **cut** the scope, **split** the plan into waves, or **go down a level** and regenerate the plan with fewer quality items. Interactively as a question, headless as a logged note that proceeds. It is a warning, never a block: a story that genuinely needs a large plan keeps it. In batch create the offer is not re-entered into the live interview; the warning surfaces in the approval block and the split happens post-batch (see [batch-create.md](../../references/batch-create.md)).
 
 ## Persistence and Recovery
 
@@ -553,6 +564,7 @@ requester:                  # read at triage, re-read from Clarify answers
     - explain by example, one per new concept
   never:
     - ask about git, npm or versioning
+engineering: tool          # experiment | tool | project | product — proposed at triage, confirmed by its gate
 questions_asked: 2          # questions spent against the story's question budget
 analyst_output: |
   <cached output from Codebase Analysis Analyst>
@@ -590,6 +602,7 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
   story: <story-name>
   type: feature | bugfix
   scale: fast | standard | full | spike
+  engineering: experiment | tool | project | product
   version: 1
   created: <date>
   status: draft

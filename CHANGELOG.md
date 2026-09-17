@@ -13,6 +13,54 @@ gracefully (see README "Prerequisites").
 
 ### Added
 
+- **An engineering level — how long it must last decides how much the story
+  pays for** (new `references/engineering-level.md`; `skills/epic/SKILL.md`
+  Adaptive Modes, Triage, Clarify, Phase Execution, Draft Saving, Output
+  Rules; `references/requirements.md`, `references/plain-register.md`,
+  `references/self-review-checklist.md`, README). Measured on 2026-09-17: two
+  Standard runs for a developer's Pokédex CLI planned 43 and 47 boxes, spent
+  about 25 minutes in Phase 3 while the Test Advisor wrote 22 tests before any
+  code, and were stopped at 42 minutes with 28 and 2 boxes closed — the Epic
+  plans every request as a product, because nobody asks how long the thing
+  must last. Four levels now do: `experiment` (disposable, 1×), `tool` (kept
+  and fixed when it breaks, 2–3×), `project` (maintained, others depend on it,
+  4–6×), `product` (may be published or sold, 8×+). Triage reads the level
+  from the request's own words, takes `tool` when the request does not settle
+  it, and proposes it in one line with its multiple, in the register's words,
+  so the triage gate confirms it without spending a question; when triage was
+  unsure, the orientation round fishes for it with the indirect questions
+  ("a month from now, will you open this again?", "when it breaks, do you fix
+  it or redo it?", "will anyone besides you run it?", "could it be published
+  or sold?"), asked as consequences and never as a choice of level. It is
+  recorded as `engineering:` in every artifact's frontmatter (`tasks.md`
+  authoritative, an invented value a validation error, absence legal and
+  silent), in `meta.yaml` beside the `requester` block, and in **the recorded
+  line** that opens the execution plan and the end-of-run report — scale,
+  requester level, engineering level with its multiple, plan size in Task List
+  boxes — which is what the persona harness compares against the control. The
+  multiples are against the control and are the first calibration, recalibrated
+  at every release; the owner's rule that a run above 3× the control is in
+  most cases a wrong level or over-engineering is written down beside them. The
+  level never changes the scale, the requester level, the artifacts, the gates
+  or the Executor's six steps. Pinned by `tests/engineering-level.bats`.
+
+- **The catalog names what eleven attempts lacked**
+  (`references/quality-catalog.md`). Audited on eleven attempts at one
+  beginner's request (15–17 September 2026): none installed a package, all
+  ran on the Node 20 the image offered — out of support since April 2026 —
+  none declared a version, and none carried a formatter, a linter, a type
+  checker or an `.editorconfig`; an atomic write appeared only in the two
+  0.5.0 Standard runs, by the model's own initiative. The always tier gains
+  **a supported and declared runtime** (`engines`, the `go` directive,
+  `requires-python`, `.tool-versions`) and **dependencies justified and
+  current**; the context tier gains **atomic write**, with the signal that
+  the program writes a file it reads back; and a syntax check (`node --check`,
+  `py_compile`, `bash -n`) named as Lint now counts the item as omitted, not
+  covered. **The level bounds the set**: `experiment` activates nothing and
+  its legend reads `none`, `tool` the always tier, `project` adds the context
+  items whose signal is present, `product` adds the CI-shaped ones without
+  waiting for a signal and the on-request tier when named.
+
 - **A quality catalog, a legend in the story, and gates generated from it**
   (new `references/quality-catalog.md`; `references/requirements.md`,
   `references/tasks.md`, `references/init-mode.md`,
@@ -93,6 +141,40 @@ gracefully (see README "Prerequisites").
     files into the user's repository, which 0.6.0 had just stopped doing.
 
 ### Changed
+
+- **The plan ceiling is per engineering level, counted on the Task List**
+  (`references/tasks.md` Authoring Ceiling, `scripts/validate-story.sh`,
+  `tests/authoring-ceiling.bats`). The single 60-box ceiling let the 43- and
+  47-box plans through without a word. The box arm is now `experiment` 5,
+  `tool` 12, `project` 24, `product` 40 Task List boxes — the measured pace is
+  about one box per minute, so the plan is where the multiple is decided — and
+  a story that declares no level keeps 60, so a story written before the field
+  validates as it did. Only the Task List is counted: the Quality Gates section
+  grows with the legend and not with the work, and the five fixed gates alone
+  would fill an `experiment`; a box inside a code fence is documentation. The
+  warning names the level and cites the threshold's one home, and the offer at
+  Phase 3 has three ways out — cut the scope, split into waves, or go down a
+  level, which regenerates the plan with fewer quality items. Bytes keep their
+  32 KB arm at every level. Five cases pin the validator: each level silent at
+  its ceiling and warning one over, gates and fences not counted, an invented
+  level an error naming the four, no level keeping 60, `tasks.md` winning over
+  `story.md` and `story.md` read when `tasks.md` is silent.
+
+- **Phase 3 is proportional to the level** (`references/phase-gates.md`,
+  `references/run-mode.md`, `references/refine-mode.md`,
+  `references/validate-mode.md`, `references/batch-create.md`,
+  `agents/auditor.md`, `agents/test-advisor.md`). The Test Advisor authoring
+  every test before any code cost about 25 minutes in each of the two
+  developer runs. At `experiment` or `tool` a Standard or Full story now
+  decides its `Tests` field inline with the Lite checklist and writes the test
+  at run time — Red before Green, the same cycle Fast and spike already use —
+  with no Test Advisor, no `.draft/authored-tests/` and no `red-evidence.yaml`;
+  at `experiment` the field is optional, as in a spike. `project` and `product`
+  keep the full Phase 3. Every consumer that read "Standard/Full" as "has a
+  pre-authored test" now reads it through the level: materialization and its
+  converse guard, the run-time ordering and both routes, Refine's Red evidence
+  for added sub-tasks, the Auditor's Red-precedence check and batch create
+  apply at `project` and `product` and are exempt below.
 
 - **The requester is a four-field block, and the level never changes the
   scale** (`skills/epic/SKILL.md`, `references/plain-register.md`, new
