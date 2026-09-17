@@ -134,6 +134,36 @@ gracefully (see README "Prerequisites").
   are asked in rounds rather than as one numbered list, which stays as the
   headless fallback.
 
+- **Fast runs `--auto` by default, and `--step` asks for its stops back**
+  (`references/run-mode.md`, `README.md`). A Fast story is small enough to see
+  whole at the end, and its per-group gate was one round of the question
+  budget spent on "go on". It now stops on a validation or test failure and on
+  a doubt the constitution defaults do not cover, and nowhere else; `--step`
+  restores the gate after every group. Standard and Full keep their gates and
+  `--auto` as an explicit choice. For a layperson, a stop per group is
+  promised only under `--step` — a promise about cadence is kept literally or
+  not made.
+
+- **The orchestrator's effort is the session's** (`skills/epic/SKILL.md`).
+  The skill frontmatter no longer pins `effort: max` on the orchestrator: the
+  session's setting applies, and a fork inherits the same. Two reasons. The
+  measured Standard spent 49% of its clock in the orchestrator writing and
+  thinking between calls, which is where maximum effort weighs; and the
+  persona harness's control arm runs at the session default while the Epic
+  arm ran at max, a confound in every comparison made so far. The agents keep
+  their own `effort` fields, pinned by `tests/agent-effort-policy.bats`.
+  Unmeasured as of this entry — the 0.7.0 runs are the measurement.
+
+- **The memory recommendation names a permitted provider**
+  (`references/mcp-integration.md`). ai-memory's LLM work — consolidation and
+  lint — needs a provider Anthropic's terms allow for a third-party tool: an
+  API key with a Haiku-class model, or a local model through an
+  OpenAI-compatible endpoint. Never a Claude subscription OAuth token: since
+  February 2026 OAuth from the Free, Pro and Max plans is for Claude Code and
+  Claude.ai only, and ai-memory's own documentation warns that its
+  `anthropic-oauth` provider risks the account. The Epic's own reads and
+  writes need no LLM on the server.
+
 ## [0.6.0] — 2026-09-16
 
 Seven commits, one through-line: **measure, then move.** A 59-minute Standard

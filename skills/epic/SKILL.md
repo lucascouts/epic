@@ -32,7 +32,6 @@ allowed-tools:
   - AskUserQuestion
   - EnterWorktree
   - ExitWorktree
-effort: max
 paths:
   - ".epic/**"
   - "tasks.md"

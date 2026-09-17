@@ -62,6 +62,8 @@ Never hard-block triage on missing MCPs. The suggestion is informative, not gati
 
 A second category, separate from research: **memory**. One candidate, `ai-memory`, the long-term project-memory server. It is **optional and recommended**: when it is reachable the story is enriched by what the project already knows; when it is not, nothing changes — every reader of memory below degrades to today's behaviour, and the only trace is one line in the triage proposal.
 
+Its LLM work — the consolidation that turns raw observations into pages, the lint that finds contradictions between them — needs a provider Anthropic's terms allow for a third-party tool: an **API key** with a Haiku-class model, since the work is summarisation, or a **local model** through an OpenAI-compatible endpoint. **Never a Claude subscription OAuth token.** Since February 2026, OAuth from the Free, Pro and Max plans is for Claude Code and Claude.ai only — any other product, tool or service, the Agent SDK included, is outside the terms — and ai-memory's own documentation warns that its `anthropic-oauth` provider risks the account. The Epic's own reads and writes below need no LLM on the server at all.
+
 ### Detection
 
 - **Health check:** one call to `memory_status`. It is local and free, so — unlike the research checks — it runs in **every scale, Fast and spike included**. A success marks memory as available for the whole story; a failure, or a tool that is not there at all, marks it unavailable, silently.

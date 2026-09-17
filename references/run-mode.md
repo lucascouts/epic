@@ -26,8 +26,9 @@ Parse flags from `$ARGUMENTS` after the run command:
 
 | Flag | Behavior |
 |---|---|
-| (default) | Gate after every task group |
-| `--auto` | Only stop on validation/test failure |
+| (default) | Standard and Full: gate after every task group. **Fast runs as `--auto`**: it stops on a validation or test failure and on a doubt the constitution defaults do not cover, and nowhere else — a Fast story is small enough to see whole at the end, and its per-group gate was one round of the question budget spent on "go on" |
+| `--auto` | Only stop on a failure or an uncovered doubt — the Fast default, made explicit for Standard and Full |
+| `--step` | Gate after every task group in a Fast run — the one way to ask a Fast story for its stops back |
 | `--batch=N` | Gate every N task groups |
 | `--gate=commit` | Gate only where a group's `Commit:` field is executed |
 | `--serial` | Run every task and sub-task in order, including the ones detection proved independent — for a run that must read as a sequence |
@@ -35,7 +36,8 @@ Parse flags from `$ARGUMENTS` after the run command:
 Examples:
 ```
 /epic:epic stories run 004                    ← default (gate after each group)
-/epic:epic stories run 004 --auto             ← only stop on failure
+/epic:epic stories run 004 --auto             ← only stop on failure (a Fast story's default)
+/epic:epic stories run 004 --step             ← a Fast run that gates after each group
 /epic:epic stories run 004 --batch=3          ← gate every 3 groups
 /epic:epic stories run 004 --gate=commit      ← gate only at commits
 /epic:epic stories run 004 --serial           ← no parallel groups, whatever detection finds
@@ -731,7 +733,7 @@ For each parallel group, unless `--serial` was passed:
 - **Stop on failure** — if validation or tests fail, stop and report. Do not continue to next task.
 - **No step skipping** — every step in the Executor protocol is mandatory. Context Gathering is not optional when a Context field exists. Validation commands must be executed and their output reported. This is the fundamental rule of Run Mode.
 - **Run-time questions count against the story's question budget** ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)). A decision with a default in the constitution's `## Defaults` block or in the [plain register](plain-register.md#decisions-the-requester-is-not-asked) table is taken and mentioned, never asked — the measured run asked a beginner how to commit on `master`, with three branch options
-- **For a `layperson` requester** ([plain-register.md](plain-register.md)): run and show — never ask them to run a command; a stop promised per group is one group per turn; visible text per turn stays under ~1,500 characters, the rest goes to files. **A build turn writes nothing to the chat between tool calls**: the step-by-step is collected as it happens and written into `run-report.md` once at the end of the turn — one `Write`, never an `Edit` per step (Fast already writes that report) — and the turn's only visible text is its closing three lines — what to type, what it does, and one choice that was made for them. Measured three times: the interstitial notes were what carried "Red confirmado" into the chat, and what pushed the build turn to 1,420–1,766 characters
+- **For a `layperson` requester** ([plain-register.md](plain-register.md)): run and show — never ask them to run a command; a stop per group is promised only when `--step` was passed — under the Fast default the run goes to the end and shows the result once, and a doubt the defaults do not cover stops it like a failure would — and when it is promised, it is one group per turn; visible text per turn stays under ~1,500 characters, the rest goes to files. **A build turn writes nothing to the chat between tool calls**: the step-by-step is collected as it happens and written into `run-report.md` once at the end of the turn — one `Write`, never an `Edit` per step (Fast already writes that report) — and the turn's only visible text is its closing three lines — what to type, what it does, and one choice that was made for them. Measured three times: the interstitial notes were what carried "Red confirmado" into the chat, and what pushed the build turn to 1,420–1,766 characters
 - **User gates** — controlled by execution flags (default: gate after every task group)
 - **Context is fresh** — each Executor reads files directly. The orchestrator passes only metadata (paths, deviations, discoveries) between tasks.
 - **Commit granularity** — follow the Commit fields defined in tasks. Never commit in the middle of a task group.

@@ -120,7 +120,8 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 | `/epic:epic stories full` | List all stories with tasks |
 | `/epic:epic stories NNN` | Show one story in detail |
 | `/epic:epic stories run NNN` | Execute pending tasks of story NNN |
-| `/epic:epic stories run NNN --auto` | Run non-stop, only halt on failure |
+| `/epic:epic stories run NNN --auto` | Run non-stop, only halt on a failure or an uncovered doubt — the default for a Fast story |
+| `/epic:epic stories run NNN --step` | Gate after every task group in a Fast run |
 | `/epic:epic stories run NNN --batch=N` | Gate every N task groups |
 | `/epic:epic stories run NNN --gate=commit` | Gate only at Commit sub-tasks |
 | `/epic:epic stories run NNN --serial` | No parallel groups — every task in order, whatever detection finds |
