@@ -11,7 +11,7 @@
 # tests/authoring-ceiling.bats, not here.
 #
 #   E1  references/engineering-level.md is the single home: four levels with
-#       their fishing questions and multiples, the 3× rule, how the level is
+#       their fishing questions and multiples, the 5× rule, how the level is
 #       read (tool when unsettled, the price line, the orientation round),
 #       where it is recorded, what each level pays for, what it never changes
 #   E2  SKILL.md triage reads the level from the request, takes tool when
@@ -61,7 +61,7 @@ hasF() { # hasF <label> <block> <fixed string>
   fi
 }
 
-@test "E1: engineering-level.md is the single home — four levels, questions, multiples, 3×, how read, where recorded, what each pays for" {
+@test "E1: engineering-level.md is the single home — four levels, questions, multiples, 5×, how read, where recorded, what each pays for" {
   f="$ROOT/references/engineering-level.md"
   [ -f "$f" ]
   levels=$(section "$f" '^## The four levels' '^## ')
@@ -70,7 +70,7 @@ hasF() { # hasF <label> <block> <fixed string>
     has "E1 level" "$levels" "$w"
   done
   for m in "1×" "2–3×" "4–6×" "8×+"; do hasF "E1 multiple" "$levels" "$m"; done
-  hasF "E1 3× rule" "$levels" "3×"
+  hasF "E1 5× rule" "$levels" "5×"
   has "E1 recalibrated" "$levels" "recalibrated"
   read_=$(section "$f" '^## How the level is read' '^## ')
   has "E1 tool when unsettled" "$read_" "does not settle it"

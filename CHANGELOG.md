@@ -11,6 +11,47 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-09-17
+
+Seven commits on the 0.7.0 branch, one through-line: **who is asking, how the
+Epic asks, and what it verifies** — then, measured on the branch's own first
+runs, what that costs. The requester is a four-field block and the level never
+changes the scale; Clarify asks the way an architect asks a client, with a
+budget counted in questions; a quality catalog gives the story a legend and
+generates its gates; Fast runs `--auto`, the orchestrator's effort is the
+session's, memory names a permitted provider; every sub-agent runs in the
+foreground; a request for speed changes the words, not the steps; and an
+engineering level — how long the thing must last — decides the catalog tier,
+the shape of Phase 3 and the plan's ceiling. Two of the seven are fixes of
+defects measured on this branch's first runs, and the entries below carry the
+numbers.
+
+**Measured on the release commit — the beginner's request, persona harness,
+2026-09-17.** Control: 2 min, US$ 0.62, one file, no tests. Epic: Standard ·
+`layperson` · `tool`, a plan of 12 Task List boxes (the `tool` ceiling
+exactly), 7 questions of a budget of 9, one sub-agent (the Analyst, in the
+foreground, one user turn), delivered `done` in **23 min and US$ 11.88** — 5
+commits, 4 source and 4 test files, 39 green tests, `engines.node: ">=22"`
+declared with the image's Node 20 flagged as out of support, an atomic write
+with a backup of a corrupt file, a formatter, a linter, a JSDoc type check, an
+`.editorconfig` and a README; the persona ended with "ta funcionando mano,
+ficou top". **Against the owner's rule — up to 5× is justifiable — it is a miss:**
+11× the control's clock and 19× its cost, where `tool` is supposed to cost
+2–3×, and the run's own
+report names the always-tier toolchain as the largest cost. That is the
+calibration the level file promised to take: what `tool` activates, and the
+multiples, are what the next round recalibrates. One defect in the
+deliverable, invisible to the run: `npm test` is `node --test test/`, which
+passes on Node 20 and fails on the Node 22+ the package declares — the
+directory argument changed meaning — which is what a harness image with a
+supported runtime would have caught.
+
+**Triage variance (n=5, same request, release commit):** Standard 3, Fast 2. The engineering level read `tool` four times and `experiment` once, on one of the Fast samples; 305–708 s and 0.5–1.7M input tokens per sample. The request that drew Fast once and Standard twice on 0.5.0 still draws both, and the level moves with the scale. A monitor, never a gate.
+
+**Minimum Claude Code:** unchanged from 0.2.0. Everything in this release is
+prose the orchestrator follows, scripts and tests; nothing in the runtime
+moved.
+
 ### Added
 
 - **An engineering level — how long it must last decides how much the story
@@ -39,8 +80,8 @@ gracefully (see README "Prerequisites").
   requester level, engineering level with its multiple, plan size in Task List
   boxes — which is what the persona harness compares against the control. The
   multiples are against the control and are the first calibration, recalibrated
-  at every release; the owner's rule that a run above 3× the control is in
-  most cases a wrong level or over-engineering is written down beside them. The
+  at every release; the owner's rule — up to 5× the control is justifiable, above it
+  something is wrong or unnecessary — is written down beside them. The
   level never changes the scale, the requester level, the artifacts, the gates
   or the Executor's six steps. Pinned by `tests/engineering-level.bats`.
 
@@ -1108,7 +1149,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/lucascouts/epic/releases/tag/v0.7.0
 [0.6.0]: https://github.com/lucascouts/epic/releases/tag/v0.6.0
 [0.5.0]: https://github.com/lucascouts/epic/releases/tag/v0.5.0
 [0.4.0]: https://github.com/lucascouts/epic/releases/tag/v0.4.0
