@@ -14,6 +14,9 @@
 #   D4  mcp-integration.md's Memory section names a permitted provider and
 #       rules the subscription OAuth token out
 #   D5  README's run table names --step and says Fast is auto
+#   D6  every sub-agent runs in the foreground: the Personas section says so
+#       with run_in_background: false, and the Analyst and Test Advisor spawn
+#       sites repeat it (story 026)
 #
 # Note on awk patterns: passed as strings, so no backslash escapes; literal
 # punctuation goes in a bracket class.
@@ -75,4 +78,20 @@ has() { # has <label> <block> <keyword>
   row=$(grep -E -- 'stories run NNN --auto' "$ROOT/README.md")
   [ -n "$row" ]
   has "D5" "$row" "Fast"
+}
+
+@test "D6: every sub-agent runs in the foreground — Personas says run_in_background: false, and the Analyst and Test Advisor spawn sites repeat it" {
+  personas=$(section "$ROOT/skills/epic/SKILL.md" '^## Personas' '^## Command Routing')
+  [ -n "$personas" ]
+  has "D6 rule" "$personas" "run_in_background: false"
+  has "D6 foreground" "$personas" "foreground"
+  has "D6 measured" "$personas" "12 of 12"
+  ta=$(section "$ROOT/references/phase-gates.md" '^## Test Advisor Sub-agent' '^### ')
+  has "D6 test advisor" "$ta" "run_in_background: false"
+  an=$(section "$ROOT/references/context-discovery.md" '^## Codebase Analysis' '^## ')
+  has "D6 analyst" "$an" "run_in_background: false"
+  if grep -qE 'run_in_background: true' "$ROOT/skills/epic/SKILL.md" "$ROOT/references/phase-gates.md" "$ROOT/references/context-discovery.md" "$ROOT/references/run-mode.md" "$ROOT/references/validate-mode.md"; then
+    echo "D6: a spawn site asks for a background sub-agent" >&2
+    return 1
+  fi
 }

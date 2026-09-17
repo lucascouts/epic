@@ -164,6 +164,23 @@ gracefully (see README "Prerequisites").
   `anthropic-oauth` provider risks the account. The Epic's own reads and
   writes need no LLM on the server.
 
+### Fixed
+
+- **Every sub-agent runs in the foreground** (`skills/epic/SKILL.md` Personas,
+  and every spawn site: `context-discovery.md`, `phase-gates.md`,
+  `run-mode.md`, `validate-mode.md`). Measured on the first 0.7.0 runs
+  (2026-09-17): the orchestrator spawned the Analyst and the Test Advisor with
+  `run_in_background: true`, ended its turn to "call back when it returns",
+  and every reply became a user turn spent waiting. The beginner's Standard
+  run — her first Standard, now that the level no longer holds her at Fast —
+  burned 12 of 12 user turns on "ainda tá fazendo?", wrote no code and cost
+  US$ 7.04; the developer's Go run did the same for ten turns. The rule: the
+  orchestrator's next step is the sub-agent's result, so the call is made
+  with `run_in_background: false`; a parallel Executor group is several
+  foreground calls in one message, joined before the next step. Pinned by
+  `tests/run-defaults.bats` D6, which also fails on any spawn site asking for
+  the background.
+
 ## [0.6.0] — 2026-09-16
 
 Seven commits, one through-line: **measure, then move.** A 59-minute Standard

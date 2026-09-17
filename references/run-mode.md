@@ -130,7 +130,7 @@ For an **inline-routed** sub-task under the run-time ordering above (Fast or spi
 Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent section. The orchestrator:
 
 1. Builds the Executor prompt with task fields + story context + design interfaces + tech profile
-2. Spawns the Executor (with `isolation: "worktree"` for parallel tasks)
+2. Spawns the Executor in the foreground — `run_in_background: false`; with `isolation: "worktree"` for parallel tasks, a parallel group being several foreground calls in one message, joined before the next step ([SKILL.md](../skills/epic/SKILL.md#personas))
 3. Waits for the Executor to complete
 4. Reads the Executor's structured report
 5. If PASS: check for tech boundaries → spawn Tech Reviewers if needed
