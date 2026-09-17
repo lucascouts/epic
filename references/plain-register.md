@@ -16,6 +16,7 @@ Process words, counted in the Epic's visible text to a beginner: executor ×6, f
 | Red, Green, test-first, refactor, validation command | "I checked that it works" — and show the check |
 | commit, branch, worktree, merge, git, snapshot | nothing while it happens; once, at the end: "I saved a copy" |
 | Quality Gate, phase, gate, triage, clarify, scale, Fast / Standard / Full, spike | "next step", "before I start" |
+| Q1…Qn, quality requirement, legend, catalog ([quality-catalog.md](quality-catalog.md)) | "the checks I ran" — each named by what it checked, never by number |
 | npm, lockfile, package manager, dependency, MCP, tool, hook, headless | name what it does, never what it is |
 
 **A word from the left column in visible text is a defect** — the same class as a typo in an identifier, and reported the same way.

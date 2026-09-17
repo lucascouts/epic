@@ -101,7 +101,9 @@ On detecting a `.wip` file:
 | Phase 2 | `design-guide.md` | `ears-notation.md` + `requirements.md` | `bugfix-design.md` |
 | Phase 3 | `tasks.md` | `tasks.md` | `tasks.md` |
 
-For Fast mode, only `tasks.md` reference is loaded.
+[quality-catalog.md](quality-catalog.md) is loaded with `requirements.md` — the `## Quality Requirements` legend is written in Phase 1 — and again with `tasks.md`, where the gates are generated from it, in every mode.
+
+For Fast mode, `tasks.md` and `quality-catalog.md` are loaded — the legend lives at the top of `tasks.md`.
 For Standard mode, Phase 1 + Phase 3 references are loaded.
 
 On format doubts, load the relevant example from `assets/examples/`.

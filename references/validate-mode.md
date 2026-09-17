@@ -28,7 +28,7 @@ Triggered per-task or in batch after implementation. Can be invoked incrementall
 > 2. If a Tests field exists, verify the test file exists and tests pass
 > 3. If the group carries a `Commit:` field, verify the commit was made (check git log)
 >
-> Then settle the Quality Gates: for each gate in the Quality Gates section, decide from the task results whether it is satisfied, and record it PASS or FAIL with its evidence.
+> Then settle the Quality Gates: for each gate in the Quality Gates section, decide from the task results whether it is satisfied, and record it PASS or FAIL with its evidence. A generated gate — one carrying a `Qn` identifier and a command ([quality-catalog.md](quality-catalog.md)) — is settled by running that command: its exit status is the verdict and its output the evidence.
 >
 > Then, as the LAST step before composing any textual summary, write the whole verdict to `.draft/validation-report.yaml` in the story directory — creating `.draft/` on demand is part of that step, since fast and spike stories have none. The orchestrator concludes from that file, not from your reply:
 >

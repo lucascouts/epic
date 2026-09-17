@@ -36,6 +36,7 @@ created: <date>
     - Tests: [Type] · `path/to/test_file` — scenarios to cover
     - Validation: [Command or check that proves it works]
     - Requirements: R1.1, R2.3
+    - Quality: Q2, Q5
 
   - [ ] 1.2 - [Another sub-task]
     - Objective: [...]
@@ -59,6 +60,8 @@ created: <date>
 - [ ] All tests written and passing
 - [ ] Code integrated (no orphaned implementations)
 - [ ] Error handling implemented
+- [ ] Q2 — Lint: `<command>` exits 0
+- [ ] Q5 — Unit tests: `<command>` green
 ```
 
 ## The Declared Scale
@@ -183,6 +186,7 @@ Content fields appear in sub-task bodies. Include only fields that are applicabl
 | Acceptance | Fast-mode sub-task without a `Tests` field | 1-3 observable-behavior statements |
 | Validation | Always | Command or check proving completion |
 | Requirements | Standard + Full scales | R1.1, R2.3 format. Omit for fast scale |
+| Quality | When the story carries a `## Quality Requirements` legend — in story.md (Standard, Full) or at the top of tasks.md (Fast) | Q1, Q3 format — the legend lines this sub-task exercised ([quality-catalog.md](quality-catalog.md)) |
 | Commit | Last sub-task of a group, or inline on single sub-tasks | Conventional commit message |
 
 ### Context Field
@@ -238,6 +242,10 @@ Format: a bullet list of 1-3 observable-behavior statements, placed in the sub-t
 - Commit messages follow conventional commits: `feat:`, `fix:`, `chore:`, `refactor:`, `test:`.
 - **Story anchor (recommended).** Scope the subject with the story number — `type(NNN): subject`, e.g. `feat(012): add retry queue` — and name the branch `feat/NNN-slug`. These are the two anchors `scripts/story-git-status.sh` reads integration from (a merged `feat/NNN-*` branch, or a subject carrying `(NNN)` or `NNN-slug` as a delimited token); a commit with neither is invisible to it. Checked, not gated: `scripts/validate-story.sh` warns on any `Commit:` field whose subject carries no `type(NNN):` anchor for its own story number (zero-padded or not). A warning, never an error — a foreign commit convention stays usable, but drift is no longer silent.
 
+### Generated Quality Gates
+
+The five gates in the template are fixed. After them, the section carries **one box per line of the story's `## Quality Requirements` legend** ([quality-catalog.md](quality-catalog.md)), written as `- [ ] Qn — <item>: <command>` — the identifier, the item's name and the command that proves it, so the box settles by running the command and nothing else. They are generated from the legend when `tasks.md` is written, in legend order, and never hand-added: a gate with no legend line is a phantom, a legend line with no gate is a generation defect. Validate settles a generated gate by running its command ([validate-mode.md](validate-mode.md)); a layperson sees each as the check it ran, never by identifier ([plain-register.md](plain-register.md)).
+
 ### Complexity Guide
 
 | Level | Signal | Examples |
@@ -261,6 +269,8 @@ Format: a bullet list of 1-3 observable-behavior statements, placed in the sub-t
 10. **Commit coverage.** Every task group must have a Commit field (either as sub-task or inline). No implemented code should remain uncommitted.
 11. **Error propagation in ToDo fields.** When a ToDo describes calling a function, method, or service that can fail (returns error, throws exception, returns nullable/optional), the ToDo must explicitly state how the error is handled. Write "call X and return 500 on error" or "call X, on failure re-render with error message" — never just "call X". This applies to all internal calls (store, service, repository, external API), not just user-facing operations.
 
+12. **Quality coverage.** Every line of the story's `## Quality Requirements` legend ([quality-catalog.md](quality-catalog.md)) is cited by at least one sub-task's `Quality:` field, and the Quality Gates section carries one generated box per line (see Generated Quality Gates). `cross-reference.sh` reports an uncited line as a quality orphan and a cited-but-undeclared identifier as a phantom, and exits 1 on either.
+
 ## Sequencing Guidelines
 
 - Order tasks so each one builds on the previous
@@ -281,6 +291,7 @@ Format: a bullet list of 1-3 observable-behavior statements, placed in the sub-t
 - Tests field is populated by the Test Advisor, not the main agent (standard + full)
 - Every task group must have a Commit field (inline or as sub-task)
 - Sub-tasks inherit parent metadata — only override what differs
+- A `Quality:` field cites legend lines (`Q2, Q5`); a generated gate carries its command; neither is hand-numbered outside the legend
 
 ## Fast Scale Adaptations
 
@@ -288,6 +299,7 @@ When generating tasks for fast scale (no story.md):
 - Omit `Requirements` field (no requirements to reference)
 - Keep the same structure otherwise (metadata line, content fields)
 - Quality Gates section is still mandatory
+- **The legend lives at the top of `tasks.md`** — a `## Quality Requirements` section before `## Task List`, since Fast has no story.md ([quality-catalog.md](quality-catalog.md)); sub-tasks cite it in `Quality:` and the generated gates follow it like any scale
 - **Test-or-Acceptance contract rule:** every implementing sub-task carries either a `Tests` field or an `Acceptance` field — a sub-task with testable logic gets a `Tests` field, a structural sub-task with no testable logic gets an `Acceptance` field. A group-level `Commit:` field is exempt (it implements nothing).
 - If during generation the scope appears larger than expected, recommend upgrading to standard scale
 

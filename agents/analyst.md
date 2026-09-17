@@ -52,11 +52,13 @@ When asked to analyze a project:
 2. **Sample 3-5 representative files** — detect naming conventions, patterns, module organization
 3. **Look up best practices** relevant to the request domain — via a research MCP if one is available to you, otherwise `WebSearch`
 4. **Fetch current docs** for the detected framework/libraries — via a documentation MCP (e.g. `context7`) if available to you, otherwise `WebFetch`/`WebSearch`
+5. **Report the quality-catalog signals** ([quality-catalog.md](../references/quality-catalog.md)) — which context signals the tree carries (a `Dockerfile`, `.github/workflows/`, a database configuration, an HTTP surface, a UI) and which always-tier tools it is already configured for (a linter or formatter config, a lockfile, a test runner) — so the story's `## Quality Requirements` legend is written without a second scan
 
 Return a concise summary (**max 20 lines**) covering:
 - Detected project patterns and conventions
 - Relevant best practices or patterns from research
 - Potential integration points with existing code
+- The quality-catalog signals present, one line
 
 **Do NOT read every file** — be lightweight and fast.
 

@@ -13,6 +13,34 @@ gracefully (see README "Prerequisites").
 
 ### Added
 
+- **A quality catalog, a legend in the story, and gates generated from it**
+  (new `references/quality-catalog.md`; `references/requirements.md`,
+  `references/tasks.md`, `references/init-mode.md`,
+  `references/constitution.md`, `references/phase-gates.md`,
+  `references/validate-mode.md`, `references/plain-register.md`,
+  `agents/analyst.md`, `scripts/cross-reference.sh`). The Quality Gates
+  section was a fixed list of five items that named neither formatting, lint,
+  types, dependency vulnerabilities, secrets nor a README, and chose nothing
+  by context. The catalog has three tiers — **always** (formatting, lint,
+  types, error handling, unit tests, lockfile and frozen install, dependency
+  vulnerabilities, secrets, README, `.gitignore` and `.editorconfig`), **by
+  context** with the signal that activates each (integration and E2E,
+  contract tests, structured logs and health, migrations, SAST, image
+  digest/non-root/scan, pinned Actions, accessibility, licence/SBOM/signing,
+  minimum dependency age) and **on request** (fuzzing, benchmarks, coverage
+  threshold, mutation). Init writes the project's default legend as a
+  `## Quality` block in the constitution; the Analyst reports which context
+  signals the tree carries; a story carries `## Quality Requirements` — one
+  line per active item, `Qn`, with the command that proves it (a Fast story
+  carries it at the top of `tasks.md`); a sub-task cites the lines it
+  exercised in a `Quality:` field; the Quality Gates section gains one
+  generated box per line, after the five fixed ones, settled by running its
+  command; a layperson sees "the checks I ran", never an identifier.
+  Activating an item never installs a tool. **`cross-reference.sh` measures
+  the legend's coverage**: a `quality` object with `declared`, `cited`,
+  `orphans` and `phantoms`, emitted only when a `Qn` is declared or cited,
+  and either list non-empty is an issue (exit 1); four cases pin it.
+
 - **`RELEASING.md` — what a version cut actually involves, and the traps in
   it.** Written from the 0.5.0 and 0.6.0 cuts; every step in it has been
   executed. It names the four version sites that must agree, the CHANGELOG

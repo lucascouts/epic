@@ -221,3 +221,86 @@ TASKS
   [ "$status" -eq 0 ]
   echo "$output" | grep -q '"parseable_tasks": 1'
 }
+
+# --- Quality coverage (story 024) ---
+
+@test "quality: a fully cited legend reports no orphans and exits 0" {
+  cat > "$STORY/story.md" <<'EOS'
+### R1. First
+#### Acceptance Criteria
+- R1.1: WHEN x THE SYSTEM SHALL y
+## Quality Requirements
+- Q1: Lint — `eslint .` exits 0
+- Q2: Secrets — `gitleaks detect`
+## Out of Scope
+- Q9 mentioned in prose is not a declaration
+EOS
+  cat > "$STORY/tasks.md" <<'EOS'
+- [ ] 1.1 - implement
+  - Requirements: R1.1
+  - Quality: Q1, Q2
+EOS
+  run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" "$STORY"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '"status": "clean"'
+  echo "$output" | grep -qF '"quality": {"declared": 2, "cited": 2, "orphans": [], "phantoms": []}'
+}
+
+@test "quality: a declared line no sub-task cites is an orphan and exits 1" {
+  cat > "$STORY/story.md" <<'EOS'
+### R1. First
+#### Acceptance Criteria
+- R1.1: WHEN x THE SYSTEM SHALL y
+## Quality Requirements
+- Q1: Lint — `eslint .`
+- Q2: Secrets — `gitleaks detect`
+EOS
+  cat > "$STORY/tasks.md" <<'EOS'
+- [ ] 1.1 - implement
+  - Requirements: R1.1
+  - Quality: Q1
+EOS
+  run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" "$STORY"
+  [ "$status" -eq 1 ]
+  echo "$output" | grep -q '"status": "issues"'
+  echo "$output" | grep -qF '"orphans": ["Q2"]'
+  echo "$output" | grep -qF '"orphan_requirements": []'
+}
+
+@test "quality: a cited identifier the legend does not declare is a phantom and exits 1" {
+  cat > "$STORY/story.md" <<'EOS'
+### R1. First
+#### Acceptance Criteria
+- R1.1: WHEN x THE SYSTEM SHALL y
+## Quality Requirements
+- Q1: Lint — `eslint .`
+EOS
+  cat > "$STORY/tasks.md" <<'EOS'
+- [x] 1.1 - implement
+  - Requirements: R1.1
+  - Quality: Q1, Q4
+EOS
+  run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" "$STORY"
+  [ "$status" -eq 1 ]
+  echo "$output" | grep -qF '"phantoms": ["Q4"]'
+  echo "$output" | grep -qF '"cited": 1'
+}
+
+@test "quality: with no legend and no citation the key is absent and an R-clean story stays exit 0" {
+  cat > "$STORY/story.md" <<'EOS'
+### R1. First
+#### Acceptance Criteria
+- R1.1: WHEN x THE SYSTEM SHALL y
+EOS
+  cat > "$STORY/tasks.md" <<'EOS'
+- [ ] 1.1 - implement
+  - Requirements: R1.1
+EOS
+  run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" "$STORY"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '"status": "clean"'
+  if echo "$output" | grep -q '"quality"'; then
+    echo "quality key emitted with nothing to measure" >&2
+    return 1
+  fi
+}

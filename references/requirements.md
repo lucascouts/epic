@@ -45,6 +45,12 @@ created: <date>
 
 - R2.1: WHEN [trigger] THE SYSTEM SHALL [behavior]
 
+## Quality Requirements
+
+- Q1: Formatting — `<command>` exits 0
+- Q2: Lint — `<command>` exits 0
+- Q3: [context item] — `<command>` (signal: [what activated it])
+
 ## Success Metrics
 
 - [Metric 1: quantifiable indicator of success]
@@ -77,3 +83,4 @@ created: <date>
 4. **Acceptance criteria use EARS notation.** See `ears-notation.md` for keyword reference.
 5. **Out of Scope is mandatory.** Explicitly stating what you're NOT building prevents scope creep.
 6. **Constraints inform design.** List anything that limits architectural choices.
+7. **Quality requirements are the story's legend.** One line per active item of the [quality catalog](quality-catalog.md), numbered `Qn` in catalog order, each with the command that proves it on this project. The set starts from the constitution's `## Quality` block and adds what the Analyst detected and the request asked. Sub-tasks cite the lines in a `Quality:` field, the Quality Gates section of `tasks.md` carries one box per line, and `cross-reference.sh` reports which lines no sub-task cites.
