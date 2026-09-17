@@ -84,6 +84,28 @@ gracefully (see README "Prerequisites").
   developer register is new: direct, with context and an example on every
   option, never the basics, and honest that nothing about it is measured yet.
 
+- **Clarify asks the way an architect asks a client** (`skills/epic/SKILL.md`,
+  `agents/analyst.md`, `references/context-discovery.md`). The requester came
+  to have something built, not to give instructions: they know what it is and
+  what it must do, and the how is not settled in their head. So every question
+  is about what and what for, and the how is proposed, never asked. Round 0 is
+  orientation — up to three context questions, or one open question in the
+  requester's words, skipped when the request already answers them. Every
+  question asks the **consequence** the requester can observe, never the
+  mechanism ("what happens to the data when the program closes?", not "JSON or
+  SQLite?"). Every option carries its context and one example, plus an analogy
+  for a layperson and the term for a developer. A technical decision arrives as
+  options with the recommended one first, labelled, with its reason in one
+  line. Rounds are free in size — the fixed 3–7 bundle is gone — and bundle
+  only questions whose answers cannot change each other; a question that can
+  prune another goes alone and first. **The budget is counted in questions,
+  not rounds**: layperson Fast 3 / Standard 9 / Full 12, developer Fast 4 /
+  Standard 10 / Full 14, the orientation round and each gate counting one.
+  Measured on the format's own trial, a Standard-shaped request: nine. The
+  Analyst's checklist phrases its assertions as consequences, and its items
+  are asked in rounds rather than as one numbered list, which stays as the
+  headless fallback.
+
 ## [0.6.0] — 2026-09-16
 
 Seven commits, one through-line: **measure, then move.** A 59-minute Standard

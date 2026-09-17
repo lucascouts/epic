@@ -26,6 +26,11 @@
 #   Q11 plain-register.md explains by example — one analogy per concept
 #   Q12 the Draft Saving example carries the requester block, not a bare value
 #   Q13 Clarify appends a revealed working rule to always/never
+#   Q14 Clarify asks as an architect: orientation round, consequence not
+#       mechanism, context and example on every option, the how recommended
+#   Q15 the budget is counted in questions, the orientation round counts one
+#   Q16 the Question shape example carries a labelled recommendation
+#   Q17 the Analyst's checklist speaks in consequences and is asked in rounds
 #
 # Note on awk patterns: passed as strings, so no backslash escapes; literal
 # punctuation goes in a bracket class.
@@ -179,4 +184,46 @@ has() { # has <label> <block> <keyword>
   has "Q13 level" "$block" "requester.level"
   has "Q13 never" "$block" "requester.never"
   has "Q13 always" "$block" "requester.always"
+}
+
+@test "Q14: Clarify asks as an architect — orientation round, consequence not mechanism, context and example, the how recommended" {
+  block=$(section "$ROOT/skills/epic/SKILL.md" '^## Clarify Protocol' '^### Question shape')
+  [ -n "$block" ]
+  has "Q14 architect" "$block" "architect"
+  has "Q14 orientation" "$block" "orientation"
+  has "Q14 consequence" "$block" "consequence"
+  has "Q14 mechanism" "$block" "mechanism"
+  has "Q14 example" "$block" "one example"
+  has "Q14 recommended" "$block" "(Recommended)"
+  has "Q14 bundling" "$block" "cannot change each other"
+  if printf '%s' "$block" | grep -q "3–7 related questions"; then
+    echo "Q14: the fixed 3–7 bundle is back — rounds are free in size since story 023" >&2
+    return 1
+  fi
+}
+
+@test "Q15: the budget is counted in questions, the orientation round counts one, six numbers stated" {
+  block=$(section "$ROOT/skills/epic/SKILL.md" '^## Clarify Protocol' '^### Question shape')
+  has "Q15 unit" "$block" "counted in questions"
+  has "Q15 orientation" "$block" "orientation round counts one"
+  for n in "Fast 3" "Standard 9" "Full 12" "Fast 4" "Standard 10" "Full 14"; do
+    has "Q15 number" "$block" "$n"
+  done
+}
+
+@test "Q16: the Question shape example asks a consequence and labels the recommendation" {
+  block=$(section "$ROOT/skills/epic/SKILL.md" '^### Question shape' '^### Fallback')
+  [ -n "$block" ]
+  has "Q16 recommended" "$block" "(Recommended)"
+  has "Q16 consequence" "$block" "consequence"
+}
+
+@test "Q17: the Analyst's checklist speaks in consequences, and context-discovery asks it in rounds" {
+  f2=$(section "$ROOT/agents/analyst.md" '^## Function 2' '^## ')
+  [ -n "$f2" ]
+  has "Q17 consequence" "$f2" "consequence"
+  rules=$(section "$ROOT/references/context-discovery.md" '^[*][*]Rules:[*][*]' '^## ')
+  [ -n "$rules" ]
+  has "Q17 rounds" "$rules" "rounds"
+  has "Q17 fallback" "$rules" "fallback"
 }

@@ -94,6 +94,6 @@ For **standard and full scales**, spawn the **Analyst** sub-agent to generate a 
 > Do NOT ask questions already answered by the request."
 
 **Rules:**
-- Present all questions to the user in a single numbered list
+- Present the questions in **rounds**, per the [Clarify Protocol](../skills/epic/SKILL.md#clarify-protocol) — orientation first, then precision, each round built from the last, every item reshaped into the consequence the requester can observe; the single numbered list is the headless fallback
 - If the user answers "out of scope", add to Out of Scope in story.md
 - For fast and spike scales: skip the sub-agent, ask 1-2 inline questions only if needed
