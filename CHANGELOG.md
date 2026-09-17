@@ -64,6 +64,26 @@ gracefully (see README "Prerequisites").
     was **deliberately not built**: it would put the plugin back to writing
     files into the user's repository, which 0.6.0 had just stopped doing.
 
+### Changed
+
+- **The requester is a four-field block, and the level never changes the
+  scale** (`skills/epic/SKILL.md`, `references/plain-register.md`, new
+  `references/developer-register.md`). Triage records `requester.level`
+  (`layperson` | `developer`, developer when unsure), `requester.persona`
+  (one line ending with the evidence the reading rests on), and
+  `requester.always` / `requester.never`, seeded from the level's register and
+  extended from Clarify answers — "I don't know how to run a command" becomes
+  a `never`. The level changes the register, the question budget, the defaults
+  taken silently and the shape of a gate, and nothing else. **The 0.6.0 rule
+  that held a layperson at Fast is retired**: it came from one trivial request,
+  and everything that had made Standard hurt a beginner — out-of-reach
+  questions, document reviews, 23k-character turns — is closed by the register,
+  the budget and the defaults. A beginner who asks for something Full-shaped is
+  owed Full, with its gates in one line. The plain register gains the positive
+  rule it lacked — explain by one example or analogy per new concept — and the
+  developer register is new: direct, with context and an example on every
+  option, never the basics, and honest that nothing about it is measured yet.
+
 ## [0.6.0] — 2026-09-16
 
 Seven commits, one through-line: **measure, then move.** A 59-minute Standard

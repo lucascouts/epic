@@ -6,8 +6,10 @@
 # structural anchor and asserts a keyword inside it, case-insensitively. No
 # case requires a sentence verbatim: a correct rewrite must stay green.
 #
-#   Q1  SKILL.md triage reads the requester from the request, names both
-#       registers, defaults to developer, and holds Fast for a layperson
+#   Q1  SKILL.md triage reads the requester from the request as a four-field
+#       block (level, persona, always, never), names both registers, defaults
+#       to developer, and says the level never changes the scale — the 0.6.0
+#       Fast lock for a layperson is retired by story 022 and must not return
 #   Q2  the triage proposal block carries a Requester line
 #   Q3  SKILL.md Clarify names a budget, both registers, the three counted
 #       sources (gates, run), and the calibration question
@@ -19,6 +21,11 @@
 #   Q8  preferred-tooling.md never pauses for a layperson
 #   Q9  init-mode.md writes a Defaults block, and its Rules say it is read,
 #       never re-asked
+#   Q10 developer-register.md exists: direct, context and example on every
+#       option, never the basics, and nothing measured yet
+#   Q11 plain-register.md explains by example — one analogy per concept
+#   Q12 the Draft Saving example carries the requester block, not a bare value
+#   Q13 Clarify appends a revealed working rule to always/never
 #
 # Note on awk patterns: passed as strings, so no backslash escapes; literal
 # punctuation goes in a bracket class.
@@ -37,14 +44,25 @@ has() { # has <label> <block> <keyword>
   fi
 }
 
-@test "Q1: triage reads the requester from the request, both registers, developer when unsure, Fast held for a layperson" {
+@test "Q1: triage reads the requester as a four-field block, both registers, developer when unsure, and the level never changes the scale" {
   block=$(section "$ROOT/skills/epic/SKILL.md" '^## Triage Protocol' '^### Complexity')
   [ -n "$block" ]
   has "Q1" "$block" "developer"
   has "Q1" "$block" "layperson"
   has "Q1" "$block" "never from a question"
   has "Q1" "$block" "plain-register"
-  has "Q1 fast held" "$block" "unless they ask"
+  has "Q1 developer register" "$block" "developer-register"
+  for f in level persona always never; do
+    has "Q1 field" "$block" "$f:"
+  done
+  has "Q1 decoupled" "$block" "never changes the scale"
+  # The 0.6.0 rule held a layperson at Fast "unless they ask". Story 022
+  # retired it: the level governs the register, the budget, the defaults and
+  # the gate shape, never the mode. Its text returning is a regression.
+  if printf '%s' "$block" | grep -qi "unless they ask"; then
+    echo "Q1: the Fast lock for a layperson is back — retired by story 022" >&2
+    return 1
+  fi
 }
 
 @test "Q2: the triage proposal block carries a Requester line" {
@@ -117,4 +135,48 @@ has() { # has <label> <block> <keyword>
   rules=$(section "$ROOT/references/init-mode.md" '^## Rules' '^## ')
   has "Q9 rules" "$rules" "Defaults"
   has "Q9 never re-asked" "$rules" "silently"
+}
+
+@test "Q10: developer-register.md is direct, keeps context and an example, never teaches the basics, and admits nothing is measured" {
+  f="$ROOT/references/developer-register.md"
+  [ -f "$f" ]
+  always=$(section "$f" '^## Always' '^## ')
+  has "Q10 direct" "$always" "direct"
+  has "Q10 example" "$always" "example"
+  has "Q10 recommend" "$always" "recommend"
+  never=$(section "$f" '^## Never' '^## ')
+  has "Q10 basics" "$never" "basics"
+  has "Q10 no analogy for the term" "$never" "analogy"
+  unchanged=$(section "$f" '^## What does not change' '^## ')
+  has "Q10 scale" "$unchanged" "never changes the scale"
+  measured=$(section "$f" '^## Measured' '^## ')
+  has "Q10 honest" "$measured" "Nothing yet"
+}
+
+@test "Q11: plain-register.md explains by example — one analogy per new concept, inside the ceiling" {
+  block=$(section "$ROOT/references/plain-register.md" '^## Explain by example' '^## ')
+  [ -n "$block" ]
+  has "Q11 analogy" "$block" "analogy"
+  has "Q11 one per" "$block" "one per concept"
+  has "Q11 ceiling" "$block" "ceiling"
+}
+
+@test "Q12: the Draft Saving example carries the requester block with its four fields" {
+  block=$(section "$ROOT/skills/epic/SKILL.md" '^### Draft Saving' '^### Resume')
+  [ -n "$block" ]
+  has "Q12 block" "$block" "requester:"
+  for f in level persona always never; do
+    has "Q12 field" "$block" "$f:"
+  done
+  if printf '%s' "$block" | grep -qE '^requester: (developer|layperson)'; then
+    echo "Q12: meta.yaml still shows the bare 0.6.0 value" >&2
+    return 1
+  fi
+}
+
+@test "Q13: Clarify appends a revealed working rule to requester.always or requester.never" {
+  block=$(section "$ROOT/skills/epic/SKILL.md" '^## Clarify Protocol' '^### Question shape')
+  has "Q13 level" "$block" "requester.level"
+  has "Q13 never" "$block" "requester.never"
+  has "Q13 always" "$block" "requester.always"
 }

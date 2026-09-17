@@ -286,12 +286,28 @@ Bugfix always follows: P1: story.md (bug analysis) > P2: design.md (root cause) 
 
 Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a **single proposal** for confirmation. Never ask each decision separately.
 
-**Read who is asking first — from the request alone, never from a question.** Two registers. A **`developer`** names files, tools, patterns or a stack, and uses git / npm / test vocabulary. A **`layperson`** describes an outcome rather than a mechanism, self-describes as starting or learning, and shows no tool vocabulary — "the black window", "a program that stores things". When unsure, **`developer`**: a wrong `layperson` patronizes an expert, while a wrong `developer` costs one calibration question in Clarify. Record `requester` and the signals it rests on in the proposal and, where a `.draft/` exists, in `meta.yaml`. A `layperson` changes **two things and nothing else**: **Fast is proposed and stays Fast unless they ask for more** — the measured triage proposed Standard to a beginner twice for one request, and the Fast run served her best by every measure — and the chat switches to the [plain register](../../references/plain-register.md). The files, the protocols and the sub-agents do not change.
+**Read who is asking first — from the request alone, never from a question.** The reading is recorded as a `requester` block with four fields, in the proposal and, where a `.draft/` exists, in `meta.yaml`:
+
+```yaml
+requester:
+  level: layperson      # layperson | developer — developer when unsure
+  persona: "beginner, 14, informal, has never opened a terminal. Read from: 'the black window', describes an outcome and not a mechanism"
+  always:               # seeded from the level's register, extended from the answers
+    - explain by example, one per new concept
+    - run and show the result; never ask them to run a command
+  never:
+    - ask about git, npm or versioning — the defaults decide
+    - a word from the plain register's list in the chat
+```
+
+`level` is the switch the rules read. A **`developer`** names files, tools, patterns or a stack, and uses git / npm / test vocabulary. A **`layperson`** describes an outcome rather than a mechanism, self-describes as starting or learning, and shows no tool vocabulary — "the black window", "a program that stores things". When unsure, **`developer`**: a wrong `layperson` patronizes an expert, while a wrong `developer` costs one calibration question in Clarify. `persona` is one line and ends with the evidence the reading rests on, so a wrong reading can be challenged and re-read from the answers. `always` and `never` start as the level's register — [plain-register.md](../../references/plain-register.md) for a layperson, [developer-register.md](../../references/developer-register.md) for a developer — and grow from what the answers reveal about this person: "I don't know how to run a command" becomes a `never`.
+
+**The level changes four things and nothing else — the register the chat is written in, the question budget, the defaults taken silently, and the shape of a gate — and it never changes the scale.** The scale follows the request and the complexity table below, for every level. The 0.6.0 rule that held a layperson at Fast came from one trivial request; what had made Standard hurt a beginner — out-of-reach questions, document reviews, 23k-character turns — is closed by the register, the budget and the defaults, and a beginner who asks for something Full-shaped is owed Full, with its gates in one line. The files, the protocols and the sub-agents do not change.
 
 1. Detect event from request context
 2. Classify type (feature vs bugfix)
 3. **Assess overall story complexity** (see table below)
-4. **Recommend mode with trade-off explanation** — a `layperson` gets Fast, held unless they ask for more (above)
+4. **Recommend mode with trade-off explanation** — from the request and the table, for every level; the level never changes the mode (above)
 5. Suggest workflow variant (full mode only)
 6. Check for context files — load [context-discovery.md](../../references/context-discovery.md)
 7. **Health-check candidate MCPs** — load [mcp-integration.md](../../references/mcp-integration.md)
@@ -343,7 +359,7 @@ Present as:
 > "Based on your request:
 > - **Event:** Create / Refine / Expand
 > - **Type:** Feature / Bugfix
-> - **Requester:** developer / layperson (the signals, in a few words)
+> - **Requester:** level — persona (the evidence, in a few words)
 > - **Complexity:** Trivial / Simple / Moderate / High (justification)
 > - **Mode:** Fast / Standard / Full (reason + trade-offs)
 > - **Workflow:** Requirements-First / Design-First (full mode only)
@@ -417,10 +433,12 @@ the orchestrator can route on without re-parsing prose.
 - **Each round is built from what the last one left open.** Before composing
   round N+1, apply round N's answers: an `out-of-scope` answer removes its
   whole branch; a default taken removes the follow-ups that default implies;
-  an answer given in tool vocabulary re-reads the requester as `developer`
-  for the rest of the story, and one given in outcome words keeps
-  `layperson`. A question whose answer no longer changes the plan is not
-  asked. When triage was unsure of the requester, round 1 opens with **one
+  an answer given in tool vocabulary re-reads `requester.level` as
+  `developer` for the rest of the story, and one given in outcome words
+  keeps `layperson`; an answer that reveals how to work with this person —
+  "I don't know how to run a command" — is appended to `requester.never`
+  or `requester.always` and applied from then on. A question whose answer
+  no longer changes the plan is not asked. When triage was unsure of the requester, round 1 opens with **one
   calibration question** — "How do you want me to work with you?" with two
   options in plain words: *explain in plain words and decide the technical
   details for me* / *ask me the technical questions* — and every round after
@@ -489,8 +507,14 @@ Draft metadata (`meta.yaml`):
 phase: 2
 approved: 2026-04-01
 project-hash: <short SHA of HEAD at approval time>
-requester: layperson        # developer | layperson — read at triage, re-read from Clarify answers
-questions_asked: 2          # rounds spent against the story's question budget
+requester:                  # read at triage, re-read from Clarify answers
+  level: layperson          # layperson | developer
+  persona: "beginner, informal, has never opened a terminal. Read from: 'the black window'"
+  always:
+    - explain by example, one per new concept
+  never:
+    - ask about git, npm or versioning
+questions_asked: 2          # questions spent against the story's question budget
 analyst_output: |
   <cached output from Codebase Analysis Analyst>
 ```
