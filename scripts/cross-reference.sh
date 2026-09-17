@@ -29,6 +29,15 @@
 # aborts under `set -u` with "null: unbound variable". Gate on `status`.
 #
 # `status` values: clean | issues | untraceable-format | no-requirements-chain.
+#
+# QUALITY COVERAGE (story 024). A story may carry a `## Quality Requirements`
+# legend in story.md declaring `Qn` identifiers, and sub-tasks may cite them
+# in a `Quality:` field. When the legend declares at least one identifier OR a
+# sub-task cites one, the object carries a `quality` key:
+#   { "declared": N, "cited": M, "orphans": [Qn …], "phantoms": [Qn …] }
+# and an orphan (declared, cited by no sub-task) or a phantom (cited, declared
+# by no legend line) is an issue — exit 1. When neither side names a `Qn`, the
+# key is ABSENT, by the same absent-not-zeroed rule as every measurement above.
 
 set -euo pipefail
 
@@ -43,6 +52,11 @@ phantom references (in tasks but not story).
 
 Output: JSON traceability report. The "mapping" object lists, per story
 requirement, the sub-tasks that declare it in a Requirements: field.
+
+When the story carries a "## Quality Requirements" legend (Qn identifiers)
+or a sub-task cites one in a "Quality:" field, a "quality" object reports
+declared, cited, orphans (declared, uncited) and phantoms (cited, undeclared);
+either list non-empty is an issue. With no Qn on either side the key is absent.
 
 A story whose declared scale carries no requirements chain (fast, spike) is
 not measured at all. The output is then
@@ -354,6 +368,11 @@ PARSEABLE_TASKS=0
 # rather than what counts as a task (R4.3).
 task_heading_re='^[[:space:]]*-[[:space:]]\[[ x~]\][[:space:]]+([0-9]+(\.[0-9]+)?)[[:space:]]+-[[:space:]]'
 requirements_re='^[[:space:]]*-[[:space:]]Requirements:[[:space:]]*(.+)$'
+# Quality: fields (story 024) ride the same heading regex, so a Q citation is
+# credited to the sub-task it sits under exactly as an R reference is.
+quality_re='^[[:space:]]*-[[:space:]]Quality:[[:space:]]*(.+)$'
+declare -A Q_MAP
+Q_KEYS=0
 
 while IFS= read -r line || [[ -n "$line" ]]; do
   if [[ "$line" =~ $task_heading_re ]]; then
@@ -368,6 +387,15 @@ while IFS= read -r line || [[ -n "$line" ]]; do
         REQ_MAP[$rtok]="${REQ_MAP[$rtok]:-}${REQ_MAP[$rtok]:+ }$CURRENT_TASK"
       fi
     done < <(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' <<< "$reqs_text" || true)
+  elif [[ -n "$CURRENT_TASK" && "$line" =~ $quality_re ]]; then
+    q_text="${BASH_REMATCH[1]}"
+    while IFS= read -r qtok; do
+      [[ -n "$qtok" ]] || continue
+      if [[ " ${Q_MAP[$qtok]:-} " != *" $CURRENT_TASK "* ]]; then
+        [[ -z "${Q_MAP[$qtok]:-}" ]] && Q_KEYS=$((Q_KEYS + 1))
+        Q_MAP[$qtok]="${Q_MAP[$qtok]:-}${Q_MAP[$qtok]:+ }$CURRENT_TASK"
+      fi
+    done < <(grep -oE '\bQ[0-9]+\b' <<< "$q_text" || true)
   fi
 done < "$TASKS_FILE"
 
@@ -418,6 +446,28 @@ done < <(awk '
     }
   }' "$STORY_FILE" 2>/dev/null || true)
 
+# --- Quality coverage (story 024, R4.1-R4.4) ---
+# The legend is the `## Quality Requirements` section of story.md: every `Qn`
+# token inside it, up to the next `##` heading. A `Qn` anywhere else in the
+# story is prose, not a declaration.
+mapfile -t STORY_Q < <(awk '/^##[[:space:]]+Quality Requirements/{f=1; next} /^##[[:space:]]/{f=0} f' "$STORY_FILE" 2>/dev/null | grep -oE '\bQ[0-9]+\b' | sort -u || true)
+if [[ $Q_KEYS -gt 0 ]]; then
+  mapfile -t Q_TOKENS < <(printf '%s\n' "${!Q_MAP[@]}" | sort -u)
+else
+  Q_TOKENS=()
+fi
+Q_CITED=(); Q_ORPHANS=(); Q_PHANTOMS=()
+for q in ${STORY_Q+"${STORY_Q[@]}"}; do
+  if [[ -n "${Q_MAP[$q]:-}" ]]; then Q_CITED+=("$q"); else Q_ORPHANS+=("$q"); fi
+done
+for q in ${Q_TOKENS+"${Q_TOKENS[@]}"}; do
+  in_list "$q" ${STORY_Q+"${STORY_Q[@]}"} || Q_PHANTOMS+=("$q")
+done
+QUALITY_MEASURED=false
+if [[ ${#STORY_Q[@]} -gt 0 || $Q_KEYS -gt 0 ]]; then
+  QUALITY_MEASURED=true
+fi
+
 # --- Build traceability ---
 SATISFIED=()  # Story leaf requirement satisfied by a named non-code artifact
 ORPHANS=()    # Story leaf requirement with no Requirements-field reference
@@ -458,7 +508,7 @@ if [[ $TOTAL_STORY_REQS -gt 0 && ( $PARSEABLE_TASKS -eq 0 || $REQ_KEYS -eq 0 ) ]
   UNTRACEABLE=true
 fi
 
-HAS_ISSUES=$([[ $TOTAL_ORPHANS -gt 0 || $TOTAL_PHANTOMS -gt 0 || "$UNTRACEABLE" == true ]] && echo true || echo false)
+HAS_ISSUES=$([[ $TOTAL_ORPHANS -gt 0 || $TOTAL_PHANTOMS -gt 0 || "$UNTRACEABLE" == true || ${#Q_ORPHANS[@]} -gt 0 || ${#Q_PHANTOMS[@]} -gt 0 ]] && echo true || echo false)
 
 if [[ "$UNTRACEABLE" == true ]]; then
   STATUS_STR="untraceable-format"
@@ -540,6 +590,9 @@ echo "  \"traced\": $TOTAL_TRACED,"
 echo "  \"orphan_requirements\": $(json_array "${ORPHANS[@]}"),"
 echo "  \"phantom_references\": $(json_array "${PHANTOMS[@]}"),"
 echo "  \"satisfied_by\": $(emit_satisfied_by),"
+if [[ "$QUALITY_MEASURED" == true ]]; then
+  echo "  \"quality\": {\"declared\": ${#STORY_Q[@]}, \"cited\": ${#Q_CITED[@]}, \"orphans\": $(json_array ${Q_ORPHANS+"${Q_ORPHANS[@]}"}), \"phantoms\": $(json_array ${Q_PHANTOMS+"${Q_PHANTOMS[@]}"})},"
+fi
 echo "  \"coverage\": \"$TOTAL_TRACED/$TOTAL_STORY_REQS\","
 echo "  \"mapping\": $(emit_mapping),"
 echo "  \"status\": \"$STATUS_STR\""

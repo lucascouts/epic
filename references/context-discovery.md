@@ -26,7 +26,7 @@ The hits are injected as a **Prior Knowledge** block in the triage proposal and 
 
 ## Codebase Analysis (standard + full scales)
 
-If existing code is detected, spawn the **Analyst** sub-agent:
+If existing code is detected, spawn the **Analyst** sub-agent — in the foreground, `run_in_background: false`: the proposal waits for its output ([SKILL.md](../skills/epic/SKILL.md#personas)):
 
 > "Analyze this project and the user's request to provide context for story creation.
 >
@@ -68,7 +68,7 @@ Results are saved to `.draft/meta.yaml` under `analyst_output` key and passed as
 
 ## Completeness Checklist
 
-For **standard and full scales**, spawn the **Analyst** sub-agent to generate a context-specific checklist. For **fast and spike scales**, ask 1-2 inline questions only — both are single-author scales, with no sub-agents and no `.draft/meta.yaml` to cache an Analyst's output in, and a probe whose whole point is to be time-boxed is not improved by a 10-question intake.
+For **standard and full scales**, spawn the **Analyst** sub-agent, in the foreground, to generate a context-specific checklist. For **fast and spike scales**, ask 1-2 inline questions only — both are single-author scales, with no sub-agents and no `.draft/meta.yaml` to cache an Analyst's output in, and a probe whose whole point is to be time-boxed is not improved by a 10-question intake.
 
 **Analyst sub-agent prompt (uses cached output from Codebase Analysis):**
 
@@ -94,6 +94,6 @@ For **standard and full scales**, spawn the **Analyst** sub-agent to generate a 
 > Do NOT ask questions already answered by the request."
 
 **Rules:**
-- Present all questions to the user in a single numbered list
+- Present the questions in **rounds**, per the [Clarify Protocol](../skills/epic/SKILL.md#clarify-protocol) — orientation first, then precision, each round built from the last, every item reshaped into the consequence the requester can observe; the single numbered list is the headless fallback
 - If the user answers "out of scope", add to Out of Scope in story.md
 - For fast and spike scales: skip the sub-agent, ask 1-2 inline questions only if needed

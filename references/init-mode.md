@@ -31,6 +31,13 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 
    Unanswered items take the default, and the block is written either way — so the same request gets the same answer on every run. Measured before this block existed: the same data file was gitignored in two runs and versioned in the third, and tests were silent in one run and asked-and-declined in two.
 
+   **Quality — the checks every story runs** (written into `.epic/constitution.md` as a `## Quality` block; a story's `## Quality Requirements` legend starts from it — [quality-catalog.md](quality-catalog.md)):
+   - The always tier, one line per item with the command detected for this stack: formatter, linter, type checker, test runner, lockfile install, dependency scanner, secrets scanner
+   - Context items whose signal the scan found (a `Dockerfile`, workflows, a database, an HTTP surface, a UI)? [1] include each detected (default) [2] ask per item
+   - An always-tier item whose tool is not installed? [1] recommend the tool and record the item with that note (default) [2] leave the item out, with the reason on its line
+
+   Unanswered items take the default. Activating an item never installs a tool — the [preferred-tooling policy](preferred-tooling.md) applies.
+
 4. **Generate files** — create all requested files with sensible defaults based on scan
 5. **Ask the versioning-policy question** — measure first, offer exactly two options, then write the chosen state. Defined once, below: [Versioning Policy](#versioning-policy). A non-interactive run never asks and never starts tracking (R3.4)
 5a. **Offer to ignore the sub-agents' memory directories** — under either policy, consent-gated and additive: [Agent memory hygiene](#agent-memory-hygiene)
@@ -42,6 +49,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 - Auto-detect as much as possible from the project (language, framework, patterns)
 - Defaults should be safe and conservative
 - **The `## Defaults` block is declared once, here, and read everywhere.** Triage, Clarify and Run take its answers silently; a question about one of them later is a defect, not diligence
+- **The `## Quality` block is the project's default legend.** A story starts its `## Quality Requirements` from it and adds what the Analyst detected and the request asked; an always-tier item a story leaves out says why on its legend
 - Each generated file includes comments explaining its purpose
 - **Init writes files and nothing else.** It never runs `git add`, `git rm --cached`, `git commit` or `git checkout` — not in either policy branch, not in a headless run. Choosing to version artifacts is a declaration; committing them is the user's next action, and this is the wizard that must never make it for them
 

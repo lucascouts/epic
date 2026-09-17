@@ -23,6 +23,8 @@ After the main agent generates the task list structure (with Objective, ToDo, Va
 
 You determine the mapping for **all** modes, but you author tests only for **Standard** and **Full** stories. **Fast** stories never invoke test authorship — return the mapping only.
 
+You are spawned only for a Standard or Full story at engineering level `project` or `product` ([engineering-level.md](../references/engineering-level.md)). An `experiment` or `tool` story decides its mapping inline with the Lite checklist and writes its tests at run time; you never see it.
+
 You may write **only** inside the story's `.draft/` directory (authored tests and `red-evidence.yaml`). You MUST NOT write into the project's real test tree, and you MUST NOT modify any other project file.
 
 ## Inputs Expected

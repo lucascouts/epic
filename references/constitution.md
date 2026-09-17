@@ -33,6 +33,10 @@ The constitution is an optional governance file at `.epic/constitution.md` that 
 - [File naming conventions]
 - [Variable/function naming conventions]
 - [API endpoint naming conventions]
+
+## Quality
+- [Always tier, one line per item with its command — see quality-catalog.md]
+- [Context items detected at init, each with its signal]
 ```
 
 ## Guidelines
@@ -62,11 +66,18 @@ The constitution is an optional governance file at `.epic/constitution.md` that 
 ## Security
 - Credentials: AES-256-GCM
 - API keys: stored as SHA-256 hash, never plaintext
+
+## Quality
+- Formatting — `prettier --check .`
+- Lint — `eslint .`
+- Types — `tsc --noEmit`
+- Secrets — `gitleaks detect`
+- Pinned Actions — `.github/workflows/` present; `zizmor .github/workflows`
 ```
 
 ## How It's Used
 
-- Read before Phase 1 of any story creation
+- Read before Phase 1 of any story creation; the `## Quality` block seeds the story's `## Quality Requirements` legend ([quality-catalog.md](quality-catalog.md))
 - Constraints appear as `[CONSTITUTION]` tags in requirements when relevant
 - Violations in design generate warnings, not blocks
 - The user always has final say over whether to follow or override a constraint

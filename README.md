@@ -24,7 +24,9 @@ Scale is chosen per request:
 | **Standard** | `story.md` + `tasks.md` | 2–5 files, clear scope |
 | **Full** | `story.md` + `design.md` + `tasks.md` | 5+ files, design decisions, integrations |
 
-All three modes are **test-first**. Standard and Full author tests at plan time — the Test Advisor writes one failing test per Unit/Integration/E2E sub-task in Phase 3. For an E2E sub-task the Test Advisor uses the story's selected E2E tool and **defers Red-phase verification to Run mode** (Run confirms the deferred Red before implementation and Green after). Fast mode is **test-first at run time and single-author**: a Fast sub-task carrying a `Tests` field has its test authored by the main agent and confirmed failing (Red) before implementation, then Green-then-Refactor — no Test Advisor sub-agent. A Fast sub-task with no testable logic carries an optional Fast-only `Acceptance` field instead — 1–3 observable-behavior statements; every implementing (non-Commit) Fast sub-task carries either a `Tests` field or an `Acceptance` field. Fast keeps its lightweight scale: no `story.md`, no design, no gate, no `.draft/`.
+All three modes are **test-first**. Standard and Full at engineering level `project` or `product` author tests at plan time — the Test Advisor writes one failing test per Unit/Integration/E2E sub-task in Phase 3; at `experiment` or `tool` they write them at run time, as Fast does. For an E2E sub-task the Test Advisor uses the story's selected E2E tool and **defers Red-phase verification to Run mode** (Run confirms the deferred Red before implementation and Green after). Fast mode is **test-first at run time and single-author**: a Fast sub-task carrying a `Tests` field has its test authored by the main agent and confirmed failing (Red) before implementation, then Green-then-Refactor — no Test Advisor sub-agent. A Fast sub-task with no testable logic carries an optional Fast-only `Acceptance` field instead — 1–3 observable-behavior statements; every implementing (non-Commit) Fast sub-task carries either a `Tests` field or an `Acceptance` field. Fast keeps its lightweight scale: no `story.md`, no design, no gate, no `.draft/`.
+
+**Scale is one axis; the engineering level is the other.** Triage also reads how long the thing must last — `experiment` (disposable, 1×), `tool` (kept and fixed, 2–3×), `project` (maintained, others depend on it, 4–6×), `product` (may be published or sold, 8×+) — proposes it with its price in one line, and from it sets which tier of the quality catalog the story activates, whether Phase 3 authors the tests or the run does, and the plan's box ceiling (5, 12, 24, 40 Task List boxes). The level never changes the scale. See [references/engineering-level.md](references/engineering-level.md).
 
 Epic ships an opinionated **preferred-tooling policy** ([references/preferred-tooling.md](references/preferred-tooling.md)) for E2E test tooling. Triage detects installed E2E tools — favorites are `playwright` and `chrome-devtools` — via MCP health-check, dependency-manifest inspection, and skill-list presence, in **all modes including Fast**. When no favorite is found, Epic recommends one and pauses rather than silently picking an optional tool (`puppeteer`, `selenium`, `browser-use`, `stagehand`). The resolved choice is persisted to `design.md`'s `## Tooling Decisions` block.
 
@@ -120,7 +122,8 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 | `/epic:epic stories full` | List all stories with tasks |
 | `/epic:epic stories NNN` | Show one story in detail |
 | `/epic:epic stories run NNN` | Execute pending tasks of story NNN |
-| `/epic:epic stories run NNN --auto` | Run non-stop, only halt on failure |
+| `/epic:epic stories run NNN --auto` | Run non-stop, only halt on a failure or an uncovered doubt — the default for a Fast story |
+| `/epic:epic stories run NNN --step` | Gate after every task group in a Fast run |
 | `/epic:epic stories run NNN --batch=N` | Gate every N task groups |
 | `/epic:epic stories run NNN --gate=commit` | Gate only at Commit sub-tasks |
 | `/epic:epic stories run NNN --serial` | No parallel groups — every task in order, whatever detection finds |
@@ -138,7 +141,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 |---|---|
 | `analyst` | Context discovery, codebase scan, completeness checklist |
 | `architect` | Pattern research, design context, gotcha capture (Full mode) |
-| `test-advisor` | Defines testing requirements per sub-task and authors one failing test per Unit/Integration/E2E sub-task with Red-phase verification — E2E tests use the story's selected E2E tool with Red verification deferred to Run mode (Phase 3, Standard + Full) |
+| `test-advisor` | Defines testing requirements per sub-task and authors one failing test per Unit/Integration/E2E sub-task with Red-phase verification — E2E tests use the story's selected E2E tool with Red verification deferred to Run mode (Phase 3, Standard + Full at `project`/`product` level) |
 | `reviewer` | Cross-artifact review — gaps, consistency, orphan wiring (Full mode) |
 | `executor` | 6-step implementation protocol (context → implementation → design fidelity → validation → refactor-or-tests → report); step 5 is conditional — Refactor for a test-first sub-task, Tests for a test-after one. The report ends in a machine-liftable **closing block** (sub-task id, outcome `done` / `close-tilde` + qualifier + reason / `failed`, pre-authored commit message; `failed` closes nothing). It marks no box and runs no `git commit`: the main agent lifts that block into `scripts/close-subtask.sh`, the one writer of the checkbox grammar |
 | `tech-reviewer` | Correctness at technology boundaries (templates, SQL, APIs). Holds `Bash` for **measurement only** — never a mutation of files or git state — so a finding that rests on a runnable check carries the command and its output instead of an argument |
@@ -344,7 +347,7 @@ See the [setting reference](https://code.claude.com/docs/en/settings#settings-fi
 - **Artifacts in English** — consistent quality across Claude models
 - **EARS notation** — `SHALL`, one condition per requirement, each independently testable
 - **Hierarchical traceability** — R-numbers flow from story → tasks → code
-- **Test-first at every scale** — Standard and Full author failing tests at plan time (Test Advisor, Phase 3); Fast authors them at run time, single-author. A Fast sub-task without testable logic pins behavior via its `Acceptance` field instead
+- **Test-first at every scale** — Standard and Full at `project`/`product` level author failing tests at plan time (Test Advisor, Phase 3); Fast, and any story at `experiment`/`tool` level, authors them at run time, single-author. A Fast sub-task without testable logic pins behavior via its `Acceptance` field instead
 - **Fail fast** — executors stop on validation failure, never auto-fix silently
 - **Draft recovery** — each phase approval saves `.draft/` inside the story directory ([never versioned under either policy](#versioning-policy-for-epic)) so interrupted sessions resume cleanly. Drafts live in the project, not in `${CLAUDE_PLUGIN_DATA}`, keeping them tied to the repo and visible to teammates inspecting the same checkout.
 - **Numbers never recycled** — archived stories keep their numbers permanently
@@ -367,4 +370,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Version
 
-0.6.0 — see [CHANGELOG](./CHANGELOG.md).
+0.7.0 — see [CHANGELOG](./CHANGELOG.md).

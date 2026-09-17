@@ -32,7 +32,6 @@ allowed-tools:
   - AskUserQuestion
   - EnterWorktree
   - ExitWorktree
-effort: max
 paths:
   - ".epic/**"
   - "tasks.md"
@@ -128,7 +127,7 @@ Sub-agents with specialized roles. Scale determines which personas are activated
 |---|---|---|---|
 | **Analyst** | Context discovery, domain research, checklist generation | standard + full | `agents/analyst.md` |
 | **Architect** | Codebase pattern research, design context gathering | full only | `agents/architect.md` |
-| **Test Advisor** | Authors one failing test per Unit/Integration sub-task during Phase 3, runs Red verification, records red-evidence | standard + full (Phase 3, and per added sub-task in Refine) | `agents/test-advisor.md` |
+| **Test Advisor** | Authors one failing test per Unit/Integration sub-task during Phase 3, runs Red verification, records red-evidence | standard + full at engineering level `project` or `product` (Phase 3, and per added sub-task in Refine); an `experiment` or `tool` story writes its tests at run time, as Fast does ([engineering-level.md](../../references/engineering-level.md)) | `agents/test-advisor.md` |
 | **Reviewer** | Cross-artifact review, gap detection, consistency check | full only | `agents/reviewer.md` |
 
 ### Execution Personas (task implementation)
@@ -146,6 +145,8 @@ Sub-agents with specialized roles. Scale determines which personas are activated
 | **Auditor** | Compares implemented code against story + design artifacts, writing `.draft/audit-report.yaml` before any prose summary | all scales | `agents/auditor.md` |
 
 The **main agent** (this skill) orchestrates: generates artifacts (story.md, design.md, tasks.md) during planning, delegates to Executors during run-mode, and coordinates Validators/Auditors during validation. The main agent retains conversation context with the user and handles git operations (commits) — post-merge, with the pre-authored message verbatim. It closes boxes too, but never by editing one: it invokes `scripts/close-subtask.sh` with the Executor's closing block, and the script performs the marking, the census and the `status:` stamp in a single transaction (a `failed` outcome makes no call at all).
+
+**Every sub-agent this skill spawns runs in the foreground — `run_in_background: false` on the Agent call.** The orchestrator's next step is the sub-agent's result: the Analyst's scan feeds the proposal, the Test Advisor's tests gate Phase 3, the Executor's closing block closes the box, the Validator's and the Auditor's verdicts end the mode. A turn ended to wait for a sub-agent is a turn the requester spends saying "still waiting". Measured on 2026-09-17: a Standard run for a beginner spawned the Test Advisor in the background, spent 12 of 12 user turns on "ainda tá fazendo?", wrote no code and cost US$ 7; a developer's run did the same for ten turns. Both registers assume the assistant is working, not waiting. A parallel Executor group is not an exception: it is several foreground calls in one message, joined before the next step.
 
 ### MCP Integration
 
@@ -273,6 +274,8 @@ Fast mode is **test-first at run time**: a sub-task carrying a `Tests` field has
 
 Spike mode is **exploration, not delivery**: the story exists to answer a question, and the answer is the mandatory `## Verdict` section of its `tasks.md`. A spike is tasks-only — no `story.md`, no `design.md`, no `.draft/` — and has **no requirements chain**: an R-reference such as `R1.1` inside a spike is a validation error, because no story.md exists for it to point at. It takes every Fast carve-out in this document (no runtime-dependency precheck, no MCP detection, no drafts, no phase gate) and stays single-author. What makes a spike terminal is the Verdict, not the checkboxes: `promote` (the orchestrator offers CREATE for the follow-up story, pre-filled with the conclusion, and records `promoted-to: NNN`) or `wont-do`. A Verdict left `open` is the failure mode this scale exists to prevent — LIST surfaces stale open spikes so they get promoted or closed. Template and grammar: [tasks.md](../../references/tasks.md#spike-scale-adaptations).
 
+**The scale is one axis; the engineering level is the other.** The scale says which artifacts are written. The engineering level — `experiment`, `tool`, `project`, `product` — says how long the thing must last, and from that how much of the quality catalog, of Phase 3 and of the plan the story pays for. It is defined once in [engineering-level.md](../../references/engineering-level.md), read at triage (below), and it never changes the scale.
+
 ## Workflow Variants (Full mode, feature only)
 
 | Variant | When to suggest | Phase order |
@@ -286,12 +289,31 @@ Bugfix always follows: P1: story.md (bug analysis) > P2: design.md (root cause) 
 
 Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a **single proposal** for confirmation. Never ask each decision separately.
 
-**Read who is asking first — from the request alone, never from a question.** Two registers. A **`developer`** names files, tools, patterns or a stack, and uses git / npm / test vocabulary. A **`layperson`** describes an outcome rather than a mechanism, self-describes as starting or learning, and shows no tool vocabulary — "the black window", "a program that stores things". When unsure, **`developer`**: a wrong `layperson` patronizes an expert, while a wrong `developer` costs one calibration question in Clarify. Record `requester` and the signals it rests on in the proposal and, where a `.draft/` exists, in `meta.yaml`. A `layperson` changes **two things and nothing else**: **Fast is proposed and stays Fast unless they ask for more** — the measured triage proposed Standard to a beginner twice for one request, and the Fast run served her best by every measure — and the chat switches to the [plain register](../../references/plain-register.md). The files, the protocols and the sub-agents do not change.
+**Read who is asking first — from the request alone, never from a question.** The reading is recorded as a `requester` block with four fields, in the proposal and, where a `.draft/` exists, in `meta.yaml`:
+
+```yaml
+requester:
+  level: layperson      # layperson | developer — developer when unsure
+  persona: "beginner, 14, informal, has never opened a terminal. Read from: 'the black window', describes an outcome and not a mechanism"
+  always:               # seeded from the level's register, extended from the answers
+    - explain by example, one per new concept
+    - run and show the result; never ask them to run a command
+  never:
+    - ask about git, npm or versioning — the defaults decide
+    - a word from the plain register's list in the chat
+```
+
+`level` is the switch the rules read. A **`developer`** names files, tools, patterns or a stack, and uses git / npm / test vocabulary. A **`layperson`** describes an outcome rather than a mechanism, self-describes as starting or learning, and shows no tool vocabulary — "the black window", "a program that stores things". When unsure, **`developer`**: a wrong `layperson` patronizes an expert, while a wrong `developer` costs one calibration question in Clarify. `persona` is one line and ends with the evidence the reading rests on, so a wrong reading can be challenged and re-read from the answers. `always` and `never` start as the level's register — [plain-register.md](../../references/plain-register.md) for a layperson, [developer-register.md](../../references/developer-register.md) for a developer — and grow from what the answers reveal about this person: "I don't know how to run a command" becomes a `never`.
+
+**The level changes four things and nothing else — the register the chat is written in, the question budget, the defaults taken silently, and the shape of a gate — and it never changes the scale.** The scale follows the request and the complexity table below, for every level. The 0.6.0 rule that held a layperson at Fast came from one trivial request; what had made Standard hurt a beginner — out-of-reach questions, document reviews, 23k-character turns — is closed by the register, the budget and the defaults, and a beginner who asks for something Full-shaped is owed Full, with its gates in one line. The files, the protocols and the sub-agents do not change.
+
+**Read what it is for next — the engineering level — from the request, and propose it with its price.** Four levels, defined in [engineering-level.md](../../references/engineering-level.md): `experiment` (disposable, 1×), `tool` (kept and fixed when it breaks, 2–3×), `project` (maintained, others depend on it, 4–6×), `product` (may be published or sold, 8×+). Read it from the words the request carries — "for a class", "to see if it works", "my team", "customers" — record it in the proposal and, where a `.draft/` exists, in `meta.yaml` beside the `requester` block, and take **`tool` when the request does not settle it**: `experiment` and `product` are never assumed, since the first drops every check and the second buys every one. The proposal states the level in one line with its multiple, in the register's words, so the triage gate confirms it without spending a question; when triage was unsure, round 0 of Clarify fishes for it with the indirect questions that file lists — never "which level is this?" — and the line is restated once if the answer moves it. The level never changes the scale and never changes the requester level: the three are read independently and recorded side by side.
 
 1. Detect event from request context
 2. Classify type (feature vs bugfix)
 3. **Assess overall story complexity** (see table below)
-4. **Recommend mode with trade-off explanation** — a `layperson` gets Fast, held unless they ask for more (above)
+3a. **Read the engineering level** (above) — from the request, `tool` when unsettled, proposed with its multiple in one line
+4. **Recommend mode with trade-off explanation** — from the request and the table, for every level; the level never changes the mode (above)
 5. Suggest workflow variant (full mode only)
 6. Check for context files — load [context-discovery.md](../../references/context-discovery.md)
 7. **Health-check candidate MCPs** — load [mcp-integration.md](../../references/mcp-integration.md)
@@ -326,7 +348,7 @@ Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a 
 
 Absent every one of them, a Moderate story is **Standard** however many files it touches: file count measures typing, not design risk.
 
-**Downgrading is as legitimate as upgrading.** The upgrade rule on the Simple row has a mirror. WHEN the clarify phase resolves the open questions and no architectural signal survives, **propose dropping to the lighter mode** — Full to Standard, or Standard to Fast — and name what the user gives up: Full to Standard loses the design doc, Standard to Fast loses the requirements chain and its traceability. The proposal is the user's to accept or refuse; the skill never downgrades silently. One downgrade is forbidden outright, and it is the subject of the next note.
+**Downgrading is as legitimate as upgrading.** The upgrade rule on the Simple row has a mirror. WHEN the clarify phase resolves the open questions and no architectural signal survives, **propose dropping to the lighter mode** — Full to Standard, or Standard to Fast — and name what the user gives up: Full to Standard loses the design doc, Standard to Fast loses the requirements chain and its traceability. The proposal is a one-line gate with two answers — drop, or keep the mode — and the mode changes only on the answer; announcing the drop and proceeding is the silent downgrade this rule forbids (measured on 2026-09-17: a developer's "just go straight to the code" was answered with an announced Standard-to-Fast drop, and the run ended with 33 open boxes). A request for speed is answered with fewer words and no waiting, never with fewer steps ([developer-register.md](../../references/developer-register.md)). One downgrade is forbidden outright, and it is the subject of the next note.
 
 **Exploratory is a shape, not a size.** Propose Spike only when the request's own goal is to find something out, or when the user asks for one explicitly. A small feature is **Fast**, never Spike — the skill **never auto-downgrades a feature to a spike**: doing so would trade a deliverable for a question the user never asked.
 
@@ -343,7 +365,8 @@ Present as:
 > "Based on your request:
 > - **Event:** Create / Refine / Expand
 > - **Type:** Feature / Bugfix
-> - **Requester:** developer / layperson (the signals, in a few words)
+> - **Requester:** level — persona (the evidence, in a few words)
+> - **Engineering:** experiment / tool / project / product — what it means for this request, and the multiple, in one line
 > - **Complexity:** Trivial / Simple / Moderate / High (justification)
 > - **Mode:** Fast / Standard / Full (reason + trade-offs)
 > - **Workflow:** Requirements-First / Design-First (full mode only)
@@ -403,30 +426,71 @@ clarifications using the `AskUserQuestion` tool. Multiple-choice prompts are
 faster for the user than free-text confirmations and yield structured answers
 the orchestrator can route on without re-parsing prose.
 
-- **One question budget per story, counted from triage to the last box.**
-  Every `AskUserQuestion` call (or its numbered-list fallback), every phase
-  gate and every question asked during Run is one round against the same
-  budget: **`layperson` — Fast 1, Standard 3; `developer` — Fast 2,
-  Standard 5, Full 7.** Measured before the budget existed: 1 out-of-reach
-  question in Fast and 5–8 in Standard, for one beginner and one request.
-  When the budget is spent, decide by the constitution's `## Defaults` and the
+**The Epic asks the way an architect asks a client.** The requester came to
+have something built, not to give instructions; whatever their level, they
+know what it is and what it must do, and the how — the stack, the storage,
+the pattern, the tooling — is not settled in their head. So every question
+is about **what and what for**, and the **how is proposed, never asked**: it
+arrives between the questions as a recommended option with its reason, in
+words the requester can choose by. The level sets directness, not the amount
+of context: a `developer` is asked in the stack's own terms, a `layperson` in
+the plain register, and both get the context and the example.
+
+- **Round 0 is orientation.** At most three context questions — who uses
+  it, what exists today, what "done" looks like — or one open question in
+  the requester's own words: "describe it as you would to a friend".
+  Skipped when the request already answers them; a question the request
+  answered is a defect in either register. When triage could not settle
+  the engineering level, this round carries its indirect questions — will
+  you open this again, when it breaks do you fix it or redo it, will anyone
+  besides you run it, could it be published or sold
+  ([engineering-level.md](../../references/engineering-level.md)) — asked as
+  consequences, inside the same count.
+- **Ask the consequence, never the mechanism.** "What happens to the data
+  when the program closes?" decides persistence; "JSON or SQLite?" asks the
+  requester to be the architect. The consequence is what they can observe
+  and choose by; the mechanism is what their answer decides for them.
+- **Every option carries its context and one example** — what choosing it
+  implies, shown on this project. A bare label is a quiz. When the choice is
+  technical and `requester.level` is `layperson`, add the analogy that lets
+  them choose by logic ([plain-register.md](../../references/plain-register.md#explain-by-example));
+  a `developer` gets the term instead, with the same context and example
+  ([developer-register.md](../../references/developer-register.md)).
+- **The how is a recommendation, never a question.** When a technical
+  decision is due — stack, storage, pattern, tooling — offer it as options
+  with the recommended one first and labelled `(Recommended)`, its reason
+  in one line, and each alternative's trade-off in one line. Never an open
+  "how do you want this built?".
+- **Rounds are free in size, and built from what the last one left open.**
+  Bundle only questions whose answers cannot change each other; a question
+  whose answer can prune another goes alone, and first. Before composing
+  round N+1, apply round N's answers: an `out-of-scope` answer removes its
+  whole branch; a default taken removes the follow-ups that default implies;
+  an answer given in tool vocabulary re-reads `requester.level` as
+  `developer` for the rest of the story, and one given in outcome words
+  keeps `layperson`; an answer that reveals how to work with this person —
+  "I don't know how to run a command" — is appended to `requester.never`
+  or `requester.always` and applied from then on. A question whose answer
+  no longer changes the plan is not asked. When triage was unsure of the
+  requester, round 0 opens with **one calibration question** — "How do you want me to work with you?" with two
+  options in plain words: *explain in plain words and decide the technical
+  details for me* / *ask me the technical questions* — and every round after
+  it follows that answer.
+- **One question budget per story, counted in questions from triage to the
+  last box.** Every question in an `AskUserQuestion` call (or its
+  numbered-list fallback) counts one; the orientation round counts one
+  whatever its size; every phase gate and every question asked during Run
+  counts one, against the same budget: **`layperson` — Fast 3, Standard 9,
+  Full 12; `developer` — Fast 4, Standard 10, Full 14.** Measured on the
+  format's own trial (September 2026, a Standard-shaped request):
+  orientation, four, four with the gate — nine. Before any budget existed:
+  1 out-of-reach question in Fast and 5–8 in Standard, for one beginner and
+  one request. When the budget is spent, decide by the constitution's
+  `## Defaults` and the
   [plain register](../../references/plain-register.md#decisions-the-requester-is-not-asked)
   table, write each decision as an assumption in story.md (Fast: in the run
   report) and proceed. Infinite clarification defeats the purpose — and so
   does a question the requester cannot answer.
-- **Each round is built from what the last one left open.** Before composing
-  round N+1, apply round N's answers: an `out-of-scope` answer removes its
-  whole branch; a default taken removes the follow-ups that default implies;
-  an answer given in tool vocabulary re-reads the requester as `developer`
-  for the rest of the story, and one given in outcome words keeps
-  `layperson`. A question whose answer no longer changes the plan is not
-  asked. When triage was unsure of the requester, round 1 opens with **one
-  calibration question** — "How do you want me to work with you?" with two
-  options in plain words: *explain in plain words and decide the technical
-  details for me* / *ask me the technical questions* — and every round after
-  it follows that answer.
-- Each `AskUserQuestion` call may bundle 3–7 related questions; the user
-  answers them together.
 - For each ambiguity, build a question with **2–4 mutually-exclusive options**.
   When the answer is binary, prefer `[yes / no / out-of-scope]` over open
   phrasings.
@@ -442,9 +506,13 @@ the orchestrator can route on without re-parsing prose.
 ### Question shape
 
 ```
-question:    "Should new email-verification tokens expire after?"
-options:     ["1 hour (default)", "24 hours", "Configurable per environment", "No expiration"]
-description: "Affects R2.3 (token TTL) and downstream session handling"
+question:    "What happens to the other signed-in devices when a user changes their password?"
+             ← the consequence; "invalidate the other tokens?" would ask the mechanism
+options:
+  - "They are all signed out (Recommended)" — "the password change is the moment they wanted the others out; one extra query"
+  - "They keep working until they expire" — "nothing to build; a stolen session survives the change"
+  - "Out of scope for this story"
+context:     "Affects R2.3 (token TTL) and downstream session handling"
 ```
 
 ### Fallback (headless or AskUserQuestion unavailable)
@@ -468,7 +536,7 @@ Before entering any phase, load the corresponding reference files:
 - On format doubts, load the relevant example from `assets/examples/`
 - For a `layperson` requester, every phase gate takes the one-line shape in [plain-register.md](../../references/plain-register.md#gates-are-one-line) and counts against the question budget
 
-**Authoring ceiling at Phase 3.** When the generated `tasks.md` passes the threshold defined in [tasks.md](../../references/tasks.md) (Authoring Ceiling), warn and offer a split into a wave — interactively as a question, headless as a logged note that proceeds. It is a warning, never a block: a story that genuinely needs a large plan keeps it. In batch create the offer is not re-entered into the live interview; the warning surfaces in the approval block and the split happens post-batch (see [batch-create.md](../../references/batch-create.md)).
+**Authoring ceiling at Phase 3.** When the generated `tasks.md` passes the threshold for the story's engineering level — one ceiling per level, defined once in [tasks.md](../../references/tasks.md) (Authoring Ceiling) and read from [engineering-level.md](../../references/engineering-level.md) — warn and make the three offers: **cut** the scope, **split** the plan into waves, or **go down a level** and regenerate the plan with fewer quality items. Interactively as a question, headless as a logged note that proceeds. It is a warning, never a block: a story that genuinely needs a large plan keeps it. In batch create the offer is not re-entered into the live interview; the warning surfaces in the approval block and the split happens post-batch (see [batch-create.md](../../references/batch-create.md)).
 
 ## Persistence and Recovery
 
@@ -489,8 +557,15 @@ Draft metadata (`meta.yaml`):
 phase: 2
 approved: 2026-04-01
 project-hash: <short SHA of HEAD at approval time>
-requester: layperson        # developer | layperson — read at triage, re-read from Clarify answers
-questions_asked: 2          # rounds spent against the story's question budget
+requester:                  # read at triage, re-read from Clarify answers
+  level: layperson          # layperson | developer
+  persona: "beginner, informal, has never opened a terminal. Read from: 'the black window'"
+  always:
+    - explain by example, one per new concept
+  never:
+    - ask about git, npm or versioning
+engineering: tool          # experiment | tool | project | product — proposed at triage, confirmed by its gate
+questions_asked: 2          # questions spent against the story's question budget
 analyst_output: |
   <cached output from Codebase Analysis Analyst>
 ```
@@ -527,6 +602,7 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
   story: <story-name>
   type: feature | bugfix
   scale: fast | standard | full | spike
+  engineering: experiment | tool | project | product
   version: 1
   created: <date>
   status: draft

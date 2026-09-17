@@ -52,11 +52,13 @@ When asked to analyze a project:
 2. **Sample 3-5 representative files** — detect naming conventions, patterns, module organization
 3. **Look up best practices** relevant to the request domain — via a research MCP if one is available to you, otherwise `WebSearch`
 4. **Fetch current docs** for the detected framework/libraries — via a documentation MCP (e.g. `context7`) if available to you, otherwise `WebFetch`/`WebSearch`
+5. **Report the quality-catalog signals** ([quality-catalog.md](../references/quality-catalog.md)) — which context signals the tree carries (a `Dockerfile`, `.github/workflows/`, a database configuration, an HTTP surface, a UI) and which always-tier tools it is already configured for (a linter or formatter config, a lockfile, a test runner) — so the story's `## Quality Requirements` legend is written without a second scan
 
 Return a concise summary (**max 20 lines**) covering:
 - Detected project patterns and conventions
 - Relevant best practices or patterns from research
 - Potential integration points with existing code
+- The quality-catalog signals present, one line
 
 **Do NOT read every file** — be lightweight and fast.
 
@@ -68,7 +70,7 @@ When asked to generate clarifying questions:
 2. For each, determine what implicit decisions the user hasn't stated
 3. For each state-changing action (create, login, enable, open, start), verify the inverse (delete, logout, disable, close, stop) is addressed or explicitly excluded
 4. Check for common pitfalls and edge cases in this domain — via a research MCP if one is available to you, otherwise `WebSearch`
-5. Generate **5-10 assertive questions** formatted as: "I understand X will work as Y. Confirm?"
+5. Generate **5-10 assertive questions** formatted as: "I understand X will work as Y. Confirm?" — with X and Y phrased as a **consequence the requester can observe**, never as the mechanism that produces it ("a stolen session stops working when the password changes", not "tokens are invalidated"). The orchestrator turns each into a question with options ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol))
 6. For each proposed approach, evaluate whether it fully satisfies the requirement's intent
 
 **Do NOT read files or scan directories** for Function 2 — use the codebase analysis provided.

@@ -11,7 +11,124 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-09-17
+
+Seven commits on the 0.7.0 branch, one through-line: **who is asking, how the
+Epic asks, and what it verifies** — then, measured on the branch's own first
+runs, what that costs. The requester is a four-field block and the level never
+changes the scale; Clarify asks the way an architect asks a client, with a
+budget counted in questions; a quality catalog gives the story a legend and
+generates its gates; Fast runs `--auto`, the orchestrator's effort is the
+session's, memory names a permitted provider; every sub-agent runs in the
+foreground; a request for speed changes the words, not the steps; and an
+engineering level — how long the thing must last — decides the catalog tier,
+the shape of Phase 3 and the plan's ceiling. Two of the seven are fixes of
+defects measured on this branch's first runs, and the entries below carry the
+numbers.
+
+**Measured on the release commit — the beginner's request, persona harness,
+2026-09-17.** Control: 2 min, US$ 0.62, one file, no tests. Epic: Standard ·
+`layperson` · `tool`, a plan of 12 Task List boxes (the `tool` ceiling
+exactly), 7 questions of a budget of 9, one sub-agent (the Analyst, in the
+foreground, one user turn), delivered `done` in **23 min and US$ 11.88** — 5
+commits, 4 source and 4 test files, 39 green tests, `engines.node: ">=22"`
+declared with the image's Node 20 flagged as out of support, an atomic write
+with a backup of a corrupt file, a formatter, a linter, a JSDoc type check, an
+`.editorconfig` and a README; the persona ended with "ta funcionando mano,
+ficou top". **Against the owner's rule — up to 5× is justifiable — it is a miss:**
+11× the control's clock and 19× its cost, where `tool` is supposed to cost
+2–3×, and the run's own
+report names the always-tier toolchain as the largest cost. That is the
+calibration the level file promised to take: what `tool` activates, and the
+multiples, are what the next round recalibrates. One defect in the
+deliverable, invisible to the run: `npm test` is `node --test test/`, which
+passes on Node 20 and fails on the Node 22+ the package declares — the
+directory argument changed meaning — which is what a harness image with a
+supported runtime would have caught.
+
+**Triage variance (n=5, same request, release commit):** Standard 3, Fast 2. The engineering level read `tool` four times and `experiment` once, on one of the Fast samples; 305–708 s and 0.5–1.7M input tokens per sample. The request that drew Fast once and Standard twice on 0.5.0 still draws both, and the level moves with the scale. A monitor, never a gate.
+
+**Minimum Claude Code:** unchanged from 0.2.0. Everything in this release is
+prose the orchestrator follows, scripts and tests; nothing in the runtime
+moved.
+
 ### Added
+
+- **An engineering level — how long it must last decides how much the story
+  pays for** (new `references/engineering-level.md`; `skills/epic/SKILL.md`
+  Adaptive Modes, Triage, Clarify, Phase Execution, Draft Saving, Output
+  Rules; `references/requirements.md`, `references/plain-register.md`,
+  `references/self-review-checklist.md`, README). Measured on 2026-09-17: two
+  Standard runs for a developer's Pokédex CLI planned 43 and 47 boxes, spent
+  about 25 minutes in Phase 3 while the Test Advisor wrote 22 tests before any
+  code, and were stopped at 42 minutes with 28 and 2 boxes closed — the Epic
+  plans every request as a product, because nobody asks how long the thing
+  must last. Four levels now do: `experiment` (disposable, 1×), `tool` (kept
+  and fixed when it breaks, 2–3×), `project` (maintained, others depend on it,
+  4–6×), `product` (may be published or sold, 8×+). Triage reads the level
+  from the request's own words, takes `tool` when the request does not settle
+  it, and proposes it in one line with its multiple, in the register's words,
+  so the triage gate confirms it without spending a question; when triage was
+  unsure, the orientation round fishes for it with the indirect questions
+  ("a month from now, will you open this again?", "when it breaks, do you fix
+  it or redo it?", "will anyone besides you run it?", "could it be published
+  or sold?"), asked as consequences and never as a choice of level. It is
+  recorded as `engineering:` in every artifact's frontmatter (`tasks.md`
+  authoritative, an invented value a validation error, absence legal and
+  silent), in `meta.yaml` beside the `requester` block, and in **the recorded
+  line** that opens the execution plan and the end-of-run report — scale,
+  requester level, engineering level with its multiple, plan size in Task List
+  boxes — which is what the persona harness compares against the control. The
+  multiples are against the control and are the first calibration, recalibrated
+  at every release; the owner's rule — up to 5× the control is justifiable, above it
+  something is wrong or unnecessary — is written down beside them. The
+  level never changes the scale, the requester level, the artifacts, the gates
+  or the Executor's six steps. Pinned by `tests/engineering-level.bats`.
+
+- **The catalog names what eleven attempts lacked**
+  (`references/quality-catalog.md`). Audited on eleven attempts at one
+  beginner's request (15–17 September 2026): none installed a package, all
+  ran on the Node 20 the image offered — out of support since April 2026 —
+  none declared a version, and none carried a formatter, a linter, a type
+  checker or an `.editorconfig`; an atomic write appeared only in the two
+  0.5.0 Standard runs, by the model's own initiative. The always tier gains
+  **a supported and declared runtime** (`engines`, the `go` directive,
+  `requires-python`, `.tool-versions`) and **dependencies justified and
+  current**; the context tier gains **atomic write**, with the signal that
+  the program writes a file it reads back; and a syntax check (`node --check`,
+  `py_compile`, `bash -n`) named as Lint now counts the item as omitted, not
+  covered. **The level bounds the set**: `experiment` activates nothing and
+  its legend reads `none`, `tool` the always tier, `project` adds the context
+  items whose signal is present, `product` adds the CI-shaped ones without
+  waiting for a signal and the on-request tier when named.
+
+- **A quality catalog, a legend in the story, and gates generated from it**
+  (new `references/quality-catalog.md`; `references/requirements.md`,
+  `references/tasks.md`, `references/init-mode.md`,
+  `references/constitution.md`, `references/phase-gates.md`,
+  `references/validate-mode.md`, `references/plain-register.md`,
+  `agents/analyst.md`, `scripts/cross-reference.sh`). The Quality Gates
+  section was a fixed list of five items that named neither formatting, lint,
+  types, dependency vulnerabilities, secrets nor a README, and chose nothing
+  by context. The catalog has three tiers — **always** (formatting, lint,
+  types, error handling, unit tests, lockfile and frozen install, dependency
+  vulnerabilities, secrets, README, `.gitignore` and `.editorconfig`), **by
+  context** with the signal that activates each (integration and E2E,
+  contract tests, structured logs and health, migrations, SAST, image
+  digest/non-root/scan, pinned Actions, accessibility, licence/SBOM/signing,
+  minimum dependency age) and **on request** (fuzzing, benchmarks, coverage
+  threshold, mutation). Init writes the project's default legend as a
+  `## Quality` block in the constitution; the Analyst reports which context
+  signals the tree carries; a story carries `## Quality Requirements` — one
+  line per active item, `Qn`, with the command that proves it (a Fast story
+  carries it at the top of `tasks.md`); a sub-task cites the lines it
+  exercised in a `Quality:` field; the Quality Gates section gains one
+  generated box per line, after the five fixed ones, settled by running its
+  command; a layperson sees "the checks I ran", never an identifier.
+  Activating an item never installs a tool. **`cross-reference.sh` measures
+  the legend's coverage**: a `quality` object with `declared`, `cited`,
+  `orphans` and `phantoms`, emitted only when a `Qn` is declared or cited,
+  and either list non-empty is an issue (exit 1); four cases pin it.
 
 - **`RELEASING.md` — what a version cut actually involves, and the traps in
   it.** Written from the 0.5.0 and 0.6.0 cuts; every step in it has been
@@ -63,6 +180,142 @@ gracefully (see README "Prerequisites").
     writing the figures into the story and surfacing them in `epic-index` —
     was **deliberately not built**: it would put the plugin back to writing
     files into the user's repository, which 0.6.0 had just stopped doing.
+
+### Changed
+
+- **The plan ceiling is per engineering level, counted on the Task List**
+  (`references/tasks.md` Authoring Ceiling, `scripts/validate-story.sh`,
+  `tests/authoring-ceiling.bats`). The single 60-box ceiling let the 43- and
+  47-box plans through without a word. The box arm is now `experiment` 5,
+  `tool` 12, `project` 24, `product` 40 Task List boxes — the measured pace is
+  about one box per minute, so the plan is where the multiple is decided — and
+  a story that declares no level keeps 60, so a story written before the field
+  validates as it did. Only the Task List is counted: the Quality Gates section
+  grows with the legend and not with the work, and the five fixed gates alone
+  would fill an `experiment`; a box inside a code fence is documentation. The
+  warning names the level and cites the threshold's one home, and the offer at
+  Phase 3 has three ways out — cut the scope, split into waves, or go down a
+  level, which regenerates the plan with fewer quality items. Bytes keep their
+  32 KB arm at every level. Five cases pin the validator: each level silent at
+  its ceiling and warning one over, gates and fences not counted, an invented
+  level an error naming the four, no level keeping 60, `tasks.md` winning over
+  `story.md` and `story.md` read when `tasks.md` is silent.
+
+- **Phase 3 is proportional to the level** (`references/phase-gates.md`,
+  `references/run-mode.md`, `references/refine-mode.md`,
+  `references/validate-mode.md`, `references/batch-create.md`,
+  `agents/auditor.md`, `agents/test-advisor.md`). The Test Advisor authoring
+  every test before any code cost about 25 minutes in each of the two
+  developer runs. At `experiment` or `tool` a Standard or Full story now
+  decides its `Tests` field inline with the Lite checklist and writes the test
+  at run time — Red before Green, the same cycle Fast and spike already use —
+  with no Test Advisor, no `.draft/authored-tests/` and no `red-evidence.yaml`;
+  at `experiment` the field is optional, as in a spike. `project` and `product`
+  keep the full Phase 3. Every consumer that read "Standard/Full" as "has a
+  pre-authored test" now reads it through the level: materialization and its
+  converse guard, the run-time ordering and both routes, Refine's Red evidence
+  for added sub-tasks, the Auditor's Red-precedence check and batch create
+  apply at `project` and `product` and are exempt below.
+
+- **The requester is a four-field block, and the level never changes the
+  scale** (`skills/epic/SKILL.md`, `references/plain-register.md`, new
+  `references/developer-register.md`). Triage records `requester.level`
+  (`layperson` | `developer`, developer when unsure), `requester.persona`
+  (one line ending with the evidence the reading rests on), and
+  `requester.always` / `requester.never`, seeded from the level's register and
+  extended from Clarify answers — "I don't know how to run a command" becomes
+  a `never`. The level changes the register, the question budget, the defaults
+  taken silently and the shape of a gate, and nothing else. **The 0.6.0 rule
+  that held a layperson at Fast is retired**: it came from one trivial request,
+  and everything that had made Standard hurt a beginner — out-of-reach
+  questions, document reviews, 23k-character turns — is closed by the register,
+  the budget and the defaults. A beginner who asks for something Full-shaped is
+  owed Full, with its gates in one line. The plain register gains the positive
+  rule it lacked — explain by one example or analogy per new concept — and the
+  developer register is new: direct, with context and an example on every
+  option, never the basics, and honest that nothing about it is measured yet.
+
+- **Clarify asks the way an architect asks a client** (`skills/epic/SKILL.md`,
+  `agents/analyst.md`, `references/context-discovery.md`). The requester came
+  to have something built, not to give instructions: they know what it is and
+  what it must do, and the how is not settled in their head. So every question
+  is about what and what for, and the how is proposed, never asked. Round 0 is
+  orientation — up to three context questions, or one open question in the
+  requester's words, skipped when the request already answers them. Every
+  question asks the **consequence** the requester can observe, never the
+  mechanism ("what happens to the data when the program closes?", not "JSON or
+  SQLite?"). Every option carries its context and one example, plus an analogy
+  for a layperson and the term for a developer. A technical decision arrives as
+  options with the recommended one first, labelled, with its reason in one
+  line. Rounds are free in size — the fixed 3–7 bundle is gone — and bundle
+  only questions whose answers cannot change each other; a question that can
+  prune another goes alone and first. **The budget is counted in questions,
+  not rounds**: layperson Fast 3 / Standard 9 / Full 12, developer Fast 4 /
+  Standard 10 / Full 14, the orientation round and each gate counting one.
+  Measured on the format's own trial, a Standard-shaped request: nine. The
+  Analyst's checklist phrases its assertions as consequences, and its items
+  are asked in rounds rather than as one numbered list, which stays as the
+  headless fallback.
+
+- **Fast runs `--auto` by default, and `--step` asks for its stops back**
+  (`references/run-mode.md`, `README.md`). A Fast story is small enough to see
+  whole at the end, and its per-group gate was one round of the question
+  budget spent on "go on". It now stops on a validation or test failure and on
+  a doubt the constitution defaults do not cover, and nowhere else; `--step`
+  restores the gate after every group. Standard and Full keep their gates and
+  `--auto` as an explicit choice. For a layperson, a stop per group is
+  promised only under `--step` — a promise about cadence is kept literally or
+  not made.
+
+- **The orchestrator's effort is the session's** (`skills/epic/SKILL.md`).
+  The skill frontmatter no longer pins `effort: max` on the orchestrator: the
+  session's setting applies, and a fork inherits the same. Two reasons. The
+  measured Standard spent 49% of its clock in the orchestrator writing and
+  thinking between calls, which is where maximum effort weighs; and the
+  persona harness's control arm runs at the session default while the Epic
+  arm ran at max, a confound in every comparison made so far. The agents keep
+  their own `effort` fields, pinned by `tests/agent-effort-policy.bats`.
+  Unmeasured as of this entry — the 0.7.0 runs are the measurement.
+
+- **The memory recommendation names a permitted provider**
+  (`references/mcp-integration.md`). ai-memory's LLM work — consolidation and
+  lint — needs a provider Anthropic's terms allow for a third-party tool: an
+  API key with a Haiku-class model, or a local model through an
+  OpenAI-compatible endpoint. Never a Claude subscription OAuth token: since
+  February 2026 OAuth from the Free, Pro and Max plans is for Claude Code and
+  Claude.ai only, and ai-memory's own documentation warns that its
+  `anthropic-oauth` provider risks the account. The Epic's own reads and
+  writes need no LLM on the server.
+
+### Fixed
+
+- **Every sub-agent runs in the foreground** (`skills/epic/SKILL.md` Personas,
+  and every spawn site: `context-discovery.md`, `phase-gates.md`,
+  `run-mode.md`, `validate-mode.md`). Measured on the first 0.7.0 runs
+  (2026-09-17): the orchestrator spawned the Analyst and the Test Advisor with
+  `run_in_background: true`, ended its turn to "call back when it returns",
+  and every reply became a user turn spent waiting. The beginner's Standard
+  run — her first Standard, now that the level no longer holds her at Fast —
+  burned 12 of 12 user turns on "ainda tá fazendo?", wrote no code and cost
+  US$ 7.04; the developer's Go run did the same for ten turns. The rule: the
+  orchestrator's next step is the sub-agent's result, so the call is made
+  with `run_in_background: false`; a parallel Executor group is several
+  foreground calls in one message, joined before the next step. Pinned by
+  `tests/run-defaults.bats` D6, which also fails on any spawn site asking for
+  the background.
+
+- **A request for speed changes the words, not the steps; a downgrade is a
+  question** (`references/developer-register.md`, `skills/epic/SKILL.md`).
+  Measured on the developer's JS run (2026-09-17): after "pode ir direto pro
+  código", the orchestrator announced a Standard-to-Fast downgrade instead of
+  proposing it, then wrote tests and implementation in one batch "because
+  seventeen red/green cycles would be too many turns", and closed no box —
+  33 open, 18 files, 69 green tests, zero `close-subtask.sh` calls. The
+  beginner asked to skip the same step and was refused; the developer
+  register lacked the sentence. Now it has it — speed is fewer words and no
+  waiting, never fewer steps — and the downgrade rule says the proposal is a
+  one-line gate whose answer alone changes the mode. Pinned by
+  `tests/requester-register.bats` Q18.
 
 ## [0.6.0] — 2026-09-16
 
@@ -896,7 +1149,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/lucascouts/epic/releases/tag/v0.7.0
 [0.6.0]: https://github.com/lucascouts/epic/releases/tag/v0.6.0
 [0.5.0]: https://github.com/lucascouts/epic/releases/tag/v0.5.0
 [0.4.0]: https://github.com/lucascouts/epic/releases/tag/v0.4.0
