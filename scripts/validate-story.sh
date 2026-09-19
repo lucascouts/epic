@@ -559,7 +559,7 @@ fi
 if [[ "$HAS_TASKS" == true ]]; then
   TASKS_FILE="$STORY_DIR/tasks.md"
 
-  # --- Why the scale rose (0.7.1) -----------------------------------------
+  # --- Why the scale rose (0.8.0) -----------------------------------------
   # `fast` is the floor; every other scale owes one line naming what in the
   # request made the smaller shape insufficient. The reason is read from the
   # same artifact the resolved value came from, so the two cannot drift apart.
@@ -1105,7 +1105,7 @@ if [[ "$HAS_TASKS" == true ]]; then
     add_warning "tasks.md carries $COMMIT_LEGACY_COUNT Commit sub-task checkbox(es) — the legacy shape. The canonical form is a group-level 'Commit:' field; 'bash scripts/migrate-story.sh <NNN> --apply' converts it, message verbatim"
   fi
 
-  # --- Authoring ceiling (story 014, sub-task 3.1 — R3.3; bytes only since 0.7.1)
+  # --- Authoring ceiling (story 014, sub-task 3.1 — R3.3; bytes only since 0.8.0)
   #
   # The threshold has ONE home, references/tasks.md § Authoring Ceiling, and
   # the warning CITES it rather than restating the number. A value repeated in

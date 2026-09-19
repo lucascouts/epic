@@ -11,10 +11,16 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
-Three commits, one through-line: **a level decides how much engineering a story
-buys, never how much safety** — and the cheapest way to say "this one is
-disposable" should not cost a conversation. Plus the corrections that came out
-of measuring the plugin instead of reasoning about it.
+## [0.8.0] — 2026-09-19
+
+One through-line: **a level decides how much engineering a story buys, never how
+much safety** — and the cheapest way to say "this one is disposable" should not
+cost a conversation. Everything here was settled by running the plugin rather
+than by reasoning about it: a six-run relay series with the owner answering every
+question, a 7×3 matrix over JavaScript, TypeScript, Ruby, Python, PHP, Go and
+Rust, a four-arm fork probe, and 38 generated applications executed against the
+one requirement they were all given. See
+[`.epic/docs/session-2026-09-19-instant-floor-and-matrix.md`](.epic/docs/session-2026-09-19-instant-floor-and-matrix.md).
 
 ### Added
 
@@ -87,6 +93,41 @@ of measuring the plugin instead of reasoning about it.
   With the variable set, ten forks all reported `is_backgrounded: false`. The
   previous text claimed the opposite on the strength of a single unrepeated
   probe. ([`run-mode.md`](references/run-mode.md))
+
+### Measured
+
+The numbers this release is calibrated against, so the next one can contradict
+them with newer ones rather than with taste.
+
+- **A `fast · experiment` story costs about 8.4× its control**, across seven
+  languages in a tight range ($4.91–$6.60 against controls of $0.43–$1.01) —
+  where the level promises 1× and the owner's rule allows 5. What the multiple
+  buys is measured too: modular structure in 5 of 7 against **0 of 7** for the
+  control, README 6 of 7 against **0 of 7**, secrets scanning 6 of 7 against
+  **0 of 7**. The promise is what needs recalibrating, not the spend.
+- **The scale moves the bill further than the level does.** Same requester, same
+  request, same `experiment` level: `standard` cost 10.9× its control, `fast`
+  cost 4.3×. The level had been asked about and answered; the scale was never
+  mentioned in the whole conversation. That is what the proposal line and
+  `scale_reason:` now address.
+- **The intent sentence resolves the level without a question.** "This is just a
+  test — I am not going to update it or maintain it" produced `fast ·
+  experiment` in **14 of 14** Epic arms, in seven languages, with no level
+  question asked anywhere.
+- **Re-exploration is 4% of an Executor's time** (write 40%, Bash 56%, over 59.3
+  minutes of measured steps). Any shared-context mechanism between sub-agents is
+  bidding for those four points.
+- **Fork loses to inline on both axes** at this plugin's unit size: ten trivial
+  sub-tasks ran inline in 10.9 s for $0.071, as ten forks in 20.7 s for $0.319.
+- **No generated application destroyed user data.** 26 of 26 executable
+  applications preserved a corrupt collection file seeded at the path their own
+  source declares — control and Epic alike.
+- **The floor is not yet enforced.** Four of fourteen Epic arms skipped at least
+  one floor item; one skipped three. The floor is prose in a catalog and nothing
+  checks that it ran. Making each item close with recorded evidence is the first
+  item of the next release.
+- **The noise floor is ~1.8×.** Re-running one stack on the same commit moved its
+  Epic arm from $8.94 to $5.65. No claim under 2× is defensible at n=1.
 
 ## [0.7.0] — 2026-09-17
 

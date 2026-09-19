@@ -75,7 +75,7 @@ EOF
   echo "$output" | jq -r '.warning_details[]' | grep -q 'references/tasks.md'
 }
 
-@test "0.7.1: many boxes in few bytes are silent — the count arm was removed" {
+@test "0.8.0: many boxes in few bytes are silent — the count arm was removed" {
   # Until 0.7.0 this fixture warned: 65 boxes was over the 60-box arm. The arm
   # is gone (references/tasks.md § Authoring Ceiling): how many tasks a story
   # has follows from the work, and a checkbox is not a unit of work.
@@ -155,7 +155,7 @@ EOF
   fi
 }
 
-# --- 0.7.1: the level no longer caps the number of tasks ---
+# --- 0.8.0: the level no longer caps the number of tasks ---
 # Contract (references/tasks.md § Authoring Ceiling, references/engineering-level.md):
 #   - the plan has ONE threshold, on bytes; no count of Task List boxes warns,
 #     at any engineering level;
@@ -202,7 +202,7 @@ no_ceiling_warning() { # the negative shared by every silent case
   fi
 }
 
-@test "0.7.1: no number of Task List boxes warns, at any level" {
+@test "0.8.0: no number of Task List boxes warns, at any level" {
   # 0.7.0 warned one box over 5 / 12 / 24 / 40. Those counts are now ordinary.
   local pair level n
   for pair in "experiment 6" "tool 13" "project 25" "product 41" "product 80"; do
@@ -224,7 +224,7 @@ no_ceiling_warning() { # the negative shared by every silent case
   echo "$output" | grep -q "experiment, tool, project, product"
 }
 
-@test "0.7.1: a story with no engineering field is silent whatever its size in boxes" {
+@test "0.8.0: a story with no engineering field is silent whatever its size in boxes" {
   level_fixture "" 60 5
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   echo "$output" | jq -e . > /dev/null
@@ -232,7 +232,7 @@ no_ceiling_warning() { # the negative shared by every silent case
   no_ceiling_warning "no level at 60"
 }
 
-@test "0.7.1: tasks.md is still authoritative for the level — its invented value errors over a valid story.md" {
+@test "0.8.0: tasks.md is still authoritative for the level — its invented value errors over a valid story.md" {
   level_story "engineering: product"
   level_fixture "engineering: throwaway" 6 0 with-story
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
