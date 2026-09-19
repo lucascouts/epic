@@ -86,8 +86,12 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E1 advisor" "$pays" "Test Advisor"
   has "E1 run time" "$pays" "run time"
   has "E1 catalog" "$pays" "quality-catalog"
-  for n in '| **5** Task List boxes |' '| **12** |' '| **24** |' '| **40** |'; do hasF "E1 ceiling" "$pays" "$n"; done
-  has "E1 three offers" "$pays" "down a level"
+  # 0.7.1: the level no longer carries a plan ceiling — the row is gone and its
+  # absence is pinned, since a table row is exactly what grows back by accident.
+  if echo "$pays" | grep -q 'Plan ceiling'; then
+    echo "E1: the per-level plan ceiling row is back in What each level pays for" >&2
+    return 1
+  fi
   never=$(section "$f" '^## What the level never changes' '^## ')
   [ -n "$never" ]
   has "E1 never the scale" "$never" "scale"
@@ -116,14 +120,14 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E3 reference" "$row" "engineering-level"
 }
 
-@test "E4: the Phase 3 ceiling paragraph is per level and makes the three offers" {
+@test "E4: the Phase 3 ceiling paragraph is about size, offers cut and split, and caps no count" {
   block=$(section "$ROOT/skills/epic/SKILL.md" '^## Phase Execution' '^## Persistence')
   [ -n "$block" ]
-  has "E4 level" "$block" "engineering level"
   has "E4 cut" "$block" "cut"
   has "E4 split" "$block" "split"
-  has "E4 down" "$block" "down a level"
   has "E4 warning" "$block" "never a block"
+  has "E4 no count" "$block" "no ceiling on the number of tasks"
+  has "E4 unit" "$block" "Validation"
 }
 
 @test "E5: the meta.yaml example and the frontmatter block carry engineering:" {
@@ -137,21 +141,19 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E5 two axes" "$am" "engineering level"
 }
 
-@test "E6: tasks.md's Authoring Ceiling is per level, counts the Task List, keeps 60 for no level; the Tests Field is authored only at project/product" {
+@test "E6: tasks.md's Authoring Ceiling is bytes only and bounds the unit, not the count; the Tests Field is authored only at project/product" {
   f="$ROOT/references/tasks.md"
   ceil=$(section "$f" '^### Authoring Ceiling' '^### ')
   [ -n "$ceil" ]
-  for l in experiment tool project product; do has "E6 $l" "$ceil" "\`$l\`"; done
-  has "E6 sixty" "$ceil" "60"
-  has "E6 task list" "$ceil" "Task List"
-  has "E6 gates not counted" "$ceil" "Quality Gates"
-  has "E6 fence" "$ceil" "fence"
+  has "E6 bytes" "$ceil" "32 KB"
+  has "E6 no count" "$ceil" "no ceiling on the number of tasks"
+  has "E6 unit" "$ceil" "one Executor pass"
+  has "E6 validation" "$ceil" "Validation"
   has "E6 cut" "$ceil" "cut"
   has "E6 split" "$ceil" "split"
-  has "E6 down" "$ceil" "down a level"
   has "E6 warning" "$ceil" "never a block"
-  if grep -q '32KB or 60 checkboxes, whichever comes first' "$f"; then
-    echo "E6: the single 60-box ceiling sentence is back" >&2
+  if echo "$ceil" | grep -qE 'box ceiling of its engineering level'; then
+    echo "E6: the per-level box ceiling is back" >&2
     return 1
   fi
   tf=$(section "$f" '^### Tests Field' '^### ')
@@ -258,5 +260,5 @@ hasF() { # hasF <label> <block> <fixed string>
   words=$(section "$ROOT/references/plain-register.md" '^## Words that stay' '^## ')
   has "E12 plain level" "$words" "engineering level"
   has "E12 plain rendering" "$words" "how long"
-  has "E12 self-review" "$(cat "$ROOT/references/self-review-checklist.md")" "Sized to the level"
+  has "E12 self-review" "$(cat "$ROOT/references/self-review-checklist.md")" "Sized by the unit"
 }

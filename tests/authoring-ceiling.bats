@@ -75,7 +75,10 @@ EOF
   echo "$output" | jq -r '.warning_details[]' | grep -q 'references/tasks.md'
 }
 
-@test "3.1: a tasks.md over 60 boxes warns even when small in bytes" {
+@test "0.7.1: many boxes in few bytes are silent — the count arm was removed" {
+  # Until 0.7.0 this fixture warned: 65 boxes was over the 60-box arm. The arm
+  # is gone (references/tasks.md § Authoring Ceiling): how many tasks a story
+  # has follows from the work, and a checkbox is not a unit of work.
   {
     cat <<'EOF'
 ---
@@ -88,7 +91,6 @@ created: 2026-08-16
 
 ## Task List
 EOF
-    # 65 open task boxes, ~3KB total: over the 60-box arm, far under 32KB.
     for i in $(seq 1 65); do
       printf -- '- [ ] %d - Pad step %d\n  - Validation: ok\n' "$i" "$i"
     done
@@ -102,7 +104,10 @@ EOF
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   echo "$output" | jq -e . > /dev/null
   echo "$output" | jq -e '.errors == 0' > /dev/null
-  echo "$output" | jq -r '.warning_details[]' | grep -q 'references/tasks.md'
+  if echo "$output" | jq -r '.warning_details[]' | grep -q 'references/tasks.md'; then
+    echo "65 boxes in 3KB drew a size warning: $(echo "$output" | jq -r '.warning_details[]')"
+    return 1
+  fi
 }
 
 @test "3.1: PIN a normal-sized tasks.md draws no ceiling warning" {
@@ -150,17 +155,12 @@ EOF
   fi
 }
 
-# --- 0.7.0: the ceiling is per engineering level, and counts the Task List ---
+# --- 0.7.1: the level no longer caps the number of tasks ---
 # Contract (references/tasks.md § Authoring Ceiling, references/engineering-level.md):
-#   - a declared `engineering:` sets the box arm: experiment 5, tool 12,
-#     project 24, product 40 — silent AT the ceiling, warning one over, the
-#     warning naming the level and still citing references/tasks.md;
-#   - only Task List boxes count: Quality Gates boxes and boxes inside a code
-#     fence never do;
-#   - an invented level is an ERROR naming the four values;
-#   - no level keeps the pre-level 60, so a legacy story validates as it did;
-#   - tasks.md is authoritative over story.md, and story.md is read when
-#     tasks.md declares nothing.
+#   - the plan has ONE threshold, on bytes; no count of Task List boxes warns,
+#     at any engineering level;
+#   - an invented level is still an ERROR naming the four values, and tasks.md
+#     is still authoritative over story.md for reading it.
 
 # level_fixture <engineering line or ""> <task boxes> <gate boxes> [with-story]
 # A Fast-shaped tasks.md with a fenced example (two boxes that must not count),
@@ -202,33 +202,16 @@ no_ceiling_warning() { # the negative shared by every silent case
   fi
 }
 
-@test "0.7.0: at each level's ceiling the Task List is silent — gates and fenced boxes are not counted" {
+@test "0.7.1: no number of Task List boxes warns, at any level" {
+  # 0.7.0 warned one box over 5 / 12 / 24 / 40. Those counts are now ordinary.
   local pair level n
-  for pair in "experiment 5" "tool 12" "project 24" "product 40"; do
+  for pair in "experiment 6" "tool 13" "project 25" "product 41" "product 80"; do
     level=${pair% *}; n=${pair#* }
-    # n Task List boxes + 5 gate boxes + 2 fenced boxes: over every ceiling if
-    # any of the two were counted, exactly at it when only the Task List is.
     level_fixture "engineering: $level" "$n" 5
     run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
     echo "$output" | jq -e . > /dev/null
     echo "$output" | jq -e '.errors == 0' > /dev/null
     no_ceiling_warning "$level at $n"
-  done
-}
-
-@test "0.7.0: one box over each level's ceiling warns, naming the level and citing references/tasks.md" {
-  local pair level n
-  for pair in "experiment 6" "tool 13" "project 25" "product 41"; do
-    level=${pair% *}; n=${pair#* }
-    level_fixture "engineering: $level" "$n" 0
-    run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
-    echo "$output" | jq -e . > /dev/null
-    echo "$output" | jq -e '.errors == 0' > /dev/null
-    if ! echo "$output" | jq -r '.warning_details[]' | grep 'references/tasks.md' | grep -q "'$level'"; then
-      echo "$level at $n: no ceiling warning naming the level; warnings were:"
-      echo "$output" | jq -r '.warning_details[]'
-      return 1
-    fi
   done
 }
 
@@ -241,7 +224,7 @@ no_ceiling_warning() { # the negative shared by every silent case
   echo "$output" | grep -q "experiment, tool, project, product"
 }
 
-@test "0.7.0: PIN no level keeps the pre-level ceiling — 60 Task List boxes stay silent" {
+@test "0.7.1: a story with no engineering field is silent whatever its size in boxes" {
   level_fixture "" 60 5
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   echo "$output" | jq -e . > /dev/null
@@ -249,17 +232,11 @@ no_ceiling_warning() { # the negative shared by every silent case
   no_ceiling_warning "no level at 60"
 }
 
-@test "0.7.0: tasks.md is authoritative for the level, and story.md is read when tasks.md is silent" {
-  # tasks.md experiment, story.md product, 6 boxes: experiment's ceiling fires.
+@test "0.7.1: tasks.md is still authoritative for the level — its invented value errors over a valid story.md" {
   level_story "engineering: product"
-  level_fixture "engineering: experiment" 6 0 with-story
+  level_fixture "engineering: throwaway" 6 0 with-story
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   echo "$output" | jq -e . > /dev/null
-  echo "$output" | jq -r '.warning_details[]' | grep 'references/tasks.md' | grep -q "'experiment'"
-  # story.md tool, tasks.md silent, 13 boxes: tool's ceiling fires from story.md.
-  level_story "engineering: tool"
-  level_fixture "" 13 0 with-story
-  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
-  echo "$output" | jq -e . > /dev/null
-  echo "$output" | jq -r '.warning_details[]' | grep 'references/tasks.md' | grep -q "'tool'"
+  echo "$output" | jq -e '.errors >= 1' > /dev/null
+  echo "$output" | grep -q "experiment, tool, project, product"
 }

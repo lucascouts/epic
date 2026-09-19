@@ -105,7 +105,7 @@ On detecting a `.wip` file:
 
 For Fast mode, `tasks.md` and `quality-catalog.md` are loaded — the legend lives at the top of `tasks.md`.
 For Standard mode, Phase 1 + Phase 3 references are loaded.
-[engineering-level.md](engineering-level.md) is loaded with `tasks.md` in every mode: the plan ceiling and the shape of Phase 3 are read from it.
+[engineering-level.md](engineering-level.md) is loaded with `tasks.md` in every mode: what the quality catalog activates and the shape of Phase 3 are read from it.
 
 On format doubts, load the relevant example from `assets/examples/`.
 

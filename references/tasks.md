@@ -150,25 +150,23 @@ The asymmetry between the last two is real and intended: a story whose only non-
 
 ### Authoring Ceiling
 
-**A plan warns when it passes 32 KB, or the box ceiling of its engineering level — `experiment` 5, `tool` 12, `project` 24, `product` 40 Task List boxes — whichever comes first.** A story that declares no level keeps the pre-level ceiling of 60 boxes, so a story written before the field validates as it did. This paragraph is the threshold's only home: every consumer cites it rather than repeating the numbers, so recalibrating a ceiling is one edit and not a hunt. The levels themselves are defined in [engineering-level.md](engineering-level.md).
+**A plan warns when it passes 32 KB.** That is the only threshold on the plan as a whole, and this paragraph is its only home: every consumer cites it rather than restating the number, so recalibrating it is one edit and not a hunt.
 
-The numbers come from the corpus and the harness, not from taste. Across the 2026-07 measurement a healthy `tasks.md` sits around 11 KB; the plans that had to be split afterwards ran 51–109 KB. The box arm exists because size in bytes and size in work are not the same thing — a plan can carry sixty-five checkboxes in three kilobytes of terse lines and still be more work than one person can hold — and it is **per level** because the measured pace is about one box per minute: the plan is where the multiple is decided, before any code. The single ceiling of 60 let plans of 43 and 47 boxes for a tool-shaped request through without a word (2026-09-17); at `tool` both stop at 12.
+**There is no ceiling on the number of tasks, and there was one until 0.7.0.** It was a table per engineering level — 5 / 12 / 24 / 40 Task List boxes — justified by a measured pace of about one box per minute. Both halves failed. The pace fit exactly one run of the harness and contradicted the next two, which planned 58 and 33 boxes and closed none of them in seventeen minutes; and a box is not a unit of work in the first place — "create `.gitignore`" and "implement the collection module" are each one box. **How many tasks a story has is derived from the work, not from its level.** Industry practice agrees: a work breakdown structure bounds the *size of each work package* — the 8/80 rule, eight to eighty hours, and explicitly a heuristic rather than a requirement — and never the count; agile story splitting prescribes no number of sub-tasks at all, only that each slice be independently valuable and verifiable.
 
-**The box arm counts the Task List only.** The Quality Gates section grows with the legend and not with the work, and the five fixed gates alone would fill an `experiment`; a box inside a code fence is documentation. Bytes keep their single arm at every level.
+**What replaces it is a bound on the unit.** A sub-task is **one Executor pass**: one objective, one set of files it may touch, and a `Validation:` command that can be run to prove it. A sub-task that cannot be validated on its own is too big, whatever the plan's total — and that is the question to ask, at any count. The number that follows is whatever the work requires.
 
-It is a **warning at every site, never a block**, and it makes three offers:
+The bytes arm comes from the corpus, not from taste: across the 2026-07 measurement a healthy `tasks.md` sits around 11 KB, and the plans that had to be split afterwards ran 51–109 KB.
 
-- **Cut** the scope — some of the boxes are not what was asked for
+The bytes warning is a **warning at every site, never a block**, and it makes two offers:
+
+- **Cut** the scope — some of what is planned is not what was asked for
 - **Split** the plan into waves — the scope is right and too big for one story
-- **Go down a level** — the plan was written for a longer life than the requester asked for; regenerated at the lower level it carries fewer quality items and fewer boxes
 
-The three sites, unchanged:
+The two sites: **at Phase 3** the orchestrator makes the offers — interactively as a question, headless as a logged note that proceeds; **at validation** `validate-story.sh` warns, so a plan that shipped oversized stays visible afterwards and not only at the moment it was written. In batch create the warning surfaces in the approval block and the split is deferred to a post-batch create — the live interview is never re-entered. See [batch-create.md](batch-create.md).
 
-- **At Phase 3**, the orchestrator makes the offers — interactively as a question, headless as a logged note that proceeds.
-- **At validation**, `validate-story.sh` warns, naming the level, so a plan that shipped oversized stays visible afterwards and not only at the moment it was written.
-- **In batch create**, the warning surfaces in the approval block and the split is deferred to a post-batch create — the live interview is never re-entered. See [batch-create.md](batch-create.md).
+A story that genuinely needs a large plan keeps it: the threshold asks the question, the author answers it.
 
-A story that genuinely needs a large plan keeps it: the ceiling asks the question, the author answers it.
 
 ### Metadata Line Fields
 
@@ -300,7 +298,7 @@ The five gates in the template are fixed. After them, the section carries **one 
 - Every task group must have a Commit field (inline or as sub-task)
 - Sub-tasks inherit parent metadata — only override what differs
 - A `Quality:` field cites legend lines (`Q2, Q5`); a generated gate carries its command; neither is hand-numbered outside the legend
-- `engineering:` in the frontmatter is one of `experiment`, `tool`, `project`, `product`; `tasks.md` is authoritative for it, as for `scale:`, and the box ceiling is read from it ([engineering-level.md](engineering-level.md))
+- `engineering:` in the frontmatter is one of `experiment`, `tool`, `project`, `product`; `tasks.md` is authoritative for it, as for `scale:`, and what the level buys is read from it ([engineering-level.md](engineering-level.md))
 
 ## Fast Scale Adaptations
 

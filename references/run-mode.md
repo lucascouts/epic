@@ -78,7 +78,7 @@ Read the sub-task's own body and take the **first** route that matches.
 |---|---|---|---|
 | **Verification** | its Objective is to review, audit or validate work that is already done | **Sub-agent, always** | here the fresh context *is* the product — whoever did not watch the author work is the only one who can see what the author cannot |
 | **Exploratory** | `Context.Files` lists many files, or names a directory instead of files, or the ToDo says where to look rather than what to change | **Sub-agent** | the throwaway reading dies with the sub-agent instead of settling into the orchestrator's context for the rest of the run |
-| **Closed spec** | the ToDo names the files to create or modify, `Validation` carries a runnable command, and `Context` is absent or lists at most a couple of files | **Main agent, inline** | every input is already in hand; a sub-agent would spend its first minutes re-deriving them |
+| **Closed spec** | the ToDo names the files to create or modify, `Validation` carries a runnable command, and `Context` is absent or lists at most a couple of files | **Main agent, inline** — or a **fork** each, when several of them are independent (see Fork Route) | every input is already in hand; a sub-agent would spend its first minutes re-deriving them, and a fork has them already |
 | anything else | — | **Sub-agent** | when the sub-task does not say enough to route it, the isolated context is the safe default |
 
 `Complexity` still governs the two columns the route does not decide. A sub-task carrying its own `Complexity` override uses that value; otherwise it inherits the parent's:
@@ -124,6 +124,31 @@ The main agent executes directly but MUST follow the same step sequence as the E
 For an **inline-routed** sub-task under the run-time ordering above (Fast, spike, or an `experiment`/`tool` story, `Tests` present), the main agent is the **single author** for the whole cycle: it authors the test, runs it, confirms **Red** (for the right reason), then implements inline to **Green**, validates, and **Refactors** — all in the one inline execution. The unexpected-green rule above applies: revise once, then escalate.
 
 **The box is closed the same way it is on the Executor path** — one `close-subtask.sh` invocation, never a hand edit (see Closing a Box). Being the single author makes the main agent the executor here; it does not make it a second writer of the checkbox grammar. It produces the same closing block for itself that an Executor would have reported, and feeds it to the same script.
+
+### Fork Route — inline, in parallel
+
+**A fork is the orchestrator duplicated, not a fresh worker.** It inherits the parent conversation instead of starting fresh, receives the main conversation's exact tool pool, and runs on the main conversation's model. That is precisely the property the Closed-spec row was written around: the row routes inline because a fresh sub-agent would spend its first minutes re-deriving what the orchestrator is already holding. A fork holds it already — so what it buys over inline is not context, it is **overlap**. Several closed-spec sub-tasks that are independent under the Parallel Execution detection run at once instead of one after another.
+
+**The protocol travels in the prompt.** A fork does not carry the Executor's system prompt — it carries the orchestrator's — so the six steps, the sub-task body and the closing block are written into the spawn prompt verbatim. A fork is *inline done elsewhere*: same steps, same `close-subtask.sh` call, same closing block, and the box is closed in the main tree by the orchestrator when the fork returns.
+
+**When to take it — and why it is rarely the answer.** The three tests are the ones the Parallel Execution detection already runs, at sub-task granularity: two or more pending sub-tasks route Closed spec, their dependencies are satisfied, and they touch no common file. One closed-spec sub-task alone stays inline. The same maximum of five applies.
+
+**But a fork must first beat inline, and at this plugin's unit size it usually does not.** Measured 2026-09-18 on Claude Code 2.1.277, ten trivial independent sub-tasks, same machine, same model:
+
+| Route | Wall clock | Cost |
+|---|---|---|
+| inline, one after another | **10.9 s** | **$0.071** |
+| ten forks in one message | 20.7 s | $0.319 |
+| ten `general-purpose` sub-agents | 21.2 s | $0.470 |
+
+Spawn overhead dominates when the unit is small, and a sub-task here is small by construction — one Executor pass with a `Validation:` command that proves it alone. **Take the Fork Route only when each sub-task is large enough for overlap to repay the spawn**, and record the reason. A plan whose sub-tasks each finish in under a minute is a plan to run inline.
+
+**Two environment gates, and neither does what its name suggests.**
+
+- `CLAUDE_CODE_FORK_SUBAGENT=1` enables the fork agent type. It is off by default in non-interactive mode (`-p`) and in the Agent SDK, so a run that does not set it gets `Agent type 'fork' not found` and must fall back to inline, in order, without comment.
+- `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` is **not a fork setting and is required on every run**, fork or no fork. Measured 2026-09-18 on 2.1.277: under `-p`, sub-agents are backgrounded **by default with fork mode off** — ten `general-purpose` spawns with `CLAUDE_CODE_FORK_SUBAGENT=0` all reported `is_backgrounded: true`. A backgrounded sub-agent's result arrives only as a completion notification in a later turn, which is exactly the failure story 026 fixed, and it reaches the Analyst, the Validator and the Auditor as much as any fork. With the variable set, ten forks all reported `is_backgrounded: false` — **it does restore the foreground**, in fork mode and out of it.
+
+**Worktrees are still the isolation.** Forks writing different files at once are as capable of colliding as Executors are; the group runs under the same worktree discipline as Parallel Execution, and boxes are closed only in the main tree, sequentially, after each merge.
 
 ### Delegated Route — Executor Sub-agent
 
