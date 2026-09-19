@@ -11,6 +11,83 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+Three commits, one through-line: **a level decides how much engineering a story
+buys, never how much safety** — and the cheapest way to say "this one is
+disposable" should not cost a conversation. Plus the corrections that came out
+of measuring the plugin instead of reasoning about it.
+
+### Added
+
+- **`/epic:epic instant <description>` — the disposable-work shortcut.** Three
+  pins and no new state: `scale: fast`, `engineering: experiment`, and a quality
+  legend holding the security floor alone. The technical question round does not
+  run, because typing `instant` already answers the first question of the intent
+  cascade. No artifact carries the value `instant` — it is an entrance, not a
+  state, so validation, the index and the telemetry read such a story exactly as
+  they read any other. When the request is plainly larger than the shortcut, the
+  Epic says so in one line and proceeds anyway: the requester chose the level,
+  and a shortcut that argues is a shortcut nobody uses.
+  ([`SKILL.md`](skills/epic/SKILL.md#instant--the-disposable-work-shortcut))
+- **The security floor — three items no level drops.** Until now `experiment`
+  activated *nothing* and its legend read `none`. A throwaway is thrown away;
+  the machine it ran on is not, and neither is the account whose token it
+  carried. The floor is **supported and declared runtime**, **secrets** and
+  **dependency CVEs** — one command each, no configuration file, seconds to run.
+  A floor that cost minutes would be argued with; this one is cheaper than the
+  argument. ([`quality-catalog.md`](references/quality-catalog.md))
+- **The runtime item now carries the clean-version rule.** Prefer the LTS; take
+  the current widely-used stable instead **when the LTS is the one carrying a
+  known vulnerability**. A hello world on an end-of-life interpreter is
+  vulnerable before its first line, because the environment is the hole.
+
+### Changed
+
+- **The four engineering levels are restated in the requester's own
+  vocabulary**, and the level is fished for as a **cascade inside the
+  orientation round**, stopping at the first answer that settles it. Intent
+  rounds do not count against the question budget; technical rounds do. The
+  cascade stops when a round changes neither the level nor the range of
+  technology still open, and where ambiguity survives that, a free-text answer
+  is asked for rather than another menu. `experiment` stops meaning "disposable"
+  — the artifact may well go on being used exactly as it is; what does not exist
+  is any intention to maintain it.
+- **The floor is `fast`, and it rises only when an answer pushes it — and it may
+  come back down.** Going down is cheap; going up after the work has been paid
+  for is not. Triage no longer assumes `tool` when the request does not settle
+  the level: measured 2026-09-18, that default put a beginner's throwaway CRUD
+  at 9.4× its control in wall clock and 14.5× in cost, where `tool` promises
+  2–3×. ([`engineering-level.md`](references/engineering-level.md))
+- **The per-level box ceiling is gone; the bound moved to the unit.** A sub-task
+  is one Executor pass with a `Validation:` command that proves it alone — which
+  is the limit a work breakdown structure actually applies (size of the work
+  package, never the count). The plan keeps its single threshold in bytes.
+  ([`tasks.md`](references/tasks.md#authoring-ceiling))
+- **The Architect reasons over the Analyst's scan instead of repeating it.**
+  Four of its five original tasks were already answered by the block its own
+  prompt injects verbatim; only the gotcha hunt was ever unique to the persona,
+  and integration points are re-scoped rather than duplicated — the Analyst
+  answers them against the raw request, the Architect against `story.md`.
+  ([`architect.md`](agents/architect.md))
+- **The Fork Route carries its measured economics.** Ten trivial independent
+  sub-tasks, Claude Code 2.1.277: inline finished in 10.9 s for $0.071, ten
+  forks in 20.7 s for $0.319, ten `general-purpose` sub-agents in 21.2 s for
+  $0.470. Spawn overhead dominates when the unit is small, and a sub-task here
+  is small by construction. Take the route only when each sub-task is large
+  enough for overlap to repay the spawn, and record the reason.
+
+### Fixed
+
+- **`CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` is documented correctly at last.**
+  It is **not a fork setting** and is required on every run, fork or no fork:
+  under `-p`, sub-agents are backgrounded *by default with fork mode off* — ten
+  `general-purpose` spawns with `CLAUDE_CODE_FORK_SUBAGENT=0` all reported
+  `is_backgrounded: true`. A backgrounded sub-agent's result arrives only as a
+  completion notification in a later turn, which is the failure story 026 fixed,
+  and it reaches the Analyst, the Validator and the Auditor as much as any fork.
+  With the variable set, ten forks all reported `is_backgrounded: false`. The
+  previous text claimed the opposite on the strength of a single unrepeated
+  probe. ([`run-mode.md`](references/run-mode.md))
+
 ## [0.7.0] — 2026-09-17
 
 Seven commits on the 0.7.0 branch, one through-line: **who is asking, how the
