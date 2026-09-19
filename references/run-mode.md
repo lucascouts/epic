@@ -376,6 +376,10 @@ Metadata lines and the `Objective`, `Validation`, `Requirements` and `Commit` fi
 
 Always executed by the main agent (not a sub-agent). Git operations require the main worktree context, so in a parallel batch the commit runs **after** the merge and never inside a worktree (see Parallel Execution).
 
+**Stage by name, never `git add -A` or `git add .`.** The commit stages the files the sub-tasks named and nothing else. A blanket add sweeps in whatever the run happened to leave beside them — measured 2026-09-19, that is how `.epic/` itself reached the index in a session where the `epic-gitignore.sh` SessionStart hook had not run, which is every Agent SDK session and every `-p` invocation. The hook is a convenience, not a guarantee, and a rule that only holds when a hook fired is not a rule. Staging by name also keeps the generated artifacts, the runtime data file and the compiled binary out of the commit without depending on a `.gitignore` anyone remembered to write.
+
+**When `.epic/` is untracked and no ignore rule covers it, leave it that way and say so in one line.** Do not add an ignore rule on the story's behalf: whether the artifacts belong in git is the workspace's policy to declare, and `scripts/epic-gitpolicy.sh` is what reports a workspace contradicting itself. Silently committing them decides that policy by accident.
+
 **The message is the pre-authored one, verbatim (R3.4).** The `Commit:` message was written at plan time and carries the story's `type(NNN):` anchor — the one `validate-story.sh` lints for and `story-git-status.sh` counts back as `anchored_commits`. Rewording it at commit time spends that anchor, and the story's own commits stop being findable. The Executor never runs `git commit`: it reports, in its closing block, the pre-authored message it validated against, and the orchestrator is what executes it.
 
 ### Deferred Red for E2E sub-tasks

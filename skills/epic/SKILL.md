@@ -272,7 +272,13 @@ When a command references `NNN`:
 
 **No technical question round.** The intent cascade is already answered and does not run. A technical choice the request leaves open is taken as a recommended default and recorded on its line — never turned into a question. The requester asked for the short path; spending their turn on a menu is the one thing `instant` exists to avoid.
 
-**What it does not remove.** The three pins are the whole difference. Triage still runs, the plan is still written, every box still carries a `Validation:` that proves it alone, and every box still points at a requirement, a quality item or a named infrastructure bucket. `instant` buys a smaller decision, not a looser one.
+**What it does not remove.** The three pins are the whole difference. Triage still runs, the plan is still written, and every box still carries a `Validation:` that proves it alone.
+
+**What it does cost, said plainly.** `instant` does not only drop ceremony — **it drops protections the person using the program would have had**, and it drops them without asking. Measured across three runs on 2026-09-19, two requesters and two languages, the shortcut decided alone to: leave out an operation the same requester had asked for when asked; make an unreadable answer cost a point where the un-shortcut run re-asked the question for free; delete a record without confirming; and ship an interface in a language the requester had chosen differently when consulted. In one run it produced **no README at all** — less documentation than the same request answered with no Epic in the session.
+
+That is a fair bargain for something disposable, and it is not a bug. It stops being fair the moment it is silent. So:
+
+**Every decision taken alone that reduces protection or documentation goes in the end-of-run report, not only in the plan.** One line each, naming what was dropped and what it would have cost to keep — the requester finds out by reading, never by being bitten. A decision that merely picks between equivalent means (a library, a file layout, an identifier scheme) stays in the plan where it belongs.
 
 **When the request is plainly bigger than the shortcut** — several integrated surfaces, or a thing the description itself says others will depend on — **say so in one line and proceed anyway.** The requester chose the level; a shortcut that argues is a shortcut nobody uses. The line is a note, never a gate:
 

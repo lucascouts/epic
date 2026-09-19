@@ -21,7 +21,7 @@ The multiple is against the **control** — the same request answered by the mod
 
 **Proposed at triage, from the request, and confirmed by the triage gate.** Triage reads the level the way it reads the requester ([SKILL.md](../skills/epic/SKILL.md#triage-protocol)): from the words — "for a class", "to see if it works", "we ship this to customers", "my team" — and records it with the evidence. When the request does not settle it, the cascade below is asked rather than a level assumed. Measured 2026-09-18: defaulting to `tool` without asking put a beginner's throwaway CRUD at 9.4x its control in wall clock and 14.5x in cost, where `tool` promises 2-3x. `experiment` and `product` are never assumed: the first drops every check, the second buys every one.
 
-**The proposal line carries the price, in one line.** Whatever the level, the proposal states it with its multiple in words the requester chooses by:
+**The proposal line carries the price, in one line — and the scale rides with it.** Whatever the level, the proposal states it in words the requester chooses by, **and names the scale beside it**: the scale decides which artifacts get written, and measured 2026-09-19 it moved the bill further than the level did (same requester, same request, same `experiment` level: `standard` cost 10.9× its control, `fast` cost 4.3×). A price the requester never sees is a price they cannot refuse.
 
 > Engineering: tool — you will keep using this and fix it when it breaks, so I test each part as I build it. About 2–3× the time of a throwaway version. Say so if it is only for today, or if others will depend on it.
 
@@ -34,6 +34,8 @@ For a `layperson` the same line is one of the three lines of the plain-register 
 3. *Do you intend to offer it as a product or a service?* → no = `project` · yes = `product`
 4. **Conditional, and only when an answer above opened it** — how the others receive it (a public repository, a private one, a file sent directly), and free or paid. These are separate questions that complete each other; one round cannot settle them all.
 
+**No option in a level question is ever marked recommended, in any register.** A recommendation answers *what is the better engineering* — but this question asks *what do you intend to do with the thing*, and there is no better answer to that than the requester's own. Marking one is a category error, not a nudge. Measured 2026-09-19 on one commit: the `layperson` branch asked it as its own question, unmarked, with the price in plain words, while the `developer` branch folded it into the plan gate with `tool` pre-marked `(Recommended)`. **The layperson form is the correct one; the developer branch uses it too, changing only the vocabulary** — never the shape, never the marking, never the position. A technical question in the same round may carry a recommendation, and should; this one may not.
+
 **These are intent rounds, and intent rounds do not count against the question budget** ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)). Technical rounds do. The cascade stops when a round changes neither the level nor the range of technology still open; where real ambiguity remains after that, ask for a free-text answer rather than offering a further set of options.
 
 **The floor is `fast`, and it rises only when an answer pushes it — and it may come back down.** Going down is cheap; going up after the work has been paid for is not. When the answers move the level, the proposal line is restated once, with the new price, before Phase 1.
@@ -44,7 +46,9 @@ For a `layperson` the same line is one of the three lines of the plain-register 
 
 - **The frontmatter** of every artifact, beside `scale:` — `engineering: experiment | tool | project | product`. `tasks.md` is authoritative, as it is for the scale; a value outside the four is a validation error naming the set; absence is legal and silent.
 - **`meta.yaml`**, beside the `requester` block, from the moment the level is proposed.
-- **The run** — the execution plan and the end-of-run report both open with **the recorded line**: scale, requester level, engineering level with its expected multiple, and the plan size in Task List boxes — `standard · developer · tool (2–3×) · 11 boxes`; the report adds the wall clock and the boxes closed. That line is what the persona harness reads to compare a run against its control; a run without it is a run nobody can measure ([run-mode.md](run-mode.md#run-mode-rules)).
+- **The run** — the execution plan and the end-of-run report both open with **the recorded line**: scale, requester level, engineering level with the multiple the level *expects*, and the plan size in Task List boxes — `standard · developer · tool (2–3×) · 11 boxes`; the report adds the wall clock and the boxes closed. That line is what the persona harness reads to compare a run against its control; a run without it is a run nobody can measure ([run-mode.md](run-mode.md#run-mode-rules)).
+
+  **The report never states the multiple this run achieved.** It cannot: the multiple is against a control — the same request answered with no plan at all — and nobody ran one. `(2–3×)` in the recorded line is the level's *promise*, never a measurement, and the report must not restate it as an outcome. Measured 2026-09-18, a run reported "the cost landed at ~5–6× the control" where the executed control put it at **11×** — an estimate presented as a result, erring in the direction that made the run look inside the owner's 5× rule. Report the wall clock and the tokens, which are measured; leave the ratio to whoever holds a control.
 
 ## What each level pays for
 

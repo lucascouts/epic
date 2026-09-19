@@ -323,3 +323,81 @@ hasF() { # hasF <label> <block> <fixed string>
   grep -qE '^"instant <description>"' "$f"
   grep -q '| \*\*Instant\*\* |' "$f"
 }
+
+# --- The six corrections measured out of the 2026-09-19 relay series ---------
+#
+# Six runs, two requesters, two languages, one human answering every question.
+# Each case below pins a defect the series exposed, and each names the number
+# that justifies the rule so a later reader can argue with the evidence rather
+# than the taste.
+
+@test "E15: the scale is proposed beside the level — the requester sees the bigger price" {
+  read_=$(section "$ROOT/references/engineering-level.md" '^## How the level is read' '^## ')
+  has "E15 scale in proposal" "$read_" "scale"
+  # 10.9x vs 4.3x, same requester, same request, same level: the scale moved
+  # the bill further than the level did.
+  has "E15 measured" "$read_" "10.9"
+}
+
+@test "E15b: rising above the fast floor owes a written reason" {
+  has "E15b field" "$(cat "$ROOT/references/tasks.md")" "scale_reason"
+  why=$(section "$ROOT/references/tasks.md" '^## Why the Scale Rose' '^## ')
+  [ -n "$why" ]
+  has "E15b floor" "$why" "floor"
+  has "E15b warns" "$why" "warns"
+}
+
+@test "E15c: the scale_reason check fails OPEN on absence — the legacy contract holds" {
+  # The rule every new field in this validator follows. A story written before
+  # the field must validate exactly as it did; only a field STARTED and left
+  # empty is an unfinished story.
+  v="$ROOT/scripts/validate-story.sh"
+  grep -q 'scale_reason' "$v"
+  has "E15c fail-open" "$(cat "$v")" "ABSENCE IS SILENT"
+}
+
+@test "E16: a level question carries no recommended option, in any register" {
+  read_=$(section "$ROOT/references/engineering-level.md" '^## How the level is read' '^## ')
+  has "E16 rule" "$read_" "ever marked recommended"
+  has "E16 both registers" "$read_" "any register"
+  # The developer branch adopts the layperson form, changing only vocabulary.
+  has "E16 direction" "$read_" "layperson form is the correct one"
+}
+
+@test "E17: no dependencies is a verdict, not a failure" {
+  floor=$(section "$ROOT/references/quality-catalog.md" '^### The security floor' '^## ')
+  has "E17 verdict" "$floor" "verdict, not a failure"
+  # osv-scanner exits 128 on a zero-dependency project: an error where the
+  # honest answer is "nothing to report".
+  has "E17 measured" "$floor" "128"
+  has "E17 never failed" "$floor" "never failed for having nothing to scan"
+}
+
+@test "E18: the README is in the floor — a program nobody can run is not usable as it is" {
+  floor=$(section "$ROOT/references/quality-catalog.md" '^### The security floor' '^## ')
+  has "E18 readme" "$floor" "README"
+  has "E18 count" "$floor" "four items no level drops"
+}
+
+@test "E19: instant declares what it drops, and the report carries it" {
+  sec=$(section "$ROOT/skills/epic/SKILL.md" '^## Instant' '^## ')
+  has "E19 cost" "$sec" "drops protections"
+  has "E19 report" "$sec" "reduces protection or documentation"
+  has "E19 not only plan" "$sec" "not only in the plan"
+}
+
+@test "E20: the report never states the multiple the run achieved" {
+  rec=$(section "$ROOT/references/engineering-level.md" '^## Where it is recorded' '^## ')
+  has "E20 rule" "$rec" "never states the multiple"
+  # Reported ~5-6x where the executed control put it at 11x.
+  has "E20 measured" "$rec" "11"
+}
+
+@test "E21: the commit stages by name — never a blanket add" {
+  commit=$(section "$ROOT/references/run-mode.md" '^### The Commit Field' '^### ')
+  [ -n "$commit" ]
+  has "E21 rule" "$commit" "Stage by name"
+  has "E21 blanket" "$commit" "git add -A"
+  # The hook is a convenience, not a guarantee: it does not run under -p.
+  has "E21 why" "$commit" "hook"
+}

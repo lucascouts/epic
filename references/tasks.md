@@ -9,6 +9,7 @@ Use this template for the `tasks.md` file in all story types and scales.
 story: <story-name>
 type: feature | bugfix
 scale: fast | standard | full | spike
+scale_reason: <one line — required whenever scale is not `fast`>
 version: 1
 created: <date>
 ---
@@ -63,6 +64,14 @@ created: <date>
 - [ ] Q2 — Lint: `<command>` exits 0
 - [ ] Q5 — Unit tests: `<command>` green
 ```
+
+## Why the Scale Rose
+
+**`fast` is the floor, and rising above it costs a written reason.** `scale_reason:` holds it — one line, in the frontmatter, naming what in the request made the smaller shape insufficient. Absent at `fast`, expected at every other scale; validation warns when it is missing, never blocks.
+
+The field exists because the scale was the largest unexamined line of the bill. Measured 2026-09-19, same requester, same request, same `experiment` level: the run that resolved to `standard` cost **10.9×** its executed control and 21 minutes; the one that resolved to `fast` cost **4.3×** and 10 minutes. The level had been asked about and answered; the scale had not been mentioned once in the whole conversation — it surfaced only in the recorded line, with the plan already written. **A decision that moves the bill more than the level does cannot be the one decision nobody states.**
+
+A reason is not a justification ritual: "three integrated surfaces and a migration" is a reason; "the request is complex" is not, because it names nothing the reader can check.
 
 ## The Declared Scale
 

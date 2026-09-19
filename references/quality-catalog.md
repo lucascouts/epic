@@ -25,24 +25,27 @@ Cheap, universal, and each provable by one command. A story that leaves one out 
 | Error handling | every error carries context and none is swallowed | the story's tests; a grep for bare `catch {}`, `_ = err`, `except: pass` |
 | Unit tests | each unit of logic has a test, written first | `go test ./...` · `npm test` · `pytest` · `cargo test` · `bats tests/` |
 | Lockfile and frozen install | the same dependency versions on every machine | `npm ci` · `--frozen-lockfile` · `pip install --require-hashes` · `go mod verify` |
-| Dependency vulnerabilities | no known CVE in the dependency list (SCA) | `trivy fs .` · `osv-scanner .` · `cargo audit` · `govulncheck ./...` |
+| Dependency vulnerabilities | no known CVE in the dependency list (SCA) — **a project with no dependencies satisfies this item**: zero dependencies is zero CVEs | `trivy fs .` · `osv-scanner .` · `cargo audit` · `govulncheck ./...` |
 | Secrets | no credential in the tree or the history | `gitleaks detect` |
 | README | how to run and how to test, in the repository | the two commands the README names exist and run |
 | `.gitignore` and `.editorconfig` | generated files stay out; indentation is agreed | both files exist; `git status --short` is clean after a build |
 | Supported and declared runtime | the runtime is a supported release with no known vulnerability — an LTS or the current widely-used stable, **whichever is clean** — and the project declares it: `engines` in `package.json`, the `go` directive of `go.mod`, `requires-python`, `.tool-versions` | the declaration exists and names a supported version; `node --version` · `go version` against the vendor's support table |
 | Dependencies justified and current | every dependency has a one-line reason the standard library or the code already there was not enough, recorded where the choice was made, and is a current release | the manifest's list against the story's `## Constraints` or the design's decisions; `npm outdated` · `go list -m -u all` · `pip list --outdated` |
 
-### The security floor — three items no level drops
+### The security floor — four items no level drops
 
-**`experiment` is the only level that activates nothing else, and it still activates these.** A throwaway is thrown away; the machine it ran on is not, and neither is the account whose token it carried.
+**`experiment` is the only level that activates nothing else, and it still activates these four.** A throwaway is thrown away; the machine it ran on is not, and neither is the account whose token it carried.
 
 | Floor item | Why it survives every level | Typical command |
 |---|---|---|
 | Supported and declared runtime | a program is only as safe as the interpreter under it — a hello world on an end-of-life runtime is vulnerable before its first line, because the environment is the hole. **Prefer the LTS; take the current widely-used stable instead when the LTS is the one carrying a known vulnerability** | the declaration exists; `node --version` · `go version` against the vendor's support table, then the CVE scanner against that version |
 | Secrets | a credential leaked from a script leaks exactly as far as one leaked from a product | `gitleaks detect` |
-| Dependency vulnerabilities (SCA) | a malicious or vulnerable package does not ask what the project's engineering level is | `trivy fs .` · `osv-scanner .` · `cargo audit` · `govulncheck ./...` |
+| README | a program nobody can run is not a program you can "go on using exactly as it is" — the level's own promise. Two lines: how to run it, how to check it | the commands the README names exist and run |
+| Dependency vulnerabilities (SCA) | a malicious or vulnerable package does not ask what the project's engineering level is | `trivy fs .` · `cargo audit` · `govulncheck ./...` — see the empty-manifest note below |
 
-The three are chosen as much for their price as for their weight: **one command each, no configuration file, seconds to run.** A floor that cost minutes would be argued with; this one is cheaper than the argument.
+**No dependencies is a verdict, not a failure.** A project that declares none satisfies the SCA item outright, and that is the *common* case at `experiment`, not the exception. Some scanners disagree with their own exit code: measured 2026-09-19, `osv-scanner .` on a zero-dependency Node project exits **128** with `no package sources found` — an error, where the honest answer is "nothing to report". Pick a tool that gives the verdict (`trivy fs .` does), or record `no dependencies` as the result and move on. **A story is never failed for having nothing to scan.**
+
+The four are chosen as much for their price as for their weight: **one command or one file each, no checker configuration, seconds to run.** A floor that cost minutes would be argued with; this one is cheaper than the argument. The README is the only one that is written rather than run, and it is here for the same reason as the rest: `experiment` promises the thing stays usable as it is, and a program whose run command lives only in a chat transcript does not.
 
 Everything else in this catalog stays bound by the level.
 

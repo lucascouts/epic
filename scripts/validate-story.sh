@@ -559,6 +559,44 @@ fi
 if [[ "$HAS_TASKS" == true ]]; then
   TASKS_FILE="$STORY_DIR/tasks.md"
 
+  # --- Why the scale rose (0.7.1) -----------------------------------------
+  # `fast` is the floor; every other scale owes one line naming what in the
+  # request made the smaller shape insufficient. The reason is read from the
+  # same artifact the resolved value came from, so the two cannot drift apart.
+  # (Which artifact that is, and why, is settled above — not restated here: the
+  # comment lint counts statements of that rule and a fourth one false-Reds.)
+  #
+  # WARNING, NEVER AN ERROR, and fail-OPEN on absence: the scale is the
+  # author's call, and a story written before the field validates as it did.
+  # Silent at `fast`, where there is nothing to justify.
+  #
+  # WHY IT EXISTS: measured 2026-09-19, one requester, one request, one
+  # `experiment` level. The run that resolved to `standard` cost 10.9x its
+  # executed control and took 21 minutes; the one that resolved to `fast` cost
+  # 4.3x and took 10. The level had been asked about and answered; the scale
+  # was never mentioned in the whole conversation, surfacing only in the
+  # recorded line with the plan already written. The decision that moved the
+  # bill most was the one decision nobody stated.
+  # ABSENCE IS SILENT, and that is not laxity — it is this file's rule for every
+  # new field, the one `engineering:` established in 0.7.0: fail-OPEN on
+  # absence, fail-CLOSED on a value that is present and wrong. A story written
+  # before the field must validate exactly as it did, and the hard contract in
+  # R2.2 says so in a test. What is checked is the field an author STARTED and
+  # left empty — `scale_reason:` with nothing after it is not a legacy story,
+  # it is an unfinished one.
+  if [[ -n "$DECLARED_SCALE" && "$DECLARED_SCALE" != "fast" ]] \
+     && grep -qE '^scale_reason:' "$TASKS_FILE" 2>/dev/null; then
+    SCALE_REASON="$(awk '
+      NR == 1 && $0 != "---" { exit }
+      NR > 1 && $0 == "---" { exit }
+      /^scale_reason:[[:space:]]*/ { sub(/^scale_reason:[[:space:]]*/, ""); print; exit }
+    ' "$TASKS_FILE" 2>/dev/null || true)"
+    SCALE_REASON="${SCALE_REASON#"${SCALE_REASON%%[![:space:]]*}"}"
+    if [[ -z "$SCALE_REASON" ]]; then
+      add_warning "tasks.md declares scale '$DECLARED_SCALE' and an empty 'scale_reason:' — 'fast' is the floor, and rising above it owes one line naming what made the smaller shape insufficient (references/tasks.md, Why the Scale Rose)"
+    fi
+  fi
+
   # Check task title format (new format: - [ ] N - Name)
   OLD_FORMAT_COUNT=$(grep -cE '^\s*- \[[ x~]\].*\*\*\[T[0-9]\]\*\*' "$TASKS_FILE" 2>/dev/null || true)
   if [[ "$OLD_FORMAT_COUNT" -gt 0 ]]; then
