@@ -8,14 +8,15 @@ description: >
   development work. Use when asked to: create, refine, or expand a
   story; list or manage existing stories; run/execute tasks from a
   story; validate implementation against plan. It also routes the
-  management modes: init, migrate a story to the current format,
+  management modes: init, instant for disposable work that nobody will
+  maintain, migrate a story to the current format,
   create --batch to draft many stories from one document, archive,
   supersede, and teams. Also trigger when the user says "create an epic
   for X", "document this feature", "structure this sprint", "what
   needs to be done to implement X?", "list stories", "run story",
   "execute tasks", "validate implementation" — even without saying
   "epic" or "story" explicitly.
-argument-hint: "[description] or [stories migrate NNN] or [stories create --batch <doc>] or [stories] or [stories full] or [stories run|validate|refine NNN] or [stories supersede NNN --by MMM] or [stories NNN run N|all] or [init]"
+argument-hint: "[description] or [instant <description>] or [stories migrate NNN] or [stories create --batch <doc>] or [stories] or [stories full] or [stories run|validate|refine NNN] or [stories supersede NNN --by MMM] or [stories NNN run N|all] or [init]"
 allowed-tools:
   - Read
   - Glob
@@ -173,6 +174,10 @@ $ARGUMENTS parsing:
 "init"
   → INIT mode (project configuration wizard)
 
+"instant <description>"
+  → CREATE mode, pinned: fast scale, `experiment` level, security floor only,
+    no technical question round. The disposable-work shortcut (see Instant).
+
 "stories migrate NNN [--apply]"
   → MIGRATE mode (normalize a legacy story into the canonical shapes;
     dry run by default — scripts/migrate-story.sh writes nothing without --apply)
@@ -239,6 +244,7 @@ When a command references `NNN`:
 | Mode | Trigger | Reference to load |
 |---|---|---|
 | **Create** | `/epic:epic` or `/epic:epic <description>` | Continue below (Triage + Clarify + Phases) |
+| **Instant** | `/epic:epic instant <description>` | Continue below — Create with the three pins of [Instant](#instant--the-disposable-work-shortcut) |
 | **Migrate** | `/epic:epic stories migrate NNN [--apply]` | Run `scripts/migrate-story.sh` (or `bin/epic-migrate`) — dry run by default; it reports the rewrites as JSON and the diff on stderr, and writes only with `--apply` |
 | **Batch Create** | `/epic:epic stories create --batch <doc>` | Load [batch-create.md](../../references/batch-create.md) — one interview, N stories; numbers come from `scripts/next-story-number.sh` |
 | **Init** | `/epic:epic init` | Load [init-mode.md](../../references/init-mode.md) |
@@ -253,6 +259,26 @@ When a command references `NNN`:
 | **CI/Headless** | Programmatic invocation via Agent SDK | Load [ci-mode.md](../../references/ci-mode.md) |
 
 **For Create mode, continue reading this file. For all other modes, load the referenced file first.**
+
+## Instant — the disposable-work shortcut
+
+`/epic:epic instant <description>` is **Create with three pins, not a fourth scale.** It writes the same `tasks.md` every Fast story writes; what it removes is the deciding, not the artifact.
+
+| Pin | Value | Why it is pinned rather than asked |
+|---|---|---|
+| `scale` | `fast` | the floor every story starts from ([engineering-level.md](../../references/engineering-level.md#how-the-level-is-read)) |
+| `engineering` | `experiment` | typing `instant` **is** the answer to the first cascade question — asking it again would be asking someone to repeat themselves |
+| Quality legend | the **security floor** only — supported runtime, secrets, dependency CVEs ([quality-catalog.md](../../references/quality-catalog.md#the-security-floor--three-items-no-level-drops)) | the floor is three commands and no configuration file; anything dropped below it would be dropping the machine's safety, not the story's ceremony |
+
+**No technical question round.** The intent cascade is already answered and does not run. A technical choice the request leaves open is taken as a recommended default and recorded on its line — never turned into a question. The requester asked for the short path; spending their turn on a menu is the one thing `instant` exists to avoid.
+
+**What it does not remove.** The three pins are the whole difference. Triage still runs, the plan is still written, every box still carries a `Validation:` that proves it alone, and every box still points at a requirement, a quality item or a named infrastructure bucket. `instant` buys a smaller decision, not a looser one.
+
+**When the request is plainly bigger than the shortcut** — several integrated surfaces, or a thing the description itself says others will depend on — **say so in one line and proceed anyway.** The requester chose the level; a shortcut that argues is a shortcut nobody uses. The line is a note, never a gate:
+
+> Noted: this looks larger than `instant` usually covers. Proceeding at `experiment` as asked — say the word and I will re-run it at `tool`.
+
+**Recorded like any other story.** `scale: fast` and `engineering: experiment` go in the frontmatter, so validation, the index and the telemetry read an `instant` story exactly as they read any other. There is no `instant` value anywhere in the artifacts — the shortcut is an entrance, not a state.
 
 ## Story Types
 

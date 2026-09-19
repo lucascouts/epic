@@ -8,10 +8,10 @@ This file is the single home of the four levels, their multiples and what each a
 
 | Level | What it means | The question that reveals it | Expected cost |
 |---|---|---|---|
-| `experiment` | Disposable. It answers a question and nobody comes back to it, even if others run it once | "A month from now, will you open this again?" — no | **1×** — the minimum that works |
-| `tool` | Kept in use and fixed when it breaks, with no deadline and nobody else depending on it | "When it breaks, do you fix it or redo it?" — fix | **2–3×** |
-| `project` | Maintained: updated with some regularity, and other people depend on it or contribute to it | "Will anyone besides you run it or change it?" — yes · "Do you want its history kept somewhere like GitHub?" — yes | **4–6×** |
-| `product` | May become a product. Market standards from the first commit | "Could this become something you publish or charge for?" — yes | **8×+** |
+| `experiment` | Kept or thrown away as you like, but **not maintained** — no changes, no updates, no upkeep planned. You may well go on using it exactly as it is | "Do you intend to add features to this once it works, or are you just going to try it out with no intention of keeping it up?" — try it out | **1×** — the minimum that works, plus the security floor |
+| `tool` | A minimum viable version, with the basics of good practice and its quality gates. Kept in use and fixed when it breaks, with no deadline and nobody else depending on it | "Besides you, is anyone else going to use it?" — no | **2–3×** |
+| `project` | Maintained: updated with some regularity, and other people depend on it or contribute to it | "Besides you, is anyone else going to use it?" — yes | **4–6×** |
+| `product` | May become a product. Market standards from the first commit | "Do you intend to offer it as a product or a service?" — yes | **8×+** |
 
 The multiple is against the **control** — the same request answered by the model with no plan at all — in wall clock and in tokens, and it is what the level should cost, not what it is allowed to. **The owner's rule: up to 5× the control is justifiable; above it, something is wrong or unnecessary.** `project` and `product` may exceed 5× because they buy things the control never produces — a history, a CI, contract tests — and their multiples are read from measurements, never taken as a licence.
 
@@ -19,7 +19,7 @@ The multiple is against the **control** — the same request answered by the mod
 
 ## How the level is read
 
-**Proposed at triage, from the request, and confirmed by the triage gate.** Triage reads the level the way it reads the requester ([SKILL.md](../skills/epic/SKILL.md#triage-protocol)): from the words — "for a class", "to see if it works", "we ship this to customers", "my team" — and records it with the evidence. When the request does not settle it, **`tool`**: it is the level a careful person gives a small thing they intend to keep, and the two gates around it are cheap to cross in either direction. `experiment` and `product` are never assumed: the first drops every check, the second buys every one.
+**Proposed at triage, from the request, and confirmed by the triage gate.** Triage reads the level the way it reads the requester ([SKILL.md](../skills/epic/SKILL.md#triage-protocol)): from the words — "for a class", "to see if it works", "we ship this to customers", "my team" — and records it with the evidence. When the request does not settle it, the cascade below is asked rather than a level assumed. Measured 2026-09-18: defaulting to `tool` without asking put a beginner's throwaway CRUD at 9.4x its control in wall clock and 14.5x in cost, where `tool` promises 2-3x. `experiment` and `product` are never assumed: the first drops every check, the second buys every one.
 
 **The proposal line carries the price, in one line.** Whatever the level, the proposal states it with its multiple in words the requester chooses by:
 
@@ -27,7 +27,16 @@ The multiple is against the **control** — the same request answered by the mod
 
 For a `layperson` the same line is one of the three lines of the plain-register proposal ([plain-register.md](plain-register.md)), and the level's name never reaches them — what they hear is how long it needs to last and what that costs. For a `developer` the term is used. Either way the triage gate confirms it, so the level costs no question of the budget.
 
-**The orientation round fishes for it when triage was unsure.** Round 0 of Clarify ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)) already asks who uses it and what "done" looks like; when the level is unsettled, the questions in the table above join that round, **asked as consequences and never as "which level is this?"** — a requester cannot grade their own engineering, but they know whether they will open the thing again. The round counts one against the budget whatever its size, so fishing costs nothing extra. When the answers move the level, the proposal line is restated once, with the new price, before Phase 1.
+**When triage is unsure, the level is fished for inside the orientation round — Round 0 of Clarify ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)), which already asks who uses the thing and what "done" looks like. The level's questions join that round as a cascade, and the cascade stops at the first answer that settles it.** The questions are asked as consequences, never as "which level is this?": a requester cannot grade their own engineering, but they know whether they intend to come back and change the thing.
+
+1. *Do you intend to add features and capabilities to this project once it is finished, or are you just going to try it out with no intention of keeping it up?* → **try it out = `experiment`, and nothing further is asked**
+2. *Besides you, is anyone else going to use it?* → no = `tool` · yes = continue
+3. *Do you intend to offer it as a product or a service?* → no = `project` · yes = `product`
+4. **Conditional, and only when an answer above opened it** — how the others receive it (a public repository, a private one, a file sent directly), and free or paid. These are separate questions that complete each other; one round cannot settle them all.
+
+**These are intent rounds, and intent rounds do not count against the question budget** ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)). Technical rounds do. The cascade stops when a round changes neither the level nor the range of technology still open; where real ambiguity remains after that, ask for a free-text answer rather than offering a further set of options.
+
+**The floor is `fast`, and it rises only when an answer pushes it — and it may come back down.** Going down is cheap; going up after the work has been paid for is not. When the answers move the level, the proposal line is restated once, with the new price, before Phase 1.
 
 **A spike is an experiment by definition** and carries `experiment` or nothing.
 
@@ -43,7 +52,7 @@ The level ties three things together. Each row is the whole difference between l
 
 | | `experiment` | `tool` | `project` | `product` |
 |---|---|---|---|---|
-| **Quality catalog** ([quality-catalog.md](quality-catalog.md)) | nothing — the legend reads `none`, the proof is that it runs | the **always** tier, **paid with defaults**: one command per item, its options on the command line, no configuration file for a checker ([quality-catalog.md](quality-catalog.md#always)) | always, plus every **context** item whose signal the tree or the request carries | always, every context item that applies, and the **CI-shaped** ones without waiting for a signal — pinned Actions, minimum dependency age, licence and SBOM — plus the **on-request** tier when a requirement names it |
+| **Quality catalog** ([quality-catalog.md](quality-catalog.md)) | the **security floor** and nothing else — supported runtime, secrets, dependency CVEs ([quality-catalog.md](quality-catalog.md#the-security-floor--three-items-no-level-drops)); beyond those three the proof is that it runs | the **always** tier, **paid with defaults**: one command per item, its options on the command line, no configuration file for a checker ([quality-catalog.md](quality-catalog.md#always)) | always, plus every **context** item whose signal the tree or the request carries | always, every context item that applies, and the **CI-shaped** ones without waiting for a signal — pinned Actions, minimum dependency age, licence and SBOM — plus the **on-request** tier when a requirement names it |
 | **Phase 3** ([phase-gates.md](phase-gates.md#test-advisor-sub-agent-standard--full-during-phase-3)) | tests optional, as in a spike: `Validation` is the proof | tests decided inline by the Lite checklist and **written at run time**, as Fast does — no Test Advisor, no `.draft/authored-tests/`, no `red-evidence.yaml` | the full Phase 3: the Test Advisor authors one failing test per Unit/Integration/E2E sub-task and records its Red | the same |
 
 **Why Phase 3 is proportional.** Measured on 2026-09-17: the Test Advisor writing 22 tests before any code cost about 25 minutes in each of two developer runs for a tool-shaped request. Authoring the test at plan time buys an independent contract for the implementer, and that independence is worth its price when someone else will maintain the code; for a thing one person keeps for themselves, the test written at run time — Red before Green, the same cycle, no sub-agent — buys the same regression guard for a third of the clock. `experiment` and `tool` therefore land in the run-time test-first ordering that Fast and spike already use ([run-mode.md](run-mode.md#run-time-test-first-ordering)), whatever their scale; `project` and `product` pay the full Phase 3. Everything downstream that reads "Standard/Full" as "has a pre-authored test" reads it through this table: materialization, its converse guard, Refine's Red evidence for added sub-tasks and the Auditor's Red-precedence check all apply at `project` and `product` and are exempt below.

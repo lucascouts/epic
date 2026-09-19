@@ -46,6 +46,7 @@ declare_table() {
   # mutants are for. Literal arms cost one line each and cannot drift.
   cat <<'TABLE'
 init|init
+instant <description>|instant
 stories migrate NNN [--apply]|migrate
 stories create --batch <doc>|batch
 stories|stories,story

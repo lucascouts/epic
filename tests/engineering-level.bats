@@ -66,7 +66,11 @@ hasF() { # hasF <label> <block> <fixed string>
   [ -f "$f" ]
   levels=$(section "$f" '^## The four levels' '^## ')
   [ -n "$levels" ]
-  for w in '`experiment`' '`tool`' '`project`' '`product`' "open this again" "breaks" "besides you" "publish"; do
+    # The four questions are the owner's own wording (2026-09-18). "A month from
+  # now, will you open this again?" was rejected as unclear — it never says WHAT
+  # would be opened — and replaced by the intent cascade. The words below are
+  # the distinguishing half of each question, not decoration.
+  for w in '`experiment`' '`tool`' '`project`' '`product`' "try it out" "breaks" "besides you" "product or a service"; do
     has "E1 level" "$levels" "$w"
   done
   for m in "1×" "2–3×" "4–6×" "8×+"; do hasF "E1 multiple" "$levels" "$m"; done
@@ -261,4 +265,61 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E12 plain level" "$words" "engineering level"
   has "E12 plain rendering" "$words" "how long"
   has "E12 self-review" "$(cat "$ROOT/references/self-review-checklist.md")" "Sized by the unit"
+}
+
+# --- Security floor and the `instant` shortcut (2026-09-19) ------------------
+#
+# The floor exists because a level decides how much ENGINEERING a story buys,
+# never how much SAFETY. Measured provenance for the runtime item: eleven runs
+# of one beginner's request (15-17 Sep 2026) every one of which accepted the
+# Node it found — 20, out of support since April 2026 — and none of which
+# declared a version. The level was not the reason; nothing was checking.
+
+@test "E13: the security floor is named once, in quality-catalog.md, with its three items" {
+  f="$ROOT/references/quality-catalog.md"
+  floor=$(section "$f" '^### The security floor' '^## ')
+  [ -n "$floor" ]
+  has "E13 runtime" "$floor" "runtime"
+  has "E13 secrets"  "$floor" "gitleaks"
+  has "E13 sca"      "$floor" "osv-scanner"
+  # The owner's rule for the runtime item: LTS by preference, the current
+  # widely-used stable when the LTS is the one carrying the vulnerability.
+  has "E13 lts"      "$floor" "LTS"
+  has "E13 clean"    "$floor" "vulnerab"
+}
+
+@test "E13b: the floor survives every level — experiment activates it, not nothing" {
+  f="$ROOT/references/quality-catalog.md"
+  bound=$(grep -n 'The engineering level bounds the set' "$f" | cut -d: -f1)
+  [ -n "$bound" ]
+  line=$(sed -n "${bound}p" "$f")
+  has "E13b experiment floor" "$line" "security floor"
+  # The pre-0.7.1 wording said experiment activated nothing at all.
+  if printf '%s' "$line" | grep -qF 'activates nothing'; then
+    echo "E13b: the level bound still says experiment activates nothing" >&2
+    return 1
+  fi
+}
+
+@test "E13c: the level table sends experiment to the floor, not to an empty legend" {
+  levels=$(section "$ROOT/references/engineering-level.md" '^## What each level pays for' '^## ')
+  has "E13c floor" "$levels" "security floor"
+}
+
+@test "E14: instant is a shortcut with three pins, never a fourth scale" {
+  f="$ROOT/skills/epic/SKILL.md"
+  sec=$(section "$f" '^## Instant' '^## ')
+  [ -n "$sec" ]
+  hasF "E14 scale pin"  "$sec" '`fast`'
+  hasF "E14 level pin"  "$sec" '`experiment`'
+  has  "E14 floor pin"  "$sec" "security floor"
+  # The whole point: it is an entrance, not a state. No artifact may carry it.
+  has  "E14 not a state" "$sec" "entrance"
+  has  "E14 no question" "$sec" "No technical question round"
+}
+
+@test "E14b: instant is routed — grammar arm and dispatch row both exist" {
+  f="$ROOT/skills/epic/SKILL.md"
+  grep -qE '^"instant <description>"' "$f"
+  grep -q '| \*\*Instant\*\* |' "$f"
 }

@@ -9,7 +9,7 @@ The checks a piece of software is expected to carry, in three tiers, and how the
 3. **The request** adds what the constitution could not know: an API consumed by more than one client activates contract tests; a stated performance requirement activates a benchmark.
 4. **The story's legend** is the result: `## Quality Requirements`, one line per active item, numbered `Q1`…`Qn` in the order of this catalog, each with the command that proves it on this project. A Fast story, which has no `story.md`, carries the legend at the top of `tasks.md`.
 
-**The engineering level bounds the set** ([engineering-level.md](engineering-level.md)): `experiment` activates nothing and its legend reads `none`; `tool` activates the always tier; `project` adds every context item whose signal the tree or the request carries; `product` adds the CI-shaped context items — pinned Actions, minimum dependency age, licence, SBOM and signing — without waiting for a signal, and the on-request tier when a requirement names it. The four steps above choose inside that bound.
+**The engineering level bounds the set** ([engineering-level.md](engineering-level.md)): `experiment` activates the **security floor** below and nothing else; `tool` activates the always tier; `project` adds every context item whose signal the tree or the request carries; `product` adds the CI-shaped context items — pinned Actions, minimum dependency age, licence, SBOM and signing — without waiting for a signal, and the on-request tier when a requirement names it. The four steps above choose inside that bound.
 
 **Activating an item never installs a tool.** The [preferred-tooling policy](preferred-tooling.md) applies: prefer the tool already installed for that item, name a recommendation and pause when none is, and record the choice on the legend line. A layperson is never paused for a tool choice — the best installed tool is taken and recorded.
 
@@ -29,8 +29,22 @@ Cheap, universal, and each provable by one command. A story that leaves one out 
 | Secrets | no credential in the tree or the history | `gitleaks detect` |
 | README | how to run and how to test, in the repository | the two commands the README names exist and run |
 | `.gitignore` and `.editorconfig` | generated files stay out; indentation is agreed | both files exist; `git status --short` is clean after a build |
-| Supported and declared runtime | the runtime is a supported release — an LTS or the current stable — and the project declares it: `engines` in `package.json`, the `go` directive of `go.mod`, `requires-python`, `.tool-versions` | the declaration exists and names a supported version; `node --version` · `go version` against the vendor's support table |
+| Supported and declared runtime | the runtime is a supported release with no known vulnerability — an LTS or the current widely-used stable, **whichever is clean** — and the project declares it: `engines` in `package.json`, the `go` directive of `go.mod`, `requires-python`, `.tool-versions` | the declaration exists and names a supported version; `node --version` · `go version` against the vendor's support table |
 | Dependencies justified and current | every dependency has a one-line reason the standard library or the code already there was not enough, recorded where the choice was made, and is a current release | the manifest's list against the story's `## Constraints` or the design's decisions; `npm outdated` · `go list -m -u all` · `pip list --outdated` |
+
+### The security floor — three items no level drops
+
+**`experiment` is the only level that activates nothing else, and it still activates these.** A throwaway is thrown away; the machine it ran on is not, and neither is the account whose token it carried.
+
+| Floor item | Why it survives every level | Typical command |
+|---|---|---|
+| Supported and declared runtime | a program is only as safe as the interpreter under it — a hello world on an end-of-life runtime is vulnerable before its first line, because the environment is the hole. **Prefer the LTS; take the current widely-used stable instead when the LTS is the one carrying a known vulnerability** | the declaration exists; `node --version` · `go version` against the vendor's support table, then the CVE scanner against that version |
+| Secrets | a credential leaked from a script leaks exactly as far as one leaked from a product | `gitleaks detect` |
+| Dependency vulnerabilities (SCA) | a malicious or vulnerable package does not ask what the project's engineering level is | `trivy fs .` · `osv-scanner .` · `cargo audit` · `govulncheck ./...` |
+
+The three are chosen as much for their price as for their weight: **one command each, no configuration file, seconds to run.** A floor that cost minutes would be argued with; this one is cheaper than the argument.
+
+Everything else in this catalog stays bound by the level.
 
 **At `tool`, the tier is paid with defaults — no configuration file.** Every always item stays active, and every one is proved by **one command**: whatever the checker needs rides on the command line (`npx tsc --noEmit --allowJs --checkJs src`), and the command is recorded where the project already records commands — a `scripts` entry, a `Makefile` target, the README. **A new configuration file for a checker is a `project` cost, not a `tool` cost.** Measured on 2026-09-17: a beginner's Pokédex at `tool` wrote 28 files, of which seven were toolchain configuration and five were the Epic's own artifacts, and closed at 11× its control where the level promises 2–3× and the owner's rule allows 5× ([engineering-level.md](engineering-level.md)). Defaults buy the same guarantee for one line instead of one file; what they give up is that the next person's run may disagree with yours, which is precisely what a level with no other dependants can afford. Files that *are* the deliverable — the README, `.gitignore`, `.editorconfig`, the lockfile, the runtime declaration — are written at every level: they are the item, not its configuration.
 
