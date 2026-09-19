@@ -118,19 +118,21 @@ Before generating design.md, spawn the **Architect** sub-agent, in the foregroun
 > "Research this project's codebase to provide design context.
 >
 > Story requirements: [path to story.md]
-> Codebase analysis: [Analyst output from Context Discovery]
+> Codebase analysis: [Analyst output from Context Discovery — or "none: no existing code was detected at triage"]
 > Available MCPs: [list of approved MCPs]
 >
-> Tasks:
-> 1. Search for existing patterns similar to what this story needs (e.g., existing handlers, models, middleware)
-> 2. Identify conventions the new code should follow (naming, structure, error handling)
-> 3. Fetch current docs for relevant libraries/frameworks — via a documentation MCP if one is available to you, otherwise `WebFetch`/`WebSearch`
-> 4. Note any integration points where the new feature connects to existing code
-> 5. **Implementation gotchas:** For each architectural pattern or library usage identified, research known pitfalls, common misconfiguration, or non-obvious setup steps. Format these as concrete warnings: 'GOTCHA: [pattern/library] — [what goes wrong] — [correct approach]'. These will be propagated to task ToDo fields to prevent implementation errors.
+> The Codebase analysis block above is the Analyst's scan of this same tree, made from the same request. The architectural pattern, the framework, the conventions, the dependencies and their current docs are in it already — **do not scan for them again.** Spend your turns on the two things it could not produce, because it ran before the requirements were written:
+>
+> 1. **Integration points, against the written requirements** — the specific files, functions, signatures and contracts this feature has to meet, and which of them it must not break. Start from the Analyst's list; do not rebuild it
+> 2. **Implementation gotchas:** For each architectural pattern or library usage this story needs, research known pitfalls, common misconfiguration, or non-obvious setup steps. Format these as concrete warnings: 'GOTCHA: [pattern/library] — [what goes wrong] — [correct approach]'. These will be propagated to task ToDo fields to prevent implementation errors.
+>
+> If the Codebase analysis block is absent, or contradicts what you find, say so in one line and read only what it takes to settle it.
 >
 > Return a concise design context (max 40 lines) that the main agent should consider when writing design.md."
 
 The Architect output is injected as context when generating design.md. Skipped for Fast and Standard modes.
+
+**Why the Architect is not asked to scan.** Read side by side on 2026-09-17, four of the Architect's five original tasks were already answered by the Analyst output this prompt injects verbatim: patterns (Analyst Function 1 step 1), conventions (step 2), library docs (step 4) and integration points, which the Analyst's own output format names. Three of the four had identical inputs — the same tree, the same request — so at `effort: high` from an empty context they were rediscovery and nothing else. The fourth, integration points, is **re-scoped rather than duplicated**: the Analyst answers it against the raw request at triage, the Architect answers it against `story.md`, which did not exist yet. Only the gotcha hunt was ever unique to this persona, and it is the one carrying a propagation rule. The scan was cut and those two answers kept; the empty-repository case, where no Analyst ran at all, is the exception the prompt's last line restores.
 
 **Gotcha propagation rule:** When the Architect identifies implementation gotchas, the main agent MUST incorporate them into the relevant task ToDo fields as concrete implementation notes — not as vague references to patterns. Example: instead of "use base layout pattern", write "parse each page template together with base.html into a separate template set — calling ExecuteTemplate on the page name alone will produce empty output". The gotcha must survive from research → design → task without losing specificity.
 

@@ -140,7 +140,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 | Agent | Role |
 |---|---|
 | `analyst` | Context discovery, codebase scan, completeness checklist |
-| `architect` | Pattern research, design context, gotcha capture (Full mode) |
+| `architect` | Integration points and gotcha capture on top of the Analyst's scan (Full mode) |
 | `test-advisor` | Defines testing requirements per sub-task and authors one failing test per Unit/Integration/E2E sub-task with Red-phase verification — E2E tests use the story's selected E2E tool with Red verification deferred to Run mode (Phase 3, Standard + Full at `project`/`product` level) |
 | `reviewer` | Cross-artifact review — gaps, consistency, orphan wiring (Full mode) |
 | `executor` | 6-step implementation protocol (context → implementation → design fidelity → validation → refactor-or-tests → report); step 5 is conditional — Refactor for a test-first sub-task, Tests for a test-after one. The report ends in a machine-liftable **closing block** (sub-task id, outcome `done` / `close-tilde` + qualifier + reason / `failed`, pre-authored commit message; `failed` closes nothing). It marks no box and runs no `git commit`: the main agent lifts that block into `scripts/close-subtask.sh`, the one writer of the checkbox grammar |

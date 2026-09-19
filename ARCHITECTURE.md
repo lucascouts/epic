@@ -117,7 +117,7 @@ Each `agents/*.md` also declares a reasoning `effort:`. The tier is a cost decis
 | --- | --- | --- |
 | `executor` | `max` | Writes the code. A wrong implementation is the most expensive thing to discover late. |
 | `auditor` | `max` | Holds the semantic judgment the rest of the pipeline is priced against — it is what makes the Validator's `medium` affordable. |
-| `architect` | `high` | Reads an unfamiliar codebase for the patterns a design must not contradict. |
+| `architect` | `high` | Does not re-scan what the Analyst already reported; reasons over that scan plus the written requirements for the contracts a design must meet, and hunts the gotchas around them. |
 | `reviewer` | `high` | Cross-artifact gaps are found by reasoning over three documents at once. |
 | `tech-reviewer` | `high` | Correctness at technology boundaries — the defect is precisely what a generalist would not think to look for. |
 | `test-advisor` | `high` | Authoring a test that fails for the right reason is a design act, not a transcription. |

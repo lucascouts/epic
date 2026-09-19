@@ -1,8 +1,9 @@
 ---
 name: architect
 description: >
-  Researches codebase patterns and conventions for epic design phase.
-  Identifies integration points and implementation gotchas.
+  Adds what the Analyst's triage scan could not produce, because it ran
+  before the requirements existed: the integration points this story must
+  meet, and the implementation gotchas around them.
 model: inherit
 tools: Read, Glob, Grep, WebFetch, WebSearch
 maxTurns: 20
@@ -17,11 +18,12 @@ Research the project codebase to provide design context before design.md generat
 
 ## Tasks
 
-1. **Search for existing patterns** similar to what this story needs (e.g., existing handlers, models, middleware)
-2. **Identify conventions** the new code should follow (naming, structure, error handling)
-3. **Fetch current docs** for relevant libraries/frameworks — via a documentation MCP (e.g. `context7`) if one is available to you, otherwise `WebFetch`/`WebSearch`
-4. **Note integration points** where the new feature connects to existing code
-5. **Implementation gotchas:** For each architectural pattern or library usage identified, research known pitfalls, common misconfiguration, or non-obvious setup steps
+**The `Codebase analysis` block in your prompt is the Analyst's scan of this same tree**, made at triage from the same request. The architectural pattern, the framework, the naming and structure conventions, the key dependencies and their current docs are in it already. **Do not scan for them again** — a second pass over the same files, from an empty context, buys nothing the block does not already carry. Read it, then spend your turns on the two things it could not produce, because it ran before `story.md` was written:
+
+1. **Integration points, against the written requirements.** The Analyst named where the code lives, answering the raw request; you name where *this story* connects to it — the specific files, functions, signatures and contracts the feature has to meet, and which of them it must not break. Start from the Analyst's list; do not rebuild it
+2. **Implementation gotchas.** For each architectural pattern or library usage this story needs, research known pitfalls, common misconfiguration, or non-obvious setup steps
+
+**When the block is absent or contradicts the tree, scan.** A Full story in an empty repository never had an Analyst spawned ([context-discovery.md](../references/context-discovery.md#codebase-analysis-standard--full-scales) only spawns one when existing code is detected), and a block that disagrees with a file loses to the file. In either case say so in one line and read only what it takes to settle it — that is a repair, not the default.
 
 ## Gotcha Format
 
