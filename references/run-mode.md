@@ -11,7 +11,7 @@ Triggered by `/epic:epic stories run NNN`, `/epic:epic stories NNN run all`, or 
    - `NNN run N` → specific task N and all its pending sub-tasks
    - `NNN run N.N` → specific sub-task only
 4. **Check dependencies** — if a pending task depends on a task that is not **satisfied**, warn the user. Satisfied is defined once, in [tasks.md](tasks.md#dependency-satisfaction): every box `[x]` or terminal `[~]`, and a `[~] (deferred: …)` dependency is **not** satisfied
-5. **Detect parallel groups** — identify non-blocking tasks (see Parallel Execution)
+5. **Detect parallel groups** — identify non-blocking tasks (see [run-parallel.md](run-parallel.md))
 6. **Tech stack detection** — scan tasks to build tech profiles (see Tech Stack Detection)
 6a. **Recall prior deviations (when memory is available)** — one `memory_query` per run, `deviation OR discovery OR gotcha` plus the tech names from step 6, `limit: 10`. The hits go into every Executor's Project State beside this run's own register, as leads to verify. Absent memory, nothing is added ([mcp-integration.md](mcp-integration.md#memory-mcp))
 7. **Materialize pre-authored tests (Standard/Full at engineering level `project` or `product` only)** — before any task execution, copy every file under the story's `.draft/authored-tests/**` into the real test tree at its mirrored path. This step is **idempotent**: if a target test path already exists in the real tree, **skip that file and emit a warning** (it may already exist from a prior Run, a partial `run N.N`, or a manual executor edit — never overwrite it). Files that do not yet exist are copied. Materialization runs once per Run, ahead of step 8. This step applies to **Standard and Full scales at `project` or `product` level only** — they are the ones that stage Test Advisor-authored tests in `.draft/authored-tests/` ([engineering-level.md](engineering-level.md)). **Fast and spike have no `.draft/`, and an `experiment` or `tool` story at any scale stages no test in it**, so such a Run has nothing to materialize and skips this step: Fast writes its tests at run time straight into the real test tree (see Task Execution Flow), and a spike is tasks-only by contract — `tasks.md` and nothing else ([tasks.md](tasks.md#spike-scale-adaptations)). Materialization only **copies** files — it never runs them. A materialized E2E test whose `.draft/red-evidence.yaml` entry carries `red_deferred: true` has its Red confirmed at task-execution time, not here (see Deferred Red for E2E sub-tasks under Task Execution Flow).
@@ -131,7 +131,7 @@ For an **inline-routed** sub-task under the run-time ordering above (Fast, spike
 
 **The protocol travels in the prompt.** A fork does not carry the Executor's system prompt — it carries the orchestrator's — so the six steps, the sub-task body and the closing block are written into the spawn prompt verbatim. A fork is *inline done elsewhere*: same steps, same `close-subtask.sh` call, same closing block, and the box is closed in the main tree by the orchestrator when the fork returns.
 
-**When to take it — and why it is rarely the answer.** The three tests are the ones the Parallel Execution detection already runs, at sub-task granularity: two or more pending sub-tasks route Closed spec, their dependencies are satisfied, and they touch no common file. One closed-spec sub-task alone stays inline. The same maximum of five applies.
+**When to take it — and why it is rarely the answer.** The three tests are the ones the detection in [run-parallel.md](run-parallel.md) already runs, at sub-task granularity: two or more pending sub-tasks route Closed spec, their dependencies are satisfied, and they touch no common file. One closed-spec sub-task alone stays inline. The same maximum of five applies.
 
 **But a fork must first beat inline, and at this plugin's unit size it usually does not.** Ten trivial independent sub-tasks, same machine, same model:
 
@@ -443,130 +443,12 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 >
 > ## Execution Protocol
 >
-> You MUST execute these steps IN ORDER. Do not skip any step. Do not proceed to the next step until the current one is complete. Report what you did in each step.
+> Execute the six steps of your Execution Protocol **in order**, exactly as your agent definition states them. Nothing in this prompt restates or overrides the protocol, the report format, the closing block or the prohibitions.
 >
-> **The protocol REMAINS SIX STEPS.** Only step 2 and step 5 change wording depending on whether the sub-task carries a pre-authored test:
+> **Only step 2 and step 5 change wording**, and only with what this prompt carries above:
 >
-> - A **test-first sub-task** has a pre-authored failing test supplied as a read-only input (the "Pre-Authored Test" section above). For it, step 2 is **Implementation (Green)** and step 5 is **Refactor**.
-> - A **test-after sub-task** has no pre-authored test. For it, the protocol is unchanged: step 2 is **Implementation** and step 5 is **Tests**.
->
-> ### Step 1: CONTEXT GATHERING
->
-> **This step is mandatory when a Context field exists. It is not optional.**
->
-> For each item in the Context field:
-> - **Files:** Read each listed file using the Read tool. Note patterns, conventions, and existing code you must integrate with.
-> - **Docs:** Fetch the documentation BEFORE writing any code — use the MCP named in the Context field if it is available to you, otherwise `WebFetch`/`WebSearch`. If every lookup fails, note the gap and proceed with caution, flagging it in your report.
-> - **Research:** Query the research topic — use the MCP named in the Context field if it is available to you, otherwise `WebSearch`. Read the results and note findings relevant to implementation.
->
-> Even if no Context field exists, read any files you will modify (if they already exist) to understand the current state.
->
-> After gathering context, note any findings that affect implementation:
-> - Framework behaviors that differ from common assumptions
-> - API signatures or function behavior discovered from docs
-> - Deprecation warnings or version-specific changes
-> - Known pitfalls or gotchas from research
->
-> ### Step 2: IMPLEMENTATION
->
-> Implement the changes described in the ToDo field.
->
-> For each item in the ToDo:
-> - Follow it literally. If it says "handle error", implement error handling. If it says "redirect to /login", implement a redirect. If it says "return 500 on failure", use graceful error handling — not panic, unwrap, expect, or unhandled throw.
-> - Apply findings from Step 1. If the docs revealed a framework behavior (e.g., template engine fails on missing variables, form deserialization happens before handler), adapt the implementation accordingly.
-> - When the ToDo specifies a function signature, match it against the Design Context. If you need to deviate, document WHY.
->
-> **Test-first sub-task — Implementation is the Green phase.** When the prompt carries a "Pre-Authored Test" section, your goal in this step is to make that pre-authored failing test pass. The test is a **read-only input** — you implement against it, you do not author or replace it.
->
-> **Frozen-test rule.** The pre-authored test's **assertions are immutable** — you MUST NOT modify them, weaken them, or delete them to get a passing run. The test's **imports and signature call-sites** (how it imports the unit under test and how it invokes it) MAY be adjusted **only** to match an INTENTIONAL design deviation you confirm in step 3 — never for any other reason. Each such surface adjustment MUST be recorded in `.draft/deviations.yaml` with the field `test_surface_adjusted: true`.
->
-> **Behavior-changing deviation — STOP and escalate.** If an intentional design deviation would change *what an assertion expects* (the behavior the test pins), rather than only the call surface (imports / signature), you MUST **STOP and escalate** instead of proceeding. Never edit an assertion to resolve the conflict.
->
-> ### Step 3: DESIGN FIDELITY CHECK
->
-> Before proceeding to validation, compare your implementation against the Design Context:
->
-> 1. **Signatures:** Every function/method/class you implemented — does the name, parameters, and return type match design.md?
-> 2. **Error handling:** Every error path in the ToDo — does the implementation use the specified approach? Map each ToDo error instruction to the actual code.
-> 3. **Data structures:** Every struct/type/model — do the field names, types, and constraints match design.md?
-> 4. **Behavioral contracts:** If this sub-task produces output consumed by another component (e.g., handler → template, API → client), verify the output contains every field the consumer expects.
->
-> If you find a deviation:
-> - **INTENTIONAL** (better approach discovered during implementation): document in a Note with the reason WHY the deviation is better. Include what the design says, what you did instead, and why.
-> - **ACCIDENTAL** (oversight, shortcut, copy-paste error): fix it before proceeding.
->
-> ### Step 4: VALIDATION
->
-> Run the Validation command specified in the sub-task. Report the FULL output — do not summarize as "it passed". If the command fails, report the failure and STOP. Do not attempt to fix and retry without reporting first.
->
-> ### Step 5: REFACTOR or TESTS (conditional)
->
-> This step depends on whether the sub-task carries a pre-authored test. It is still **step 5 of the same six-step protocol** — only the wording changes.
->
-> **Test-first sub-task → REFACTOR.** With the pre-authored test now passing (step 2) and Validation green (step 4), improve the implementation: remove duplication, clarify names, simplify structure. Use the passing test plus the Validation command as a **regression safety net** — re-run both after refactoring and confirm they **stay green**. The frozen-test rule still applies: do not modify the test's assertions. If a refactor cannot keep the test and validation green, revert it. If refactoring surfaces a behavior-changing design deviation, **STOP and escalate** — never edit an assertion.
->
-> **Test-after sub-task → TESTS (if a Tests field exists).** Create or update the test file. Implement the test scenarios listed. Run tests and report full output. If fail: **STOP**.
->
-> ### Step 6: REPORT
->
-> Return a structured report:
->
-> ```
-> ## Executor Report — Sub-task [number]
->
-> ### Files Created/Modified
-> - [path]: [created | modified] — [brief description]
->
-> ### Context Gathered
-> - [MCP/source]: [key finding relevant to implementation]
-> - [MCP/source]: [another finding]
-> (or "No Context field — read existing files only")
->
-> ### Design Deviations
-> - [component]: design says [X], implemented [Y] — reason: [why]
-> (or "None — all signatures and contracts match design")
->
-> ### Validation Result
-> [PASS | FAIL]
-> [Full command output]
->
-> ### Test Result
-> [PASS | FAIL | No tests for this task]
-> [Full test output if applicable]
->
-> ### Warnings
-> - [anything unexpected discovered during implementation]
-> (or "None")
-> ```
->
-> **End the report with the closing block (R3.1).** It is the machine-liftable part of the report: the orchestrator lifts the arguments straight out of it into `close-subtask.sh` and changes nothing on the way. One JSON object, in a fenced `json` block, as the last thing you write:
->
-> ```json
-> {"task":"1.1","outcome":"done","commit":"feat(010): parse the vendor CSV"}
-> ```
->
-> ```json
-> {"task":"2.1","outcome":"close-tilde","qualifier":"deferred","reason":"needs the live vendor account"}
-> ```
->
-> | Field | What it carries |
-> |---|---|
-> | `task` | the box this sub-task closes, named the way tasks.md names it — a sub-task (`1.1`), a task group (`3`), or a Quality Gate by a prefix of its own text (`gate:All task validations`) |
-> | `outcome` | exactly one of `done`, `close-tilde`, `failed` — see below |
-> | `qualifier` | **`close-tilde` only**: one of `deferred`, `waived`, `n-a`, `superseded-by`, as a bare token |
-> | `reason` | **`close-tilde` only**: why the box is closed without the work being done, in plain text, carrying no second qualifier token |
-> | `commit` | the pre-authored `Commit:` message you validated against, **verbatim**; omit the field when the sub-task carries no `Commit:` message |
->
-> - **`done`** — implementation, design fidelity, validation and step 5 all passed. The orchestrator closes the box `[x]`.
-> - **`close-tilde`** — the box is closed **without the work being done**, and `qualifier` + `reason` say so beside it. Report it when the sub-task cannot be executed here (an external dependency, a decision the user has already taken) — never as a route past a failing validation.
-> - **`failed`** — a step failed and you stopped. **`failed` closes nothing**: no call is made, the box stays `[ ]`, and nothing is written anywhere. Report what failed and stop.
->
-> The block is a report, not a write: you never invoke `close-subtask.sh` yourself, and you never edit the box (see Prohibitions).
->
-> ## Prohibitions
->
-> - **Do NOT mark any box** — not `[x]`, not `[~]`, not in `tasks.md` and not in a worktree copy of it. Marking is **script-mediated**: the orchestrator lifts your closing block into `close-subtask.sh`, and that script is the one writer of the checkbox grammar — it marks the box, takes the census, stamps the story's `status:` and validates the story in a single transaction. A box marked anywhere else is a box written outside that transaction, and inside a worktree it is written into a copy of tasks.md the merge would then have to reconcile (R3.2, R3.3)
-> - **Do NOT run `git commit`** — commits are the orchestrator's, post-merge, in the main tree, with the pre-authored message verbatim. Reporting that message in the closing block's `commit` field is your whole part in it: a parallel Executor sits in a worktree, where a commit would land on a branch nobody has merged yet (R3.2, R3.4)"
+> - a **test-first** sub-task (one that carries a "Pre-Authored Test" section) makes step 2 Implementation (**Green** — make that test pass, assertions frozen) and step 5 **Refactor**;
+> - a **test-after** sub-task has step 2 Implementation and step 5 **Tests**.
 
 ### Executor Rules
 
@@ -578,87 +460,7 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 
 ## Multi-Tech Review
 
-When a sub-task's tech_profile includes 2+ distinct technologies that interact at a boundary, the orchestrator spawns Tech Reviewer sub-agents AFTER the Executor completes successfully.
-
-### When to Trigger
-
-Detect technology boundaries from the tech_profile:
-
-| Boundary | Examples |
-|----------|---------|
-| Server code → template engine | Rust handler + Tera, Python view + Jinja2, Express + EJS, Spring + Thymeleaf, Phoenix + HEEx, Laravel + Blade |
-| Application code → raw SQL | Any language with sqlx, raw queries, query builders |
-| Backend → frontend contract | API response consumed by React/Vue/Angular client, SSR hydration |
-| Application → external API | HTTP client calling third-party services |
-| Application → message queue | Producer/consumer message format contracts |
-
-If only one technology with no boundary interaction: skip review.
-
-### Tech Reviewer Prompt Template
-
-> "You are a [technology] specialist reviewing code for correctness at the [technology] boundary.
->
-> ## Files to Review
->
-> [Files created/modified by the Executor]
->
-> ## Design Contract
->
-> [Relevant interface from design.md for this boundary]
->
-> ## Your Focus
->
-> Review ONLY the [technology] aspects. Check for issues that a generalist implementer would miss.
->
-> **For template engines** (Tera, Jinja2, Handlebars, EJS, Blade, Thymeleaf, HEEx, ERB, etc.):
-> - Every variable referenced in the template (in interpolation, conditionals, loops, assignments) is provided by the handler in ALL rendering paths
-> - When the same template is rendered by multiple handlers (e.g., GET empty form vs POST with validation errors), verify EACH handler provides all required variables
-> - The template engine's behavior with missing or empty variables is handled correctly for the engine's mode (strict vs lenient)
->
-> **For SQL/database:**
-> - All queries use parameterized placeholders — no string interpolation
-> - Foreign key references point to existing entities or the code handles the missing-entity case
-> - Types in application structs match the database column types
->
-> **For API contracts:**
-> - Response structures match what consumers expect (field names, types, nesting)
-> - Error response format is consistent across endpoints
-> - HTTP status codes match the design specification
->
-> **For external integrations:**
-> - Request/response types match the external API documentation
-> - Error responses from the external service are handled (timeouts, 4xx, 5xx)
-> - Authentication credentials are not hardcoded
->
-> ## Measurement, Not Argument
->
-> Where a check can be run, run it. A boundary defect is almost always observable: the linter names the undefined template variable, the compiler rejects the mismatched type, a `grep` shows the handler never inserts the key the template reads, `EXPLAIN` shows the index nobody built. Reasoning your way to the same conclusion produces a claim the reader has to take on trust — and a claim that is wrong looks exactly like one that is right.
->
-> So a finding resting on a runnable check carries the exact command and its observed output, quoted rather than paraphrased: whoever fixes it re-runs your line and sees what you saw. A finding with no runnable check behind it is still a finding — say what you read and where, and never invent a command to dress it up.
->
-> `Bash` is for measurement only — never mutate files or git state. Linters, compilers, type checkers, `grep`, test runs, query plans: yes. Formatters, codemods, `git add`/`commit`/`checkout`/`stash`/`reset`, installs that touch a lockfile, migrations against a real database: no. If a command would leave the tree or the repository different from how it found them, it is not yours to run.
->
-> ## Protocol
->
-> 1. Fetch current docs for [technology] to verify behavior assumptions — via a documentation MCP if one is available to you, otherwise `WebFetch`/`WebSearch`
-> 2. Review the implementation files against your focus area
-> 3. Run the checks that bear on what you found, per Measurement above
-> 4. Report:
->    - **PASS** — no issues found at this boundary
->    - **ISSUES** — list each issue with file path, line reference, what is wrong, and — where a runnable check backs it — the command and its output
->
-> Do NOT modify files or git state. Only report."
-
-### Orchestrator Handling of Tech Review
-
-- If all Tech Reviewers report PASS: proceed to next sub-task
-- If any report ISSUES:
-  1. Present issues to user (in `--auto` mode: attempt fix first)
-  2. Spawn a new Executor instance with the original task + issues to fix
-  3. Re-run only the affected Tech Reviewers
-  4. Maximum 2 fix cycles. If still failing after 2 cycles, stop and escalate to user
-- Tech Reviews are skipped for a group's `Commit:` field — there is no implementation to review
-
+When a sub-task's `tech_profile` carries two or more technologies that meet at a boundary (handler to template, app to SQL, API to client), Tech Reviewer sub-agents review that boundary after execution. **Read [run-tech-review.md](run-tech-review.md) when the profile has such a boundary** — the trigger table, the reviewer prompt template and the orchestrator's handling live there. A single-technology sub-task skips it.
 ## Context Passing Between Tasks
 
 Each Executor sub-agent starts with a fresh context. The orchestrator bridges information between tasks to prevent context loss.
@@ -724,41 +526,10 @@ The register is:
 
 ## Parallel Execution
 
-When multiple pending tasks share the same dependency set and all dependencies are **satisfied** ([tasks.md](tasks.md#dependency-satisfaction) — deliberately not the same test as story *completion*), these tasks are **non-blocking** relative to each other.
-
-### Detection
-
-**Run the detection at both levels — parent tasks *and* sibling sub-tasks.** Reading only the parent `Dependencies` field finds parallelism one layer above where the work actually is: what a run executes one at a time is sub-tasks, and a parent whose siblings are all sequential still hides independent sub-tasks inside itself. **Numbering is not dependency.** Sub-tasks 2.1 and 2.2 are written in order because a list has an order; they are dependent only when one of them says so.
-
-1. Build the dependency graph from the `Dependencies` field on parent tasks, **and from the sibling sub-tasks inside each pending parent**. A sub-task depends on a sibling only when it names one (`Task 2.1`) or when its ToDo consumes something the sibling creates — a file, a symbol, a migration. Otherwise the siblings are independent
-2. Identify parallel group: items where all deps are **satisfied** ([tasks.md](tasks.md#dependency-satisfaction) — `[x]` or terminal `[~]`; a dep closed as `[~] (deferred: …)` is **not**) and no item in the group depends on another item in the same group
-3. Verify no file conflicts: items that modify the same files are NOT parallelized. At sub-task granularity this is the usual disqualifier — siblings edit one file far more often than sibling *tasks* do, and `tasks.md` rule 9 already forbids splitting a task across the same file, which makes the check cheap to run and usually decisive
-4. **State the group in the execution plan and go** — "Tasks N, M, P are independent: they depend only on satisfied tasks and touch no common file, so they run in parallel." No question is asked. A group that passed steps 1–3 is proven independent, and asking cost more than it protected: one round of the question budget per run, and every run where nobody said yes — the measured story ran its nine executors in series with the detection looking one layer too high and this gate defaulting to no. `--serial` declines, for the whole run
-
-### Execution
-
-For each parallel group, unless `--serial` was passed:
-1. **Create an isolated worktree per task** using the native `EnterWorktree` tool (Claude Code v2.1.105+). Each worktree branches from the current HEAD into `.epic/worktrees/<story>-<task>/` so parallel Executors cannot collide on the same files.
-   - **Fallback (< v2.1.105):** spawn each Executor with `isolation: "worktree"` (Agent tool option) or manually create worktrees via `Bash + git worktree add`.
-2. Each Executor follows the full 6-step protocol in its isolated worktree — and closes **no** box there: tasks.md is never edited inside a worktree
-3. Wait for all Executors to complete
-4. Run Tech Reviews for each Executor's output (can be parallel)
-5. If ALL pass: merge worktrees **sequentially**, and after each merge close that task's boxes **in the main tree** — one `close-subtask.sh` call per box, in task order, from the merged Executor's closing block (see Closing a Box). When every worktree has been merged and closed, execute the group's `Commit:` field. Call `ExitWorktree` on each worktree after merging to clean up.
-6. If ANY fail: report failures, ask user how to proceed (retry failed tasks, skip, or abort). Worktrees of failed executors are preserved for inspection until the user decides. A failed Executor's boxes are **not** closed — `outcome: failed` makes no close call, here as anywhere else
-
-### Rules
-
-- **Boxes are closed only in the main tree, sequentially, after each merge — never inside a worktree copy of tasks.md (R3.3).** A worktree branches from HEAD with its own copy of the file, so a box closed there is closed in a copy the merge then has to reconcile, and two Executors closing at once are two rewrites of one file. Serialising the closes behind the merges — which are already sequential — also makes each returned `census` a census of the file everyone else will read
-- A group's `Commit:` field is ALWAYS executed sequentially (post-merge), by the main agent, using the pre-authored message verbatim (R3.4)
-- `--serial` runs every group in order with no worktree created — the one way to decline parallel execution, and it applies to the whole run
-- Maximum parallel Executors: 5 (to avoid resource exhaustion)
-- Each parallel Executor gets the full story context (story.md, design.md relevant sections)
-- Deviation register is merged after parallel execution completes (before commit)
-- `EnterWorktree` integrates with Claude Code checkpointing — `ExitWorktree` is cancellable and safe to call on already-exited worktrees
-
+Two or more pending tasks whose dependencies are all satisfied may run at once, each in its own worktree. **Read [run-parallel.md](run-parallel.md) before grouping anything** — detection at both levels, the file-collision test, the worktree protocol and the merge order live there. A run that takes one sub-task at a time never opens it.
 ## Run Mode Rules
 
-- **Parallel when proven, sequential otherwise** — a group that passed the three detection checks (see Parallel Execution) runs in parallel without asking; everything not proven independent runs in order, respecting dependencies. `--serial` forces order for the whole run
+- **Parallel when proven, sequential otherwise** — a group that passed the three detection checks (see [run-parallel.md](run-parallel.md)) runs in parallel without asking; everything not proven independent runs in order, respecting dependencies. `--serial` forces order for the whole run
 - **Stop on failure** — if validation or tests fail, stop and report. Do not continue to next task.
 - **No step skipping** — every step in the Executor protocol is mandatory. Context Gathering is not optional when a Context field exists. Validation commands must be executed and their output reported. This is the fundamental rule of Run Mode.
 - **Run-time questions count against the story's question budget** ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)). A decision with a default in the constitution's `## Defaults` block or in the [plain register](plain-register.md#decisions-the-requester-is-not-asked) table is taken and mentioned, never asked — the measured run asked a beginner how to commit on `master`, with three branch options
@@ -799,47 +570,7 @@ During execution, maintain a TodoWrite task list mirroring the tasks being execu
 
 ## Agent Teams Mode (Experimental, opt-in)
 
-See [teams-mode.md](teams-mode.md) for the full feature reference (enable/disable/status, limitations, troubleshooting). This section covers only the Run-phase dispatch logic.
-
-### Trigger conditions
-
-Offer Agent Teams as an alternative execution strategy when **all** hold:
-
-1. `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is active — verify via `bash "${CLAUDE_PLUGIN_ROOT}/scripts/teams-config.sh" status` and parse `.state == "active"`.
-2. The execution plan has **2 or more** independent parallel groups that touch disjoint files.
-3. Each group has 3+ sub-tasks (amortises the team spawn/cleanup overhead).
-4. No group depends on another group's output mid-Run.
-
-If the conditions do not hold, use the `EnterWorktree` path (Parallel Execution section above). Do **not** ask the user to pick a strategy when teams cannot realistically help — the question is a distraction.
-
-### Strategy prompt (only when conditions hold)
-
-> "This story has N independent task groups and agent-teams is enabled.
-> Two execution strategies available:
->
-> 1. **Worktrees (default)** — parallel `EnterWorktree` per group, sub-agents via the Agent tool
-> 2. **Agent Teams (experimental)** — dedicated teammates per group with shared task list and direct messaging. Higher token cost, but teammates can coordinate and challenge each other.
->
-> Choose strategy?"
-
-### If Agent Teams chosen
-
-1. **Team lead** = the current (main) session — reads story, manages deviation register, handles commits.
-2. **One teammate per group** — spawn via natural language referencing Epic's existing agent definitions: *"Spawn a teammate named track-<name> using the `executor` agent type with this prompt: …"*. Teammates inherit the `executor` body, tool allowlist, model, and effort. They do **not** inherit `skills:` / `mcpServers:` (irrelevant — `executor` does not declare them).
-3. **Shared task list** mirrors tasks.md — each group has one lead task the teammate claims.
-4. **Tech Reviews** — after each teammate reports done, the lead spawns Tech Reviewer sub-agents (not teammates — Tech Review is short-lived and single-turn).
-5. **Validation** — the `TaskCompleted` hook already runs `validate-story.sh` on completion.
-6. **Commits** — always by the lead, sequentially, after all teammates complete.
-7. **Cleanup** — the lead explicitly calls *"clean up the team"* at end of Run so the next Run-in-session starts fresh (one team at a time per [limitations](https://code.claude.com/docs/en/agent-teams#limitations)).
-
-### Rules specific to agent-teams mode
-
-- **No nested teams** — teammates (running as `executor`) cannot spawn their own Agent sub-agents. If a track needs heavy research via sub-agents, switch that story back to worktrees mode.
-- **No `/resume` of teammates** — if the session is interrupted, resume will lose the in-process teammates. Tell the lead to spawn fresh teammates for the remaining groups.
-- **Maximum 5 teammates** — matches the worktree parallel limit; keeps coordination overhead manageable.
-- **Split-pane display** — optional; requires tmux or iTerm2. In-process (single-terminal) works everywhere and is the default per [agent-teams#display-mode](https://code.claude.com/docs/en/agent-teams#choose-a-display-mode).
-- **Fallback is automatic** — if spawning the team fails for any reason (runtime bug, missing upstream support, permission denial), the Run proceeds with the worktree path and reports the fallback in the Run report.
-
+An opt-in alternative execution strategy: several Executors in one team instead of one at a time. **Read [teams-mode.md](teams-mode.md) before offering it** — the trigger conditions, the offer, the hand-off and the exit live there, with the rest of the feature reference. Nothing here changes when teams are off, which is the default.
 ## Handling Missing Tasks for Quality Gates
 
 If after running all tasks, a Quality Gate is unmet and no existing task covers it:

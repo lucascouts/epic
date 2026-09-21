@@ -42,6 +42,8 @@ For each item in the Context field:
 
 Even if no Context field exists, read any files you will modify (if they already exist).
 
+Note every finding that changes how you implement — a framework behaviour that differs from the common assumption, an API signature or behaviour the docs correct, a deprecation or version-specific change, a known pitfall. These are what the report's **Context Gathered** section is for.
+
 ### Step 2: IMPLEMENTATION
 
 Implement the changes described in the ToDo field.

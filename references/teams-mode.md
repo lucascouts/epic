@@ -169,3 +169,46 @@ Agent-teams integration in 1.4.0 covers the Run phase only. Natural next candida
 - **Triage phase** — analyst + architect + reviewer would require sequential dependencies; the gain is marginal. Probably never implemented.
 
 See the `## Decisions documented (not applied)` section in CHANGELOG 1.4.0 for rationale.
+
+## Run Mode Integration
+
+How RUN offers, enters and leaves Agent Teams. This section covers only the Run-phase dispatch logic.
+
+### Trigger conditions
+
+Offer Agent Teams as an alternative execution strategy when **all** hold:
+
+1. `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is active — verify via `bash "${CLAUDE_PLUGIN_ROOT}/scripts/teams-config.sh" status` and parse `.state == "active"`.
+2. The execution plan has **2 or more** independent parallel groups that touch disjoint files.
+3. Each group has 3+ sub-tasks (amortises the team spawn/cleanup overhead).
+4. No group depends on another group's output mid-Run.
+
+If the conditions do not hold, use the `EnterWorktree` path (Parallel Execution section above). Do **not** ask the user to pick a strategy when teams cannot realistically help — the question is a distraction.
+
+### Strategy prompt (only when conditions hold)
+
+> "This story has N independent task groups and agent-teams is enabled.
+> Two execution strategies available:
+>
+> 1. **Worktrees (default)** — parallel `EnterWorktree` per group, sub-agents via the Agent tool
+> 2. **Agent Teams (experimental)** — dedicated teammates per group with shared task list and direct messaging. Higher token cost, but teammates can coordinate and challenge each other.
+>
+> Choose strategy?"
+
+### If Agent Teams chosen
+
+1. **Team lead** = the current (main) session — reads story, manages deviation register, handles commits.
+2. **One teammate per group** — spawn via natural language referencing Epic's existing agent definitions: *"Spawn a teammate named track-<name> using the `executor` agent type with this prompt: …"*. Teammates inherit the `executor` body, tool allowlist, model, and effort. They do **not** inherit `skills:` / `mcpServers:` (irrelevant — `executor` does not declare them).
+3. **Shared task list** mirrors tasks.md — each group has one lead task the teammate claims.
+4. **Tech Reviews** — after each teammate reports done, the lead spawns Tech Reviewer sub-agents (not teammates — Tech Review is short-lived and single-turn).
+5. **Validation** — the `TaskCompleted` hook already runs `validate-story.sh` on completion.
+6. **Commits** — always by the lead, sequentially, after all teammates complete.
+7. **Cleanup** — the lead explicitly calls *"clean up the team"* at end of Run so the next Run-in-session starts fresh (one team at a time per [limitations](https://code.claude.com/docs/en/agent-teams#limitations)).
+
+### Rules specific to agent-teams mode
+
+- **No nested teams** — teammates (running as `executor`) cannot spawn their own Agent sub-agents. If a track needs heavy research via sub-agents, switch that story back to worktrees mode.
+- **No `/resume` of teammates** — if the session is interrupted, resume will lose the in-process teammates. Tell the lead to spawn fresh teammates for the remaining groups.
+- **Maximum 5 teammates** — matches the worktree parallel limit; keeps coordination overhead manageable.
+- **Split-pane display** — optional; requires tmux or iTerm2. In-process (single-terminal) works everywhere and is the default per [agent-teams#display-mode](https://code.claude.com/docs/en/agent-teams#choose-a-display-mode).
+- **Fallback is automatic** — if spawning the team fails for any reason (runtime bug, missing upstream support, permission denial), the Run proceeds with the worktree path and reports the fallback in the Run report.

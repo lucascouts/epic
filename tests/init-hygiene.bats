@@ -57,7 +57,9 @@ has() {
 }
 
 @test "I5: run-mode.md states a proven parallel group instead of asking, and documents --serial" {
-  det=$(section "$ROOT/references/run-mode.md" '^### Detection' '^### ')
+  # Parallel Execution moved to its own appendix, loaded only when a run has a
+  # group to prove; run-mode.md keeps the pointer, the detection lives there.
+  det=$(section "$ROOT/references/run-parallel.md" '^### Detection' '^### ')
   if printf '%s' "$det" | grep -q 'Execute in parallel? \[y/n\]'; then
     echo 'detection still asks [y/n] to parallelize' >&2
     return 1

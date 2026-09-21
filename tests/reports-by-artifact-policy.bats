@@ -165,6 +165,9 @@ setup() {
   TECH_REVIEWER="$PLUGIN_ROOT/agents/tech-reviewer.md"
   VALIDATE_MODE="$PLUGIN_ROOT/references/validate-mode.md"
   RUN_MODE="$PLUGIN_ROOT/references/run-mode.md"
+  # The Tech Reviewer prompt template moved to its own appendix, loaded only
+  # when a sub-task carries a technology boundary. run-mode.md keeps a pointer.
+  TECH_REVIEW="$PLUGIN_ROOT/references/run-tech-review.md"
 }
 
 # The tools: line inside the frontmatter block only — a tool named in prose
@@ -1185,7 +1188,7 @@ agents_granting() { # $1 = tool name
   # template does not own answer for it. The blockquote markers make no
   # difference — `> ## Protocol` starts with `>`, so no inner heading of the
   # quoted prompt closes the section early.
-  sec="$(md_section "$RUN_MODE" '^### Tech Reviewer Prompt Template' '^##')"
+  sec="$(md_section "$TECH_REVIEW" '^### Tech Reviewer Prompt Template' '^##')"
   # `flat` reads a file, so a captured section is flattened inline.
   flatsec="$(printf '%s\n' "$sec" | tr '\n' ' ')"
   printf '%s\n' "$flatsec" | command grep -qiE '(^|[^A-Za-z])for measurement only'
