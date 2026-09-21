@@ -13,6 +13,37 @@ gracefully (see README "Prerequisites").
 
 ### Added
 
+- **The interface language is asked, not inherited.** The English rule covers
+  the artifacts, the EARS keywords and the code identifiers; it never covered
+  the menu, the prompts, the error messages and the README the requester's own
+  users read, and nothing said where it stopped. A request written in another
+  language now gets one clarify question, in that language — English, the
+  language you wrote in, another — skipped when the request is already in
+  English. Where no round runs (`instant`, or a spent budget) the default is the
+  language of the request, stated on its line. Measured 2026-09-21: given the
+  same Portuguese request, `instant` shipped an English menu "on the
+  repository's standing rule that written artifacts are English" and the
+  requester spent a turn undoing it, while the un-shortcut run asked and got it
+  right the first time.
+
+### Changed
+
+- **One source for the Executor protocol.** `run-mode.md`'s prompt template
+  recited the six steps, the report format, the closing block and the
+  prohibitions that `agents/executor.md` already carries, and the two copies had
+  drifted — each held rules the other lacked. The template now carries the
+  sub-task's fields and defers the protocol to the agent definition.
+- **`run-mode.md` loads its optional machinery on demand.** Parallel Execution,
+  Multi-Tech Review and Agent Teams moved to files a run opens when it needs
+  them (`run-parallel.md`, `run-tech-review.md`, `teams-mode.md`); the mode file
+  keeps a pointer with the trigger. With the deduplication above, the file a run
+  always reads went from 86 KB to 65 KB.
+- **The instruction files no longer carry the sessions that produced them.**
+  Measurement narrative, requester quotes and one description of a ceiling
+  removed in 0.7.0 left `engineering-level.md`, `plain-register.md`,
+  `run-mode.md` and `self-review-checklist.md`. Every rule and every number
+  stays; how it was obtained belongs to these notes.
+
 - **The security floor is verified instead of requested.** `validate-story.sh`
   now reports, as an error, every floor item — supported and declared runtime,
   secrets, README, dependency vulnerabilities (SCA) — that carries no gate in

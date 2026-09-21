@@ -272,6 +272,8 @@ When a command references `NNN`:
 
 **No technical question round.** The intent cascade is already answered and does not run. A technical choice the request leaves open is taken as a recommended default and recorded on its line — never turned into a question. The requester asked for the short path; spending their turn on a menu is the one thing `instant` exists to avoid.
 
+**The interface speaks the language the request was written in.** `instant` asks nothing, so it does not ask this either — and the artifacts' English is about artifacts, never about the menu the requester reads. Take their language, and say so on its line: *"menu in Portuguese, the language you wrote in — say the word and I'll switch it"*. Shipping an interface the requester cannot read, on a rule that was never about them, is the shortcut deciding something that was not its to decide ([Language](#language)).
+
 **What it does not remove.** The three pins are the whole difference. Triage still runs, the plan is still written, and every box still carries a `Validation:` that proves it alone.
 
 **What it does cost, said plainly.** `instant` does not only drop ceremony — **it drops protections the person using the program would have had**, and it drops them without asking. Measured across three runs on 2026-09-19, two requesters and two languages, the shortcut decided alone to: leave out an operation the same requester had asked for when asked; make an unreadable answer cost a point where the un-shortcut run re-asked the question for free; delete a record without confirming; and ship an interface in a language the requester had chosen differently when consulted. In one run it produced **no README at all** — less documentation than the same request answered with no Epic in the session.
@@ -523,6 +525,13 @@ the plain register, and both get the context and the example.
   table, write each decision as an assumption in story.md (Fast: in the run
   report) and proceed. Infinite clarification defeats the purpose — and so
   does a question the requester cannot answer.
+- **The interface language is a question, never an inheritance.** When the
+  request is not in English and the story ships something a person reads on
+  screen, ask which language its menu, prompts, messages and README are in —
+  in the requester's own language, one question, three options: English, the
+  language they wrote in, another. Not asked when the request is
+  already in English. The artifacts stay English either way
+  ([Language](#language)).
 - For each ambiguity, build a question with **2–4 mutually-exclusive options**.
   When the answer is binary, prefer `[yes / no / out-of-scope]` over open
   phrasings.
@@ -697,6 +706,13 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
 - **EARS keywords**: always English and CAPS (SHALL, WHEN, WHILE, IF, WHERE)
 - **Communication with the user**: always in the user's language (detected from their prompt)
 - **Code identifiers**: always English (function names, variables, etc.)
+- **What the requester's own users read**: the program's interface — menu, prompts, error messages — and the documentation of how to use it (its README). **This is the one thing the English rule does not cover**, and it is not the Epic's to decide: it belongs to whoever will read it.
+
+**The interface language is asked, not assumed.** A request written in a language other than English carries no instruction about the program's own text, and the English rule above is about artifacts — reading it as a rule about the interface ships a menu the requester cannot read, decided by a rule that was never about them. So:
+
+- **Asked once, in the requester's own language**, as an ordinary clarify question: English · the language you wrote to me in · another one. It is a `what` question, not a `how` — the requester is the one who reads the result.
+- **Not asked when the request is already in English** — the answer is not in doubt, and a question whose answer is known is a defect in either register ([Clarify Protocol](#clarify-protocol)).
+- **When no round will run** — `instant`, or a budget already spent — the default is **the language the request was written in**, taken and stated on its line, never the artifacts' English inherited by mistake.
 
 ## Validation
 
