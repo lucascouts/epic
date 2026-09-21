@@ -179,6 +179,16 @@ level_fixture() {
       if [ -n "$req" ]; then printf '  - Requirements: R1.1\n'; fi
     done
     printf '\n## Quality Gates\n'
+    # The security floor rides in every fixture that declares a level, because
+    # a story that declares one owes these four gates whatever else it drops
+    # (references/quality-catalog.md; tests/security-floor-gates.bats). Without
+    # them the `.errors == 0` assertions below would be measuring the floor
+    # lint instead of the ceiling this file is about. Four extra boxes are
+    # inert here: since 0.8.0 the ceiling is bytes only.
+    printf -- '- [ ] Q1 — Supported and declared runtime: `node --version`\n'
+    printf -- '- [ ] Q2 — Secrets: `gitleaks detect`\n'
+    printf -- '- [ ] Q3 — README: the commands it names run\n'
+    printf -- '- [ ] Q4 — Dependency vulnerabilities (SCA): `trivy fs .`\n'
     for i in $(seq 1 "$gates"); do printf -- '- [ ] gate %d\n' "$i"; done
   } > "$STORY/tasks.md"
 }

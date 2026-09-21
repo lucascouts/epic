@@ -11,6 +11,22 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Added
+
+- **The security floor is verified instead of requested.** `validate-story.sh`
+  now reports, as an error, every floor item — supported and declared runtime,
+  secrets, README, dependency vulnerabilities (SCA) — that carries no gate in
+  the Quality Gates section of `tasks.md`. Until now the whole chain was prose:
+  the legend names the item, `tasks.md` generates a `Qn` gate per legend line,
+  Validate settles the gate by running its command. Nothing checked that the
+  first link was ever written, so a story whose legend omitted the floor
+  produced no gate, gave Validate nothing to run, and passed. Measured
+  2026-09-19: four of fourteen Epic arms in the seven-language matrix skipped
+  floor items and all four validated clean. The check matches the item's name
+  rather than a command, since the command is the project's own, and is gated
+  on a declared `engineering:` level — fail-open on absence, so every story
+  written before 0.7.0 validates byte-identically.
+
 ## [0.8.0] — 2026-09-19
 
 One through-line: **a level decides how much engineering a story buys, never how

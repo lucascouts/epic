@@ -795,6 +795,53 @@ if [[ "$HAS_TASKS" == true ]]; then
   in_gates=false
   in_fence=false
 
+  # --- The security floor, checked as gates (references/quality-catalog.md) ---
+  #
+  # The floor is the four items NO engineering level drops: the supported and
+  # declared runtime, secrets, the README, and the dependency-vulnerability scan
+  # (SCA). `experiment` activates nothing else and still activates these.
+  #
+  # WHY A LINT AND NOT PROSE. The chain that carries the floor is entirely
+  # written down and entirely unexecuted: the story's `## Quality Requirements`
+  # legend names the item, `tasks.md` generates one `Qn` gate per legend line
+  # (references/tasks.md, Generated Quality Gates), and Validate settles that
+  # gate by running its command (references/validate-mode.md). Every link is a
+  # sentence an agent is asked to honour. Nothing checked that the first link
+  # was ever written, so a story whose legend simply omitted the floor produced
+  # no gate, gave Validate nothing to run, and passed. Measured 2026-09-19 over
+  # a seven-language matrix: four of fourteen Epic arms skipped floor items —
+  # one arm dropped the README, the secrets scan AND the SCA together — and all
+  # four validated clean. A floor that is requested and never verified is not a
+  # floor; this is the check that makes the difference observable.
+  #
+  # MATCHED ON THE ITEM, NOT ON A COMMAND. A gate reads
+  # `- [ ] Qn — <item>: <command>`, and the command is the project's own —
+  # `trivy fs .`, `cargo audit` and `govulncheck ./...` all prove SCA, and
+  # naming one would fail the two others. So each pattern is a distinctive
+  # substring of the catalog row's NAME, matched case-insensitively against the
+  # lowercased line. `sca` is bounded by non-letters so it cannot be found
+  # inside a word.
+  #
+  # SCOPED TO THE GATES SECTION, reusing the `in_gates`/`in_fence` state this
+  # loop already tracks rather than locating the section a second time — the
+  # comment above says in full why two answers to "where do the gates start"
+  # must not be allowed to drift apart. Scope is also precision: a sub-task
+  # titled `1.2 - Write the README` is work planned, not a check that runs, and
+  # a whole-file grep would read it as the item covered.
+  FLOOR_LABELS=(
+    'Supported and declared runtime'
+    'Secrets'
+    'README'
+    'Dependency vulnerabilities (SCA)'
+  )
+  FLOOR_RE=(
+    'runtime'
+    'secret'
+    'readme'
+    'dependency vulnerabilit|(^|[^a-z])sca([^a-z]|$)'
+  )
+  FLOOR_SEEN=(false false false false)
+
   while IFS= read -r line || [[ -n "$line" ]]; do
     LINE_NO=$((LINE_NO + 1))
     # The two exclusions have to see EVERY line, so they precede the box filter:
@@ -805,6 +852,23 @@ if [[ "$HAS_TASKS" == true ]]; then
       if [[ "$in_fence" == true ]]; then in_fence=false; else in_fence=true; fi
     elif [[ "$in_fence" == false && "$in_gates" == false && "${line,,}" =~ $gates_re ]]; then
       in_gates=true
+    fi
+    # The floor sweep rides here, above the checkbox filter, for the same
+    # reason the Commit-field lint does: it reads a LINE, and the filter below
+    # discards every line that is not a box. A gate that has lost its checkbox
+    # is a defect of a different kind, and this check should still see the item.
+    # A flag already true is never re-tested: the first gate naming an item
+    # settles it, and a second naming it again is not a second answer.
+    if [[ "$in_fence" == false && "$in_gates" == true ]]; then
+      floor_line_lc="${line,,}"
+      for floor_i in "${!FLOOR_RE[@]}"; do
+        [[ "${FLOOR_SEEN[floor_i]}" == false ]] || continue
+        # A plain `if`, never `[[ … ]] && …`: a trailing AND-list that fails
+        # hands its non-zero status up, and this script runs under `set -e`.
+        if [[ "$floor_line_lc" =~ ${FLOOR_RE[floor_i]} ]]; then
+          FLOOR_SEEN[floor_i]=true
+        fi
+      done
     fi
     # The Commit-field anchor lint (R4.1), argued in full at its own section
     # above. It rides THIS loop rather than opening a second pass for one
@@ -906,6 +970,43 @@ if [[ "$HAS_TASKS" == true ]]; then
       fi
     fi
   done < "$TASKS_FILE" 2>/dev/null || true
+
+  # --- The security floor: every item owes a gate ---
+  #
+  # GATED ON A DECLARED `engineering:`, which is this file's rule for every
+  # field the plugin added rather than inherited: fail-OPEN on absence,
+  # fail-CLOSED on a value that is present. The floor arrived with the field in
+  # 0.7.0, so the field is what marks a story as subject to it. A story written
+  # before it — 219 of 219 in the measured corpus, and every story in this
+  # repository — validates exactly as it did, and no legacy artifact is
+  # retroactively accused of missing a rule that did not exist when it was
+  # written.
+  #
+  # AN ERROR, NOT A WARNING. A warning is another sentence asking to be
+  # honoured, which is the failure being fixed. The story declares a level; the
+  # catalog says that level activates these four whatever else it drops; a gates
+  # section without them contradicts the story's own frontmatter. One message
+  # names every missing item, because an author who lost the legend lost all of
+  # them at once and should fix them in one pass, not four.
+  if [[ -n "$DECLARED_ENGINEERING" ]]; then
+    FLOOR_MISSING=()
+    for floor_i in "${!FLOOR_LABELS[@]}"; do
+      if [[ "${FLOOR_SEEN[floor_i]}" == false ]]; then
+        FLOOR_MISSING+=("${FLOOR_LABELS[floor_i]}")
+      fi
+    done
+    if [[ ${#FLOOR_MISSING[@]} -gt 0 ]]; then
+      # Joined by hand, not with `IFS`: `"${arr[*]}"` joins on the FIRST
+      # character of IFS alone, so `IFS='; '` yields `a;b` — a separator the
+      # message does not want and a reader would misread as one token.
+      FLOOR_LIST=""
+      for floor_i in "${!FLOOR_MISSING[@]}"; do
+        [[ -z "$FLOOR_LIST" ]] || FLOOR_LIST+="; "
+        FLOOR_LIST+="${FLOOR_MISSING[floor_i]}"
+      done
+      add_error "tasks.md declares engineering '$DECLARED_ENGINEERING' but its Quality Gates carry no gate for ${#FLOOR_MISSING[@]} of the four security-floor items: $FLOOR_LIST — the floor is the set no level drops (references/quality-catalog.md, The security floor), and an item with no gate is never run and never settled"
+    fi
+  fi
 
   # The verdict needs every child of a group, so it can only be reached once the
   # loop has ended. The rule is an IDENTITY and is therefore enforced in BOTH
