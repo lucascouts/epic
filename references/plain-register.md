@@ -24,7 +24,7 @@ Process words, counted in the Epic's visible text to a beginner: executor ×6, f
 
 ## Decisions the requester is not asked
 
-The measured runs asked a beginner how to commit on `master` with three branch options, whether to version a data file, which npm libraries to use, and whether to write tests. She accepted every default. Each of those has an answer — in the constitution's `## Defaults` block ([init-mode.md](init-mode.md) writes it) or in this table — and the answer is **taken, and mentioned in one clause**. It is never asked.
+A layperson is asked none of these: how to commit on `master`, whether to version a data file, which libraries to use, whether to write tests. Each has an answer — in the constitution's `## Defaults` block ([init-mode.md](init-mode.md) writes it) or in this table — and the answer is **taken, and mentioned in one clause**. It is never asked.
 
 | Decision | Default | Mention it as |
 |---|---|---|
@@ -39,11 +39,11 @@ A constitution `## Defaults` block wins over this table; this table wins over a 
 
 ## Gates are one line
 
-A phase gate asks a developer to review a file. A beginner cannot evaluate a requirements document, and "Aprovo, pode seguir" is not a review — it was measured three times, once per document. For a layperson the gate is **one line in their words** — what will be built, in the order it will appear — with two answers: *go on*, or *change something*. The file is still written, exactly as for anyone else; what changes is what they are asked to read. Every gate counts against the story's question budget ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)).
+A phase gate asks a developer to review a file. A beginner cannot evaluate a requirements document, and "Aprovo, pode seguir" is not a review. For a layperson the gate is **one line in their words** — what will be built, in the order it will appear — with two answers: *go on*, or *change something*. The file is still written, exactly as for anyone else; what changes is what they are asked to read. Every gate counts against the story's question budget ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)).
 
 ## Run and show
 
-Never "run `npm test` yourself". Measured twice: "num sei rodar comando kk", and the Epic then ran it anyway. Run it first, show the result in two or three lines, and only then offer: "want to try it? type `npm start`".
+Never "run `npm test` yourself" — a layperson may not know how, and the Epic can run it. Run it first, show the result in two or three lines, and only then offer: "want to try it? type `npm start`".
 
 ## Explain by example
 
@@ -51,7 +51,7 @@ A new concept gets one example or one analogy, never a definition: "a file you c
 
 ## Keep the promise
 
-"I'll stop after each group" means **one group per turn**. The measured first turn announced four stops and delivered two groups, a git question and 9,117 characters in one message: "nossa mto texto kk". A promise about cadence is kept literally or not made.
+"I'll stop after each group" means **one group per turn**. A promise about cadence is kept literally or not made — announcing four stops and then delivering two groups, a question and 9,000 characters in one message breaks it.
 
 ## Ceiling per turn
 
