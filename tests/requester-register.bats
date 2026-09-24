@@ -241,3 +241,13 @@ has() { # has <label> <block> <keyword>
   has "Q18 answer" "$down" "only on the answer"
   has "Q18 speed rule" "$down" "fewer words"
 }
+
+@test "Q19: the skill's core loads the requester's register — it is not left to a link inside triage.md" {
+  # Measured 2026-09-24: once triage moved out of SKILL.md, two of five layperson
+  # runs never opened plain-register.md and shipped a beginner's program with no test.
+  core=$(section "$ROOT/skills/epic/SKILL.md" '^## Triage Protocol' '^## ')
+  has "Q19 plain" "$core" "plain-register.md"
+  has "Q19 developer" "$core" "developer-register.md"
+  has "Q19 before plan" "$core" "before the plan is written"
+  has "Q19 tests" "$core" "tests are written and run in every scale"
+}

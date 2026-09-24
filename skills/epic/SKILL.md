@@ -232,6 +232,8 @@ That is a fair bargain for something disposable, and it is not a bug. It stops b
 
 **Create and Instant: read [triage.md](../../references/triage.md) now, before anything is written** — the runtime precheck, the three scales, the workflow variants and the triage protocol with its proposal line. Instant reads it with its pins already set.
 
+**Then load the requester's register, before the plan is written** — triage reads `requester.level`, and the register is where that level's defaults live: [plain-register.md](../../references/plain-register.md) for a `layperson`, [developer-register.md](../../references/developer-register.md) for a `developer`. Read the whole file; it is short. A layperson's defaults are not optional: tests are written and run in every scale, git is never a question, and nothing technical is asked — skipping the register is how a beginner's program ships with no test.
+
 ## Clarify Protocol
 
 **When a question round runs, read [clarify.md](../../references/clarify.md) first** — Standard and Full always, Fast when the request is ambiguous. Instant never asks and never loads it.
