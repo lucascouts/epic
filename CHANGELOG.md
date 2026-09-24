@@ -33,6 +33,14 @@ gracefully (see README "Prerequisites").
 
 ### Changed
 
+- **The skill carries its router, not every protocol.** Loading the skill put
+  the whole `SKILL.md` — 56 KB, about 22,000 tokens — into every run, and a
+  run re-reads its context at every step: that text was a quarter to two fifths
+  of all the context a Create or Instant run re-read. The triage, clarify,
+  personas, phase-execution and lifecycle-status protocols now live in
+  references of those names, each loaded where its mode reaches it; a stub with
+  the same heading stays in `SKILL.md` and points on. Instant, which asks
+  nothing, never loads the clarify protocol. `SKILL.md` went from 56 KB to 22 KB.
 - **One source for the Executor protocol.** `run-mode.md`'s prompt template
   recited the six steps, the report format, the closing block and the
   prohibitions that `agents/executor.md` already carries, and the two copies had

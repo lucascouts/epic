@@ -39,7 +39,7 @@ One block, N rows, one confirmation:
 | 1 | `<slug>` | feature | Moderate | full | new contract between services — the architectural signal Full asks for |
 | 2 | `<slug>` | bugfix | Trivial | fast | — |
 
-**A Moderate row is `standard` unless it names an architectural signal.** Scale per row follows the same rule a single create follows ([SKILL.md](../skills/epic/SKILL.md#complexity--mode-recommendation)): Full is opt-in on a signal, never on file count. Row 1 above earns its `full` in the last column — a row that cannot fill that column is a `standard`.
+**A Moderate row is `standard` unless it names an architectural signal.** Scale per row follows the same rule a single create follows ([SKILL.md](triage.md#complexity--mode-recommendation)): Full is opt-in on a signal, never on file count. Row 1 above earns its `full` in the last column — a row that cannot fill that column is a `standard`.
 
 Below the rows, the batch-wide context gathered once in step 2 — the runtime dependency check, the MCP health-check results and the resolved preferred tooling — then a single "Confirm or adjust?".
 

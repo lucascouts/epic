@@ -16,7 +16,7 @@ Each phase: generate artifact > **write to disk** > notify user > gate (approve 
 - If the user edits the file directly, read the updated version before proceeding to the next phase
 - If the user aborts, delete the entire story directory
 
-**For a `layperson` requester the gate is one line, not a file review** — what will be built, in their words, and two answers: go on, or change something ([plain-register.md](plain-register.md#gates-are-one-line)). The artifact is written exactly as for anyone else; what changes is what they are asked to read. Measured: a beginner approved every document she was shown ("Aprovo, pode seguir") without being able to evaluate one. Every gate counts against the story's question budget ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)).
+**For a `layperson` requester the gate is one line, not a file review** — what will be built, in their words, and two answers: go on, or change something ([plain-register.md](plain-register.md#gates-are-one-line)). The artifact is written exactly as for anyone else; what changes is what they are asked to read. Measured: a beginner approved every document she was shown ("Aprovo, pode seguir") without being able to evaluate one. Every gate counts against the story's question budget ([SKILL.md](clarify.md#clarify-protocol)).
 
 ## Cascade Rollback
 
@@ -140,7 +140,7 @@ The Architect output is injected as context when generating design.md. Skipped f
 
 **Only at engineering level `project` or `product`** ([engineering-level.md](engineering-level.md)). An `experiment` or `tool` story, whatever its scale, takes the Lite checklist below and writes its tests at run time — no Test Advisor is spawned, and no `.draft/authored-tests/` or `red-evidence.yaml` exists for it. Measured on 2026-09-17: the Advisor authoring 22 tests before any code cost about 25 minutes in each of two tool-shaped developer runs, for plans of 43 and 47 boxes.
 
-After the main agent generates the task list structure (with Objective, ToDo, Validation, Requirements — but **without Tests fields**), spawn the **Test Advisor** sub-agent (`subagent_type: test-advisor`, defined in `agents/test-advisor.md`) — in the foreground, `run_in_background: false`: Phase 3 cannot complete without its Red evidence, and a turn ended to wait for it is a turn the requester spends waiting ([SKILL.md](../skills/epic/SKILL.md#personas)) — to define testing requirements per sub-task **and author one test file per Unit/Integration/E2E sub-task** (Unit/Integration are Red-verified in Phase 3; E2E defers Red to Run mode):
+After the main agent generates the task list structure (with Objective, ToDo, Validation, Requirements — but **without Tests fields**), spawn the **Test Advisor** sub-agent (`subagent_type: test-advisor`, defined in `agents/test-advisor.md`) — in the foreground, `run_in_background: false`: Phase 3 cannot complete without its Red evidence, and a turn ended to wait for it is a turn the requester spends waiting ([SKILL.md](personas.md#personas)) — to define testing requirements per sub-task **and author one test file per Unit/Integration/E2E sub-task** (Unit/Integration are Red-verified in Phase 3; E2E defers Red to Run mode):
 
 > "Analyze these tasks, define which sub-tasks need tests, and author the test files (Unit/Integration as failing tests, E2E with Red deferred to Run mode).
 >

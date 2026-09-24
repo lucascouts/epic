@@ -1,6 +1,6 @@
 # Developer Register
 
-The seed of `requester.always` and `requester.never` for `level: developer` — someone who named files, tools, patterns or a stack ([SKILL.md](../skills/epic/SKILL.md#triage-protocol)); the layperson's seed is [plain-register.md](plain-register.md). Like the plain register it changes how the Epic **speaks and asks**, and never what it builds, what it writes to the story files, or the protocols the sub-agents run.
+The seed of `requester.always` and `requester.never` for `level: developer` — someone who named files, tools, patterns or a stack ([SKILL.md](triage.md#triage-protocol)); the layperson's seed is [plain-register.md](plain-register.md). Like the plain register it changes how the Epic **speaks and asks**, and never what it builds, what it writes to the story files, or the protocols the sub-agents run.
 
 **The difference from the plain register is directness, not the amount of context.** A developer is asked the question in its own terms — an option can be named `SQLite` — but every option still carries what it implies and one example. The developer asked for the thing to be built rather than giving instructions, which means the *how* is not settled in their head either; a bare label is a quiz, not a question.
 
@@ -25,7 +25,7 @@ The seed of `requester.always` and `requester.never` for `level: developer` — 
 - Every artifact is still written in English with every internal name — [SKILL.md](../skills/epic/SKILL.md#language)
 - Every sub-agent still runs its whole protocol
 - **The level never changes the scale**
-- The profile is re-read from the answers: outcome words with no tool vocabulary re-read the requester as `layperson` ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol))
+- The profile is re-read from the answers: outcome words with no tool vocabulary re-read the requester as `layperson` ([SKILL.md](clarify.md#clarify-protocol))
 
 ## Measured
 

@@ -64,7 +64,7 @@ has() {
 }
 
 @test "L6: the clarify protocol carries the question, not just the Language section" {
-  clar=$(section "$SKILL" '^## Clarify Protocol' '^## ')
+  clar=$(section "$ROOT/references/clarify.md" '^## Clarify Protocol' '^## ')
   has "L6 question" "$clar" "interface language"
   has "L6 skip" "$clar" "already in English"
 }
