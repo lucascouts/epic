@@ -31,6 +31,16 @@ gracefully (see README "Prerequisites").
   Portuguese runs, two or three lines per run — "Now closing the final checks",
   "The piped input dropped lines" — arrived in English between tool calls.
 
+### Fixed
+
+- **The runtime declaration is named for every stack.** The security floor's
+  runtime item told Node, Go and Python where to declare their version and
+  left Rust, Ruby and PHP to guess: one Rust run declared its `edition`, which
+  is a language dialect and not a minimum compiler, and one PHP run named the
+  version only in its README. The row now names `rust-version`, the Gemfile or
+  `.ruby-version`, and `require.php`. The `instant` section also still counted
+  three floor items after the README became the fourth.
+
 ### Changed
 
 - **The skill carries its router, not every protocol.** Loading the skill put
