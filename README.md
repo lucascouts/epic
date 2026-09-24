@@ -370,4 +370,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Version
 
-0.7.0 — see [CHANGELOG](./CHANGELOG.md).
+0.9.0 — see [CHANGELOG](./CHANGELOG.md).
