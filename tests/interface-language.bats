@@ -68,3 +68,9 @@ has() {
   has "L6 question" "$clar" "interface language"
   has "L6 skip" "$clar" "already in English"
 }
+
+@test "L7: communication in the user's language covers the text between tool calls" {
+  lang=$(section "$SKILL" '^## Language' '^## ')
+  has "L7 every line" "$lang" "every line they can see"
+  has "L7 between tools" "$lang" "between two tool calls"
+}

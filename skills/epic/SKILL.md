@@ -704,7 +704,7 @@ If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the sa
 
 - **Spec artifacts** (story.md, design.md, tasks.md): always English
 - **EARS keywords**: always English and CAPS (SHALL, WHEN, WHILE, IF, WHERE)
-- **Communication with the user**: always in the user's language (detected from their prompt)
+- **Communication with the user**: always in the user's language (detected from their prompt) — **every line they can see, including a note between two tool calls and the closing message**. A status line is communication: "Now closing the final checks" in the middle of a Portuguese conversation is the same defect as an English menu.
 - **Code identifiers**: always English (function names, variables, etc.)
 - **What the requester's own users read**: the program's interface — menu, prompts, error messages — and the documentation of how to use it (its README). **This is the one thing the English rule does not cover**, and it is not the Epic's to decide: it belongs to whoever will read it.
 

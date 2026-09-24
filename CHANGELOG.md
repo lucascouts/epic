@@ -25,6 +25,11 @@ gracefully (see README "Prerequisites").
   repository's standing rule that written artifacts are English" and the
   requester spent a turn undoing it, while the un-shortcut run asked and got it
   right the first time.
+- **Every line the requester can see is in their language, including the
+  notes between tool calls.** The Language rule said communication follows the
+  user's language; it did not say a status line is communication. In three
+  Portuguese runs, two or three lines per run — "Now closing the final checks",
+  "The piped input dropped lines" — arrived in English between tool calls.
 
 ### Changed
 
