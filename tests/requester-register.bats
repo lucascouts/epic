@@ -52,7 +52,7 @@ has() { # has <label> <block> <keyword>
 }
 
 @test "Q1: triage reads the requester as a four-field block, both registers, developer when unsure, and the level never changes the scale" {
-  block=$(section "$ROOT/skills/epic/SKILL.md" '^## Triage Protocol' '^### Complexity')
+  block=$(section "$ROOT/references/triage.md" '^## Triage Protocol' '^### Complexity')
   [ -n "$block" ]
   has "Q1" "$block" "developer"
   has "Q1" "$block" "layperson"
@@ -73,11 +73,11 @@ has() { # has <label> <block> <keyword>
 }
 
 @test "Q2: the triage proposal block carries a Requester line" {
-  grep -q '^> - \*\*Requester:\*\*' "$ROOT/skills/epic/SKILL.md"
+  grep -q '^> - \*\*Requester:\*\*' "$ROOT/references/triage.md"
 }
 
 @test "Q3: Clarify names a story-wide budget, counts gates and run questions, and opens with a calibration question when unsure" {
-  block=$(section "$ROOT/skills/epic/SKILL.md" '^## Clarify Protocol' '^### Question shape')
+  block=$(section "$ROOT/references/clarify.md" '^## Clarify Protocol' '^### Question shape')
   [ -n "$block" ]
   has "Q3 budget" "$block" "budget"
   has "Q3 gates" "$block" "gate"
@@ -169,7 +169,7 @@ has() { # has <label> <block> <keyword>
 }
 
 @test "Q12: the Draft Saving example carries the requester block with its four fields" {
-  block=$(section "$ROOT/skills/epic/SKILL.md" '^### Draft Saving' '^### Resume')
+  block=$(section "$ROOT/references/phase-execution.md" '^### Draft Saving' '^### Resume')
   [ -n "$block" ]
   has "Q12 block" "$block" "requester:"
   for f in level persona always never; do
@@ -182,14 +182,14 @@ has() { # has <label> <block> <keyword>
 }
 
 @test "Q13: Clarify appends a revealed working rule to requester.always or requester.never" {
-  block=$(section "$ROOT/skills/epic/SKILL.md" '^## Clarify Protocol' '^### Question shape')
+  block=$(section "$ROOT/references/clarify.md" '^## Clarify Protocol' '^### Question shape')
   has "Q13 level" "$block" "requester.level"
   has "Q13 never" "$block" "requester.never"
   has "Q13 always" "$block" "requester.always"
 }
 
 @test "Q14: Clarify asks as an architect — orientation round, consequence not mechanism, context and example, the how recommended" {
-  block=$(section "$ROOT/skills/epic/SKILL.md" '^## Clarify Protocol' '^### Question shape')
+  block=$(section "$ROOT/references/clarify.md" '^## Clarify Protocol' '^### Question shape')
   [ -n "$block" ]
   has "Q14 architect" "$block" "architect"
   has "Q14 orientation" "$block" "orientation"
@@ -205,7 +205,7 @@ has() { # has <label> <block> <keyword>
 }
 
 @test "Q15: the budget is counted in questions, the orientation round counts one, six numbers stated" {
-  block=$(section "$ROOT/skills/epic/SKILL.md" '^## Clarify Protocol' '^### Question shape')
+  block=$(section "$ROOT/references/clarify.md" '^## Clarify Protocol' '^### Question shape')
   has "Q15 unit" "$block" "counted in questions"
   has "Q15 orientation" "$block" "orientation round counts one"
   for n in "Fast 3" "Standard 9" "Full 12" "Fast 4" "Standard 10" "Full 14"; do
@@ -214,7 +214,7 @@ has() { # has <label> <block> <keyword>
 }
 
 @test "Q16: the Question shape example asks a consequence and labels the recommendation" {
-  block=$(section "$ROOT/skills/epic/SKILL.md" '^### Question shape' '^### Fallback')
+  block=$(section "$ROOT/references/clarify.md" '^### Question shape' '^### Fallback')
   [ -n "$block" ]
   has "Q16 recommended" "$block" "(Recommended)"
   has "Q16 consequence" "$block" "consequence"
@@ -235,9 +235,19 @@ has() { # has <label> <block> <keyword>
   has "Q18 speed" "$never" "speed"
   has "Q18 protocol" "$never" "protocol step"
   has "Q18 boxes" "$never" "box closing"
-  down=$(section "$ROOT/skills/epic/SKILL.md" '^[*][*]Downgrading is as legitimate' '^[*][*]Exploratory is a shape')
+  down=$(section "$ROOT/references/triage.md" '^[*][*]Downgrading is as legitimate' '^[*][*]Exploratory is a shape')
   [ -n "$down" ]
   has "Q18 gate" "$down" "gate"
   has "Q18 answer" "$down" "only on the answer"
   has "Q18 speed rule" "$down" "fewer words"
+}
+
+@test "Q19: the skill's core loads the requester's register — it is not left to a link inside triage.md" {
+  # Measured 2026-09-24: once triage moved out of SKILL.md, two of five layperson
+  # runs never opened plain-register.md and shipped a beginner's program with no test.
+  core=$(section "$ROOT/skills/epic/SKILL.md" '^## Triage Protocol' '^## ')
+  has "Q19 plain" "$core" "plain-register.md"
+  has "Q19 developer" "$core" "developer-register.md"
+  has "Q19 before plan" "$core" "before the plan is written"
+  has "Q19 tests" "$core" "tests are written and run in every scale"
 }

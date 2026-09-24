@@ -26,7 +26,7 @@ The hits are injected as a **Prior Knowledge** block in the triage proposal and 
 
 ## Codebase Analysis (standard + full scales)
 
-If existing code is detected, spawn the **Analyst** sub-agent — in the foreground, `run_in_background: false`: the proposal waits for its output ([SKILL.md](../skills/epic/SKILL.md#personas)):
+If existing code is detected, spawn the **Analyst** sub-agent — in the foreground, `run_in_background: false`: the proposal waits for its output ([SKILL.md](personas.md#personas)):
 
 > "Analyze this project and the user's request to provide context for story creation.
 >
@@ -94,6 +94,6 @@ For **standard and full scales**, spawn the **Analyst** sub-agent, in the foregr
 > Do NOT ask questions already answered by the request."
 
 **Rules:**
-- Present the questions in **rounds**, per the [Clarify Protocol](../skills/epic/SKILL.md#clarify-protocol) — orientation first, then precision, each round built from the last, every item reshaped into the consequence the requester can observe; the single numbered list is the headless fallback
+- Present the questions in **rounds**, per the [Clarify Protocol](clarify.md#clarify-protocol) — orientation first, then precision, each round built from the last, every item reshaped into the consequence the requester can observe; the single numbered list is the headless fallback
 - If the user answers "out of scope", add to Out of Scope in story.md
 - For fast and spike scales: skip the sub-agent, ask 1-2 inline questions only if needed

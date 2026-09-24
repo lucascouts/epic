@@ -102,7 +102,7 @@ hasF() { # hasF <label> <block> <fixed string>
 }
 
 @test "E2: triage reads the engineering level from the request, takes tool when unsettled, and the proposal carries an Engineering line" {
-  block=$(section "$ROOT/skills/epic/SKILL.md" '^## Triage Protocol' '^### Complexity')
+  block=$(section "$ROOT/references/triage.md" '^## Triage Protocol' '^### Complexity')
   [ -n "$block" ]
   has "E2 level" "$block" "engineering level"
   has "E2 reference" "$block" "engineering-level"
@@ -110,12 +110,12 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E2 default" "$block" "when the request does not settle it"
   has "E2 price" "$block" "multiple"
   has "E2 never the scale" "$block" "never changes the scale and never changes the requester level"
-  grep -q '^> - \*\*Engineering:\*\*' "$ROOT/skills/epic/SKILL.md"
-  grep -q '^3a\. \*\*Read the engineering level\*\*' "$ROOT/skills/epic/SKILL.md"
+  grep -q '^> - \*\*Engineering:\*\*' "$ROOT/references/triage.md"
+  grep -q '^3a\. \*\*Read the engineering level\*\*' "$ROOT/references/triage.md"
 }
 
 @test "E3: the Personas table gates the Test Advisor on project or product, and names the run-time alternative" {
-  block=$(section "$ROOT/skills/epic/SKILL.md" '^## Personas' '^## Command Routing')
+  block=$(section "$ROOT/references/personas.md" '^## Personas' '^## Command Routing')
   row=$(printf '%s' "$block" | grep -E '^\| \*\*Test Advisor\*\*')
   [ -n "$row" ]
   has "E3 project" "$row" "project"
@@ -125,7 +125,7 @@ hasF() { # hasF <label> <block> <fixed string>
 }
 
 @test "E4: the Phase 3 ceiling paragraph is about size, offers cut and split, and caps no count" {
-  block=$(section "$ROOT/skills/epic/SKILL.md" '^## Phase Execution' '^## Persistence')
+  block=$(section "$ROOT/references/phase-execution.md" '^## Phase Execution' '^## Persistence')
   [ -n "$block" ]
   has "E4 cut" "$block" "cut"
   has "E4 split" "$block" "split"
@@ -135,13 +135,13 @@ hasF() { # hasF <label> <block> <fixed string>
 }
 
 @test "E5: the meta.yaml example and the frontmatter block carry engineering:" {
-  draft=$(section "$ROOT/skills/epic/SKILL.md" '^### Draft Saving' '^### Resume')
+  draft=$(section "$ROOT/references/phase-execution.md" '^### Draft Saving' '^### Resume')
   [ -n "$draft" ]
   has "E5 meta" "$draft" "engineering:"
   out=$(section "$ROOT/skills/epic/SKILL.md" '^## Output Rules' '^### Lifecycle')
   [ -n "$out" ]
   hasF "E5 frontmatter" "$out" "engineering: experiment | tool | project | product"
-  am=$(section "$ROOT/skills/epic/SKILL.md" '^## Adaptive Modes' '^## Workflow Variants')
+  am=$(section "$ROOT/references/triage.md" '^## Adaptive Modes' '^## Workflow Variants')
   has "E5 two axes" "$am" "engineering level"
 }
 

@@ -11,8 +11,39 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-09-24
+
+One through-line: **the plugin now carries only what the run in front of it
+needs.** `SKILL.md` went from 56 KB to 22 KB and the run mode from 86 KB to 65 KB;
+the protocols load where their mode reaches them. The interface a requester reads
+is asked in their language instead of inherited from the artifacts' English, and
+the security floor is checked instead of requested.
+
+**Minimum Claude Code:** unchanged from 0.2.0. Every measurement behind this
+release ran on Claude Code 2.1.281, which by itself cut the cost of the same
+Epic commit to about a quarter of what 2.1.278 charged; numbers from before
+that version are not comparable with these.
+
+**Triage variance** (the release monitor, five runs of the beginner's request on
+this commit): scale **Fast 5/5**; engineering level `experiment` 4, `tool` 1.
+Taken on the host rather than through `triage-variance.sh`, whose image carries
+Claude Code 2.1.269 and Node 20 — a sample there would not measure this version.
+
 ### Added
 
+- **The security floor is verified instead of requested.** `validate-story.sh`
+  now reports, as an error, every floor item — supported and declared runtime,
+  secrets, README, dependency vulnerabilities (SCA) — that carries no gate in
+  the Quality Gates section of `tasks.md`. Until now the whole chain was prose:
+  the legend names the item, `tasks.md` generates a `Qn` gate per legend line,
+  Validate settles the gate by running its command. Nothing checked that the
+  first link was ever written, so a story whose legend omitted the floor
+  produced no gate, gave Validate nothing to run, and passed. Measured
+  2026-09-19: four of fourteen Epic arms in the seven-language matrix skipped
+  floor items and all four validated clean. The check matches the item's name
+  rather than a command, since the command is the project's own, and is gated
+  on a declared `engineering:` level — fail-open on absence, so every story
+  written before 0.7.0 validates byte-identically.
 - **The interface language is asked, not inherited.** The English rule covers
   the artifacts, the EARS keywords and the code identifiers; it never covered
   the menu, the prompts, the error messages and the README the requester's own
@@ -33,6 +64,17 @@ gracefully (see README "Prerequisites").
 
 ### Changed
 
+- **The skill carries its router, not every protocol.** Loading the skill put
+  the whole `SKILL.md` — 56 KB, about 22,000 tokens — into every run, and a
+  run re-reads its context at every step: that text was a quarter to two fifths
+  of all the context a Create or Instant run re-read. The triage, clarify,
+  personas, phase-execution and lifecycle-status protocols now live in
+  references of those names, each loaded where its mode reaches it; a stub with
+  the same heading stays in `SKILL.md` and points on. Instant, which asks
+  nothing, never loads the clarify protocol. `SKILL.md` went from 56 KB to 22 KB.
+  The core keeps one load it cannot leave to a link: the requester's register.
+  A first cut left `plain-register.md` reachable only from inside `triage.md`,
+  and two of five beginner runs never opened it and shipped with no test.
 - **One source for the Executor protocol.** `run-mode.md`'s prompt template
   recited the six steps, the report format, the closing block and the
   prohibitions that `agents/executor.md` already carries, and the two copies had
@@ -49,19 +91,15 @@ gracefully (see README "Prerequisites").
   `run-mode.md` and `self-review-checklist.md`. Every rule and every number
   stays; how it was obtained belongs to these notes.
 
-- **The security floor is verified instead of requested.** `validate-story.sh`
-  now reports, as an error, every floor item — supported and declared runtime,
-  secrets, README, dependency vulnerabilities (SCA) — that carries no gate in
-  the Quality Gates section of `tasks.md`. Until now the whole chain was prose:
-  the legend names the item, `tasks.md` generates a `Qn` gate per legend line,
-  Validate settles the gate by running its command. Nothing checked that the
-  first link was ever written, so a story whose legend omitted the floor
-  produced no gate, gave Validate nothing to run, and passed. Measured
-  2026-09-19: four of fourteen Epic arms in the seven-language matrix skipped
-  floor items and all four validated clean. The check matches the item's name
-  rather than a command, since the command is the project's own, and is gated
-  on a declared `engineering:` level — fail-open on absence, so every story
-  written before 0.7.0 validates byte-identically.
+### Fixed
+
+- **The runtime declaration is named for every stack.** The security floor's
+  runtime item told Node, Go and Python where to declare their version and
+  left Rust, Ruby and PHP to guess: one Rust run declared its `edition`, which
+  is a language dialect and not a minimum compiler, and one PHP run named the
+  version only in its README. The row now names `rust-version`, the Gemfile or
+  `.ruby-version`, and `require.php`. The `instant` section also still counted
+  three floor items after the README became the fourth.
 
 ## [0.8.0] — 2026-09-19
 
@@ -1319,7 +1357,9 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/lucascouts/epic/releases/tag/v0.9.0
+[0.8.0]: https://github.com/lucascouts/epic/releases/tag/v0.8.0
 [0.7.0]: https://github.com/lucascouts/epic/releases/tag/v0.7.0
 [0.6.0]: https://github.com/lucascouts/epic/releases/tag/v0.6.0
 [0.5.0]: https://github.com/lucascouts/epic/releases/tag/v0.5.0

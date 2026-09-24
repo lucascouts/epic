@@ -2,7 +2,7 @@
 
 Design-level view of the Epic plugin for contributors and integrators. The [README](README.md) covers *what* Epic is and how to install it; this document covers *how the pieces fit together* and *why*.
 
-- Last verified against: **v0.7.0** (`.claude-plugin/plugin.json`)
+- Last verified against: **v0.9.0** (`.claude-plugin/plugin.json`)
 - If you only want to add a new story mode or tweak an agent prompt, jump to [Extension points](#extension-points).
 
 ---
@@ -50,7 +50,7 @@ user request │  triage ─► clarify ─► analyst ─► architect         
              └───────────────────────────────────────────────────┘
 ```
 
-Scale (Fast / Standard / Full) controls which artifacts exist and which personas activate. The triage step emits a single proposal covering complexity, mode, workflow variant, MCPs, and output path — see [`skills/epic/SKILL.md`](skills/epic/SKILL.md#triage-protocol).
+Scale (Fast / Standard / Full) controls which artifacts exist and which personas activate. The triage step emits a single proposal covering complexity, mode, workflow variant, MCPs, and output path — see [`skills/epic/SKILL.md`](references/triage.md#triage-protocol).
 
 ---
 

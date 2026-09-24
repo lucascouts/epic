@@ -179,7 +179,7 @@ A failed run **writes no status and makes no offer** — rule 3 below, reached a
 
 ## Status Transition (`validated`)
 
-Validate mode owns exactly one of the six `status:` values — `validated` — and writes it at exactly one point: a passing verdict. It never writes any of the other five; those belong to CREATE, RUN, the supersede operation and the archive operation. See [SKILL.md](../skills/epic/SKILL.md#lifecycle-status-status) for the full field spec.
+Validate mode owns exactly one of the six `status:` values — `validated` — and writes it at exactly one point: a passing verdict. It never writes any of the other five; those belong to CREATE, RUN, the supersede operation and the archive operation. See [SKILL.md](lifecycle-status.md#lifecycle-status-status) for the full field spec.
 
 **The write mechanism is defined once**, in [run-mode.md](run-mode.md#status-transitions) — `Edit` on the frontmatter line and never `Write`, the same value in every artifact that carries frontmatter, the `Edit` adding the field on a legacy story that never had one. Validate mode reuses it unchanged; restating it here is exactly how the two copies would drift apart. A failed write is reported and the flow continues: `status:` is advisory metadata and must never change, delay or block the verdict it is recording.
 
@@ -341,7 +341,7 @@ One line, no argument, no second ask: the story stays in `.epic/stories/`. The o
 
 ### Headless
 
-**Headless / non-interactive session:** do **not** pause and do **not** call `AskUserQuestion`. Emit the offer as a logged note and proceed immediately — the archive is never performed without an accepted offer. The suggestion is informative, never gating, in a headless session. This is the same rule, in the same shape, that [preferred-tooling.md](preferred-tooling.md#no-favorite-available) applies to its install recommendation, and it reads the same session signal: `TaskCreate` present = interactive, per [SKILL.md](../skills/epic/SKILL.md#runtime-dependency-precheck-mandatory-before-standardfull-triage).
+**Headless / non-interactive session:** do **not** pause and do **not** call `AskUserQuestion`. Emit the offer as a logged note and proceed immediately — the archive is never performed without an accepted offer. The suggestion is informative, never gating, in a headless session. This is the same rule, in the same shape, that [preferred-tooling.md](preferred-tooling.md#no-favorite-available) applies to its install recommendation, and it reads the same session signal: `TaskCreate` present = interactive, per [SKILL.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage).
 
 The note names the command, so a logged suggestion is still actionable:
 

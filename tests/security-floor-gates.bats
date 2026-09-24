@@ -213,3 +213,13 @@ refute_mentions() {
   [ -n "$msg" ]
   echo "$msg" | grep -q "engineering 'product'"
 }
+
+@test "the runtime item names where each stack declares it, so no stack is left to guess" {
+  row=$(grep -F '| Supported and declared runtime |' "$PLUGIN_ROOT/references/quality-catalog.md" | head -1)
+  for decl in 'engines' '`go` directive' 'requires-python' 'rust-version' '.ruby-version' 'require.php' '.tool-versions'; do
+    printf '%s' "$row" | grep -qF -- "$decl" || { echo "runtime row does not name: $decl" >&2; return 1; }
+  done
+  # The two guesses measured on 2026-09-24: a Rust edition and a README-only version.
+  printf '%s' "$row" | grep -qi 'edition. is a language dialect'
+  printf '%s' "$row" | grep -qi 'only in the README'
+}

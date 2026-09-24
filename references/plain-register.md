@@ -1,6 +1,6 @@
 # Plain Register
 
-The seed of `requester.always` and `requester.never` for `level: layperson` — someone who described an outcome, not a mechanism, and showed no tool vocabulary ([SKILL.md](../skills/epic/SKILL.md#triage-protocol)); the developer's seed is [developer-register.md](developer-register.md). It changes how the Epic **speaks and asks**. It never changes what it builds, what it writes to the story files, or the protocols the sub-agents run: the files keep every internal name, the chat drops them.
+The seed of `requester.always` and `requester.never` for `level: layperson` — someone who described an outcome, not a mechanism, and showed no tool vocabulary ([SKILL.md](triage.md#triage-protocol)); the developer's seed is [developer-register.md](developer-register.md). It changes how the Epic **speaks and asks**. It never changes what it builds, what it writes to the story files, or the protocols the sub-agents run: the files keep every internal name, the chat drops them.
 
 Every rule below comes from a measurement — a persona simulation of one beginner, three runs, September 2026. The counts and the quotes are the evidence, kept here so the rule can be re-checked against them.
 
@@ -39,7 +39,7 @@ A constitution `## Defaults` block wins over this table; this table wins over a 
 
 ## Gates are one line
 
-A phase gate asks a developer to review a file. A beginner cannot evaluate a requirements document, and "Aprovo, pode seguir" is not a review. For a layperson the gate is **one line in their words** — what will be built, in the order it will appear — with two answers: *go on*, or *change something*. The file is still written, exactly as for anyone else; what changes is what they are asked to read. Every gate counts against the story's question budget ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)).
+A phase gate asks a developer to review a file. A beginner cannot evaluate a requirements document, and "Aprovo, pode seguir" is not a review. For a layperson the gate is **one line in their words** — what will be built, in the order it will appear — with two answers: *go on*, or *change something*. The file is still written, exactly as for anyone else; what changes is what they are asked to read. Every gate counts against the story's question budget ([SKILL.md](clarify.md#clarify-protocol)).
 
 ## Run and show
 
@@ -65,4 +65,4 @@ Visible text per turn stays under **~1,500 characters** — about one phone scre
 - Every sub-agent still runs its whole protocol. The register is the orchestrator's voice, never a protocol switch
 - A layperson who asks for more — "show me the plan", "I want to pick the library" — gets it, and the register stays plain around it
 - **The level never changes the scale.** A layperson who asks for something Full-shaped gets Full: the same files, with every gate in one line
-- The profile is re-read from the answers ([SKILL.md](../skills/epic/SKILL.md#clarify-protocol)): someone who answers in tool vocabulary is a `developer` from that point on
+- The profile is re-read from the answers ([SKILL.md](clarify.md#clarify-protocol)): someone who answers in tool vocabulary is a `developer` from that point on

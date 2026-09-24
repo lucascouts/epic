@@ -60,11 +60,11 @@ has() { # has <label> <block> <keyword>
 }
 
 @test "M3: SKILL.md triage has a memory step that names Fast, and the proposal has a Memory line" {
-  step=$(grep -E '^7a[.] ' "$ROOT/skills/epic/SKILL.md")
+  step=$(grep -E '^7a[.] ' "$ROOT/references/triage.md")
   [ -n "$step" ]
   has "M3 step" "$step" "memory"
   has "M3 step" "$step" "fast"
-  grep -q '^> - \*\*Memory:\*\*' "$ROOT/skills/epic/SKILL.md"
+  grep -q '^> - \*\*Memory:\*\*' "$ROOT/references/triage.md"
 }
 
 @test "M4: context-discovery.md has a Prior Knowledge section naming both reads, in all scales" {
