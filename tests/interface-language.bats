@@ -1,10 +1,8 @@
 #!/usr/bin/env bats
-# The interface language — the boundary the English rule never drew.
+# The interface language — where the English rule stops.
 #
-# Measured 2026-09-21: given the same Portuguese request, `instant` shipped an
-# English menu "on the repository's standing rule that written artifacts are
-# English", and the requester spent a turn undoing it. The rule was about
-# artifacts; nothing said where it stopped.
+# The English rule covers written artifacts only; it does not decide the
+# language of the interface the requester's users read.
 #
 #   L1  the Language section names what the requester's own users read, and
 #       puts it outside the English rule
@@ -12,7 +10,7 @@
 #       three options, and skipped when the request is already English
 #   L3  a run with no question round defaults to the request's language
 #   L4  instant states the default on its line instead of inheriting English
-#   L5  the artifacts stay English — the boundary moved, the rule did not
+#   L5  the artifacts stay English — only the interface falls outside the rule
 
 ROOT="$BATS_TEST_DIRNAME/.."
 SKILL="$ROOT/skills/epic/SKILL.md"

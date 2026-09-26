@@ -1,8 +1,7 @@
 #!/usr/bin/env bats
-# The engineering level — the doc contract (0.7.0, implemented inline on the
-# branch, no story). How long the thing must last decides how much the story
-# pays for: the catalog tier, whether Phase 3 authors the tests or the run
-# does, and the plan's box ceiling.
+# The engineering level — the doc contract. How long the thing must last
+# decides how much the story pays for: the catalog tier, and whether Phase 3
+# authors the tests or the run does.
 #
 # The surface is agent-executed prose, so every case pins a BLOCK found by a
 # structural anchor and asserts a keyword inside it, case-insensitively. No
@@ -19,9 +18,8 @@
 #   E3  the Personas table gates the Test Advisor on project/product
 #   E4  Phase Execution's ceiling paragraph makes the three offers
 #   E5  the meta.yaml example and the frontmatter block carry engineering:
-#   E6  tasks.md's Authoring Ceiling is per level, counts the Task List, keeps
-#       60 for no level, and the old single-ceiling sentence is gone; the
-#       Tests Field is authored only at project/product
+#   E6  tasks.md's Authoring Ceiling bounds bytes and the unit, never the
+#       count; the Tests Field is authored only at project/product
 #   E7  phase-gates.md spawns the Test Advisor only at project/product and
 #       widens the Lite checklist to experiment/tool
 #   E8  run-mode.md: materialization and its converse guard exempt the two
@@ -66,10 +64,8 @@ hasF() { # hasF <label> <block> <fixed string>
   [ -f "$f" ]
   levels=$(section "$f" '^## The four levels' '^## ')
   [ -n "$levels" ]
-    # The four questions are the owner's own wording (2026-09-18). "A month from
-  # now, will you open this again?" was rejected as unclear — it never says WHAT
-  # would be opened — and replaced by the intent cascade. The words below are
-  # the distinguishing half of each question, not decoration.
+  # The words below are the distinguishing half of each level's question, not
+  # decoration.
   for w in '`experiment`' '`tool`' '`project`' '`product`' "try it out" "breaks" "besides you" "product or a service"; do
     has "E1 level" "$levels" "$w"
   done
@@ -90,8 +86,8 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E1 advisor" "$pays" "Test Advisor"
   has "E1 run time" "$pays" "run time"
   has "E1 catalog" "$pays" "quality-catalog"
-  # 0.7.1: the level no longer carries a plan ceiling — the row is gone and its
-  # absence is pinned, since a table row is exactly what grows back by accident.
+  # The level carries no plan ceiling; the row's absence is pinned, since a
+  # table row is exactly what grows back by accident.
   if echo "$pays" | grep -q 'Plan ceiling'; then
     echo "E1: the per-level plan ceiling row is back in What each level pays for" >&2
     return 1
@@ -267,13 +263,11 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E12 self-review" "$(cat "$ROOT/references/self-review-checklist.md")" "Sized by the unit"
 }
 
-# --- Security floor and the `instant` shortcut (2026-09-19) ------------------
+# --- Security floor and the `instant` shortcut ------------------------------
 #
 # The floor exists because a level decides how much ENGINEERING a story buys,
-# never how much SAFETY. Measured provenance for the runtime item: eleven runs
-# of one beginner's request (15-17 Sep 2026) every one of which accepted the
-# Node it found — 20, out of support since April 2026 — and none of which
-# declared a version. The level was not the reason; nothing was checking.
+# never how much SAFETY. With nothing checking the runtime, a run accepts
+# whatever version it finds, even one out of support, and declares none.
 
 @test "E13: the security floor is named once, in quality-catalog.md, with its three items" {
   f="$ROOT/references/quality-catalog.md"
@@ -282,7 +276,7 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E13 runtime" "$floor" "runtime"
   has "E13 secrets"  "$floor" "gitleaks"
   has "E13 sca"      "$floor" "osv-scanner"
-  # The owner's rule for the runtime item: LTS by preference, the current
+  # The runtime item: LTS by preference, the current
   # widely-used stable when the LTS is the one carrying the vulnerability.
   has "E13 lts"      "$floor" "LTS"
   has "E13 clean"    "$floor" "vulnerab"
@@ -294,9 +288,8 @@ hasF() { # hasF <label> <block> <fixed string>
   [ -n "$bound" ]
   line=$(sed -n "${bound}p" "$f")
   has "E13b experiment floor" "$line" "security floor"
-  # The pre-0.7.1 wording said experiment activated nothing at all.
   if printf '%s' "$line" | grep -qF 'activates nothing'; then
-    echo "E13b: the level bound still says experiment activates nothing" >&2
+    echo "E13b: the level bound says experiment activates nothing" >&2
     return 1
   fi
 }
@@ -323,12 +316,9 @@ hasF() { # hasF <label> <block> <fixed string>
   grep -q '| \*\*Instant\*\* |' "$f"
 }
 
-# --- The six corrections measured out of the 2026-09-19 relay series ---------
+# --- Proposal, floor, instant, report and commit rules -----------------------
 #
-# Six runs, two requesters, two languages, one human answering every question.
-# Each case below pins a defect the series exposed, and each names the number
-# that justifies the rule so a later reader can argue with the evidence rather
-# than the taste.
+# Each case below pins one rule.
 
 @test "E15: the scale is proposed beside the level — the requester sees the bigger price" {
   read_=$(section "$ROOT/references/engineering-level.md" '^## How the level is read' '^## ')

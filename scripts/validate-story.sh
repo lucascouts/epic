@@ -63,8 +63,8 @@ json_escape() {
 # Same contract as the version:/status: parsing further down, factored out
 # because the scale is declared in story.md OR in tasks.md and both have to be
 # read: the file must OPEN with a `---` line, the block ends at the next one
-# (`sed '$d'` drops that closing line — GNU-only `head -n -1` aborted the whole
-# validation on BSD/macOS under set -e + pipefail), and the value is squeezed of
+# (`sed '$d'` drops that closing line — GNU-only `head -n -1` would abort the
+# whole validation on BSD/macOS under set -e + pipefail), and the value is squeezed of
 # whitespace. Anchored at column 0 like the templates write it, so a compound or
 # nested key (`review_scale:`) can never fake a value. <key> is a caller-supplied
 # literal, never user input — it is interpolated into the regex as-is.
@@ -91,7 +91,7 @@ xr_in_list() {
 # --- Infer scale from files present ---
 # The FALLBACK, not the source of truth: a declared `scale:` governs (see the
 # block right below), and this inference is what a story with no such field
-# gets — unchanged, because 340+ legacy stories predate the field.
+# gets — unchanged, so stories written before the field validate as before.
 HAS_STORY=false
 HAS_TASKS=false
 IS_BUGFIX=false
@@ -110,15 +110,11 @@ if [[ "$HAS_STORY" == true ]]; then
   fi
 fi
 
-# --- Read the DECLARED scale (R2.1, R2.3) ---
-# Until this block existed the validator only ever inferred the scale from the
-# files present and never read the field, which is how `scale: medium` shipped
-# unnoticed and how a spike would have been mis-validated as Fast.
-#
+# --- Read the DECLARED scale ---
 # Grammar rule, identical to `status:` below: fail-CLOSED on a present-but-wrong
 # value (an invented scale is an error), fail-OPEN on absence (no field means
 # the file inference above stands alone, with no error, no warning and no extra
-# output line — the pre-change bytes, exactly).
+# output line).
 #
 # One source of truth for the enum: the alternation drives both the `[[ =~ ]]`
 # check and the human-readable message (a `case` pattern cannot — bash does not
@@ -139,17 +135,12 @@ SCALE_VALUES=()
 # every scale has. A fast or spike story is tasks-only and can declare its scale
 # nowhere else, so a declaration there is never a leftover — whereas a story.md
 # or a design.md surviving an earlier attempt at a differently-shaped story is
-# exactly that, and honouring one of those over the live tasks.md is the defect
-# story 008 removes.
+# exactly that, and must never be honoured over the live tasks.md.
 #
 # THE WRITTEN CONTRACT THIS AGREES WITH is `references/tasks.md`, section "Spike
-# Scale Adaptations": that document always said tasks.md is where a spike
-# declares its scale and where validation reads it from, and it now states the
-# precedence for every scale outright — tasks.md is authoritative, and an
-# artifact that disagrees is reported rather than honoured. The rule is not
-# invented here; this is the code catching up to the contract it was already
-# documented against, which is why 008 is a bugfix and not a change of policy.
-# If code and contract ever part company again, that document is the one to
+# Scale Adaptations": it states the precedence for every scale outright —
+# tasks.md is authoritative, and an artifact that disagrees is reported rather
+# than honoured. If code and contract ever diverge, that document is the one to
 # reconcile against.
 #
 # FIVE READERS RESOLVE A STORY'S SCALE AND MOVE TOGETHER, stated here in full as
@@ -164,11 +155,10 @@ SCALE_VALUES=()
 #      compare against at all.
 # And the two that deliberately do NOT change, named so the next reader can tell
 # an exception from an oversight:
-#   4. monitor-stale.sh:96 `declares_spike_scale` — already reads tasks.md and
-#      nothing else. It never carried the defect; this rule is the rest of the
-#      codebase agreeing with the precedent it set.
-#   5. epic-index.sh:772-778 `status_cell` — knowingly kept on its own
-#      precedence and out of scope, and it says so at its own definition. It
+#   4. monitor-stale.sh `declares_spike_scale` — already reads tasks.md and
+#      nothing else.
+#   5. epic-index.sh `status_cell` — deliberately keeps its own precedence, and
+#      it says so at its own definition. It
 #      renders a row, it gates nothing, and a renderer that disagrees costs a
 #      wrong cell, not a wrong archive.
 #
@@ -182,7 +172,7 @@ SCALE_VALUES=()
 # the slot — `story.md: medium` beside `tasks.md: spike` resolves `spike` AND
 # reports the `medium`.
 #
-# design.md is read and enum-checked and paired, but NEVER resolves (R2.4): it
+# design.md is read and enum-checked and paired, but NEVER resolves: it
 # describes the SOLUTION, not the shape of the work. It sits in the middle of
 # the loop order so its error is reported in artifact order; the resolution
 # skips it by name.
@@ -217,7 +207,7 @@ for SCALE_SRC in story.md design.md tasks.md; do
   esac
 done
 
-# --- Read the DECLARED engineering level (0.7.0) ---
+# --- Read the DECLARED engineering level ---
 # `engineering:` is one of four values, defined once in
 # references/engineering-level.md. It is read the way `scale:` is — tasks.md
 # first, because it is the one artifact every scale has. Fail-CLOSED on a value
@@ -237,7 +227,7 @@ for ENG_SRC in tasks.md story.md design.md; do
   [[ -n "$DECLARED_ENGINEERING" ]] || DECLARED_ENGINEERING="$ENG_VAL"
 done
 
-# --- Artifacts disagreeing about the scale (R2.1, R2.2) ---
+# --- Artifacts disagreeing about the scale ---
 # One story, one scale, so artifacts declaring different values disagree about
 # the SHAPE OF THE WORK — the same defect the `status:` collector below reports
 # for the lifecycle state, reported the same way: compare every collected value
@@ -253,29 +243,27 @@ done
 # warning rather than an error: `tasks.md` is authoritative for `scale:`, so its
 # value is the one in force WHENEVER IT DECLARES ONE — but the stale line can
 # just as easily be the one sitting in tasks.md itself. Picking a side would be
-# a guess dressed up as a finding, and the R2.3 mismatch warning right below
+# a guess dressed up as a finding, and the scale-mismatch warning right below
 # declines to pick one for exactly the same reason.
 #
 # EMITTED AHEAD OF THAT MISMATCH BLOCK, deliberately: the disagreement is the
 # reason two values exist at all, so it is read before the consequence of the
 # resolved one. That fixes its position in `warning_details[]`.
 #
-# THE ONLY PLACE design.md's declaration IS OBSERVABLE (R2.4): it is compared
+# THE ONLY PLACE design.md's declaration IS OBSERVABLE: it is compared
 # here like any other declaring artifact and never resolves, so a `design.md:
 # full` beside a `tasks.md: spike` warns naming `design.md=full` while the
 # resolved scale stays `spike`.
 #
-# AGREEMENT IS SILENT (R2.2): three artifacts carrying the same value collect
-# three identical elements and diverge from none of them. That is not a nicety —
-# swept when it shipped, all 8 stories in .epic/stories/ and all 4 examples in
-# assets/examples/ declare one uniform value per story, so the tempting "warn
-# whenever two artifacts declare" variant would have fired on every one of them,
-# this story's own directory included.
+# AGREEMENT IS SILENT: three artifacts carrying the same value collect three
+# identical elements and diverge from none of them. That is not a nicety —
+# uniform declarations are the normal case, so the tempting "warn whenever two
+# artifacts declare" variant would fire on every well-formed story.
 #
 # ${SCALE_VALUES[@]+"${SCALE_VALUES[@]}"} rather than a bare "${SCALE_VALUES[@]}",
 # and the whole block gated on a non-empty array: expanding an empty array —
 # or reading its element 0 — is an unbound-variable abort under `set -u` on
-# bash < 4.4 (macOS ships 3.2), the same hazard archive-story.sh:239 guards. The
+# bash < 4.4 (macOS ships 3.2), the same hazard archive-story.sh guards. The
 # empty case is the COMMON one here, not the corner: no artifact of a legacy
 # story declares a scale at all.
 if [[ ${#SCALE_VALUES[@]} -gt 0 ]]; then
@@ -313,21 +301,21 @@ fi
 # That is a wrong message, loudly, on day one — which someone fixes. Loud and
 # wrong beats quiet and wrong.
 #
-# IT ALSO DECIDES THE LEGACY CASE ON PURPOSE RATHER THAN BY ACCIDENT (R3.3). A
+# IT ALSO DECIDES THE UNDECLARED CASE ON PURPOSE RATHER THAN BY ACCIDENT. A
 # story that declares no `scale` in any artifact leaves DECLARED_SCALE empty;
 # the empty string falls to `*` and keeps its requirements chain BECAUSE THE
-# RULE SAYS SO. Under a positive list the same 340+ pre-field stories would be
+# RULE SAYS SO. Under a positive list, stories without the field would be
 # correct only because someone remembered to spell `""` into the list — a
-# contract held up by a habit, and the exact shape story 007's R2.2 golden
-# exists to catch when the habit lapses.
+# contract held up by a habit, which the legacy golden in
+# tests/scale-validation.bats exists to catch when the habit lapses.
 #
 # A pure function of DECLARED_SCALE and nothing else, named rather than inlined
 # so the question is spelled ONCE and cannot be answered two ways: the argument
 # scale_mismatch below makes for its warning skeleton, and no_r_chain further
-# down makes for its sentence. Answering it from FILE PRESENCE instead is the
-# defect this whole story exists to remove, and two gates answering it
-# differently — one from the files, one from the declaration — is how that
-# defect survived unnoticed (see the coverage gate's own comment).
+# down makes for its sentence. It must never be answered from FILE PRESENCE:
+# two gates answering it differently — one from the files, one from the
+# declaration — contradict each other on the same story (see the coverage
+# gate's own comment).
 scale_has_requirements_chain() {
   case "$DECLARED_SCALE" in
     fast | spike) return 1 ;;
@@ -335,7 +323,7 @@ scale_has_requirements_chain() {
   esac
 }
 
-# --- Declared scale vs files present (R2.3) ---
+# --- Declared scale vs files present ---
 # Each scale names an artifact set (references/tasks.md): fast and spike are
 # tasks-only, standard adds story.md, full adds design.md on top. A declaration
 # that contradicts the files on disk means ONE of the two sides is wrong, and
@@ -395,9 +383,9 @@ if [[ "$HAS_STORY" == true ]]; then
   # rather than describing something. Lowercase "should" is ordinary English
   # prose — "auth errors should fail immediately" in a bugfix's Summary is a
   # description of correct behaviour, not a weakened requirement. A `-i` here
-  # cannot tell the two apart, so it turned every such sentence into a hard
-  # ERROR; assets/examples/bugfix-complete.md, the very document authors are
-  # told to imitate, failed validation on its own Summary line because of it.
+  # cannot tell the two apart and would turn every such sentence into a hard
+  # ERROR — failing even assets/examples/bugfix-complete.md, the very document
+  # authors are told to imitate, on its own Summary line.
   # The obligation lines it was written to catch — "The system SHOULD retry" —
   # are still caught: those shout, which is exactly why the check can afford
   # to listen only for shouting.
@@ -420,43 +408,42 @@ if [[ "$HAS_STORY" == true ]]; then
     add_warning "No hierarchical requirement numbering (R1, R2...) found in story.md"
   fi
 
-  # --- EARS form lint (story 014, sub-task 1.1 — R1.1, R1.2, R1.3, R1.4, R1.5)
+  # --- EARS form lint ---
   #
-  # THREE CHECKS, ONE SEVERITY EACH, and the split is the story's Constraint
-  # rather than a preference: only (a) is an error, because only (a) makes a
+  # THREE CHECKS, ONE SEVERITY EACH, and the split is a rule rather than a
+  # preference: only (a) is an error, because only (a) makes a
   # criterion invisible to the whole traceability chain — an unlabeled bullet
   # cannot be referenced by a task, so cross-reference.sh cannot see it and the
   # Auditor cannot trace it. (b) and (c) are shape advice about a criterion
   # everything downstream can still find, so they warn.
   #
-  #   (a) a criterion bullet with no `Rn.m:` label ......... ERROR   (R1.1)
-  #   (b) a labeled criterion carrying 2+ SHALL ............ warning (R1.2)
+  #   (a) a criterion bullet with no `Rn.m:` label ......... ERROR
+  #   (b) a labeled criterion carrying 2+ SHALL ............ warning
   #   (c) a labeled criterion with no EARS trigger, whose
-  #       opening is not the ubiquitous form ............... warning (R1.3)
+  #       opening is not the ubiquitous form ............... warning
   #
   # WHERE IT LOOKS. Only bullets under a `#### Acceptance Criteria` heading,
-  # and the block ends at the next heading of any level (R1.5). A fenced block
+  # and the block ends at the next heading of any level. A fenced block
   # is never scanned: an illustrative criterion inside a fence is documentation
   # showing the shape, not a claim about this story. The fence state is tracked
   # with the same idiom and the same regex the checkbox walker below uses, so
   # this file keeps ONE fence policy rather than two that can drift.
   #
-  # WHY CONTINUATION LINES ARE JOINED. A criterion in this repository routinely
-  # wraps across three or four lines — the SHALL is often not on the bullet's
-  # first line at all. Evaluating the first line alone would report the
-  # majority of the live corpus as trigger-less, which is how a lint teaches
-  # people to ignore it. The bullet and its continuations are therefore
+  # WHY CONTINUATION LINES ARE JOINED. A criterion routinely wraps across
+  # several lines — the SHALL is often not on the bullet's first line at all.
+  # Evaluating the first line alone would report most criteria as
+  # trigger-less, which is how a lint teaches people to ignore it. The bullet and its continuations are therefore
   # buffered and evaluated as one criterion, and the line reported is the
   # bullet's own first line, which is where an author would go to fix it.
   #
-  # SCALE GATING (R1.4). The whole block is skipped for fast and spike, which
+  # SCALE GATING. The whole block is skipped for fast and spike, which
   # have no requirements chain — a leftover story.md in a Fast story is not a
   # requirements document and must not be linted as one.
   #
   # --strict PROMOTION. Under `--strict`, warnings are promoted to errors, so
   # (b) and (c) become blocking there. That is the flag's existing meaning and
-  # is stated here because this block is the largest new source of warnings in
-  # the script.
+  # is stated here because this block is the largest source of warnings in the
+  # script.
   #
   # BSD-SAFE SPELLINGS ONLY: no `\b`, no `\d`, no `\s` in any pattern below.
   if scale_has_requirements_chain; then
@@ -467,7 +454,7 @@ if [[ "$HAS_STORY" == true ]]; then
     ears_label_re='^[[:space:]]*-[[:space:]]+R[0-9]+\.[0-9]+:'
     ears_trigger_re='(^|[^[:alnum:]_])(WHEN|WHILE|WHERE|IF)([^[:alnum:]_]|$)'
     # The ubiquitous form keeps its component slot: `THE <COMPONENT> SHALL` is
-    # legal EARS and subject drift beyond that is out of this story's scope.
+    # legal EARS, and subject drift beyond that is not checked.
     # Case is load-bearing — EARS keywords are CAPS, so a prose opener like
     # "The exporter SHALL" is not the ubiquitous form and does warn.
     ears_ubiquitous_re='^[[:space:]]*-[[:space:]]+R[0-9]+\.[0-9]+:[[:space:]]+THE[[:space:]]+[A-Z][A-Z0-9_ -]*SHALL([^[:alnum:]_]|$)'
@@ -485,11 +472,10 @@ if [[ "$HAS_STORY" == true ]]; then
       local text="$1" line="$2" shall_count bare
       [[ -n "$text" ]] || return 0
       # An inline code span is a MENTION, not an obligation — the same rule the
-      # fence applies to a block, applied to a span. Measured on this repo's own
-      # corpus: without it, a criterion that merely names `SHALL` while stating
-      # a rule about SHALL counts as compound and warns, which flagged story
-      # 014's own R1.2 ("WHEN a labeled criterion contains more than one
-      # `SHALL` THE SYSTEM SHALL warn"). A lint that reddens on prose describing
+      # fence applies to a block, applied to a span. Without it, a criterion
+      # that merely names `SHALL` while stating a rule about SHALL ("WHEN a
+      # labeled criterion contains more than one `SHALL` THE SYSTEM SHALL warn")
+      # counts as compound and warns. A lint that reddens on prose describing
       # itself is a lint people learn to ignore. Stripping is symmetric: a
       # trigger word mentioned inside a span is likewise not a trigger.
       # SC2016 is silenced on the next line: the backticks are the LITERAL span
@@ -559,7 +545,7 @@ fi
 if [[ "$HAS_TASKS" == true ]]; then
   TASKS_FILE="$STORY_DIR/tasks.md"
 
-  # --- Why the scale rose (0.8.0) -----------------------------------------
+  # --- Why the scale rose ---------------------------------------------------
   # `fast` is the floor; every other scale owes one line naming what in the
   # request made the smaller shape insufficient. The reason is read from the
   # same artifact the resolved value came from, so the two cannot drift apart.
@@ -570,18 +556,14 @@ if [[ "$HAS_TASKS" == true ]]; then
   # author's call, and a story written before the field validates as it did.
   # Silent at `fast`, where there is nothing to justify.
   #
-  # WHY IT EXISTS: measured 2026-09-19, one requester, one request, one
-  # `experiment` level. The run that resolved to `standard` cost 10.9x its
-  # executed control and took 21 minutes; the one that resolved to `fast` cost
-  # 4.3x and took 10. The level had been asked about and answered; the scale
-  # was never mentioned in the whole conversation, surfacing only in the
-  # recorded line with the plan already written. The decision that moved the
-  # bill most was the one decision nobody stated.
+  # WHY IT EXISTS: the scale is the decision that moves a story's cost most,
+  # and it is easily never stated, surfacing only in the recorded line after
+  # the plan is written. Requiring one line of reason makes that decision
+  # explicit.
   # ABSENCE IS SILENT, and that is not laxity — it is this file's rule for every
-  # new field, the one `engineering:` established in 0.7.0: fail-OPEN on
-  # absence, fail-CLOSED on a value that is present and wrong. A story written
-  # before the field must validate exactly as it did, and the hard contract in
-  # R2.2 says so in a test. What is checked is the field an author STARTED and
+  # new field: fail-OPEN on absence, fail-CLOSED on a value that is present and
+  # wrong. A story written before the field must validate exactly as it did,
+  # and a test pins that. What is checked is the field an author STARTED and
   # left empty — `scale_reason:` with nothing after it is not a legacy story,
   # it is an unfinished one.
   if [[ -n "$DECLARED_SCALE" && "$DECLARED_SCALE" != "fast" ]] \
@@ -603,13 +585,13 @@ if [[ "$HAS_TASKS" == true ]]; then
     add_warning "Found $OLD_FORMAT_COUNT tasks using old [T1]/[T2]/[T3] prefix format — use new format: - [ ] N - Name"
   fi
 
-  # --- Commit-field anchor lint (R4.1) ---
+  # --- Commit-field anchor lint ---
   # A `Commit:` message whose subject is not scoped with this story's number is
   # INVISIBLE to integration detection: scripts/story-git-status.sh finds a
   # story's work through `(NNN)` in a subject or a merged `feat/NNN-*` branch and
   # through nothing else, so `feat: add the thing` is a commit no reader can ever
-  # attribute back to the story that authored it. references/tasks.md has always
-  # recommended the anchor; this is the recommendation becoming observable.
+  # attribute back to the story that authored it. references/tasks.md
+  # recommends the anchor; this lint makes the recommendation observable.
   #
   # A WARNING, NEVER AN ERROR, and the severity is the point rather than a
   # softening: a foreign commit convention stays perfectly usable — the plugin
@@ -619,15 +601,15 @@ if [[ "$HAS_TASKS" == true ]]; then
   # self-invokes this validator on every box it closes, so a lint that fires
   # loosely would surface on every marking in the system.
   #
-  # THE FIELD IS WHAT IS MATCHED, NEVER THE CHECKBOX. Today the message lives in
-  # the body of a Commit sub-task (`- [ ] 1.6 - Commit` / `  - Commit: "…"`) and
-  # story 015 of this wave moves it to a group-level `- Commit: "…"` on the
-  # parent task body, dropping the box entirely. Both shapes are the SAME line —
-  # `- Commit:` in a body — so keying on the field rather than on the box is what
-  # lets one lint span the migration without knowing which side of it it is on.
+  # THE FIELD IS WHAT IS MATCHED, NEVER THE CHECKBOX. The message can live in
+  # the body of a Commit sub-task (`- [ ] 1.6 - Commit` / `  - Commit: "…"`) or
+  # as a group-level `- Commit: "…"` on the parent task body, with no box at
+  # all. Both shapes are the SAME line — `- Commit:` in a body — so keying on
+  # the field rather than on the box covers both without knowing which one a
+  # story uses.
   #
   # THIS STORY'S NUMBER COMES FROM THE DIRECTORY NAME, as it does for every other
-  # reader of a story's identity (story-git-status.sh:533-538 derives the same
+  # reader of a story's identity (story-git-status.sh derives the same
   # two tokens the same way): no artifact's frontmatter carries the number, so
   # the directory is the only place it exists. A directory with no leading number
   # — `story`, a bare slug, a checkout root — yields nothing to anchor against,
@@ -636,7 +618,7 @@ if [[ "$HAS_TASKS" == true ]]; then
   #
   # TWO SPELLINGS OF ONE NUMBER, and both are needed. NUM is padding-free and
   # feeds the regex through a leading `0*`, so `010-x` accepts `feat(010):` and
-  # `fix(10):` alike (R4.1: zero-padded and unpadded both). LABEL is the number
+  # `fix(10):` alike — zero-padded and unpadded both. LABEL is the number
   # AS THE DIRECTORY SPELLS IT and is what the message quotes — the same rule the
   # group-header check above states for its own label, so grepping the file for
   # the number the warning names finds the line it names.
@@ -664,7 +646,7 @@ if [[ "$HAS_TASKS" == true ]]; then
     # `type(0*NNN):`, with the optional `!` a breaking change carries. Built
     # once, and COMMIT_STORY_NUM is a digit run captured above — never input.
     commit_anchor_re="^[[:alnum:]][[:alnum:]_-]*\(0*${COMMIT_STORY_NUM}\)!?:"
-    # The expected shape the warning names (R4.1), spelled ONCE and hoisted out
+    # The expected shape the warning names, spelled ONCE and hoisted out
     # of the loop: it is a constant of the run, not of the offending line.
     # The second example is CONDITIONAL because the two spellings collapse into
     # one for a directory that writes its number unpadded — `10-slug` has
@@ -688,34 +670,29 @@ if [[ "$HAS_TASKS" == true ]]; then
   # on a leading space the day someone loosens the field regex.
   commit_trim_re='^[[:space:]]*(.*[^[:space:]])[[:space:]]*$'
 
-  # --- Checkbox census (R3.1, R3.2, R3.5) ---
+  # --- Checkbox census ---
   # One line grammar, three box states:
   #   - [ ] open   - [x] closed   - [~] closed WITHOUT doing the work.
   # A `[~]` MUST say why on the same line, with one of the four qualifiers —
-  # that check (R3.2) is the whole reason this loop reads qualifiers at all.
+  # that check is the whole reason this loop reads qualifiers at all.
   #
-  # BOX_CLOSED IS NOT SPLIT into terminal vs deferred, and that half of
-  # sub-task 6.5's decision still holds: `closed` below means "not open, and
-  # correctly qualified", because no check reads a closed-by-kind breakdown and
-  # R5.1 forbids emitting one — a new count key would break every legacy golden,
-  # which design.md §3 records as a settled decision. That constraint is on the
-  # JSON, not on this script's internals: BOX_DEFERRED below is never emitted.
+  # BOX_CLOSED IS NOT SPLIT into terminal vs deferred in the output: `closed`
+  # below means "not open, and correctly qualified", because no check reads a
+  # closed-by-kind breakdown and a new count key would break every existing
+  # golden. That constraint is on the JSON, not on this script's internals:
+  # BOX_DEFERRED below is never emitted.
   #
-  # WHAT CHANGED, AND WHY THE COUNTER IS BACK (sub-task 12.3). 6.5 removed the
-  # deferred count on the ground that "nothing in THIS script consumes it", and
-  # proved the point by measurement: while it existed here, swapping the two
-  # branches left the entire suite green — a split no one reads is not a
-  # distinction, it is an untested claim. The status-behind-the-checkboxes
-  # warning below is that missing consumer. It cannot be written without the
-  # count, because rule 1 of references/run-mode.md makes `done` conditional on
-  # "no `[ ]` AND no deferred `[~]`" — a deferred box blocks `done` deliberately,
-  # so a story resting at `in-progress` with deferred work owed is CORRECT and
-  # must not be warned about. Fold deferred into closed and that story warns
-  # falsely; the hostile case in tests/validate-story-status.bats reddens on
-  # exactly that fold, which is what 6.5's green mutation could not do.
+  # WHY THE DEFERRED COUNTER EXISTS: the status-behind-the-checkboxes warning
+  # below consumes it. It cannot be written without the count, because rule 1
+  # of references/run-mode.md makes `done` conditional on "no `[ ]` AND no
+  # deferred `[~]`" — a deferred box blocks `done` deliberately, so a story
+  # resting at `in-progress` with deferred work owed is CORRECT and must not be
+  # warned about. Fold deferred into closed and that story warns falsely; the
+  # hostile case in tests/validate-story-status.bats reddens on exactly that
+  # fold.
   #
   # BOX_OPEN counts `[ ]`, and only `[ ]`. It has two consumers: the
-  # ahead-of-checkboxes warning (R2.3) and, with BOX_DEFERRED, its converse.
+  # ahead-of-checkboxes warning and, with BOX_DEFERRED, its converse.
   # Counters are plain integers incremented in the loop, never ${#assoc[@]} on
   # a possibly-empty associative array (that trips set -u on bash 5.3 — the
   # same reason REQ_KEYS exists in cross-reference.sh).
@@ -749,30 +726,29 @@ if [[ "$HAS_TASKS" == true ]]; then
   GRP_BAD=()    # [n] = how many are an unqualified [~], i.e. of unreadable state
   # ONE regex for both shapes, because they differ by one optional group and the
   # number that keys them is the same capture: `N - Title` is the header, and
-  # `N.M - Title` is a sub-task of that same N. Splitting it in two duplicated
-  # the digit guard and the `10#` below, and a guard kept in two places is a
-  # guard that eventually gets applied in one. (`1.2.3` matches neither, which
-  # is exactly what it did before: three-level numbering is out of scope here.)
+  # `N.M - Title` is a sub-task of that same N. Splitting it in two would
+  # duplicate the digit guard and the `10#` below, and a guard kept in two
+  # places is a guard that eventually gets applied in one. (`1.2.3` matches
+  # neither: three-level numbering is out of scope here.)
   task_num_re='^[[:space:]]*- \[([ x~])\][[:space:]]+([0-9]+)(\.[0-9]+)?[[:space:]]+-[[:space:]]'
   # A digit run longer than this is not a task number. Past 2^63 it wraps to a
   # NEGATIVE array subscript, which bash treats as fatal — under set -euo
-  # pipefail the script died before reaching the emitter and printed NO JSON AT
-  # ALL, to consumers that all parse that JSON. Guard the digits before they
+  # pipefail the script would die before reaching the emitter and print NO JSON
+  # AT ALL, to consumers that all parse that JSON. Guard the digits before they
   # ever become a subscript; `10#` still handles everything that gets through.
   GRP_MAX_DIGITS=9
 
   # Quality Gates share the checkbox grammar by design (references/tasks.md), so
   # `- [ ] 3 - Coverage >= 80%` is a legal gate AND is shaped exactly like a
-  # group header. Reading the whole document let such a line overwrite a real
-  # header's state: it silenced true violations and invented false ones.
+  # group header. Reading the whole document would let such a line overwrite a
+  # real header's state, silencing true violations and inventing false ones.
   #
   # The exclusion is deliberately NOT section arithmetic. Scoping the gathering
-  # to `## Task List` and ending it at the next heading meant deciding where a
+  # to `## Task List` and ending it at the next heading means deciding where a
   # markdown section ENDS, which is genuinely hard and fails silently in every
-  # direction: a decorated or differently-cased heading fell back to the whole
-  # document, a `###` Quality Gates never terminated anything, and a column-0
-  # `#` inside a fenced block truncated the rest of the file — hiding the exact
-  # violation this rule exists to catch. So group state is gathered EVERYWHERE
+  # direction: a decorated or differently-cased heading, a `###` Quality Gates,
+  # or a column-0 `#` inside a fenced block each mis-scope it — and can hide the
+  # exact violation this rule exists to catch. So group state is gathered EVERYWHERE
   # except two places, each decided by ONE line in isolation:
   #
   #   1. from the first `Quality Gates` HEADING onward, to end of file. One way,
@@ -782,9 +758,8 @@ if [[ "$HAS_TASKS" == true ]]; then
   #   2. inside a fenced code block. An illustrative task list in a fence is
   #      documentation, not a claim — and a `#` in a fence is not a heading.
   #
-  # Nothing depends on how `## Task List` is spelled, because that dependence
-  # WAS the defect. NOTE the census above is deliberately NOT excluded from
-  # either: it counts every box in the document, exactly as it always has.
+  # Nothing depends on how `## Task List` is spelled. NOTE the census above is
+  # deliberately NOT excluded from either: it counts every box in the document.
   # Matched against the LOWERCASED line, so the case-insensitivity is exact
   # rather than a hand-written [Qq] approximation — the presence check below is
   # `grep -qi`, and the two must not disagree about where the gates section is.
@@ -807,12 +782,10 @@ if [[ "$HAS_TASKS" == true ]]; then
   # (references/tasks.md, Generated Quality Gates), and Validate settles that
   # gate by running its command (references/validate-mode.md). Every link is a
   # sentence an agent is asked to honour. Nothing checked that the first link
-  # was ever written, so a story whose legend simply omitted the floor produced
-  # no gate, gave Validate nothing to run, and passed. Measured 2026-09-19 over
-  # a seven-language matrix: four of fourteen Epic arms skipped floor items —
-  # one arm dropped the README, the secrets scan AND the SCA together — and all
-  # four validated clean. A floor that is requested and never verified is not a
-  # floor; this is the check that makes the difference observable.
+  # was ever written, so without this check a story whose legend omits the
+  # floor produces no gate, gives Validate nothing to run, and passes. A floor
+  # that is requested and never verified is not a floor; this is the check that
+  # makes the difference observable.
   #
   # MATCHED ON THE ITEM, NOT ON A COMMAND. A gate reads
   # `- [ ] Qn — <item>: <command>`, and the command is the project's own —
@@ -870,7 +843,7 @@ if [[ "$HAS_TASKS" == true ]]; then
         fi
       done
     fi
-    # The Commit-field anchor lint (R4.1), argued in full at its own section
+    # The Commit-field anchor lint, argued in full at its own section
     # above. It rides THIS loop rather than opening a second pass for one
     # reason: the fence state is already tracked here, and an illustrative
     # `- Commit:` inside a fenced block is documentation showing the format, not
@@ -889,16 +862,14 @@ if [[ "$HAS_TASKS" == true ]]; then
       # quoted (`- Commit: "feat(NNN): …"`), so the quotes are the field's
       # punctuation and the subject being checked is what sits between them.
       #
-      # UP TO THE CLOSING QUOTE, not "strip a matching outer pair", and the
-      # difference is a measured false positive rather than a nicety.
-      # .epic/archive/006-git-aware-lifecycle/tasks.md:429 writes
-      # `- Commit: "fix(006): …" — widened from the planned "…", which named …`:
-      # a correctly anchored message with an editorial note appended after the
-      # closing quote. That value neither starts nor ends as a matched pair, so
-      # a pair-strip left the leading `"` in place, the anchor regex could not
-      # see the `fix(` behind it, and a properly anchored field warned. Reading
-      # to the first closing quote gets the message right for both shapes, and
-      # an unquoted or unterminated value simply keeps what it has.
+      # UP TO THE CLOSING QUOTE, not "strip a matching outer pair": a correctly
+      # anchored message may carry an editorial note after its closing quote
+      # (`- Commit: "fix(NNN): …" — widened from the planned "…"`). That value
+      # neither starts nor ends as a matched pair, so a pair-strip would leave
+      # the leading `"` in place, the anchor regex could not see the `fix(`
+      # behind it, and a properly anchored field would warn. Reading to the
+      # first closing quote gets the message right for both shapes, and an
+      # unquoted or unterminated value simply keeps what it has.
       if [[ "$commit_msg" =~ $commit_trim_re ]]; then commit_msg="${BASH_REMATCH[1]}"; fi
       case "$commit_msg" in
         '"'*) commit_msg="${commit_msg#\"}"; commit_msg="${commit_msg%%\"*}" ;;
@@ -956,7 +927,7 @@ if [[ "$HAS_TASKS" == true ]]; then
         fi
       else
         # `N` — the group's own header. The FIRST one wins the box, the spelling
-        # and the reported line, so a later one can no longer overwrite a
+        # and the reported line, so a later one cannot overwrite a
         # violation into silence. Every header still contributes its line
         # number: more than one token IS the duplicate, and the tokens are the
         # lines the author has to go and look at.
@@ -975,15 +946,13 @@ if [[ "$HAS_TASKS" == true ]]; then
   #
   # GATED ON A DECLARED `engineering:`, which is this file's rule for every
   # field the plugin added rather than inherited: fail-OPEN on absence,
-  # fail-CLOSED on a value that is present. The floor arrived with the field in
-  # 0.7.0, so the field is what marks a story as subject to it. A story written
-  # before it — 219 of 219 in the measured corpus, and every story in this
-  # repository — validates exactly as it did, and no legacy artifact is
-  # retroactively accused of missing a rule that did not exist when it was
-  # written.
+  # fail-CLOSED on a value that is present. The field is what marks a story as
+  # subject to the floor: a story without it validates exactly as it did, and
+  # no legacy artifact is retroactively accused of missing a rule that did not
+  # exist when it was written.
   #
-  # AN ERROR, NOT A WARNING. A warning is another sentence asking to be
-  # honoured, which is the failure being fixed. The story declares a level; the
+  # AN ERROR, NOT A WARNING. A warning is just another sentence asking to be
+  # honoured, and an unverified floor is exactly what this check catches. The story declares a level; the
   # catalog says that level activates these four whatever else it drops; a gates
   # section without them contradicts the story's own frontmatter. One message
   # names every missing item, because an author who lost the legend lost all of
@@ -1014,7 +983,7 @@ if [[ "$HAS_TASKS" == true ]]; then
   #   - a `[ ]` header with no open sub-task claims work still owed that none of
   #     its own sub-tasks still owes;
   #   - a `[x]` header over ANY open sub-task claims work done that is still
-  #     owed (the shape group 8 of story 006 shipped).
+  #     owed.
   # Two states are named, and there are THREE: a `[~]` header is closed without
   # doing the work, which the grammar allows, and NEITHER direction may touch
   # it — hence a `case` with no `~` branch rather than an if/else over `[x]`.
@@ -1032,8 +1001,8 @@ if [[ "$HAS_TASKS" == true ]]; then
       grp_lines=${GRP_LINES[grp_n]}
       grp_first=${grp_lines%% *}
       # One number, one group. Two headers claiming it is an identity violation
-      # in its own right, and it is the mechanism by which a real violation used
-      # to be overwritten into silence — so it is reported, and the consistency
+      # in its own right, and it is the mechanism by which a real violation can
+      # be overwritten into silence — so it is reported, and the consistency
       # verdict for that number is not attempted.
       if [[ "$grp_lines" == *' '* ]]; then
         add_error "tasks.md line $grp_first: group $grp_label has more than one header (lines ${grp_lines// /, }) — a group number names one group, and its state cannot be read while two headers claim it"
@@ -1052,10 +1021,9 @@ if [[ "$HAS_TASKS" == true ]]; then
       case "${GRP_BOX[grp_n]}" in
         ' ')
           if (( grp_open == 0 )); then
-            # State the condition that was TESTED. The clause this replaces
-            # inferred the work was "already done", which is exactly backwards
-            # for a deferred child: `[~] deferred:` is nothing pending AND the
-            # work not done. The predicate was right; the justification was not.
+            # State the condition that was TESTED, not an inference from it:
+            # "already done" would be exactly backwards for a deferred child —
+            # `[~] deferred:` is nothing pending AND the work not done.
             add_error "tasks.md line $grp_first: group $grp_label is open ([ ]) but no sub-task is still open ([ ]) — a group header must not claim work that none of its sub-tasks still owes; close it with [x], or with [~] and a qualifier if the work was not done"
           fi
           ;;
@@ -1083,7 +1051,7 @@ if [[ "$HAS_TASKS" == true ]]; then
 
   # A tasks.md with ZERO parseable checkbox tasks must never pass: every
   # downstream check is gated on TASK_COUNT > 0, so an unrecognized dialect
-  # used to sail through with "pass, 0 errors". Name the variant when we can.
+  # would otherwise pass with 0 errors. Name the variant when we can.
   if [[ "$TASK_COUNT" -eq 0 ]]; then
     VARIANT_HINT=""
     if grep -qE '^\s*-?\s*\*\*Covers:\*\*|^Covers:' "$TASKS_FILE" 2>/dev/null; then
@@ -1097,56 +1065,45 @@ if [[ "$HAS_TASKS" == true ]]; then
   # Check Requirements field — only when story.md exists AND the resolved scale
   # is one that owes a requirements chain.
   #
-  # THE TWO GATES USED TO DISAGREE, and the author paid for it (story 007,
-  # R1.4). This check inferred the scale from FILE PRESENCE — a story.md means
-  # there is a requirements chain to point at — while the spike R-chain check
-  # further down reads the DECLARED scale. A spike carrying a leftover story.md
-  # satisfies both, so it was told HERE to add `Requirements:` fields and told
-  # THERE that a `Requirements:` field is an error. Obeying either instruction
-  # broke the other, and nothing in the output said which one was the bug.
+  # THIS GATE AND THE SPIKE R-CHAIN CHECK FURTHER DOWN MUST ANSWER FROM THE SAME
+  # SOURCE, the declared scale. Inferring it here from FILE PRESENCE would tell
+  # a spike carrying a leftover story.md to add `Requirements:` fields, while
+  # the spike R-chain check calls a `Requirements:` field an error — obeying
+  # either instruction would break the other.
   #
-  # STORY 007 PATCHED THAT WITH A LITERAL `!= "spike"`, WHICH FIXED ONE SCALE
-  # AND LEFT ITS TWIN (story 008, R3.1). `fast` is tasks-only for exactly the
-  # same reason a spike is, references/tasks.md tells a fast author to omit the
-  # `Requirements:` field, and this gate reported that omission as an error the
-  # moment any story.md sat on disk — the same contradiction in a second
-  # vocabulary. The literal is now the predicate scale_has_requirements_chain
-  # above, so the answer comes from the DECLARATION for every scale at once and
-  # a future scale is classified in ONE place. Note what that does and does not
-  # buy: a NEW tasks-only scale is still not exempt automatically — the
-  # predicate's `*` arm demands a chain from anything it has not been taught,
-  # loudly, on the first run. That is the deliberate direction, not an oversight;
-  # the argument is above the function.
+  # `fast` is tasks-only for exactly the same reason a spike is, and
+  # references/tasks.md tells a fast author to omit the `Requirements:` field.
+  # So the exemption comes from the predicate scale_has_requirements_chain
+  # above rather than a literal scale name: the answer comes from the
+  # DECLARATION for every scale at once, and a future scale is classified in
+  # ONE place. Note what that does and does not buy: a NEW tasks-only scale is
+  # still not exempt automatically — the predicate's `*` arm demands a chain
+  # from anything it has not been taught, loudly, on the first run. That is the
+  # deliberate direction, not an oversight; the argument is above the function.
   #
   # What goes away is the ADVICE, not the finding: those stories are still
-  # malformed, and the R2.3 scale-mismatch warning above still reports each of
-  # them — naming both sides and leaving the author to decide which is wrong
-  # (remove story.md, or declare the scale the files actually describe).
+  # malformed, and the scale-mismatch warning above still reports each of them
+  # — naming both sides and leaving the author to decide which is wrong (remove
+  # story.md, or declare the scale the files actually describe).
   #
-  # TWO NON-STRICT GATES DID GET QUIETER — FOR `spike` IN 007 AND NOW FOR `fast`
-  # TOO — and saying otherwise would be the defect this comment is standing next
-  # to. It is the same movement for both, measured on this story's
-  # leftover-artifact fixture (tests/scale-resolution.bats): `errors: 1, exit 1`
-  # became `errors: 0, exit 0`, with the R2.3 mismatch warning present and
-  # unchanged. So a consumer that blocks on exit 1 and reads .error_details[]
-  # only now lets BOTH shapes through in silence, and the CI loop
-  # references/ci-mode.md documents runs without --strict and now passes both. Under --strict the mismatch warning
-  # still fails the run, for both.
-  # That trade is deliberate: R2.3 classifies scale-vs-files as a WARNING
-  # because which side is wrong is the author's call, and the error that was
-  # blocking said something R1.4 (for spike) and references/tasks.md (for fast)
-  # make wrong to obey. A gate that blocks on advice you must not follow is not
-  # a gate worth keeping.
-  # (007 recorded `warnings: 6` here for the spike. That count came from its own
-  # richer reproduction, not this fixture, which reports 3 for either shape — the
-  # COUNT is a property of the fixture, so the claim above is the movement.)
+  # CONSEQUENCE, stated so it is not mistaken for a defect: a spike or fast
+  # story with a leftover story.md exits 0 non-strict, with only the mismatch
+  # warning. So a consumer that blocks on exit 1 and reads .error_details[]
+  # only lets BOTH shapes through, and so does the CI loop references/ci-mode.md
+  # documents without --strict. Under --strict the mismatch warning still fails
+  # the run, for both.
+  # That trade is deliberate: scale-vs-files is a WARNING because which side is
+  # wrong is the author's call, and an error here would say something the spike
+  # contract (for spike) and references/tasks.md (for fast) make wrong to obey.
+  # A gate that blocks on advice you must not follow is not a gate worth
+  # keeping.
   #
   # Gated on the DECLARED scale and never on the absence of the field itself: a
   # standard story that simply forgot its `Requirements:` fields is precisely
   # what this check exists to catch, so reading "no fields" as "no chain wanted"
   # would silence its real job. standard, full and an undeclared legacy story
   # (DECLARED_SCALE == "", which the predicate routes through `*`) keep the
-  # check unchanged — R2.2's golden in tests/scale-validation.bats pins that
+  # check unchanged — the legacy golden in tests/scale-validation.bats pins that
   # last one, the spike+story.md shape is pinned in
   # tests/spike-validation.bats, and the fast+story.md shape in
   # tests/scale-resolution.bats.
@@ -1184,40 +1141,36 @@ if [[ "$HAS_TASKS" == true ]]; then
   # titled exactly `N.M - Commit` and nothing else.
   #
   # They must not be the same number, because the nudge NAMES A TOOL and tells
-  # the reader to run it. Counting with the loose pattern counted sub-tasks that
-  # merely mention the word — `- [x] 2.3 - Variant 5: Commit sub-task → group
-  # field` is a real line in story 015 — and then promised that `migrate --apply`
-  # would convert them. It does not: it converts the exact shape, so the reader
-  # ran the tool, saw `commit_subtasks: 0`, and got the identical warning again.
-  # An advisory that survives doing what it asks is worse than no advisory.
+  # the reader to run it. The loose pattern also counts sub-tasks that merely
+  # mention the word — `- [x] 2.3 - Variant 5: Commit sub-task → group field` —
+  # and `migrate --apply` does not convert those: it converts the exact shape,
+  # so the reader would run the tool, see `commit_subtasks: 0`, and get the
+  # identical warning again. An advisory that survives doing what it asks is
+  # worse than no advisory.
   COMMIT_LEGACY_COUNT=$(grep -cE '^[[:space:]]*-[[:space:]]+\[[ x~]\][[:space:]]+[0-9]+\.[0-9]+[[:space:]]+-[[:space:]]+Commit[[:space:]]*$' "$TASKS_FILE" 2>/dev/null || true)
   TOTAL_COMMITS=$((COMMIT_COUNT + COMMIT_SUBTASK_COUNT))
   if [[ "$PARENT_TASK_COUNT" -gt 0 && "$TOTAL_COMMITS" -eq 0 ]]; then
     add_warning "No Commit fields or Commit sub-tasks found — every task group should have a commit point"
   fi
 
-  # The legacy nudge (story 015, R3.2). A Commit CHECKBOX is still accepted —
-  # 400-odd stories carry the shape and none of them is wrong — but it is the
-  # form `migrate-story.sh` converts, and a checkbox that is never the unit of
-  # work is what made every group read as partially open. The nudge names both
+  # The legacy nudge. A Commit CHECKBOX is still accepted — existing stories
+  # carry the shape and none of them is wrong — but it is the form
+  # `migrate-story.sh` converts, and a checkbox that is never the unit of work
+  # makes every group read as partially open. The nudge names both
   # the shape and the tool, so the reader is not left to search for either.
   if [[ "$COMMIT_LEGACY_COUNT" -gt 0 ]]; then
     add_warning "tasks.md carries $COMMIT_LEGACY_COUNT Commit sub-task checkbox(es) — the legacy shape. The canonical form is a group-level 'Commit:' field; 'bash scripts/migrate-story.sh <NNN> --apply' converts it, message verbatim"
   fi
 
-  # --- Authoring ceiling (story 014, sub-task 3.1 — R3.3; bytes only since 0.8.0)
+  # --- Authoring ceiling (bytes) ---
   #
   # The threshold has ONE home, references/tasks.md § Authoring Ceiling, and
   # the warning CITES it rather than restating the number. A value repeated in
   # a message is a second place to edit and a second place to be wrong.
   #
-  # WHY BYTES AND NOT A BOX COUNT. 0.7.0 carried a second arm: a per-level
-  # ceiling on Task List checkboxes (5/12/24/40), justified by a measured pace
-  # of about one box per minute. The pace was an average of one harness run and
-  # the next two contradicted it, and a checkbox is not a unit of work —
+  # WHY BYTES AND NOT A BOX COUNT. A checkbox is not a unit of work —
   # ".gitignore" and a whole module are each one box. How many tasks a story has
-  # follows from the work, not from its level; the bound that replaced the count
-  # is on the unit (a sub-task is one Executor pass with a Validation command
+  # follows from the work, not from its level; the bound is on the unit (a sub-task is one Executor pass with a Validation command
   # that proves it alone), which the Validation-field check below already sees.
   #
   # A WARNING, NEVER AN ERROR: an oversized plan is a judgement call the author
@@ -1236,7 +1189,7 @@ if [[ "$HAS_TASKS" == true ]]; then
   fi
 fi
 
-# --- The spike contract: a Verdict, and no requirements chain (R1.2-R1.4) ---
+# --- The spike contract: a Verdict, and no requirements chain ---
 # A spike is a time-boxed probe whose deliverable is the ANSWER, not shipped
 # code (references/tasks.md, Spike Scale Adaptations). Two consequences, and
 # this section enforces exactly those two, no more:
@@ -1249,9 +1202,9 @@ fi
 # at spike scale, and `Validation` plus the Quality Gates section are already
 # checked for every scale above.
 #
-# ONE `if` guards the whole thing, which is R2.2 made structural rather than
-# merely promised: a story that declares no scale must produce the pre-change
-# bytes exactly, and a guard satisfiable only by a DECLARED `spike` cannot leak
+# ONE `if` guards the whole thing, which makes the fail-open rule structural
+# rather than merely promised: a story that declares no scale must produce
+# exactly the output it would without this section, and a guard satisfiable only by a DECLARED `spike` cannot leak
 # into that path.
 
 # parse_verdict <tasks.md> — the spike's conclusion:
@@ -1262,15 +1215,16 @@ fi
 # Only the first value of each key inside the section is read. `promoted-to`
 # must start with a digit — that is what "the target is recorded" means, and it
 # rejects the unfilled `NNN` placeholder of the template (fail-closed), which is
-# precisely what makes the R1.3 error fire on a copy-pasted template.
+# precisely what makes the promote-without-target error fire on a copy-pasted
+# template.
 #
 # The GRAMMAR — these four regexes — is shared VERBATIM with the parse_verdict
 # of archive-story.sh AND of epic-index.sh, exactly as the checkbox census above
 # shares its grammar with epic-index.sh and hook-session-restore.sh. THREE full
-# consumers now, plus a PARTIAL fourth — monitor-stale.sh's verdict_status,
+# consumers, plus a PARTIAL fourth — monitor-stale.sh's verdict_status,
 # which copies the first three regexes verbatim and deliberately omits
-# `promoted-to` (staleness keys on the status alone). If 007 ever amends the
-# grammar, all four move together. The AGGREGATION is per-consumer and differs
+# `promoted-to` (staleness keys on the status alone). If the grammar is ever
+# amended, all four move together. The AGGREGATION is per-consumer and differs
 # on purpose: archive-story.sh turns the verdict into a completion verdict (may
 # this story be archived?), epic-index.sh RENDERS it for a human,
 # monitor-stale.sh turns it into a deadline (has this probe concluded yet?), and
@@ -1312,8 +1266,8 @@ VERDICT_ENUM_TEXT=${VERDICT_ENUM//|/, }
 
 # no_r_chain <line number> <what was found> — ONE skeleton for both shapes an
 # R-chain takes, so the sanctioned wording is spelled once, exactly as
-# scale_mismatch above spells its "names BOTH sides" once: R1.4 pins the
-# sentence, and a sentence kept in two places is a sentence that eventually gets
+# scale_mismatch above spells its "names BOTH sides" once: the spike contract
+# pins the sentence, and a sentence kept in two places is a sentence that eventually gets
 # edited in one.
 no_r_chain() {
   add_error "tasks.md line $1: found $2 — spikes have no requirements chain — promote to a story for traceability"
@@ -1338,7 +1292,7 @@ if [[ "$DECLARED_SCALE" == "spike" && "$HAS_TASKS" == true ]]; then
     add_error "tasks.md '## Verdict' says 'promote' with no 'promoted-to:' story recorded — name the follow-up story number; the template's unreplaced 'NNN' is not a number and counts as no target"
   fi
 
-  # No requirements chain (R1.4). The scan reads the WHOLE file — frontmatter
+  # No requirements chain. The scan reads the WHOLE file — frontmatter
   # and fenced blocks included — because that is exactly what the contract
   # promises ("write no R-number anywhere in the file") and because a dangling
   # pointer is no less dangling inside a fence. The Verdict's own prose is in
@@ -1368,8 +1322,8 @@ fi
 # --- Validate frontmatter (version, status) ---
 # `status:` is the story's single lifecycle state, shared by every artifact.
 # Grammar rule: fail-CLOSED on a present-but-wrong value (an invented dialect
-# is an error), fail-OPEN on absence (340+ legacy stories have no status: and
-# must validate exactly as before — no error, no warning, no extra line).
+# is an error), fail-OPEN on absence (a story without status: must validate
+# exactly as before — no error, no warning, no extra line).
 # One source of truth for the enum: the alternation drives both the check and
 # the human-readable message (a `case` pattern cannot — bash does not re-parse
 # `|` from an expanded variable as alternation, only `[[ =~ ]]` does).
@@ -1391,7 +1345,7 @@ for f in "$STORY_DIR"/*.md; do
   BASENAME=$(basename "$f")
   if head -1 "$f" | grep -q '^---$' 2>/dev/null; then
     # Check required frontmatter fields ($d is POSIX; GNU-only `head -n -1`
-    # aborted the whole validation on BSD/macOS under set -e + pipefail)
+    # would abort the whole validation on BSD/macOS under set -e + pipefail)
     FRONT=$(sed -n '2,/^---$/p' "$f" | sed '$d')
     if ! echo "$FRONT" | grep -q 'version:'; then
       add_warning "$BASENAME frontmatter missing 'version' field"
@@ -1424,7 +1378,8 @@ done
 # --- Story-level status consistency ---
 # Entered only when at least one artifact declared a status: a story with no
 # status: field skips this block whole, which is the fail-open rule made
-# structural (no error, no warning, byte-identical output to pre-change).
+# structural (no error, no warning, output byte-identical to a story without
+# the field).
 if [[ ${#STATUS_VALUES[@]} -gt 0 ]]; then
   # BOX_OPEN comes from the checkbox census, which runs only when tasks.md
   # exists; under set -u a story without tasks.md would abort here without the
@@ -1447,20 +1402,13 @@ if [[ ${#STATUS_VALUES[@]} -gt 0 ]]; then
   # no deferred `[~]`" — so a story satisfying that condition while still
   # declaring `draft` or `in-progress` is a rule-1 write that never happened.
   #
-  # WHY THIS EXISTS AT ALL (sub-task 12.3, finding F2). The condition above was
-  # PREVENTED by rule 1 rather than DETECTED by anything, and when the
-  # prevention silently failed to fire nothing reported it: story
-  # 006-git-aware-lifecycle sat at 64 boxes, all `[x]`, zero `[ ]`, zero
-  # deferred, with all three artifacts reading `in-progress` — through a whole
-  # validate that passed. The archive offer gated on "rule 1 wrote it in this
-  # run" never fires there either, so the story is not merely mislabelled: it
-  # falls out of the lifecycle.
+  # WHY THIS EXISTS AT ALL. The condition above is PREVENTED by rule 1 but
+  # DETECTED by nothing else, so when the prevention silently fails to fire the
+  # story still passes validation. The archive offer gated on "rule 1 wrote it
+  # in this run" never fires there either, so the story is not merely
+  # mislabelled: it falls out of the lifecycle.
   #
-  # A WARNING, NOT AN ERROR, and the severity is measured rather than chosen.
-  # Swept across all seven stories in .epic/stories/ at the time it shipped, it
-  # fires on ZERO of them, so it is not paying for itself with a backlog of
-  # violations — but neither is it costing anything, and it is the only thing
-  # that can see the state it names. Warning matches its two siblings in this
+  # A WARNING, NOT AN ERROR. Warning matches its two siblings in this
   # block (ahead-of-checkboxes, divergent-status), and a legitimate transient
   # exists: a validate run between the last checkbox marking and rule 1's status
   # write lands exactly here, and should say so rather than fail.
@@ -1503,22 +1451,16 @@ for arg in "$@"; do
   [[ "$arg" == "--strict" ]] && STRICT=true
 done
 
-# --- Cross-reference: the R-numbers on each side, compared (R3.2) ---
+# --- Cross-reference: the R-numbers on each side, compared ---
 # THE SCALE GATES THE WHOLE BLOCK, not just the `elif` arm at the bottom — one
-# conjunct, but WHERE it goes is the decision. The two loops above that `elif`
-# carry the identical defect on a RICHER fixture: a tasks-only scale whose
+# conjunct, but WHERE it goes is the decision. A tasks-only scale whose
 # tasks.md happens to contain R-tokens takes the LOOPS' branch instead of the
-# `elif`, and collects one warning per orphan and one per phantom, each of them
-# advice that the spike's no-requirements-chain rule (story 007, R1.4) makes an
-# ERROR to obey. Measured on this story's spike fixture with a leftover story.md
-# (tests/scale-resolution.bats): two such warnings — orphan R1.2, phantom R9.9 —
-# against the single `elif` warning the reproduction recorded. The reproduction
-# reached the `elif` only because its tasks.md carried no R-token at all, so
-# gating the arm that happened to be measured would have left the larger half of
-# the defect standing.
+# `elif`, and would collect one warning per orphan and one per phantom, each of
+# them advice that the spike's no-requirements-chain rule makes an ERROR to
+# obey. Gating only the `elif` arm would leave that branch standing.
 #
 # WHAT GOES AWAY IS THE ADVICE, NOT THE FINDING, as at the coverage gate above:
-# the same run still reports the leftover artifact through the R2.3
+# the same run still reports the leftover artifact through the
 # scale-vs-files warning, and still errors on each R-token itself under the spike
 # R-chain rule. This block simply stops being a second, contradicting voice.
 #
@@ -1538,7 +1480,7 @@ if [[ "$CROSS_REF" == true && "$HAS_STORY" == true && "$HAS_TASKS" == true ]] &&
   # criteria `Rn.m`. Tasks reference the leaves. A one-level token Rn is a
   # requirement of its own only when story.md defines no child Rn.m for it;
   # otherwise Rn is a group header, covered via its leaves. Counting a header
-  # as a leaf produced a false orphan for every `### Rn.` heading.
+  # as a leaf would produce a false orphan for every `### Rn.` heading.
   mapfile -t XR_STORY_LEAVES < <(grep -oE '\bR[0-9]+\.[0-9]+\b' "$STORY_DIR/story.md" 2>/dev/null | sort -u || true)
   mapfile -t XR_STORY_ONELEVEL < <(grep -oE '\bR[0-9]+\b' "$STORY_DIR/story.md" 2>/dev/null | sort -u || true)
   mapfile -t XR_TASK_TOKENS < <(grep -oE '\bR[0-9]+(\.[0-9]+)?\b' "$STORY_DIR/tasks.md" 2>/dev/null | sort -u || true)
@@ -1561,12 +1503,11 @@ if [[ "$CROSS_REF" == true && "$HAS_STORY" == true && "$HAS_TASKS" == true ]] &&
   done
 
 
-  # --- satisfied-by: the sanctioned non-code deliverable (story 014, R2.1-R2.3)
+  # --- satisfied-by: the sanctioned non-code deliverable ---
   #
   # A criterion whose deliverable is NOT code — a regression guard, a feasibility
   # verdict, a decision record — has no task to reference it and therefore reads
-  # as an orphan. The corpus invented this shape six times before it was grammar.
-  # The suffix makes the intent declarable:
+  # as an orphan. The suffix makes the intent declarable:
   #
   #   - R1.2: THE SYSTEM SHALL keep the regression guarded (satisfied-by: tests/regression.bats)
   #
@@ -1577,7 +1518,7 @@ if [[ "$CROSS_REF" == true && "$HAS_STORY" == true && "$HAS_TASKS" == true ]] &&
   # across a requirement group into the next one.
   #
   # AN EMPTY ARTIFACT DOES NOT SATISFY. `(satisfied-by: )` names nothing, so the
-  # leaf stays an orphan and validate-story.sh warns about the blank (R2.3). The
+  # leaf stays an orphan and validate-story.sh warns about the blank. The
   # class legalizes a deliverable, not a way to silence the check.
   #
   # MOVERS — this parser is duplicated, deliberately (no shared library):

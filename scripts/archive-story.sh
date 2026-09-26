@@ -19,18 +19,18 @@
 #              test — the behavior is intended, not an oversight).
 #   exit 2     usage errors, as above: stderr only.
 #
-# STEP ORDER IS LOAD-BEARING (design.md, component 1): nothing destructive runs
-# before every guard has passed, the manifest entry is appended BEFORE the move,
-# and index regeneration is last.
-#   1. preflight ................ sub-task 1.1  (implemented)
-#   2. weight/binary guard ...... sub-task 2.1  (implemented — R1.2/R1.4)
-#   3. secrets guard ............ sub-task 2.2  (implemented — R1.3/R1.4/R1.8)
-#   4. prune .draft/logs ........ sub-task 3.1  (implemented — R2.1/R2.3)
-#      prune .draft copies ...... sub-task 3.2  (implemented — R2.2/R2.3)
-#   5. manifest append .......... sub-task 1.2  (implemented — before the move, R3.4)
-#   6. move ..................... sub-task 1.3  (implemented — git mv / mv, R6.1/R6.2)
-#   7. status: archived ......... sub-task 1.3  (implemented)
-#   8. index regeneration ....... sub-tasks 4.1 / 4.2 (implemented — R5.2)
+# STEP ORDER IS LOAD-BEARING: nothing destructive runs before every guard has
+# passed, the manifest entry is appended BEFORE the move, and index regeneration
+# is last.
+#   1. preflight
+#   2. weight/binary guard
+#   3. secrets guard
+#   4. prune .draft/logs
+#      prune .draft copies
+#   5. manifest append (before the move)
+#   6. move (git mv / mv)
+#   7. status: archived
+#   8. index regeneration
 # Step 4 is the FIRST DESTRUCTIVE STEP, and its position is asserted in the
 # script (GUARDS_PASSED, read by BOTH of its halves), not only stated here.
 # Step 8 is LAST, and it is the one step that never rolls back: the index is a
@@ -62,10 +62,9 @@ Flags:
                     recorded in the manifest entry.
   --help, -h        Show this help
 
-Completion (story 004 semantics): frontmatter status is done/validated/superseded
-OR no `- [ ]` checkbox remains. A `scale: spike` story (story 007) is complete
-when its `## Verdict` status is `wont-do`, or `promote` with a `promoted-to:`
-reference recorded.
+Completion: frontmatter status is done/validated/superseded OR no `- [ ]`
+checkbox remains. A `scale: spike` story is complete when its `## Verdict`
+status is `wont-do`, or `promote` with a `promoted-to:` reference recorded.
 
 Output: JSON on stdout — {story, path, status, moved, reason, tasks, pruned,
 guard{violations[{file, size, reason}]}, secrets, index, overrides_used,
@@ -81,7 +80,7 @@ HELP
 # --- Report state -----------------------------------------------------------
 # Every field of the JSON contract lives in a variable so that ONE emitter
 # renders every exit path: a caller can jq the same shape whatever happened.
-STORY_ID=""            # canonical story identity, e.g. 005-archive-in-the-flow
+STORY_ID=""            # canonical story identity, e.g. 005-user-login
 STORY_PATH=""          # path as resolved (kept relative when given relative)
 STATUS=""              # archived | blocked | refused
 REASON=""              # human-readable why, for refused/blocked
@@ -93,10 +92,10 @@ INDEX_STATE="skipped"  # ok | regen-failed | skipped (step 8 never ran)
                        # that: a refusal or a guard block exited before step 8,
                        # so the index still matches the disk. It is never
                        # written by step 8 itself — see regenerate_index.
-SECRETS_JSON='{}'      # filled by the secrets guard (sub-task 2.2)
-MANIFEST_JSON='{}'     # filled by the manifest step (sub-task 1.2)
+SECRETS_JSON='{}'      # filled by the secrets guard (step 3)
+MANIFEST_JSON='{}'     # filled by the manifest step (step 5)
 # guard.violations[] holds RENDERED JSON OBJECTS — {file, size, reason} — not
-# raw strings: R1.2 asks for the size and the reason of every offender, and a
+# raw strings: every offender is reported with its size and its reason, and a
 # consumer that has to parse those back out of one prose sentence is a consumer
 # that will parse them wrong. Append only through add_violation, and read only
 # through json_array_raw (json_array would re-quote the objects into strings).
@@ -111,7 +110,8 @@ BOX_CLOSED=0
 BOX_DEFERRED=0
 
 # One "N.N — title (qualifier: reason)" string per `[~]` box, filled by
-# collect_deferred_items at step 5 (R4.4 records the ITEMS, not just a count).
+# collect_deferred_items at step 5 (the manifest records the ITEMS, not just a
+# count).
 DEFERRED_ITEMS=()
 
 # --- String quoting ---------------------------------------------------------
@@ -327,8 +327,8 @@ frontmatter_field() {
 
 # story_field <key> — the story's lifecycle fields live in story.md when there
 # is one, and in tasks.md for the tasks-only scales (fast, spike).
-# `scale:` does NOT come through here (008 R1.1) — story_scale below owns it,
-# and its comment says why the two helpers are deliberately near-identical.
+# `scale:` does NOT come through here — story_scale below owns it, and its
+# comment says why the two helpers are deliberately near-identical.
 story_field() {
   local key="$1" val
   val=$(frontmatter_field "$STORY_PATH/story.md" "$key")
@@ -338,18 +338,17 @@ story_field() {
   printf '%s' "$val"
 }
 
-# story_scale — `scale:` is the one field tasks.md owns (008 R1.1), so it is
-# read by this helper and never through story_field above.
+# story_scale — `scale:` is the one field tasks.md owns, so it is read by this
+# helper and never through story_field above.
 #
 # THE SHARED SCALE RULE — `tasks.md` is AUTHORITATIVE for `scale:`, and every
 # reader of a story's scale resolves it that way. tasks.md is the one artifact
 # every scale has, so a declaration sitting there is never a leftover; a
 # story.md or a design.md surviving an earlier attempt at a differently-shaped
-# story is exactly that, and honouring one of those over the live tasks.md is
-# the defect story 008 removes. THE FULL ARGUMENT IS STATED ONCE, at
-# validate-story.sh's resolution loop (search it for "THE SHARED SCALE RULE"),
-# together with the written contract it agrees with — this is a pointer to that,
-# not a second copy that can drift from it.
+# story is exactly that, and must never override the live tasks.md. THE FULL
+# ARGUMENT IS STATED ONCE, at validate-story.sh's resolution loop (search it for
+# "THE SHARED SCALE RULE"), together with the written contract it agrees with —
+# this is a pointer to that, not a second copy that can drift from it.
 #
 # FIVE READERS RESOLVE A STORY'S SCALE AND MOVE TOGETHER. Named in full,
 # including the two that do NOT change, because an inventory listing only the
@@ -357,44 +356,34 @@ story_field() {
 #   1. validate-story.sh — turns the scale into validation findings.
 #   2. archive-story.sh (HERE) — the spike preflight in assess_completion and
 #      the `scale` recorded in the manifest entry by derive_entry_fields. BOTH
-#      of those call it: a fix applied to the gate alone refuses the spike
-#      correctly and then files a permanent entry naming a scale the story
+#      of those call it: a fix applied to the gate alone would refuse the spike
+#      correctly and then file a permanent entry naming a scale the story
 #      never declared.
 #   3. cross-reference.sh — decides whether a requirements chain exists to
 #      compare against at all.
-#   4. monitor-stale.sh:96 `declares_spike_scale` — already reads tasks.md and
-#      nothing else. It never carried the defect; this rule is the rest of the
-#      codebase agreeing with the precedent it set.
-#   5. epic-index.sh:772-778 `status_cell` — knowingly kept on its own
-#      precedence and out of scope, and it says so at its own definition. It
-#      renders a row, it gates nothing, and a renderer that disagrees costs a
-#      wrong cell, not a wrong archive.
+#   4. monitor-stale.sh `declares_spike_scale` — reads tasks.md and nothing
+#      else.
+#   5. epic-index.sh `status_cell` — keeps its own precedence, as stated at its
+#      definition: it renders a row and gates nothing, so a disagreement costs
+#      a wrong cell, not a wrong archive.
 # There is no shared library to import the rule from: `scripts/` has none, every
 # script here is invoked standalone by path. So it is duplicated, and the five
 # readers move as one.
 #
-# WHY story_field WAS NOT FLIPPED, so the near-duplication reads as a decision
-# and not as an oversight waiting to be tidied away. `status` (preflight's
-# `FM_STATUS=$(story_field status)`, :2767) and `type` (`derive_entry_fields`,
-# :1801) still read story.md ahead of tasks.md, and they must: those two are
-# the story's LIFECYCLE, which belongs to story.md whenever there is one, and
-# only `scale` moves. Both are cited by NAME as well as by line because a
-# same-file line number goes stale on the next edit, and NOT EVEN UNIFORMLY:
-# this change pushed `type` down 71 lines (1730 -> 1801) and `status` down 76
-# (2691 -> 2767), because the second call-site comment below sits between them.
-# So there is no single offset a reader could apply to repair a stale citation
-# — only the name survives an edit. Collapsing the two helpers into one — in
-# either direction — would silently change which artifact decides them, and
-# `status` decides both the already-archived refusal and the value persisted in
-# the manifest entry.
+# WHY story_field AND story_scale STAY SEPARATE, so the near-duplication reads
+# as a decision and not as an oversight waiting to be tidied away. `status`
+# (preflight's `FM_STATUS=$(story_field status)`) and `type`
+# (`derive_entry_fields`) read story.md ahead of tasks.md, and they must: those
+# two are the story's LIFECYCLE, which belongs to story.md whenever there is
+# one; only `scale` is owned by tasks.md. Call sites are cited by function name
+# because line numbers go stale on the next edit. Collapsing the two helpers
+# into one — in either direction — would silently change which artifact decides
+# them, and `status` decides both the already-archived refusal and the value
+# persisted in the manifest entry.
 #
-# A REGISTERED GAP, NOT ONE INTRODUCED HERE (design.md §4): this script has no
-# scale enum check, and this change makes that gap REACHABLE. An invalid
-# `scale: medium` in tasks.md beside a valid `spike` in story.md used to resolve
-# `spike` and get the spike preflight; now the `medium` is what resolves, and
-# the preflight is skipped. No requirement asks for an enum here and adding one
-# is out of scope — validate-story.sh still reports the invalid value on the
-# same story. Recorded so it is a known decision rather than a latent surprise.
+# KNOWN GAP: this script has no scale enum check, so an invalid `scale:` in
+# tasks.md resolves as written and skips the spike preflight; validate-story.sh
+# reports the invalid value on the same story.
 story_scale() {
   local v
   v=$(frontmatter_field "$STORY_PATH/tasks.md" scale)
@@ -463,11 +452,11 @@ trim() {
 }
 
 # collect_deferred_items <tasks.md> — one rendered line per `[~]` box, into
-# DEFERRED_ITEMS. R4.4 records the ITEMS, not just a count: "3 deferred" tells
+# DEFERRED_ITEMS. The ITEMS are recorded, not just a count: "3 deferred" tells
 # a future reader nothing about what is still owed, which is the exact failure
 # the derived manifest exists to end.
 #
-# Rendered shape (design.md, step 5): "N.N — title (qualifier: reason)", e.g.
+# Rendered shape: "N.N — title (qualifier: reason)", e.g.
 #   - [~] 2.1 - Register the callback URL (deferred: needs the live account)
 #     => "2.1 — Register the callback URL (deferred: needs the live account)"
 # The QUALIFIER is kept inside the parentheses on purpose: `deferred:` is work
@@ -539,7 +528,7 @@ collect_deferred_items() {
   return 0
 }
 
-# parse_verdict <tasks.md> — a `scale: spike` story (story 007) has no story.md
+# parse_verdict <tasks.md> — a `scale: spike` story has no story.md
 # and no requirements chain; its conclusion lives in a mandatory section:
 #   ## Verdict
 #   - status: open | promote | wont-do
@@ -553,7 +542,7 @@ collect_deferred_items() {
 # of epic-index.sh AND of validate-story.sh. THREE full consumers, plus a
 # PARTIAL fourth — monitor-stale.sh's verdict_status, which copies the first
 # three regexes verbatim and deliberately omits `promoted-to` (staleness keys on
-# the status alone). If 007 ever amends the grammar, all four move together. The
+# the status alone). If the grammar changes, all four move together. The
 # AGGREGATION is per-consumer and differs on purpose: epic-index.sh RENDERS the
 # verdict for a human, validate-story.sh turns it into validation errors (a
 # spike must HAVE a verdict, and `promote` must name its target),
@@ -592,7 +581,7 @@ parse_verdict() {
 # assess_completion — THE completion rule, one function so no caller can grow a
 # second dialect of it. Reads STORY_PATH, STORY_ID, FM_STATUS and the census
 # counters; sets COMPLETE and, when that is false, INCOMPLETE_REASON — the text
-# a refusal reports (R1.5). Call census_tasks first.
+# a refusal reports. Call census_tasks first.
 COMPLETE=false
 INCOMPLETE_REASON=""
 assess_completion() {
@@ -601,12 +590,12 @@ assess_completion() {
   INCOMPLETE_REASON=""
   # THE DECLARED scale (story_scale, not story_field) — call site 1 of 2. A
   # story.md left over from an earlier attempt must not be able to take the
-  # spike contract away from a story whose live tasks.md declares one: that is
-  # how a spike with every probe box closed and no `## Verdict` fell through to
-  # the generic closed-boxes rule below and got archived (008 R4.2).
+  # spike contract away from a story whose live tasks.md declares one; otherwise
+  # a spike with every probe box closed and no `## Verdict` falls through to the
+  # generic closed-boxes rule below and gets archived.
   scale=$(story_scale)
 
-  # A spike (story 007 R1.7) concludes through its `## Verdict` and only through
+  # A spike concludes through its `## Verdict` and only through
   # it: its checkboxes are probe steps, not a contract, so they must not be able
   # to declare it finished. `wont-do`, or `promote` with the follow-up story
   # recorded, is complete; anything else needs --force, the uniform escape hatch
@@ -641,14 +630,14 @@ assess_completion() {
     return 0
   fi
 
-  # Every other scale (story 004): the status claims it, OR the boxes prove it.
+  # Every other scale: the status claims it, OR the boxes prove it.
   # A `[~]` box is closed by grammar and never counts as open.
   if [[ "$FM_STATUS" == "done" || "$FM_STATUS" == "validated" || "$FM_STATUS" == "superseded" ]]; then
     COMPLETE=true
   elif [[ ! -f "$STORY_PATH/tasks.md" ]]; then
     # A seed: story.md without tasks. "No `[ ]` remaining" is vacuously true
     # here, so it must be caught before the checkbox branch — otherwise every
-    # seed would archive itself clean (design.md, Error Handling).
+    # seed would archive itself clean.
     INCOMPLETE_REASON="story '$STORY_ID' has no tasks.md (seed) — refine it, supersede it, or pass --force <reason>"
   elif [[ "$BOX_TOTAL" -eq 0 ]]; then
     # Same vacuous-truth hole: an unrecognized tasks.md dialect proves nothing.
@@ -694,11 +683,11 @@ resolve_by_number() {
 }
 
 # --- Weight/binary guard (step 2) -------------------------------------------
-# R1.2: a file larger than 10 MB, or one that is not text, blocks the archive
-# with every offender listed and NOTHING moved. The corpus evidence is a single
-# 2.3 GB binary and 104 PNGs that went into an archive nobody could clone again.
+# A file larger than 10 MB, or one that is not text, blocks the archive with
+# every offender listed and NOTHING moved, because an archive of large binaries
+# is one nobody can clone.
 #
-# THE LIMIT IS INCLUSIVE: R1.2 blocks a file LARGER than 10 MB, so exactly
+# THE LIMIT IS INCLUSIVE: the guard blocks a file LARGER than 10 MB, so exactly
 # 10485760 bytes (10 MiB) passes and one byte more does not.
 GUARD_MAX_BYTES=10485760
 
@@ -743,7 +732,7 @@ file_size() {
 }
 
 # file_times <path> — the same portable pair as file_size, for the LAST-MODIFIED
-# time R2.1 asks the log summary to record (step 4). One stat call yields both
+# time the log summary records (step 4). One stat call yields both
 # forms, split on the first space:
 #   FILE_MTIME       epoch seconds — what "the most recently modified log" is
 #                    decided on. A number, so no date parsing is ever needed.
@@ -771,12 +760,11 @@ file_times() {
   return 0
 }
 
-# is_text <path> <size> — the design's heuristic, verbatim: `LC_ALL=C grep -qI .`
+# is_text <path> <size> — the heuristic is `LC_ALL=C grep -qI .`
 # (`-I` = --binary-files=without-match, so grep reports NO MATCH for a file it
 # considers binary). LC_ALL=C is load-bearing: in a UTF-8 locale grep also calls
 # a file binary on an ENCODING error, which would flag any artifact holding a
-# stray non-UTF-8 byte; under C the test collapses to what the design specifies,
-# a NUL byte.
+# stray non-UTF-8 byte; under C the test collapses to a NUL byte.
 #   0 = text        1 = non-text (binary)        2 = the file could not be read
 #
 # THREE documented edges, because a heuristic that is not written down gets
@@ -831,7 +819,7 @@ is_text() {
 # destructive, and nothing destructive may run before the guards pass.
 #
 # EVERY failure is a violation, never a silent pass: a file the guard cannot
-# measure or cannot read is a file it cannot clear (fail-closed, R1.2).
+# measure or cannot read is a file it cannot clear (fail-closed).
 scan_weight_binary() {
   local tmp find_err list_err="" f display size rc rel nm_root nm_seen=""
   local files=()
@@ -864,10 +852,9 @@ scan_weight_binary() {
   fi
 
   for f in ${files[@]+"${files[@]}"}; do
-    # A dependency tree is never a story artifact — three projects in the July
-    # 2026 corpus carried a node_modules/ under .epic/, left by an executor's
-    # `npm install` — and its files are small enough to pass the size check one
-    # by one. So the DIRECTORY is the offender: reported once, its files never
+    # A dependency tree is never a story artifact (an executor's `npm install`
+    # can leave one under .epic/), and its files are small enough to pass the
+    # size check one by one. So the DIRECTORY is the offender: reported once, its files never
     # scanned and never counted. The guard refuses, it does not delete: nothing
     # destructive runs before step 4, and a tree the user can reinstall in a
     # minute is still the user's to remove.
@@ -905,8 +892,8 @@ scan_weight_binary() {
         add_violation "$display" "$size" "cannot be read to check whether it is text${IS_TEXT_ERR:+ ($IS_TEXT_ERR)} — a file the guard cannot read is a file it cannot clear"
         ;;
       *)
-        # Kept to ONE line on purpose: this reason is repeated per offender, and
-        # the zeo-shaped case is 104 of them. The fix ("re-encode as UTF-8, or
+        # Kept to ONE line on purpose: this reason is repeated per offender,
+        # possibly hundreds of times. The fix ("re-encode as UTF-8, or
         # --allow-heavy") is spelled out once, in the block message.
         add_violation "$display" "$size" "not a text file (holds NUL bytes; a UTF-16/UTF-32 text file trips this too)"
         ;;
@@ -917,20 +904,20 @@ scan_weight_binary() {
 }
 
 # --- Secrets guard (step 3) -------------------------------------------------
-# R1.3: where a secrets scanner is installed, scan the story BEFORE the move and
-# block on findings, reporting the count. R1.8: where none is installed, proceed
-# and note the skipped scan.
+# Where a secrets scanner is installed, scan the story BEFORE the move and block
+# on findings, reporting the count; where none is installed, proceed and note
+# the skipped scan.
 #
 # THAT ASYMMETRY IS THE ONE PLACE THIS SCRIPT IS NOT FAIL-CLOSED, so the line is
 # drawn here, once, where nobody can widen it by accident:
 #     a scanner that is ABSENT       -> a documented degradation: proceed, say so
 #     a scanner that RAN AND FAILED  -> a block, like every other guard
-# Collapsing the two turns every broken scanner into a free pass — which is
-# exactly the state R1.3 exists to end. "No findings" must mean "something
+# Collapsing the two turns every broken scanner into a free pass. "No findings"
+# must mean "something
 # looked", never "nothing looked".
 #
 # THE EXIT CODE ALONE IS NOT A DISCRIMINATOR, and that is the load-bearing fact
-# of this whole step (probed on gitleaks 8.30.1): gitleaks exits 1 for FINDINGS
+# of this whole step (gitleaks 8.30.1 behaviour): gitleaks exits 1 for FINDINGS
 # *and* for its own fatal errors — an unparseable config, an unwritable report
 # path and a target that does not exist all print `FTL` and exit 1. Reading
 # exit 1 as "leaks found" reports a scan that never ran as a findings block;
@@ -940,12 +927,11 @@ scan_weight_binary() {
 GITLEAKS_MAX_MB=15
 
 # More BYTES than this and gitleaks skips the file silently — nothing in its
-# report, nothing in its exit code (probed: 15000000 bytes is scanned, 15000001
+# report, nothing in its exit code (15000000 bytes is scanned, 15000001
 # is not; the unit is decimal MB, not MiB). Step 2 already blocks anything over
 # 10 MB, so a file can only reach the scanner unscanned when --allow-heavy was
 # passed — and when it does, the count below is the difference between "clean"
-# and "clean apart from the biggest file in the tree", which is the precise
-# failure R1.3 exists to prevent.
+# and "clean apart from the biggest file in the tree".
 GITLEAKS_SKIP_BYTES=15000000
 
 SECRETS_FINDINGS=0
@@ -1090,9 +1076,9 @@ secrets_cleanup_tmp() {
 # SOURCE PATH AS GIVEN, so an absolute source yields an absolute fingerprint,
 # while `.gitleaksignore` pins project-root-relative ones — the form gitleaks
 # documents ("a .gitleaksignore file at the root of your repo"). Compared as
-# opaque strings, the two dialects never match, so before this the guard
-# reported findings a maintainer had already classified, and the only escape
-# was --skip-secrets, which disarms the scan for the WHOLE story.
+# opaque strings, the two dialects never match: an unanchored scan reports
+# findings a maintainer has already classified, and the only escape is
+# --skip-secrets, which disarms the scan for the WHOLE story.
 #
 # Resolved from the STORY, not from the caller's cwd: the allowlist that governs
 # a story is the one in the story's own project, and a caller may stand anywhere.
@@ -1101,8 +1087,8 @@ secrets_cleanup_tmp() {
 #
 # Git FIRST, `.epic/` second. gitleaks specifies the allowlist at the repository
 # root, and in a monorepo with `.epic/` in a subproject the .gitleaksignore still
-# sits at the git root — anchoring on `.epic/` there would recreate this very bug
-# one level down. The `.epic/` walk exists only for a project git cannot answer
+# sits at the git root — anchoring on `.epic/` there would produce unmatchable
+# fingerprints one level down. The `.epic/` walk exists only for a project git cannot answer
 # for, which Epic supports (see epic-gitpolicy.sh).
 #
 # BOTH candidates are normalised through `cd … && pwd -P` because STORY_ABS is
@@ -1165,29 +1151,25 @@ run_secrets_scan() {
     SECRETS_ROOT=""
   fi
   # The story IS the root — a story directory that is itself a git repository
-  # resolves that way — so the strip leaves nothing. Measured on 8.30.1:
-  # `gitleaks dir ""` and `gitleaks dir "."` produce identical findings and
-  # identical fingerprints, so this pins an undocumented equivalence rather than
-  # fixing a live defect. One character is cheaper than depending on it.
+  # resolves that way — so the strip leaves nothing. `.` is passed explicitly
+  # rather than relying on gitleaks treating "" and "." alike, which is
+  # undocumented.
   [ -z "$SECRETS_REL" ] && SECRETS_REL=.
 
-  # --no-color is the one flag added to the designed command line: this output
-  # is spliced into a JSON `reason` a human reads, and gitleaks colourizes even
-  # into a pipe -- raw ANSI escapes there are noise that quote_scalar then has
+  # --no-color is passed because this output is spliced into a JSON `reason` a
+  # human reads, and gitleaks colourizes even into a pipe -- raw ANSI escapes there are noise that quote_scalar then has
   # to encode one byte at a time into a message nobody can read.
   #
-  # -i is passed EXPLICITLY rather than left to its "." default. That default
-  # made the effective allowlist a property of wherever the caller happened to
-  # stand — which list-mode.md recorded as a way to disarm this guard — instead
-  # of a property of the project. The `cd` lives inside the command substitution,
+  # -i is passed EXPLICITLY rather than left to its "." default, which would
+  # make the effective allowlist depend on the caller's working directory — a
+  # way to disarm this guard — instead of on the project. The `cd` lives inside the command substitution,
   # so the caller's working directory never moves, and --report-path stays
   # absolute (a private mktemp -d) so it is unaffected by it.
   #
   # NOT A FAIL-OPEN, and this is the failure mode that would look like success:
   # `gitleaks dir` does NOT honour .gitignore, so re-rooting does not make it
-  # skip a gitignored `.epic/`. Measured — both forms read ~185801 bytes of
-  # story 005 — and pinned by tests/secrets-allowlist.bats rather than left to
-  # this comment.
+  # skip a gitignored `.epic/`. Pinned by tests/secrets-allowlist.bats rather
+  # than left to this comment.
   if [ -n "$SECRETS_ROOT" ]; then
     out=$(cd "$SECRETS_ROOT" && gitleaks dir "$SECRETS_REL" --no-banner --no-color \
       --exit-code 1 --gitleaks-ignore-path "$SECRETS_ROOT" \
@@ -1252,12 +1234,10 @@ run_secrets_scan() {
 }
 
 # --- Evidence pruning: .draft/logs -> summary (step 4) ----------------------
-# R2.1: a story archived with `.draft/logs/` keeps ONE summary — every log's
-# name, size and last-modified time, plus the tail of the most recently modified
-# one — and loses the log files themselves. The corpus archived 55 MB of test
-# logs across two pmg stories wholesale; this is what replaces that.
-# R2.3: `--keep-logs` keeps them exactly as they are, and the override is
-# recorded in the manifest entry.
+# A story archived with `.draft/logs/` keeps ONE summary — every log's name,
+# size and last-modified time, plus the tail of the most recently modified one —
+# and loses the log files themselves. `--keep-logs` keeps them exactly as they
+# are, and the override is recorded in the manifest entry.
 #
 # THE STEP ORDER IS THE SAFETY PROPERTY, and it is asserted IN THE SCRIPT rather
 # than only in the comment header: GUARDS_PASSED is set on the one line control
@@ -1275,13 +1255,12 @@ run_secrets_scan() {
 # recording nothing about it is the exact inverse of what this step is for.
 #
 # PRUNE NEVER BLOCKS. It runs after every guard has passed, so a failure here
-# leaves the story exactly as the guards cleared it — un-pruned, which is the
-# pre-005 status quo and not a correctness violation. Every outcome is reported
+# leaves the story exactly as the guards cleared it — un-pruned, which is not a
+# correctness violation. Every outcome is reported
 # on stderr in the same key=value shape the guards use, and `pruned.logs_kb`
 # stays 0, which the report already means as "nothing was freed".
 #
-# THE TAIL AND THE SECRETS GUARD — the hand-off sub-task 2.2 recorded, decided
-# here. Step 3 scans `.draft/logs/*` as they are; this summary is written
+# THE TAIL AND THE SECRETS GUARD. Step 3 scans `.draft/logs/*` as they are; this summary is written
 # afterwards, so NO GUARD EVER LOOKS AT IT, and 40 lines of arbitrary log output
 # enter the archive unscanned. That is accepted deliberately, because PRUNE ONLY
 # EVER REMOVES: every byte of the tail was already in the story when gitleaks
@@ -1296,8 +1275,8 @@ run_secrets_scan() {
 # What is NOT accepted is silence about the guarantee. Every summary states the
 # scan's coverage of the logs it collapsed, including the single case where
 # `scanned: true, findings: 0` genuinely does NOT cover the tail — a log larger
-# than gitleaks' --max-target-megabytes limit, which it skips without saying so
-# (2.2's recorded residual). That case is detected from the log's own size,
+# than gitleaks' --max-target-megabytes limit, which it skips without saying
+# so. That case is detected from the log's own size,
 # which this step has already measured.
 
 PRUNE_TAIL_LINES=40
@@ -1327,7 +1306,7 @@ PRUNE_NEWEST_SIZE=0
 PRUNE_TAIL_STATE="none"  # ok | unreadable | none
 PRUNE_TAIL_TMP=""
 
-# prune_logs_collect <dir> — the per-file facts R2.1 records, and which log is
+# prune_logs_collect <dir> — the per-file facts the summary records, and which log is
 # the newest. Returns non-zero when the directory could not be enumerated
 # COMPLETELY: a list that is not known to be complete is not a list to delete
 # from. The enumeration goes through a temp file for the reason the weight guard
@@ -1402,8 +1381,8 @@ prune_logs_collect() {
 
 # prune_logs_coverage — the provenance line, built from what step 3 established
 # plus the newest log's own size. The size test is the whole point: gitleaks
-# SILENTLY skips a file over --max-target-megabytes (2.2's measured residual —
-# no report entry, no exit code, `INF no leaks found`), so a story archived with
+# SILENTLY skips a file over --max-target-megabytes (no report entry, no exit
+# code, `INF no leaks found`), so a story archived with
 # --allow-heavy can report `scanned: true, findings: 0` while the log this tail
 # came from was never opened. Said in the artifact, where it survives.
 prune_logs_coverage() {
@@ -1510,7 +1489,7 @@ prune_logs_write() {
 
   # A write that failed, or landed empty, deletes nothing: `[[ -s ]]` is the
   # cheap re-read that tells "written" from "silently wrote nothing" — the same
-  # lesson step 7 learned from `sed -i`.
+  # check step 7 applies after `sed -i`.
   if [[ $rc -ne 0 || ! -s "$stmp" ]]; then
     rm -f "$stmp" 2>/dev/null || true
     PRUNE_LOGS_TEXT="the summary could not be written to '$summary'"
@@ -1625,10 +1604,9 @@ prune_logs_step() {
 }
 
 # --- Evidence pruning: byte-identical .draft copies (step 4) ----------------
-# R2.2: a `.draft/` file that is BYTE-IDENTICAL to its promoted sibling is a
-# duplicate and is removed at archive time — 4+ corpus stories carried exact
-# copies of artifacts sitting right beside them. R2.3: `--keep-copies` keeps
-# them exactly as they are, and the override is recorded in the manifest entry.
+# A `.draft/` file that is BYTE-IDENTICAL to its promoted sibling is a
+# duplicate and is removed at archive time. `--keep-copies` keeps them exactly
+# as they are, and the override is recorded in the manifest entry.
 #
 # "EXACT" IS THE WHOLE REQUIREMENT. A near-duplicate — one byte changed, one
 # trailing newline, the same length with different content — is a DIFFERENT
@@ -1639,8 +1617,8 @@ prune_logs_step() {
 # incidental — without it `cmp` prints "…differ: byte N" on STDOUT, which this
 # script reserves for one JSON object.
 #
-# THE PAIRING RULE. design.md says "promoted sibling"; here that means THE SAME
-# RELATIVE PATH one level up: `.draft/<rel>` pairs with `<story>/<rel>`. So
+# THE PAIRING RULE. "Promoted sibling" means THE SAME RELATIVE PATH one level
+# up: `.draft/<rel>` pairs with `<story>/<rel>`. So
 # `.draft/design.md` pairs with `design.md`, and `.draft/adr/002.md` pairs with
 # `adr/002.md` and NOT with a top-level `002.md`. Matching on the BASENAME
 # instead would delete `.draft/notes/api.md` because some unrelated `api.md`
@@ -1655,13 +1633,12 @@ prune_logs_step() {
 # would leave the promoted artifact DANGLING — the removal of a duplicate
 # turning into the destruction of the only copy. The mirror case (a draft entry
 # that is itself a link to the promoted file) is left alone for a quieter
-# reason: it holds no bytes of its own, so R2.2's "remove the copy" has nothing
-# to remove, and a symlink is how someone deliberately wrote down "same file".
+# reason: it holds no bytes of its own, so there is no copy to remove, and a symlink is how someone deliberately wrote down "same file".
 # `find -type f` already excludes both, and the tests repeat it anyway, because
 # a rule that lives only inside a find predicate is one the next reader misses.
 #
-# A COMPARISON THAT COULD NOT RUN IS NEVER "EQUAL" — 3.1's rule for the logs
-# half, applied here for the same reason and with more at stake: `[[ -f ]]` says
+# A COMPARISON THAT COULD NOT RUN IS NEVER "EQUAL" — the logs half's rule,
+# applied here for the same reason and with more at stake: `[[ -f ]]` says
 # a file EXISTS, not that it opens, and reading an unreadable file as a
 # duplicate would delete the one copy nobody was able to check. `cmp` answers
 # 0 identical / 1 differs / >1 could not compare, and ONLY 0 deletes.
@@ -1677,9 +1654,9 @@ prune_logs_step() {
 # there and removing the `.draft` copy loses nothing. A summary this run
 # generated carries a `generated_at:` line, so it cannot match one by accident.
 #
-# PRUNE NEVER BLOCKS (3.1's policy, unchanged): any failure leaves the story
-# un-pruned with `verdict=failed`, because this step runs after every guard has
-# passed — un-pruned is the pre-005 status quo, not a correctness violation.
+# PRUNE NEVER BLOCKS: any failure leaves the story un-pruned with
+# `verdict=failed`, because this step runs after every guard has passed, and
+# un-pruned is not a correctness violation.
 # And the SEQUENCE ASSERTION is read HERE TOO, not only by the logs half: step 4
 # is destructive on both of its halves, so both must be unable to run before a
 # guard could still return `blocked`.
@@ -1757,7 +1734,7 @@ prune_copies_collect() {
       *)
         # >1 is "could not compare", never "equal". `cmp -s` suppresses its own
         # message for an unreadable operand, and an errno string would be
-        # localized anyway (a recorded finding of this story), so the reason is
+        # localized anyway, so the reason is
         # stated here in the script's own words.
         PRUNE_COPIES_KEPT="${PRUNE_COPIES_KEPT:+$PRUNE_COPIES_KEPT; }$(quote_scalar "$disp") (the comparison could not be run, so it was left as it is)"
         ;;
@@ -1780,7 +1757,7 @@ prune_copies_collect() {
 # an emptied directory is not evidence of anything the step did, and a sweep
 # rooted at `.draft/` would delete `.draft` itself — a directory the operator
 # (and the logs half, which leaves it standing) expects to survive. This step
-# removes exactly the files R2.2 names.
+# removes exactly the byte-identical copies.
 prune_copies_remove() {
   local i path disp
   PRUNE_COPIES_REMOVED=0
@@ -1808,7 +1785,7 @@ prune_copies_remove() {
 # manifest_read_entry parses it back as a number and reports any entry whose
 # 16 keys do not all validate as `partial` — which BLOCKS. So there is no `null`
 # to spend here, and no room for a 17th field. Nor is one needed: unlike
-# `secrets.findings: 0` (2.2), which is a SAFETY claim a consumer acts on,
+# `secrets.findings: 0`, which is a SAFETY claim a consumer acts on,
 # `copies_removed: 0` is a housekeeping count whose worst misreading is "I
 # thought the prune ran". The distinction still has to exist somewhere, so it is
 # explicit in the stream that carries every other diagnostic:
@@ -1902,9 +1879,8 @@ derive_archived_at() {
 }
 
 # derive_entry_fields — everything the entry reports, read from the story's own
-# artifacts a moment before the move. Nothing here is passed in or declared:
-# that is the whole point of R3.1 (the corpus's 71-story sweep stamped
-# `complete-merged-to-master` on stories with 0/14 tasks done).
+# artifacts a moment before the move. Nothing here is passed in or declared: a
+# declared completion can contradict the checkboxes, a derived one cannot.
 # Identity is <NNN>-<slug>; a directory that does not follow the convention
 # still archives, with the fields it cannot fill left empty rather than guessed.
 # Returns non-zero when a field cannot be derived; the caller turns that into a
@@ -1941,7 +1917,7 @@ derive_entry_fields() {
   return 0
 }
 
-# manifest_header — written once, only when the file does not exist (R3.3).
+# manifest_header — written once, only when the file does not exist.
 # The policy line is not decoration: recycling a number silently rewrites which
 # story every existing reference points at, and once a story leaves stories/
 # this file is the only place that still knows the number was ever used.
@@ -1965,7 +1941,7 @@ HEADER
 
 # manifest_entry_yaml — the entry itself. `status` is the story's OWN
 # frontmatter status, never a verdict this script invents: a --force'd archive
-# of an in-progress story says `in-progress` and shows the open boxes (R3.2).
+# of an in-progress story says `in-progress` and shows the open boxes.
 #
 # THE KEY ORDER IS THE PARSER'S CONTRACT: manifest_read_entry reads entries back
 # from this exact shape (2-space indent for the `- story:` item, 4 for its
@@ -2041,18 +2017,18 @@ manifest_entry_json() {
     "$PRUNED_LOGS_KB" "$PRUNED_COPIES" "$overrides" "$forced"
 }
 
-# manifest_read_entry — R3.4's other half, and the only thing that may decide a
-# run is RESUMING. A run that died between the append and the move left the
-# entry written and the story still in stories/; the re-run must FINISH that
+# manifest_read_entry — the other half of append-before-move, and the only
+# thing that may decide a run is RESUMING. A run that died between the append
+# and the move left the entry written and the story still in stories/; the re-run must FINISH that
 # archive, not append a second entry. A story that archived successfully never
 # reaches here (preflight refuses it), so an existing entry can only mean an
 # unfinished archive.
 #
 # It keys on a COMPLETE entry, never on the first line of one. `  - story: "X"`
 # is what the writer emits FIRST, so a process killed mid-entry leaves exactly
-# the token the old check searched for — and the re-run then "resumed", skipped
-# the append and archived the story behind a stub that names it and reports
-# nothing else, permanently, under a tree that is deliberately hard to repair.
+# that line — and a check keyed on it would "resume", skip the append and
+# archive the story behind a stub that names it and reports nothing else,
+# permanently, under a tree that is deliberately hard to repair.
 # Every field the writer emits must be present for the entry to count.
 #
 # Sets MANIFEST_ENTRY_STATE:
@@ -2060,7 +2036,7 @@ manifest_entry_json() {
 #   complete    resume at the move; MANIFEST_RECORDED_JSON holds it, re-rendered
 #   partial     a truncated entry — block, and say what to repair. Appending
 #               beside it would leave two entries for one story; "resuming" it
-#               would archive behind a record that claims nothing (R3.1).
+#               would archive behind a record that claims nothing.
 #   unreadable  the manifest exists but could not be opened
 MANIFEST_ENTRY_STATE="absent"
 MANIFEST_RECORDED_JSON=""
@@ -2155,11 +2131,8 @@ manifest_read_entry() {
 # N lines costs N write(2) calls, whatever its total size. O_APPEND makes each
 # of those atomic INDIVIDUALLY — no byte is ever lost or overwritten — but it
 # says nothing about the group, so two concurrent archives interleave line by
-# line INSIDE an entry. MEASURED here on bash 5.3: concurrent writers of a
-# 1 066-byte, 22-line entry split into runs of exactly 102 bytes — one
-# deferred_items line — and 8 of 30 rounds at 8 writers produced a manifest.yaml
-# PyYAML refuses to load ("expected <block end>, but found '<block sequence
-# start>'"), entry B's keys sitting in the middle of entry A's list.
+# line INSIDE an entry and produce a manifest.yaml no YAML parser will load,
+# with entry B's keys sitting in the middle of entry A's list.
 #
 # The failure is INVISIBLE to a line-counting assertion: interleaving preserves
 # every line, so `grep -c '^  - story: '` still reports N and every entry looks
@@ -2243,7 +2216,7 @@ manifest_lock_owner() {
 # manifest_lock_acquire <nonce> — returns 0 holding the lock, or 1 with
 # MANIFEST_ERR set. FAIL-CLOSED: a lock that cannot be acquired is never a
 # reason to append anyway. The caller turns the non-zero into a `blocked`
-# verdict with JSON on stdout and nothing moved (R3.4).
+# verdict with JSON on stdout and nothing moved.
 manifest_lock_acquire() {
   local err probe obs prev="" seen=false broke=false
   local naps=0 races=0 per timeout
@@ -2264,14 +2237,13 @@ manifest_lock_acquire() {
       continue
     fi
     # mkdir failed. SEVERAL answers hide behind that, and the errno TEXT cannot
-    # separate them — it follows the host locale ("Arquivo existe" on this
-    # machine, and the JSON report is no place to start matching translated
-    # strings). Neither can a second `[[ -e ]]`/`[[ -d ]]` test: EVERY such test
-    # is a fresh look at a path other archives are creating and removing, so it
-    # answers about a different instant than the mkdir did. Both bugs this
-    # classification has had were exactly that — `[[ ! -d ]]` reading a released
-    # lock as "impossible", then `[[ -e ]]` reading a RE-taken one as "a file is
-    # in the way". Only two facts here are stable under concurrency: whether a
+    # separate them — it follows the host locale, and the JSON report is no
+    # place to start matching translated strings. Neither can a second
+    # `[[ -e ]]`/`[[ -d ]]` test: EVERY such test is a fresh look at a path other
+    # archives are creating and removing, so it answers about a different
+    # instant than the mkdir did — `[[ ! -d ]]` can read a released lock as
+    # "impossible", and `[[ -e ]]` can read a RE-taken one as "a file is in the
+    # way". Only two facts here are stable under concurrency: whether a
     # lock directory is present, and whether the PARENT can hold one at all.
     if [[ ! -d "$MANIFEST_LOCK_DIR" ]]; then
       # No lock directory at this instant — and an absent lock is a FREE lock,
@@ -2289,9 +2261,9 @@ manifest_lock_acquire() {
       # A LOST RACE RESOLVES ITSELF; A BLOCKED NAME NEVER DOES — and retrying is
       # what tells them apart without any racy test at all. The holder released
       # between our mkdir and this point (the command substitution around mkdir
-      # makes that window MILLISECONDS wide, and it was measured at ~6% of
-      # concurrent runs, every one of them a spurious `blocked` verdict): the
-      # next attempt or two takes the lock. A regular file sitting at the name,
+      # makes that window MILLISECONDS wide, and treating a lost race as fatal
+      # would produce spurious `blocked` verdicts under concurrency): the next
+      # attempt or two takes the lock. A regular file sitting at the name,
       # by contrast, fails every attempt identically. Bounded, so the pathology
       # ends in a verdict and never in a spin — ~0.4 s, against a 30 s timeout.
       races=$((races + 1))
@@ -2356,7 +2328,7 @@ manifest_lock_release() {
   return 0
 }
 
-# manifest_append — creates the file with its header when absent (R3.3), then
+# manifest_append — creates the file with its header when absent, then
 # appends the entry UNDER THE LOCK ABOVE. Every write reports instead of
 # aborting, so a failure becomes a `blocked` verdict with JSON on stdout rather
 # than a bare non-zero exit; MANIFEST_ERR carries what the OS actually said,
@@ -2364,9 +2336,8 @@ manifest_lock_release() {
 # system" are three different fixes and only the kernel knows which one it is.
 #
 # ONE ENTRY PER APPEND. The entry is composed in memory first and written with a
-# single `printf`, not emitted field by field: a run killed between two of
-# fourteen writes used to leave a stub entry on disk that nothing would ever
-# repair. That is about THIS process's own interruption; it is the LOCK, not the
+# single `printf`, not emitted field by field: a run killed between two
+# field writes would leave a stub entry on disk that nothing repairs. That is about THIS process's own interruption; it is the LOCK, not the
 # single printf, that keeps a CONCURRENT run out of the middle of the entry —
 # bash line-buffers, so one printf is still one write(2) per line. `>>` stays:
 # O_APPEND means even a bug in the locking can only ever misorder whole lines,
@@ -2375,10 +2346,10 @@ manifest_lock_release() {
 # THE HEADER IS PUBLISHED ATOMICALLY, by writing it to a temp file in the same
 # directory and hard-linking it into place: `ln` fails with EEXIST if the name
 # is taken, so of two concurrent first-runs exactly one publishes and the other
-# just appends. The previous `manifest_header > "$MANIFEST_FILE"` used `>`,
-# which TRUNCATES — the second run erased the first run's entry while that run
-# went on to report exit 0 and move its story, which is precisely the moved-
-# story-without-an-entry state R3.4 exists to make impossible. Creating the file
+# just appends. Writing the header with `>` would TRUNCATE — a second
+# concurrent first-run would erase the first run's entry while that run goes on
+# to report exit 0 and move its story, which is precisely the moved-story-
+# without-an-entry state append-before-move exists to make impossible. Creating the file
 # empty first (O_EXCL) would not do: the loser would append into the gap before
 # the winner had written the header.
 MANIFEST_ERR=""
@@ -2460,12 +2431,12 @@ git_dir_above() {
 #
 # GIT_STATE records WHICH negative answer it was, and the three are not the
 # same fact: `no-binary` is a machine fact, `no-repo` is a workspace fact
-# (both mean plain move, R6.2), and `error` means a repository IS there and git
+# (both mean plain move), and `error` means a repository IS there and git
 # would not answer about it — dubious ownership (a root-owned checkout, a
 # container bind mount, a run under sudo), an unreadable index, a ceiling
 # directory. That last one must NOT be read as "no repo": doing so silently
-# takes the plain branch on a TRACKED story and drops the history R6.1 exists
-# to preserve, so it becomes a block instead.
+# takes the plain branch on a TRACKED story and drops its git history, so it
+# becomes a block instead.
 GIT_STATE=""
 GIT_PROBE_ERR=""
 in_git_worktree() {
@@ -2521,10 +2492,10 @@ MOVE_MODE="plain"   # git | plain — which branch step 6 takes
 MOVE_WHY=""         # why that branch, for the stderr boundary log
 MOVE_ERR=""
 
-# choose_move_mode — the R6.1/R6.2 decision, three inputs and two branches:
-#   no git binary / not a work tree -> plain mv   (R6.2)
-#   work tree, story untracked      -> plain mv   (R6.2)
-#   work tree, story (partly) tracked -> git mv   (R6.1)
+# choose_move_mode — three inputs and two branches:
+#   no git binary / not a work tree -> plain mv
+#   work tree, story untracked      -> plain mv
+#   work tree, story (partly) tracked -> git mv
 #   work tree, git cannot answer    -> non-zero: the caller BLOCKS (fail-closed)
 #
 # TRACKEDNESS IS DECIDED ON THE DIRECTORY, not per file, and a PARTIALLY tracked
@@ -2534,7 +2505,7 @@ MOVE_ERR=""
 # a plain `mv` would move them, while the tracked ones additionally keep their
 # history. The git branch is a strict superset of the plain one — choosing `mv`
 # for a partially tracked story would silently drop the history of every file
-# git DOES know about, which is the one thing R6.1 forbids.
+# git DOES know about.
 choose_move_mode() {
   local rc
   if ! in_git_worktree; then
@@ -2571,8 +2542,8 @@ choose_move_mode() {
 # There is deliberately NO FALLBACK from `git mv` to `mv`. `git mv` renames the
 # directory with one rename(2), so a failure means nothing moved — the manifest
 # entry is still there and the re-run resumes at this very step. Retrying as a
-# plain `mv` would convert a recoverable stop into the silent loss of exactly
-# the history R6.1 exists to preserve.
+# plain `mv` would convert a recoverable stop into the silent loss of the
+# story's git history.
 #
 # The git branch runs through epic_git for the same reason the probes do: if the
 # ambient GIT_DIR named another repository, the probe and the move would have to
@@ -2598,7 +2569,7 @@ move_story() {
 # Written with `sed -i` from Bash ON PURPOSE. hook-archive-guard.sh blocks the
 # Edit/Write TOOLS anywhere under .epic/archive/**, and cannot see Bash file
 # operations — which is why this script is the sanctioned way to touch an
-# archived artifact at all (design.md, Overview).
+# archived artifact at all.
 #
 # Two cases, because a legacy artifact may carry no `status:` line at all and
 # skipping it would leave it claiming nothing forever:
@@ -2612,11 +2583,11 @@ move_story() {
 # CRLF: the artifact's own line ending is detected from line 1 and carried into
 # both the address and the replacement, so a `---\r` delimiter is recognised and
 # the written line keeps the file's ending. Without it, a checkout with
-# core.autocrlf=true skipped every CRLF artifact while applying the change to
-# the LF ones — the story archived with story.md still claiming `done` and
-# tasks.md claiming `archived`, and the "nothing applied" note stayed silent
-# because something HAD been applied. Which is why STATUS_SKIPPED_TEXT now
-# exists: a PARTIAL application has to be as loud as an empty one.
+# core.autocrlf=true would skip every CRLF artifact while applying the change
+# to the LF ones — the story archived with story.md still claiming `done` and
+# tasks.md claiming `archived`, and a "nothing applied" note silent because
+# something HAD been applied. Which is why STATUS_SKIPPED_TEXT exists: a
+# PARTIAL application has to be as loud as an empty one.
 #
 # CAVEAT, `sed -i` on a SYMLINKED artifact: GNU sed writes a temp file and
 # renames it over the path, so the symlink is REPLACED by a regular file (and a
@@ -2662,11 +2633,10 @@ apply_archived_status() {
 }
 
 # --- Index regeneration (step 8) --------------------------------------------
-# R5.2: after a story is archived, its row in `.epic/EPIC.md` must resolve into
+# After a story is archived, its row in `.epic/EPIC.md` must resolve into
 # `.epic/archive/`. The row is not rewritten in place — scripts/epic-index.sh
 # REGENERATES the whole managed block from disk state, which is what makes the
-# link correct by construction (design.md, component 3: the clubedavoz frozen
-# index is the failure mode a hand-maintained one produced).
+# link correct by construction; a hand-maintained index goes stale.
 #
 # WHICH IS WHY THIS STEP IS LAST, and not merely by convention: the row is
 # derived from where the directory IS (step 6) and from what its frontmatter
@@ -2674,17 +2644,15 @@ apply_archived_status() {
 # it was a moment ago — a freshly generated stale index, which is worse than no
 # index at all because it looks current.
 #
-# A FAILURE HERE NEVER ROLLS BACK (design.md, Error Handling — "Move succeeded,
-# index regen failed: warn + manifest already correct; next LIST retries
-# regeneration (idempotent)"). The move and the manifest entry ARE the archive;
+# A FAILURE HERE NEVER ROLLS BACK: warn, the manifest is already correct, and
+# the next LIST retries the idempotent regeneration. The move and the manifest entry ARE the archive;
 # the index is a rendering of them. Undoing a completed, recorded move because a
 # markdown table could not be rewritten would trade a stale rendering for a
 # destroyed archive — and since the generator is idempotent and reads only disk,
 # the next regeneration repairs it with no state to reconcile. So this step
 # warns, reports `index: "regen-failed"`, and the run still exits 0.
 #
-# `index` HONESTY — the distinction sub-task 1.1 recorded, which this step must
-# not blur:
+# `index` HONESTY — a distinction this step must not blur:
 #   ok            the generator ran and returned 0
 #   regen-failed  the generator ran and did not return 0, or could not be run
 #   skipped       THIS STEP NEVER RAN — a refusal or a guard block exited first
@@ -2747,7 +2715,7 @@ regenerate_index() {
 
 # --- Flag parsing -----------------------------------------------------------
 # Unknown flag => exit 2 (invalid input), before anything is read or resolved.
-# Every override used is collected for the manifest entry (R1.4, R1.6, R2.3).
+# Every override used is collected for the manifest entry.
 TARGET=""
 ALLOW_HEAVY=false
 SKIP_SECRETS=false
@@ -2784,7 +2752,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --force)
       # The reason is REQUIRED: a forced archive that cannot say why is exactly
-      # the silent mass-sweep this script exists to prevent (R1.6).
+      # the silent mass-sweep this script exists to prevent.
       shift
       if [[ $# -eq 0 || -z "${1:-}" || "${1:-}" == -* ]]; then
         usage_error "--force requires a reason argument: --force <reason>"
@@ -2837,7 +2805,7 @@ STORY_ABS=$(cd "$STORY_PATH" 2>/dev/null && pwd -P) ||
   usage_error "cannot resolve story directory '$STORY_PATH'"
 STORY_ID=$(basename "$STORY_ABS")
 STORY_PARENT=$(basename "$(dirname "$STORY_ABS")")
-# The manifest (step 5, sub-task 1.2) lives at $EPIC_DIR/archive/manifest.yaml.
+# The manifest (step 5) lives at $EPIC_DIR/archive/manifest.yaml.
 # EVERY destination is derived from the story's PHYSICAL location, so the two
 # checks below are what keep the whole operation inside the project.
 EPIC_DIR=$(dirname "$(dirname "$STORY_ABS")")
@@ -2849,11 +2817,11 @@ MANIFEST_LOCK_DIR="$ARCHIVE_DIR/.manifest.lock"
 
 # The story directory must not be a symlink out of the project. `pwd -P`
 # resolves it, and everything downstream is then re-derived from the PHYSICAL
-# path: a `.epic/stories/005-x -> /elsewhere/shared/stories/005-x` archived
-# itself into /elsewhere/shared/archive/, created that directory, wrote the
-# manifest there, reported `path: .epic/stories/005-x` (where the story is NOT)
-# and exited 0 — while the project's own manifest never learned the story was
-# archived and the destination sat outside the tree hook-archive-guard.sh
+# path: without this check a `.epic/stories/005-x -> /elsewhere/shared/stories/005-x`
+# would archive itself into /elsewhere/shared/archive/, create that directory,
+# write the manifest there, report `path: .epic/stories/005-x` (where the story
+# is NOT) and exit 0 — while the project's own manifest never learns the story
+# was archived and the destination sits outside the tree hook-archive-guard.sh
 # protects. Fail closed: the physical parent of the story must be the same
 # directory the logical path reaches.
 STORY_LOGICAL_PARENT=$(cd "$(dirname "$STORY_PATH")" 2>/dev/null && pwd -P) ||
@@ -2869,7 +2837,7 @@ if [[ "$(basename "$EPIC_DIR")" != ".epic" ]]; then
 fi
 
 # ============================================================================
-# STEP 1 — PREFLIGHT (R1.5, R1.6, R1.7)
+# STEP 1 — PREFLIGHT
 # ============================================================================
 
 # Readability, before anything is read. `[[ -f ]]` says a file EXISTS; it does
@@ -2879,15 +2847,15 @@ fi
 # readers keep their own guards for a permission that changes mid-run.
 for _artifact in story.md tasks.md; do
   if [[ -e "$STORY_PATH/$_artifact" && ! -r "$STORY_PATH/$_artifact" ]]; then
-    refuse "cannot read '$STORY_PATH/$_artifact' — the manifest entry is DERIVED from it, so an archive that cannot read it would have to invent the numbers it records (R3.1); fix the permissions and re-run. Nothing was modified"
+    refuse "cannot read '$STORY_PATH/$_artifact' — the manifest entry is DERIVED from it, so an archive that cannot read it would have to invent the numbers it records; fix the permissions and re-run. Nothing was modified"
   fi
 done
 unset _artifact
 
 # Location. Archive operates on .epic/stories/<NNN>-<slug>; a story already in
-# archive/ is REFUSED (exit 1, nothing touched — R1.7), anything else is invalid
-# input (exit 2). The archived check comes first so R1.7 reports its real reason
-# rather than tripping over a missing tasks.md.
+# archive/ is REFUSED (exit 1, nothing touched), anything else is invalid
+# input (exit 2). The archived check comes first so the refusal reports its
+# real reason rather than tripping over a missing tasks.md.
 FM_STATUS=$(story_field status)
 
 if [[ "$STORY_PARENT" == "archive" || "$FM_STATUS" == "archived" ]]; then
@@ -2903,7 +2871,7 @@ if [[ ! -f "$STORY_PATH/story.md" && ! -f "$STORY_PATH/tasks.md" ]]; then
 fi
 
 # Completion (assess_completion holds the rule itself): a spike concludes
-# through its Verdict, every other scale through story 004's status-OR-boxes.
+# through its Verdict, every other scale through status-OR-boxes.
 if ! census_tasks "$STORY_PATH/tasks.md"; then
   refuse "cannot read '$STORY_PATH/tasks.md' — the checkbox census cannot be taken, so neither completion nor the entry's task counts can be derived; nothing was modified"
 fi
@@ -2911,8 +2879,8 @@ assess_completion
 
 if [[ "$COMPLETE" != true ]]; then
   if [[ "$FORCE" == true ]]; then
-    # R1.6: forced. The reason travels to the manifest entry (sub-task 1.2) —
-    # a forced archive that does not say why is the failure mode this replaces.
+    # Forced. The reason travels to the manifest entry, because a forced archive
+    # must always say why.
     printf 'Forced archive of an incomplete story: %s\n' "$FORCE_REASON" >&2
   else
     # An orphan entry has no command of its own to clean it: run 1 with --force
@@ -2935,13 +2903,13 @@ printf 'archive-story: story=%s allow_heavy=%s skip_secrets=%s keep_logs=%s keep
   "$STORY_ID" "$ALLOW_HEAVY" "$SKIP_SECRETS" "$KEEP_LOGS" "$KEEP_COPIES" "$FORCE" >&2
 
 # ============================================================================
-# STEP 2 — WEIGHT/BINARY GUARD (R1.2, R1.4)
+# STEP 2 — WEIGHT/BINARY GUARD
 # ============================================================================
 # Default-on, and placed HERE for a reason the step order makes load-bearing:
 # before the manifest append (step 5), before the move (step 6) and before the
 # prune (step 4), so a blocked story leaves NO entry, NO archive directory and
 # nothing renamed or deleted. The whole guard is one flag away — `--allow-heavy`
-# skips it and is recorded in the manifest entry (R1.4), which is the difference
+# skips it and is recorded in the manifest entry, which is the difference
 # between a heavy archive somebody chose and one nobody noticed.
 # The three outcomes are logged in the same key=value shape as move_mode and
 # status, so `grep 'guard=weight-binary'` on stderr answers "what did the guard
@@ -2955,17 +2923,17 @@ elif scan_weight_binary; then
 else
   printf 'archive-story: guard=weight-binary verdict=blocked violations=%d files_scanned=%d\n' \
     "$GUARD_VIOLATION_COUNT" "$GUARD_SCANNED" >&2
-  block "$GUARD_VIOLATION_COUNT file(s) fail the weight/binary guard (limit ${GUARD_MAX_BYTES} bytes, and the content must be text): $GUARD_OFFENDER_TEXT — nothing was moved and no manifest entry was written: the guard runs before both (R1.2). Remove or shrink them, re-encode a UTF-16/UTF-32 artifact as UTF-8 (its ASCII-range characters carry NUL bytes, which is what makes it read as binary), delete a node_modules/ tree (reinstallable, never an artifact), or re-run with --allow-heavy to archive them as they are (the override is recorded in the manifest entry)"
+  block "$GUARD_VIOLATION_COUNT file(s) fail the weight/binary guard (limit ${GUARD_MAX_BYTES} bytes, and the content must be text): $GUARD_OFFENDER_TEXT — nothing was moved and no manifest entry was written: the guard runs before both. Remove or shrink them, re-encode a UTF-16/UTF-32 artifact as UTF-8 (its ASCII-range characters carry NUL bytes, which is what makes it read as binary), delete a node_modules/ tree (reinstallable, never an artifact), or re-run with --allow-heavy to archive them as they are (the override is recorded in the manifest entry)"
 fi
 
 # ============================================================================
-# STEP 3 — SECRETS GUARD (R1.3, R1.4, R1.8)
+# STEP 3 — SECRETS GUARD
 # ============================================================================
 # Default-on when the scanner is there, and placed HERE for the same reason
 # step 2 is: before the prune (step 4), the manifest append (step 5) and the
 # move (step 6), so a blocked story leaves no entry, no archive directory and
 # nothing deleted. `--skip-secrets` is the one flag past it, and the flag parser
-# has already collected it into OVERRIDES_USED, which step 5 records (R1.4) —
+# has already collected it into OVERRIDES_USED, which step 5 records —
 # the difference between an unscanned archive somebody chose and one nobody
 # noticed.
 #
@@ -2973,19 +2941,19 @@ fi
 # `grep 'guard=secrets'` answers "what did the scan decide" without parsing
 # prose; stdout stays reserved for the JSON report.
 if [[ "$SKIP_SECRETS" == true ]]; then
-  # R1.4. Reported as `scanned: false` with the reason, NEVER as `findings: 0`:
+  # Reported as `scanned: false` with the reason, NEVER as `findings: 0`:
   # a skip that looks like a clean scan is worse than no scan at all.
   set_secrets_json false "" "" "--skip-secrets" ""
   SECRETS_COVERAGE="NOT SCANNED — --skip-secrets was passed, so nothing in this story was scanned for credentials"
   printf 'archive-story: guard=secrets verdict=skipped reason=--skip-secrets (the story is archived WITHOUT a secrets scan; the override is recorded in the manifest entry)\n' >&2
 elif ! command -v gitleaks > /dev/null 2>&1; then
-  # R1.8, and the ONE documented degradation in this script (see the note at the
+  # The ONE documented degradation in this script (see the note at the
   # top of the guard). It is noted TWICE, on purpose and in two registers:
   # structurally on stdout, in `secrets.skipped`, because the orchestrator pipes
   # stdout into jq and a note only on stderr would be invisible to it; and in
   # prose on stderr for the human, where every other diagnostic lives.
   set_secrets_json false "" "" "gitleaks not installed" ""
-  SECRETS_COVERAGE="NOT SCANNED — no secrets scanner was installed on the machine that archived this story (R1.8)"
+  SECRETS_COVERAGE="NOT SCANNED — no secrets scanner was installed on the machine that archived this story"
   printf 'archive-story: guard=secrets verdict=skipped reason=gitleaks-not-installed (no secrets scanner on PATH — the story is archived UNSCANNED; install gitleaks to turn the guard on)\n' >&2
 else
   count_unscanned_large
@@ -2995,7 +2963,7 @@ else
       set_secrets_json true "$SECRETS_FINDINGS" "" "" ""
       SECRETS_COVERAGE="scanned by gitleaks before this summary was written — 0 findings"
       if [[ "$SECRETS_UNSCANNED" -gt 0 ]]; then
-        # Not a block: R1.3 asks for a scan and a findings count, not for a size
+        # Not a block: this guard owns a scan and a findings count, not a size
         # policy — step 2 already owns that, and getting here at all means
         # --allow-heavy was used. But "0 findings" must not be allowed to imply
         # "0 secrets" when the scanner never opened the biggest file in the tree.
@@ -3006,14 +2974,14 @@ else
       fi
       ;;
     1)
-      # R1.3. The COUNT and the report PATH are what leave this process: the
+      # The COUNT and the report PATH are what leave this process: the
       # matched secrets stay in gitleaks' own report, mode 600 in a private
       # directory outside the story. Putting them in the reason would copy the
       # leak into every log that captures this run.
       set_secrets_json true "$SECRETS_FINDINGS" "$SECRETS_REPORT" "" ""
       printf 'archive-story: guard=secrets verdict=blocked findings=%d report=%s\n' \
         "$SECRETS_FINDINGS" "$SECRETS_REPORT" >&2
-      block "gitleaks found $SECRETS_FINDINGS secret(s) in '$STORY_PATH' — the full report (rule, file and line per finding) is at '$SECRETS_REPORT', outside the project and readable only by you; the matched values are deliberately NOT repeated here. Nothing was moved and no manifest entry was written: the guard runs before both (R1.3). Rotate whatever leaked and remove it from the story's files, or re-run with --skip-secrets to archive them as they are (the override is recorded in the manifest entry)"
+      block "gitleaks found $SECRETS_FINDINGS secret(s) in '$STORY_PATH' — the full report (rule, file and line per finding) is at '$SECRETS_REPORT', outside the project and readable only by you; the matched values are deliberately NOT repeated here. Nothing was moved and no manifest entry was written: the guard runs before both. Rotate whatever leaked and remove it from the story's files, or re-run with --skip-secrets to archive them as they are (the override is recorded in the manifest entry)"
       ;;
     *)
       # Fail-closed, and the whole point of the split: an ABSENT scanner is the
@@ -3022,13 +2990,13 @@ else
       # telling its consumer that something looked when nothing did.
       set_secrets_json false "" "$SECRETS_REPORT" "" "$SECRETS_ERR"
       printf 'archive-story: guard=secrets verdict=blocked reason=scan-failed\n' >&2
-      block "the secrets scan of '$STORY_PATH' FAILED, so its result cannot be trusted: $SECRETS_ERR. A scanner that RAN and failed is a block, never a pass — only an ABSENT scanner is a documented degradation (R1.8). Nothing was moved and no manifest entry was written: the guard runs before both (R1.3). Fix the scanner, or re-run with --skip-secrets to archive without a scan (the override is recorded in the manifest entry)"
+      block "the secrets scan of '$STORY_PATH' FAILED, so its result cannot be trusted: $SECRETS_ERR. A scanner that RAN and failed is a block, never a pass — only an ABSENT scanner is a documented degradation. Nothing was moved and no manifest entry was written: the guard runs before both. Fix the scanner, or re-run with --skip-secrets to archive without a scan (the override is recorded in the manifest entry)"
       ;;
   esac
 fi
 
 # ============================================================================
-# STEP 4 — PRUNE .draft (R2.1, R2.2, R2.3 — sub-tasks 3.1 and 3.2)
+# STEP 4 — PRUNE .draft
 # ============================================================================
 # It belongs HERE, between the guards and the manifest append: nothing
 # destructive may run before every guard has passed, and pruning must happen
@@ -3050,15 +3018,14 @@ prune_logs_step "$STORY_ABS/.draft/logs" "$STORY_ABS/.draft/logs-summary.md"
 prune_copies_step "$STORY_ABS/.draft"
 
 # ============================================================================
-# STEP 5 — MANIFEST APPEND (R3.1, R3.2, R3.3, R3.4)
+# STEP 5 — MANIFEST APPEND
 # ============================================================================
 # The entry is DERIVED, never declared: every number comes from the story's own
 # artifacts read a moment before the move — the checkbox census and the
 # frontmatter — so an entry can never claim a completion the checkboxes
-# contradict (the corpus's 71-story sweep stamped `complete-merged-to-master`
-# on stories with 0/14 tasks; that is what "derived" exists to make impossible).
+# contradict.
 #
-# And it is appended BEFORE the move (R3.4). If the process dies between the
+# And it is appended BEFORE the move. If the process dies between the
 # two, the manifest holds an entry for a story still sitting in stories/ — a
 # visible, recoverable inconsistency the next run completes. The reverse order
 # would lose the story's record entirely, which nothing can reconstruct.
@@ -3079,7 +3046,7 @@ trap 'manifest_lock_release || true; exit 143' TERM
 trap 'manifest_lock_release || true; exit 129' HUP
 
 if ! derive_entry_fields; then
-  block "cannot derive the manifest entry for '$STORY_ID': $DERIVE_ERR — nothing was moved: the entry is written BEFORE the move, so an archive that cannot be recorded does not happen (R3.4)"
+  block "cannot derive the manifest entry for '$STORY_ID': $DERIVE_ERR — nothing was moved: the entry is written BEFORE the move, so an archive that cannot be recorded does not happen"
 fi
 
 manifest_read_entry
@@ -3101,14 +3068,14 @@ case "$MANIFEST_ENTRY_STATE" in
     ;;
   *)
     if ! manifest_append; then
-      block "cannot write the manifest entry to '$MANIFEST_FILE'${MANIFEST_ERR:+: $MANIFEST_ERR} — nothing was moved: the entry is written BEFORE the move, so an archive that cannot be recorded does not happen (R3.4)"
+      block "cannot write the manifest entry to '$MANIFEST_FILE'${MANIFEST_ERR:+: $MANIFEST_ERR} — nothing was moved: the entry is written BEFORE the move, so an archive that cannot be recorded does not happen"
     fi
     MANIFEST_JSON=$(manifest_entry_json)
     ;;
 esac
 
 # ============================================================================
-# STEP 6 — MOVE (R1.1, R6.1, R6.2)
+# STEP 6 — MOVE
 # ============================================================================
 # `git mv` when the story is tracked, plain `mv` otherwise — and the difference
 # is not cosmetic. A plain `mv` of tracked files stages nothing: git sees a
@@ -3146,9 +3113,9 @@ fi
 
 # A move mode this script cannot establish is not a move it may guess at: the
 # only guess available is the plain branch, and taking it on a story git DOES
-# hold the history of is precisely what R6.1 forbids.
+# hold the history of would drop that history.
 if ! choose_move_mode; then
-  block "cannot decide how to move '$STORY_ID' — $MOVE_WHY. Refusing to guess: the fallback would be a plain 'mv', which drops the git history of every tracked file (R6.1). Nothing was moved; $RESUME_HINT"
+  block "cannot decide how to move '$STORY_ID' — $MOVE_WHY. Refusing to guess: the fallback would be a plain 'mv', which drops the git history of every tracked file. Nothing was moved; $RESUME_HINT"
 fi
 printf 'archive-story: move_mode=%s reason=%s\n' "$MOVE_MODE" "$MOVE_WHY" >&2
 
@@ -3162,8 +3129,8 @@ if ! move_story "$ARCHIVE_DIR/$STORY_ID"; then
     # shellcheck disable=SC2016  # the single quotes are display punctuation; the paths inside them do expand
     block "${MOVE_ERR:-cannot move '$STORY_PATH' to '$ARCHIVE_DIR/$STORY_ID'} — but '$STORY_ID' IS now at '$ARCHIVE_DIR/$STORY_ID': the rename completed and the step after it did not (git stages the rename only after moving the files). Do NOT re-run — preflight would refuse it as already archived. Finish by hand: 'git add -A' the two paths so the rename is recorded, and set 'status: archived' in the moved artifacts' frontmatter"
   fi
-  # The entry is already in the manifest, and that is the direction R3.4
-  # chooses: an entry without a move is visible and the next run completes it
+  # The entry is already in the manifest, and that is the direction
+  # append-before-move chooses: an entry without a move is visible and the next run completes it
   # (manifest_read_entry reports `complete`), while a move without an entry
   # loses the story's record with nothing left to reconstruct it from.
   # mv's / git mv's own message already names both paths and the errno, so it
@@ -3180,14 +3147,11 @@ MOVED=true
 
 # THE MOVE JUST ORPHANED EVERY ALLOWLIST ENTRY THAT POINTED INTO THIS STORY.
 # A gitleaks working-tree fingerprint is `<path>:<rule>:<line>`, so it pins a
-# PATH — and the path just changed. Nothing repoints it, and until this it
-# failed in SILENCE: the entry simply stopped matching, and the symptom arrived
-# later and elsewhere, as a repository-wide scan reporting fixtures somebody
-# classified long ago and nobody investigates any more. A guard that cries wolf
+# PATH — and the path just changed. Nothing repoints it, and without this
+# report it fails in SILENCE: the entry simply stops matching, and the symptom
+# arrives later and elsewhere, as a repository-wide scan reporting fixtures
+# somebody classified long ago and nobody investigates any more. A guard that cries wolf
 # ends up where a guard that was switched off ends up.
-#
-# Measured, not predicted: this happened on EVERY story archived since the
-# secrets guard existed that carried classified fixtures — 2 of 2.
 #
 # THIS REPORTS, IT DOES NOT REWRITE. `.gitleaksignore` is a security control,
 # and handing a script that otherwise only reads it a write path — on the far
@@ -3215,7 +3179,7 @@ report_orphaned_allowlist_entries() {
 report_orphaned_allowlist_entries "$STORY_ABS" "$ARCHIVE_DIR/$STORY_ID"
 
 # ============================================================================
-# STEP 7 — STATUS: ARCHIVED (R1.1)
+# STEP 7 — STATUS: ARCHIVED
 # ============================================================================
 # The move alone leaves every artifact claiming the state it had a second ago.
 # `status: archived` is what makes the artifacts agree with their own location,
@@ -3224,7 +3188,7 @@ report_orphaned_allowlist_entries "$STORY_ABS" "$ARCHIVE_DIR/$STORY_ID"
 #
 # NOTE the reason below does NOT offer RESUME_HINT: past the move, a re-run no
 # longer resumes anything. Preflight resolves the story in archive/ and REFUSES
-# it as already archived (R1.7), which is correct — so the message has to hand
+# it as already archived, which is correct — so the message has to hand
 # the operator the repair itself instead of a re-run that will not run.
 if ! apply_archived_status "$ARCHIVE_DIR/$STORY_ID"; then
   block "moved '$STORY_ID' to '$ARCHIVE_DIR/$STORY_ID' but could not set 'status: archived' in: $STATUS_FAILED_TEXT — the story is ARCHIVED ON DISK while its frontmatter still says '${FM_STATUS:-(none)}'; repair those files with an editor or Bash (archived artifacts are read-only for the Edit/Write tools) — the archive is NOT complete until they agree"
@@ -3236,7 +3200,7 @@ if [[ "$STATUS_APPLIED" -eq 0 ]]; then
   printf 'archive-story: no artifact with frontmatter in %s — archived state recorded in the manifest and the location only\n' \
     "$STORY_ID" >&2
 elif [[ -n "$STATUS_SKIPPED_TEXT" ]]; then
-  # A PARTIAL application is the worse case, and it used to be the silent one:
+  # A PARTIAL application is the worse case, and the easiest to miss:
   # some artifacts say `archived`, the skipped ones still claim what they
   # claimed before the move, and the story is now in archive/ with its own
   # artifacts contradicting each other — the divergence validate-story.sh
@@ -3252,7 +3216,7 @@ STATUS="archived"
 printf 'archive-story: status=archived artifacts_updated=%d\n' "$STATUS_APPLIED" >&2
 
 # ============================================================================
-# STEP 8 — INDEX REGENERATION (R5.2)
+# STEP 8 — INDEX REGENERATION
 # ============================================================================
 # LAST, so the regenerated row reflects the archived state: the link comes from
 # where the directory now is (step 6) and the status cell from what its
@@ -3264,7 +3228,8 @@ if [[ "$INDEX_STATE" != "ok" ]]; then
   # A WARNING, NOT A VERDICT — STATUS stays `archived` and the exit stays 0.
   # It is carried on stdout as well as on stderr because the orchestrator pipes
   # stdout into jq: a note only a human can see is invisible to the consumer
-  # that would act on it (the same two-register rule step 3 follows for R1.8).
+  # that would act on it (the same two-register rule step 3 follows for an
+  # absent scanner).
   REASON="'$STORY_ID' IS archived and recorded, but the managed index block in '$EPIC_DIR/EPIC.md' could not be regenerated, so its row still points at the story's old location — $INDEX_ERR. NOTHING WAS ROLLED BACK: the move and the manifest entry stand, and the index is generated from disk state, so re-running 'epic-index.sh' (or the next LIST, which regenerates opportunistically) repairs the row with nothing to reconcile"
 fi
 

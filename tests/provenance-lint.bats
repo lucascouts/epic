@@ -44,3 +44,18 @@ teardown() {
   run bash "$LINT" --strict
   [ "$status" -eq 0 ]
 }
+
+@test "scripts, wrappers and tests carry no development-story IDs" {
+  # Requirement IDs of the plugin's own stories and sub-task numbers point at
+  # documents no reader can open. Fixture content (a user's story.md or
+  # tasks.md written by a test) legitimately carries R1.1-style IDs, so the
+  # checks target parenthesised ID lists in scripts, sub-task references, and
+  # test names.
+  cd "$ROOT"
+  run git grep -nE '\(R[0-9]+\.[0-9]+([/, ]+R?[0-9]+\.[0-9]+)*\)' -- scripts bin
+  [ "$status" -eq 1 ]
+  run git grep -niE 'sub-task [0-9]+\.[0-9]' -- scripts bin tests
+  [ "$status" -eq 1 ]
+  run git grep -nE '@test "[^"]*\bR[0-9]+\.[0-9]+' -- tests
+  [ "$status" -eq 1 ]
+}

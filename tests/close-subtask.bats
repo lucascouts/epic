@@ -1,9 +1,7 @@
 #!/usr/bin/env bats
-# Story 010, sub-tasks 1.1 and 1.2 — scripts/close-subtask.sh: skeleton,
-# marking, refusals (R1.1, R1.2, R1.3, R1.4, R1.6).
-# Authored by the Test Advisor BEFORE implementation (TDD Red phase).
+# scripts/close-subtask.sh: skeleton, marking, refusals.
 #
-# Contract under test (design.md, component 1):
+# Contract under test:
 #   close-subtask.sh <NNN|story-dir> <N.N|N|gate:<text-prefix>> \
 #                    [--tilde "<qualifier>: <reason>"]
 #   stdout: one JSON object; diagnostics on stderr.
@@ -12,8 +10,8 @@
 #   four-form grammar (deferred: / waived: / n-a: / superseded-by: NNN);
 #   story under .epic/archive/.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so the draft copy under
-# .draft/authored-tests/tests/ can run before materialization into tests/.
+# EPIC_PLUGIN_ROOT overrides root resolution so a copy of this file outside
+# tests/ can run against the plugin.
 
 bats_require_minimum_version 1.5.0
 
@@ -114,31 +112,31 @@ run_close() {
 }
 
 # =====================================================================
-# Sub-task 1.1 — skeleton: args, story resolution, refusal arms
+# Skeleton: args, story resolution, refusal arms
 # =====================================================================
 
-@test "1.1 no arguments: exit 2 with the synopsis on stderr" {
+@test "no arguments: exit 2 with the synopsis on stderr" {
   run_close
   [ "$status" -eq 2 ]
   grep -qi 'usage' <<< "$stderr"
 }
 
-@test "1.1 missing task argument: exit 2 (usage)" {
+@test "missing task argument: exit 2 (usage)" {
   run_close .epic/stories/012-widget
   [ "$status" -eq 2 ]
 }
 
-@test "1.1 --help: exit 2 (usage synopsis, not a close)" {
+@test "--help: exit 2 (usage synopsis, not a close)" {
   run_close --help
   [ "$status" -eq 2 ]
 }
 
-@test "1.1 missing story: exit 1 (R1.4 arm — refusal, not usage)" {
+@test "missing story: exit 1 (refusal, not usage)" {
   run_close 999 1.1
   [ "$status" -eq 1 ]
 }
 
-@test "1.1 archived story: exit 1 and tasks.md byte-identical (R1.4)" {
+@test "archived story: exit 1 and tasks.md byte-identical" {
   make_archived
   snapshot "$PROJ/.epic/archive/007-old/tasks.md"
   run_close .epic/archive/007-old 1.1
@@ -146,7 +144,7 @@ run_close() {
   assert_unchanged "$PROJ/.epic/archive/007-old/tasks.md"
 }
 
-@test "1.1 refusal leaves no file behind — not even a tmp" {
+@test "refusal leaves no file behind — not even a tmp" {
   make_archived
   find "$PROJ" -type f | sort > "$WORK/before.txt"
   run_close .epic/archive/007-old 1.1
@@ -156,10 +154,10 @@ run_close() {
 }
 
 # =====================================================================
-# Sub-task 1.2 — locate-and-mark with the shared grammar, atomically
+# Locate-and-mark with the shared grammar, atomically
 # =====================================================================
 
-@test "1.2 marks [x] on an open sub-task and reports it (R1.1)" {
+@test "marks [x] on an open sub-task and reports it" {
   run_close .epic/stories/012-widget 1.1
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.task == "1.1" and .box == "x"'
@@ -168,13 +166,13 @@ run_close() {
   grep -qE '^[[:space:]]*- \[ \] 1\.2 - Implement the emitter' "$STORY/tasks.md"
 }
 
-@test "1.2 resolves a bare story number from the project root (R1.1)" {
+@test "resolves a bare story number from the project root" {
   run_close 012 1.2
   [ "$status" -eq 0 ]
   grep -qE '^[[:space:]]*- \[x\] 1\.2 - Implement the emitter' "$STORY/tasks.md"
 }
 
-@test "1.2 tilde-marks with each of the four qualifiers, same line (R1.2)" {
+@test "tilde-marks with each of the four qualifiers, same line" {
   local q
   for q in "deferred: needs the live account" \
            "waived: tool absent" \
@@ -189,14 +187,14 @@ run_close() {
   done
 }
 
-@test "1.2 refuses an unknown box and writes nothing (R1.3)" {
+@test "refuses an unknown box and writes nothing" {
   snapshot "$STORY/tasks.md"
   run_close .epic/stories/012-widget 9.9
   [ "$status" -eq 1 ]
   assert_unchanged "$STORY/tasks.md"
 }
 
-@test "1.2 refuses a box already [x], naming it (R1.3)" {
+@test "refuses a box already [x], naming it" {
   snapshot "$STORY/tasks.md"
   run_close .epic/stories/012-widget 2.1
   [ "$status" -eq 1 ]
@@ -204,21 +202,21 @@ run_close() {
   assert_unchanged "$STORY/tasks.md"
 }
 
-@test "1.2 refuses a box already [~] (R1.3)" {
+@test "refuses a box already [~]" {
   snapshot "$STORY/tasks.md"
   run_close .epic/stories/012-widget 3
   [ "$status" -eq 1 ]
   assert_unchanged "$STORY/tasks.md"
 }
 
-@test "1.2 refuses a qualifier outside the four-form grammar (R1.2)" {
+@test "refuses a qualifier outside the four-form grammar" {
   snapshot "$STORY/tasks.md"
   run_close .epic/stories/012-widget 1.1 --tilde "blocked: waiting on review"
   [ "$status" -eq 1 ]
   assert_unchanged "$STORY/tasks.md"
 }
 
-@test "1.2 marks a group box by bare N without touching N.N (R1.1)" {
+@test "marks a group box by bare N without touching N.N" {
   run_close .epic/stories/012-widget 4
   [ "$status" -eq 0 ]
   grep -qE '^- \[x\] 4 - Wrap-up' "$STORY/tasks.md"
@@ -227,14 +225,14 @@ run_close() {
   grep -qE '^- \[ \] 1 - Build the widget' "$STORY/tasks.md"
 }
 
-@test "1.2 marks a Quality Gate box by gate: text-prefix (R1.1)" {
+@test "marks a Quality Gate box by gate: text-prefix" {
   run_close .epic/stories/012-widget "gate:All task validations"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.box == "x"'
   grep -qE '^- \[x\] All task validations pass' "$STORY/tasks.md"
 }
 
-@test "1.2 CRLF fixture round-trips byte-identical outside the marked line (R1.6)" {
+@test "CRLF fixture round-trips byte-identical outside the marked line" {
   sed -i 's/$/\r/' "$STORY/tasks.md"
   TOTAL_LINES=$(wc -l < "$STORY/tasks.md")
   snapshot "$STORY/tasks.md"
@@ -248,7 +246,7 @@ run_close() {
 }
 
 # =====================================================================
-# Sub-task 1.2 — R1.7 group-header auto-close (refine delta)
+# Group-header auto-close
 # =====================================================================
 # A close that leaves a task group with no open children closes the parent
 # group header in the SAME atomic write — validate-story.sh errors on both
@@ -263,7 +261,7 @@ close_group4_header() {
   sed -i 's/^- \[ \] 4 - Wrap-up/- [x] 4 - Wrap-up/' "$STORY/tasks.md"
 }
 
-@test "1.2 closing the last open child closes the group header in the same write (R1.7)" {
+@test "closing the last open child closes the group header in the same write" {
   close_group4_header
   sed -i 's/^  - \[ \] 1\.1 - Implement the parser/  - [x] 1.1 - Implement the parser/' "$STORY/tasks.md"
   snapshot "$STORY/tasks.md"
@@ -275,7 +273,7 @@ close_group4_header() {
   [ "$(diff "$WORK/snapshot.md" "$STORY/tasks.md" | grep -c '^<')" -eq 2 ]
 }
 
-@test "1.2 a close leaving an open sibling leaves the group header open (R1.7)" {
+@test "a close leaving an open sibling leaves the group header open" {
   run_close .epic/stories/012-widget 1.1
   [ "$status" -eq 0 ]
   grep -qE '^[[:space:]]*- \[x\] 1\.1 - Implement the parser' "$STORY/tasks.md"
@@ -283,7 +281,7 @@ close_group4_header() {
   grep -qE '^- \[ \] 1 - Build the widget' "$STORY/tasks.md"
 }
 
-@test "1.2 children closed via terminal [~] close their group header too (R1.7)" {
+@test "children closed via terminal [~] close their group header too" {
   close_group4_header
   sed -i 's/^  - \[ \] 1\.1 - Implement the parser/  - [~] 1.1 - Implement the parser (waived: tool absent)/' "$STORY/tasks.md"
   run_close .epic/stories/012-widget 1.2 --tilde "n-a: covered by construction"

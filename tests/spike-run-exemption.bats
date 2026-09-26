@@ -1,29 +1,29 @@
 #!/usr/bin/env bats
-# Story 007, sub-task 5.1 — spike is exempt wherever Fast is exempt (R1.1),
-# and Run mode reaches the promote offer by pointer, not by restatement (R1.6).
+# Spike is exempt wherever Fast is exempt, and Run mode reaches the promote
+# offer by pointer, not by restatement.
 #
 # Contract under test (doc-contract suite, same shape as
 # tests/hook-monitor-grammar.bats — the surface here is agent-executed prose,
 # so the assertions pin BLOCKS, never sentences):
 #
-#   R1.1 — a spike story has no `.draft/` either, so every scale-scoped clause
-#          that exempts Fast from `.draft/`-dependent machinery must name spike
-#          alongside it:
-#            C1  run-mode.md step 7 (materialization) exemption
-#            C2  run-mode.md step 7 converse-guard exemption
-#            C3  run-mode.md run-time test-first ordering section, including
-#                its Trivial and Simple+ sub-sections
-#            C4  context-discovery.md Completeness Checklist scale scoping
-#   R1.6 — run-mode.md carries a LINK to the promote offer that list-mode.md
-#          defines (`## Spike Lifecycle`), in the same define-once/reuse shape
-#          the Archive offer uses, and does NOT restate its mechanics.
+#   - a spike story has no `.draft/` either, so every scale-scoped clause
+#     that exempts Fast from `.draft/`-dependent machinery must name spike
+#     alongside it:
+#       C1  run-mode.md step 7 (materialization) exemption
+#       C2  run-mode.md step 7 converse-guard exemption
+#       C3  run-mode.md run-time test-first ordering section, including
+#           its Trivial and Simple+ sub-sections
+#       C4  context-discovery.md Completeness Checklist scale scoping
+#   - C5: run-mode.md carries a LINK to the promote offer that list-mode.md
+#     defines (`## Spike Lifecycle`), in the same define-once/reuse shape
+#     the Archive offer uses, and does NOT restate its mechanics.
 #
 # Assertion discipline: each case extracts a block by a structural anchor
 # (heading, numbered step, paragraph landmark) and then asserts the word
 # `spike` is present in it, case-insensitively. No case requires the
 # implementer to reproduce a sentence verbatim — a correct rewrite of the
-# prose must stay green, since prose that cannot be rewritten is the defect
-# this story exists to stop.
+# prose must stay green, since prose that cannot be rewritten is itself a
+# defect.
 #
 # Note on awk patterns: they are passed as strings, so they carry NO backslash
 # escapes (gawk strips `\.`/`\+` with a warning and the pattern silently stops
@@ -99,45 +99,45 @@ refute_grep_file() {
 
 # --- C1: materialization exemption ------------------------------------------
 
-@test "C1 R1.1: run-mode step 7 exempts spike from materialization, not Fast alone" {
+@test "C1: run-mode step 7 exempts spike from materialization, not Fast alone" {
   block=$(section_between '^[0-9]+[.] .*Materialize pre-authored tests' 'checks the converse' "$RUN_MODE")
   assert_names_spike "run-mode.md step 7 (materialize)" "$block"
 }
 
 # --- C2: converse-guard exemption -------------------------------------------
 
-@test "C2 R1.1: run-mode step 7's converse guard exempts spike, not Fast alone" {
+@test "C2: run-mode step 7's converse guard exempts spike, not Fast alone" {
   block=$(section_between 'checks the converse' '^[0-9]+[.] ' "$RUN_MODE")
   assert_names_spike "run-mode.md step 7 (converse guard)" "$block"
 }
 
 # --- C3: run-time test-first ordering ---------------------------------------
 
-@test "C3a R1.1: run-mode's run-time test-first ordering section is scoped to spike too" {
+@test "C3a: run-mode's run-time test-first ordering section is scoped to spike too" {
   block=$(section_between '^### Run-time test-first ordering' '^### Inline Route' "$RUN_MODE")
   assert_names_spike "run-mode.md run-time test-first ordering" "$block"
 }
 
-@test "C3b R1.1: the inline-route sub-section carries no Fast-only scale scoping" {
+@test "C3b: the inline-route sub-section carries no Fast-only scale scoping" {
   block=$(section_between '^### Inline Route' '^### Delegated Route' "$RUN_MODE")
   assert_no_fast_only_scoping "run-mode.md Inline Route" "$block"
 }
 
-@test "C3c R1.1: the delegated-route sub-section carries no Fast-only scale scoping" {
+@test "C3c: the delegated-route sub-section carries no Fast-only scale scoping" {
   block=$(section_between '^### Delegated Route' '^### Status Transitions' "$RUN_MODE")
   assert_no_fast_only_scoping "run-mode.md Delegated Route" "$block"
 }
 
 # --- C4: completeness checklist scale scoping -------------------------------
 
-@test "C4 R1.1: context-discovery's Completeness Checklist names spike beside fast scale" {
+@test "C4: context-discovery's Completeness Checklist names spike beside fast scale" {
   block=$(section_between '^## Completeness Checklist' '^## ' "$CONTEXT_DISCOVERY")
   assert_names_spike "context-discovery.md Completeness Checklist" "$block"
 }
 
 # --- C5: promote offer is pointed at, never restated ------------------------
 
-@test "C5a R1.6: run-mode links to list-mode.md's promote offer definition" {
+@test "C5a: run-mode links to list-mode.md's promote offer definition" {
   # Define once, reuse: a markdown link into list-mode.md's spike/promote
   # definition, the same shape run-mode.md uses for the Archive offer
   # (validate-mode.md#archive-offer). Any anchor is accepted as long as the
@@ -149,9 +149,9 @@ refute_grep_file() {
   fi
 }
 
-@test "C5b R1.6: run-mode does not restate the promote offer's promoted-to write" {
+@test "C5b: run-mode does not restate the promote offer's promoted-to write" {
   # Green pin: the offer's mechanics — including writing `promoted-to: NNN`
-  # back into the Verdict — are defined once in list-mode.md. Run mode must
-  # gain a pointer, never a second spelling of the procedure.
+  # back into the Verdict — are defined once in list-mode.md. Run mode carries
+  # a pointer, never a second spelling of the procedure.
   refute_grep_file 'promoted-to' "$RUN_MODE"
 }

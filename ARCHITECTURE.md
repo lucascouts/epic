@@ -101,7 +101,7 @@ Each `agents/*.md` declares its allowed tools. Narrower scopes catch drift early
 
 - `executor`: `Read, Write, Edit, Bash, Glob, Grep` (implements code)
 - `auditor`: `Read, Glob, Grep, Bash, LSP, Write` — `LSP` reads symbols; `Write` reaches exactly one path, `.draft/audit-report.yaml`
-- `test-advisor`: `Read, Write, Bash, Glob, Grep` — no longer a read-only surface. It authors the failing tests for test-first sub-tasks (`Write`) and runs them to capture Red evidence (`Bash`). Its scope now covers `E2E` sub-tasks in addition to `Unit`/`Integration` — an `E2E` test is authored against the story's selected E2E tool (see [Preferred-tooling policy](#preferred-tooling-policy)) with Red-phase verification **deferred to Run mode**, so for those sub-tasks the Test Advisor writes the file but does not run `Bash`.
+- `test-advisor`: `Read, Write, Bash, Glob, Grep` — it authors the failing tests for test-first sub-tasks (`Write`) and runs them to capture Red evidence (`Bash`). Its scope covers `Unit`, `Integration` and `E2E` sub-tasks — an `E2E` test is authored against the story's selected E2E tool (see [Preferred-tooling policy](#preferred-tooling-policy)) with Red-phase verification **deferred to Run mode**, so for those sub-tasks the Test Advisor writes the file but does not run `Bash`.
 - `analyst`, `architect`, `reviewer`: read-only surfaces
 - `tech-reviewer`: `Read, Glob, Grep, Bash, WebFetch, WebSearch` — `Bash` is measurement only (linters, compilers, greps, query plans), never a mutation of files or git state, so a finding that rests on a runnable check can carry the command and the output backing it
 - `validator`: `Read, Glob, Grep, Bash, Write` — `Write` reaches exactly one path, `.draft/validation-report.yaml`
@@ -200,7 +200,7 @@ Degradation on older CC versions is documented in [README.md#minimum-claude-code
 
 A sub-task passes through the executor as an ordered pipeline. Skipping any step is a protocol violation — the auditor catches this. Full definition in [`agents/executor.md`](agents/executor.md).
 
-The protocol **remains six steps**. Steps 2 and 5 are *conditional* — their wording depends on whether the sub-task carries a pre-authored failing test (a test-first sub-task) or not (a test-after sub-task):
+The protocol has **six steps**. Steps 2 and 5 are *conditional* — their wording depends on whether the sub-task carries a pre-authored failing test (a test-first sub-task) or not (a test-after sub-task):
 
 1. **Context gathering** — read every file/doc listed in the sub-task's `Context:` field before writing code.
 2. **Implementation** (**Green** for a test-first sub-task) — implement literally what `ToDo:` says; deviate only with a documented reason. For a test-first sub-task the goal is to make the pre-authored failing test pass; the test is a read-only input whose assertions are immutable.
@@ -273,7 +273,7 @@ Every mode (Create, List, Run, Validate, Refine, Archive, Init) lives under `/ep
 
 Forcing full planning ceremony on a 1-file change is user-hostile; skipping planning on a 10-file cross-cutting change is risk-hostile. Scale is chosen per-story during triage with an explicit trade-off statement. Upgrade paths exist (Fast → Standard → Full) if scope grows during planning.
 
-Test-first ordering is scale-adaptive too. Standard and Full author failing tests at **plan time** (Test Advisor, Phase 3) and stage them in `.draft/authored-tests/`. Fast is test-first at **run time**: there is no Test Advisor sub-agent, no `.draft/`, and no `red-evidence.yaml`. For a Fast sub-task carrying a `Tests` field the main agent authors the test and confirms it fails (Red) before implementation, then proceeds Green-then-Refactor — a Trivial sub-task runs this inline as a single author, while a Simple-or-higher sub-task has the main agent author and Red-verify, then pass the confirmed-failing test to the Executor as a read-only **Pre-Authored Test** input. The Executor (`agents/executor.md`) is **reused unchanged** across all scales: its existing conditional six-step protocol already consumes a Pre-Authored Test section regardless of scale, so wiring Fast into test-first needed no Executor edit.
+Test-first ordering is scale-adaptive too. Standard and Full author failing tests at **plan time** (Test Advisor, Phase 3) and stage them in `.draft/authored-tests/`. Fast is test-first at **run time**: there is no Test Advisor sub-agent, no `.draft/`, and no `red-evidence.yaml`. For a Fast sub-task carrying a `Tests` field the main agent authors the test and confirms it fails (Red) before implementation, then proceeds Green-then-Refactor — a Trivial sub-task runs this inline as a single author, while a Simple-or-higher sub-task has the main agent author and Red-verify, then pass the confirmed-failing test to the Executor as a read-only **Pre-Authored Test** input. The Executor (`agents/executor.md`) is the same at every scale: its conditional six-step protocol consumes a Pre-Authored Test section regardless of scale.
 
 ### English-only artifacts, user's language in chat
 

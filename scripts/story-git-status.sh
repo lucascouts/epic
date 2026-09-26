@@ -13,25 +13,25 @@
 #
 # Exit codes:
 #   0  status computable (including integrated: null when no main branch
-#      REVISION is queryable — R1.5. The NAME can still be knowable there, and
-#      is still reported as main_branch; see the JSON emission block)
+#      REVISION is queryable. The NAME can still be knowable there, and is
+#      still reported as main_branch; see the JSON emission block)
 #   2  not a git repository or story not found — callers degrade silently, a
-#      non-git workspace is legal (R1.4)
+#      non-git workspace is legal
 #
 # Governing principle: evaluate git live, store nothing. This script writes NO
 # files, ever. Every git call is guarded with `|| rc=$?` so an expected git
-# failure never trips `set -e` (wave-0 convention), and git stderr is silenced
+# failure never trips `set -e`, and git stderr is silenced
 # so the stdout JSON is the only thing consumers ever see.
 
 set -euo pipefail
 
-# --- String quoting (R1.7) --------------------------------------------------
+# --- String quoting ---------------------------------------------------------
 # `evidence[].detail` carries a commit subject — the rawest externally-authored
 # string this plugin ever handles. A control character is perfectly legal in a
 # commit message, and RFC 8259 §7 forbids U+0000-U+001F raw inside a JSON
 # string, so a single 0x0C in a matching subject makes the WHOLE document
 # unparseable while the script still exits 0 — an undefined caller path, because
-# R1.4's degrade-silently contract only covers exit 2.
+# the degrade-silently contract only covers exit 2.
 #
 # So this uses the full C0/C1 `\uXXXX` table proven in scripts/archive-story.sh,
 # not the lighter validate-story.sh variant (which covers only \ " \n \r \t).
@@ -47,8 +47,7 @@ set -euo pipefail
 # ONE-LINE DELTA vs archive-story.sh: its loop list excludes 8 and 12 because
 # THAT script also has the short forms \b and \f. This one keeps only \ " \n \r
 # \t, so 8 and 12 MUST stay in the list below and are emitted as \u0008 / \u000c.
-# Copying archive-story.sh's list unchanged would leave 0x0C unescaped — exactly
-# the bug this table exists to close.
+# Copying archive-story.sh's list as-is would leave 0x0C unescaped.
 JSON_ESC_RAW=()   # needle: the literal byte sequence to replace
 JSON_ESC_REP=()   # replacement: its \uXXXX form
 # The `printf -v needle "$needle"` pair below is a TWO-STAGE printf and the
@@ -125,7 +124,7 @@ add_evidence() {
 # call stays guarded so set -e never aborts; only used inside if conditions.
 # SCOPE: main-branch resolution ONLY. Existence is deliberately NOT the
 # predicate anywhere in evidence collection — a branch can exist and never have
-# reached main (R1.8); mergedness is what evidence means. See ref_is_merged.
+# reached main; mergedness is what evidence means. See ref_is_merged.
 local_branch_exists() {
   local rc=0
   git show-ref --verify --quiet "refs/heads/$1" 2>/dev/null || rc=$?
@@ -158,9 +157,9 @@ ref_short_name() {
 
 # ref_qualified_name <full-ref>: the longer spelling git falls back to when the
 # short one is ambiguous — refs/heads/origin/x → heads/origin/x,
-# refs/remotes/origin/x → remotes/origin/x. Measured on git 2.55: with both of
-# those refs present, %(refname:short) renders exactly those two strings, and
-# stripping "refs/" reproduces them.
+# refs/remotes/origin/x → remotes/origin/x. With both of those refs present,
+# %(refname:short) renders exactly those two strings, and stripping "refs/"
+# reproduces them.
 # Derived here rather than asked of git for the same reason ref_short_name is —
 # git's answer depends on which OTHER refs happen to exist, so it would move
 # under a ref this run never looked at. A prefix strip is deterministic, needs
@@ -179,7 +178,7 @@ ref_qualified_name() {
 }
 
 # ref_is_merged <full-ref>: succeeds when <full-ref> is in the merged set
-# enumerated for this run. MEMBERSHIP, not existence (R1.8) — the two diverge
+# enumerated for this run. MEMBERSHIP, not existence — the two diverge
 # exactly when a local branch was pushed, then rewritten locally: the ref
 # exists, only its remote-tracking counterpart ever reached main.
 # NB: ${arr+"${arr[@]}"} — under `set -u` an empty array must not be expanded
@@ -224,20 +223,19 @@ refs_same_object() {
 
 # ref_mirrors_branch <remote-tracking-ref> <local-ref>: succeeds when the
 # remote-tracking ref really is <local-ref>'s mirror, and not a different branch
-# that merely shares its name (R1.9). A shared name is NECESSARY and not
-# SUFFICIENT; this is the missing conjunct that made fork/x at another tip
-# vanish into refs/heads/x.
+# that merely shares its name. A shared name is NECESSARY and not SUFFICIENT;
+# without this conjunct fork/x at another tip would vanish into refs/heads/x.
 # GOTCHA — BOTH disjuncts are load-bearing, and each one alone is a defect:
 #   * same-object alone: a local branch legitimately AHEAD of its own upstream
 #     sits at a different commit, so it would split into two evidence entries —
-#     re-breaking R1.8, the converse defect.
+#     breaking evidence uniqueness, the converse defect.
 #   * upstream alone: a fresh clone or a fixture can have identical tips with no
 #     branch.<x>.remote configured at all, and that pair would split too.
-# R1.8 and R1.9 are converses; a one-sided predicate here just trades one defect
-# for the other. Three consecutive reviews found the bug at exactly this spot —
-# do not "simplify" this back into a single test.
-# `@{upstream}` needs the SHORT branch name (measured: refs/heads/x@{upstream}
-# resolves to nothing) and prints the upstream's FULL refname, directly
+# Evidence uniqueness and branch identity are converses; a one-sided predicate
+# here just trades one defect for the other — do not "simplify" this back into
+# a single test.
+# `@{upstream}` needs the SHORT branch name (refs/heads/x@{upstream} resolves
+# to nothing) and prints the upstream's FULL refname, directly
 # comparable to the ref in hand. Under `--verify --quiet` every failure mode —
 # no upstream, no such branch, an upstream whose ref is gone, a name git reads
 # as an option — is the same rc 1 with empty stdout, so an unreadable upstream
@@ -253,7 +251,7 @@ ref_mirrors_branch() {
 }
 
 # branch_identity <full-ref>: the key deciding whether two refs denote the same
-# branch (R1.8, R1.9). Identity comes from the FULL refname, never the short
+# branch. Identity comes from the FULL refname, never the short
 # one:
 #   refs/heads/x            → itself
 #   refs/remotes/<remote>/x → refs/heads/x when BOTH hold: that local ref is
@@ -264,7 +262,7 @@ ref_mirrors_branch() {
 # a local branch literally named "origin/x" stays distinct from
 # refs/remotes/origin/x (their short names are identical, their refs are not),
 # and one branch name on two remotes at two different tips stays two branches —
-# the name matching is only half the predicate (R1.9).
+# the name matching is only half the predicate.
 # Returning a key that is always a MERGED ref is what lets the caller name the
 # evidence from the key alone.
 # The remote list is read from git, never a hardcoded "origin", and the split of
@@ -272,7 +270,7 @@ ref_mirrors_branch() {
 # accepts a remote name containing a slash, so refs/remotes/a/b/x may be branch
 # x of remote "a/b" — or branch b/x of remote "a", when both names are
 # configured. WHERE MORE THAN ONE CONFIGURED NAME FITS THERE IS NO SPLIT TO
-# MAKE, AND THIS REFUSES TO INVENT ONE (R1.13): the ref keeps its own identity.
+# MAKE, AND THIS REFUSES TO INVENT ONE: the ref keeps its own identity.
 branch_identity() {
   # fits         how many configured remote names fit this ref
   # split_remote the one that fits, meaningful only when fits is exactly 1
@@ -284,34 +282,26 @@ branch_identity() {
     return 0
   fi
   rest="${ref#refs/remotes/}"
-  # COUNT the remotes that fit, THEN decide. The first fit cannot settle it, and
-  # this loop used to stop at it — a GUESS, under a comment asserting the guess
-  # was harmless: "the collapse needs BOTH predicates … at worst one extra
-  # evidence entry, never a missing one".
-  #
-  # MEASURED FALSE, which is why neither that comment nor the `break` is still
-  # here. With remotes "a" and "a/b" configured, refs/remotes/a/b/feat/NNN-x is
-  # read as branch b/feat/NNN-x of remote "a"; let that local branch exist, be
-  # merged and sit at the same object and BOTH predicates hold — the collapse
-  # fires and branch feat/NNN-x of remote "a/b" disappears from the evidence
-  # entirely. A wrong guess does lose a branch.
+  # COUNT the remotes that fit, THEN decide. The first fit cannot settle it: with
+  # remotes "a" and "a/b" configured, refs/remotes/a/b/feat/NNN-x reads as
+  # branch b/feat/NNN-x of remote "a"; let that local branch exist, be merged
+  # and sit at the same object and BOTH predicates hold — the collapse fires and
+  # branch feat/NNN-x of remote "a/b" disappears from the evidence entirely. A
+  # wrong guess does lose a branch.
   #
   # So the rule is not a better guess but NO GUESS: exactly one fit collapses,
-  # more than one keeps the ref's own identity (R1.13). THE DIRECTION IS WHAT
-  # MAKES THIS SAFE rather than merely different — refusing a collapse can only
-  # ever ADD an evidence entry, never remove one, and `integrated` is
-  # existential so it is untouched either way. That is what turns "never a
-  # missing one" from an assertion into a fact.
+  # more than one keeps the ref's own identity. THE DIRECTION IS WHAT MAKES THIS
+  # SAFE rather than merely different — refusing a collapse can only ever ADD an
+  # evidence entry, never remove one, and `integrated` is existential so it is
+  # untouched either way.
   #
   # THE REFUSAL'S OWN SCOPE, named so it is not mistaken for more: it counts
-  # fits among CURRENTLY CONFIGURED remotes, which is exactly what R1.13 says
-  # and exactly where the guarantee stops. If the ref's true owning remote is no
-  # longer configured — a half-finished `git remote rename`, a hand-edited
-  # config, a remote removed while its refs survive — then only one name fits,
-  # this guard stays silent, and the old loss returns through that door.
-  # Recorded, not fixed: judging a ref against remotes that are NOT configured
-  # means guessing again, which is the thing this replaced. Derived from 8.4's
-  # own reproduction with the second remote omitted, NOT measured end to end.
+  # fits among CURRENTLY CONFIGURED remotes, and that is exactly where the
+  # guarantee stops. If the ref's true owning remote is no longer configured —
+  # a half-finished `git remote rename`, a hand-edited config, a remote removed
+  # while its refs survive — then only one name fits, this guard stays silent,
+  # and the branch can still be lost. Left open on purpose: judging a ref
+  # against remotes that are NOT configured would mean guessing again.
   #
   # THE FIT IS TESTED AS "<name>/" and must stay that way: a remote named "ab"
   # does not own refs/remotes/a/b/x, and a bare-name test would count it as a
@@ -343,7 +333,7 @@ branch_identity() {
   # The split is settled; now both rules must hold, cheapest first:
   #   1. the local counterpart is itself MERGED — membership, never existence,
   #      or the detail could name a branch that never reached main;
-  #   2. and it is the same BRANCH, not merely the same name (R1.9).
+  #   2. and it is the same BRANCH, not merely the same name.
   # && short-circuits, so a remote-only branch costs no extra git call.
   if ref_is_merged "$local_ref" && ref_mirrors_branch "$ref" "$local_ref"; then
     printf '%s' "$local_ref"
@@ -356,7 +346,7 @@ branch_identity() {
 # branch_identity — was already selected as a surviving identity in this run.
 # SELECTED, not yet emitted: SEEN_BRANCHES is filled by the first pass and only
 # rendered into evidence by the second, so that the second can ask its question
-# of the whole survivor set at once (R1.10, see render_branch_details).
+# of the whole survivor set at once (see render_branch_details).
 # Keeping SEEN_BRANCHES duplicate-free is also what makes the escalation there
 # terminate: distinct entries are distinct FULL refnames.
 # Linear scan — the list is one entry per matching branch, never a size where a
@@ -374,7 +364,7 @@ branch_already_seen() {
 #   rung 1  qualified  refs/heads/origin/x → heads/origin/x
 #   rung 2  full       refs/heads/origin/x → refs/heads/origin/x
 # EVERY RUNG RENDERS THE KEY AND NOTHING ELSE — that is what keeps rule 2
-# (R1.8: the reported detail must name a ref that is itself merged) true however
+# (the reported detail must name a ref that is itself merged) true however
 # far a detail escalates. branch_identity only ever returns a ref of the merged
 # set, and none of these three spellings can name a different ref.
 # Rung 2 is the refname itself, and refnames are unique by construction; that
@@ -397,20 +387,20 @@ ref_spelling() {
 
 # render_branch_details: fills BRANCH_DETAILS — index-parallel to SEEN_BRANCHES
 # — with the string each surviving identity is reported under, such that no two
-# entries of the emitted document arrive byte-identical (R1.10). Bash has no
+# entries of the emitted document arrive byte-identical. Bash has no
 # nested arrays; parallel indexed arrays are the idiom this file already uses.
 #
 # THE PREDICATE IS THE RENDERED SET, NEVER THE SHORT NAMES, and that is the
 # whole reason this is a whole-set pass instead of a per-key call. Asking "does
 # another survivor share my SHORT name?", escalating the pair that does, and
 # emitting the longer spelling asks nothing about whether THAT spelling was
-# free. Measured on git 2.55 with three merged branches —
-# refs/heads/origin/feat/NNN-x, refs/heads/remotes/origin/feat/NNN-x and
-# refs/remotes/origin/feat/NNN-x: the first and third collide on the short name
-# origin/feat/NNN-x and escalate to heads/origin/… and remotes/origin/…, and
-# remotes/origin/… is byte-identical to the PLAIN short name of the second,
-# which had no collision of its own to escalate. Three entries, two distinct
-# details. R1.10 constrains what the document says, so the question has to be
+# free. With three merged branches — refs/heads/origin/feat/NNN-x,
+# refs/heads/remotes/origin/feat/NNN-x and refs/remotes/origin/feat/NNN-x —
+# the first and third collide on the short name origin/feat/NNN-x and escalate
+# to heads/origin/… and remotes/origin/…, and remotes/origin/… is
+# byte-identical to the PLAIN short name of the second, which had no collision
+# of its own to escalate. Three entries, two distinct details. Uniqueness
+# constrains what the document says, so the question has to be
 # asked of what the document says — a predicate over anything else is a
 # predicate over the wrong thing.
 #
@@ -463,8 +453,8 @@ render_branch_details() {
       done
     done
     # Phase 2 — ESCALATE every entry that snapshot found colliding. A newly
-    # rendered detail may collide with an entry that did NOT collide before
-    # (the exact defect this function exists to close); the next round sees it,
+    # rendered detail may collide with an entry that did NOT collide before;
+    # the next round sees it,
     # because detection always re-reads the whole set.
     escalated=false
     for ((i = 0; i < n; i++)); do
@@ -487,7 +477,7 @@ render_branch_details() {
 # subject_is_anchored <subject>: succeeds when <subject> carries this story's
 # anchor as a DELIMITED TOKEN — the whole predicate, in one place, over the
 # patterns built by the Subject anchor rules block below.
-# TWO CALLERS, ONE PREDICATE (R4.3): the message-ref evidence rule asks it of
+# TWO CALLERS, ONE PREDICATE: the message-ref evidence rule asks it of
 # the subjects reachable from MAIN, the anchored-commit count asks it of those
 # reachable from HEAD. Sharing the two REGEXES is not enough on its own — the
 # disjunction and the slug guard are as much a part of "delimited token" as the
@@ -514,7 +504,7 @@ if [[ -z "$STORY_ARG" ]]; then
   exit 2
 fi
 
-# --- Workspace check (R1.4) ---
+# --- Workspace check ---
 # Not a git repository → exit 2 with nothing on stdout, so callers degrade
 # silently (no annotation, no warning downstream).
 rc=0
@@ -550,7 +540,7 @@ STORY_NAME=$(basename "$STORY_DIR")
 # Story dirs follow NNN-slug. The capture strips the zero padding (006 → 6) so
 # the evidence regexes can accept every delimited padded form via a leading
 # `0*` while bare numbers, prose mentions and substrings such as 1006 never
-# match (R1.3). A dir name without a numeric prefix yields no tokens, which
+# match. A dir name without a numeric prefix yields no tokens, which
 # simply means no number-based evidence can ever be found — never an error.
 STORY_NUM=""
 STORY_SLUG=""
@@ -561,20 +551,20 @@ elif [[ "$STORY_NAME" =~ ^0*([0-9]+)$ ]]; then
   STORY_NUM="${BASH_REMATCH[1]}"
 fi
 
-# --- Subject anchor rules (R1.2, R1.3, R4.3) ---
+# --- Subject anchor rules ---
 # THE SINGLE HOME OF THE ANCHOR REGEXES, and the reason they live up here
-# instead of beside their first reader. TWO readers now ask the same question of
+# instead of beside their first reader. TWO readers ask the same question of
 # a commit subject — the message-ref evidence rule (does anything reachable from
 # MAIN reference this story?) and the anchored-commit count (is the work
-# reachable from HEAD referenceable AT ALL?) — and R4.3 says the second reuses
-# the first's rules rather than restating them. A second copy is a second rule:
+# reachable from HEAD referenceable AT ALL?) — and the second reuses the
+# first's rules rather than restating them. A second copy is a second rule:
 # it would let one subject count for one reader and not the other, and the two
 # copies would drift apart on the first change to what "delimited token" means.
 # So the rules are built once, here, and applied through ONE predicate —
 # subject_is_anchored, above, which is the only thing that ever reads them.
 #
 # A subject carries the anchor when it holds the story number as a DELIMITED
-# TOKEN and never otherwise (R1.3): \(0*NNN\) — the conventional `type(NNN):`
+# TOKEN and never otherwise: \(0*NNN\) — the conventional `type(NNN):`
 # scope — or a word-bounded 0*NNN-<slug>. `0*` accepts every padded spelling of
 # one number, so 006 and 6 are the same story, while a bare undelimited number
 # and substrings such as 1006 match neither pattern.
@@ -597,10 +587,10 @@ if [[ -n "$STORY_NUM" ]]; then
   MSG_SLUG_RE="(^|[^[:alnum:]_])0*${STORY_NUM}-${SLUG_RE}"
 fi
 
-# --- Main-branch resolution (R1.5, R1.11, R1.12) ---
+# --- Main-branch resolution ---
 # Order: remote HEAD default → local main → local master → none (unknowable).
 # THE NAME AND THE REVISION ARE TWO DIFFERENT ANSWERS, and conflating them is
-# exactly what R1.12 forbids:
+# forbidden:
 #   MAIN_BRANCH — the NAME: a BARE branch name, reported as main_branch in the
 #                 JSON and interpolated into callers' warning text;
 #   MAIN_REF    — the REVISION the evidence queries run against: always a FULL
@@ -611,17 +601,17 @@ MAIN_REF=""
 MAIN_AMBIGUOUS=false
 
 # Read the FULL ref and strip a LITERAL prefix. Asking git to shorten it is
-# forbidden here (R1.12): git's short rendering is AMBIGUITY-AWARE, so it is a
+# forbidden here: git's short rendering is AMBIGUITY-AWARE, so it is a
 # function of the whole ref store rather than of this ref alone, and it moves
-# under refs this run never looked at. Measured on git 2.55 — add ONE unrelated
-# ref that also claims the name "origin/main" (refs/heads/origin/main or
+# under refs this run never looked at. Add ONE unrelated ref that also claims
+# the name "origin/main" (refs/heads/origin/main or
 # refs/tags/origin/main; both reproduce it) and the shortened answer stops being
 # "origin/main" and becomes "remotes/origin/main". A fixed ${x#origin/} strip
 # then misses, and the corrupted string becomes BOTH the reported name AND the
 # revision probed — so an integration merge sitting on the local main drops out
 # of every query and `integrated` flips on a ref nothing here ever consulted.
 # The full path is deterministic and the strip costs no second git call.
-# Same lesson, other call site: see ref_short_name.
+# Same reason, other call site: see ref_short_name.
 rc=0
 ORIGIN_HEAD_REF=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null) || rc=$?
 # The guard and the strip carry the SAME literal prefix and must move together.
@@ -633,7 +623,7 @@ ORIGIN_HEAD_REF=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null) || rc=$
 if [[ "$rc" -eq 0 && "$ORIGIN_HEAD_REF" == refs/remotes/origin/?* ]]; then
   MAIN_BRANCH="${ORIGIN_HEAD_REF#refs/remotes/origin/}"
   # Prefer the local branch of that name — it is the one that sees unpushed
-  # integration commits (R1.11); fall back to the remote-tracking ref when the
+  # integration commits; fall back to the remote-tracking ref when the
   # default branch is not checked out locally. Evaluate what is visible, never
   # fail. local_branch_exists takes the BARE name and builds refs/heads/ itself,
   # so it must not be handed a full refname.
@@ -664,14 +654,14 @@ else
   fi
   # A FULL refname here too — the identical ambiguity, one layer down. A bare
   # "main" in a repository that ALSO holds a tag named main resolves to the TAG:
-  # gitrevisions checks refs/tags/<name> before refs/heads/<name>. Measured on
-  # git 2.55: `git log main` warns "refname 'main' is ambiguous" on stderr —
+  # gitrevisions checks refs/tags/<name> before refs/heads/<name>.
+  # `git log main` warns "refname 'main' is ambiguous" on stderr —
   # which this script silences — and then reports the tag's history, so a
   # commit made on the branch afterwards silently vanishes from the evidence.
   # The two candidates above are branches BY CONSTRUCTION (local_branch_exists
   # is what selected them), so refs/heads/ is the right prefix with nothing
   # re-asked of git. Empty stays empty: no main resolved means no revision to
-  # query, which is R1.5's unknowable case.
+  # query, which is the unknowable case.
   if [[ -n "$MAIN_BRANCH" ]]; then
     MAIN_REF="refs/heads/$MAIN_BRANCH"
   fi
@@ -680,40 +670,37 @@ fi
 # A NAME THAT RESOLVES IS NOT A REVISION THAT RESOLVES, and this is where that
 # distinction stops being a comment above and becomes a check. `git symbolic-ref`
 # reads the target STORED in refs/remotes/origin/HEAD without requiring that
-# target to exist, and exits 0 either way — measured on git 2.55, identically
-# with and without `--short`, so the gap predates the R1.12 work above rather
-# than being introduced by it. A `git fetch --prune` that removes
+# target to exist, and exits 0 either way, with and without `--short`. A
+# `git fetch --prune` that removes
 # refs/remotes/origin/main leaves the symref still pointing at it, so with no
 # local `main` to prefer, the NAME resolves to `main` while the REVISION names
 # nothing at all.
 # Both evidence queries then fail — `fatal: malformed object name` and
-# `fatal: bad revision`, rc 128, measured — and both are swallowed by their own
+# `fatal: bad revision`, rc 128 — and both are swallowed by their own
 # `|| rc=$?` guards. The guards are right: a query that cannot run must never
 # abort the run. What is wrong is calling the empty evidence list they leave
-# behind a FINDING. R1.5 and references/validate-mode.md require the opposite,
-# the latter verbatim: not computable must never dress up as a finding.
+# behind a FINDING. references/validate-mode.md requires the opposite,
+# verbatim: not computable must never dress up as a finding.
 # ONE GATE AFTER THE WHOLE BLOCK, NOT ONE PER ARM, and the placement is the
-# point. The defect closed here has exactly the shape of a per-assignment
-# discipline: every MAIN_REF assignment above was checked to be SPELLED as a
-# full refname and not one was ever checked to RESOLVE. A rule applied at each
+# point: spelling every MAIN_REF assignment as a full refname does not make it
+# RESOLVE. A rule applied at each
 # assignment is a rule a newly added arm can silently skip; applied here, the
 # invariant "MAIN_REF non-empty ⇒ MAIN_REF resolves" holds whichever arm
 # assigned it, and the emission gate below can rest on it.
 # The local-fallback arm is believed redundant here, and this deliberately does
-# not rely on that belief. Measured on git 2.55: `show-ref --verify --quiet`
-# (what local_branch_exists asks) is the STRICTER of the two — on a ref whose
-# object is missing it exits 128 while `rev-parse --verify --quiet` prints the
-# name and exits 0, and on a dangling symref inside refs/heads both refuse. One
-# cheap call buys independence from that measurement continuing to hold.
+# not rely on that belief. `show-ref --verify --quiet` (what
+# local_branch_exists asks) is the STRICTER of the two — on a ref whose object
+# is missing it exits 128 while `rev-parse --verify --quiet` prints the name and
+# exits 0, and on a dangling symref inside refs/heads both refuse. One cheap
+# call removes the dependence on that git behaviour.
 # THE PREDICATE'S OWN LIMIT — the gate asks whether the ref RESOLVES, never
 # whether it resolves to something queryable, and those are two questions:
 #   * a ref at a NONEXISTENT object: `rev-parse --verify --quiet` prints the
 #     stored name and exits 0. `git update-ref` refuses to create this under
 #     refs/heads (rc 128, "nonexistent object") and `git fsck` calls it an
 #     "invalid sha1 pointer" — a corrupt repository.
-#   * a ref at a NON-COMMIT object: NOT a corrupt repository, and this is the
-#     member of the class an earlier version of this comment wrongly excluded.
-#     Measured on git 2.55: `git update-ref refs/remotes/origin/main <blob>`
+#   * a ref at a NON-COMMIT object: NOT a corrupt repository.
+#     `git update-ref refs/remotes/origin/main <blob>`
 #     exits 0 — the non-commit refusal guards refs/heads only, nothing guards
 #     refs/remotes — and `git fsck --strict` then reports the repo CLEAN. The
 #     gate passes on the blob's sha, `git branch --merged` dies rc 129 ("is a
@@ -721,24 +708,23 @@ fi
 #     swallowed by their guards, and `false` is emitted for a story nothing
 #     managed to look at.
 # So the honest statement is the narrow one: this gate closes the pruned-symref
-# case (the reachable one, R1.5) and does not close "resolves to something no
+# case (the reachable one) and does not close "resolves to something no
 # query can use". Closing that needs a peeled `^{commit}` probe — a different
 # call shape with failure modes of its own, and one `refs_same_object`'s comment
-# already warns against adding. Recorded in .draft/deviations.yaml, not fixed
-# here; the correction of the earlier claim is recorded there too.
+# already warns against adding.
 # `[[ ]]` short-circuits `&&`, so the command substitution never runs — and
 # ref_object never sees an empty ref — when nothing resolved a name at all.
 if [[ -n "$MAIN_REF" && -z "$(ref_object "$MAIN_REF")" ]]; then
   MAIN_REF=""
 fi
 
-# --- Evidence collection (R1.1, R1.2, R1.3, R1.6) ---
+# --- Evidence collection ---
 # Either kind flips integrated on its own; both are reported when both hold.
 # GOTCHA: feat/NNN-slug is an emergent convention documented nowhere — both
 # evidence kinds are first-class and a branch is NEVER required (a squash
 # merge whose subject carries the token is enough). Every invocation
 # re-queries git — no caching, no state files — so history rewrites are
-# reflected on the very next call (R1.6). Both git queries stay guarded: on a
+# reflected on the very next call. Both git queries stay guarded: on a
 # shallow clone or detached HEAD we evaluate whatever history is visible and
 # never fail.
 EVIDENCE=()
@@ -747,12 +733,12 @@ if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
   # rules above. Only the BRANCH patterns are local to this block: no second
   # reader asks whether a branch NAME carries the token.
 
-  # Rule 1 — branch-merged (R1.1): a branch matching feat/NNN-* or
+  # Rule 1 — branch-merged: a branch matching feat/NNN-* or
   # */NNN-<slug>* whose tip is already reachable from main.
   BRANCH_FEAT_RE="^feat/0*${STORY_NUM}-"
   BRANCH_SLUG_RE="/0*${STORY_NUM}-${SLUG_RE}"
 
-  # Evidence uniqueness (R1.8): one merged branch is one piece of evidence,
+  # Evidence uniqueness: one merged branch is one piece of evidence,
   # however many refs point at it, AND the reported detail must name a ref that
   # is itself merged. The duplicate is NOT one rule firing twice —
   # feat/NNN-slug matches the anchored BRANCH_FEAT_RE while
@@ -764,7 +750,7 @@ if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
   # loses a real branch. That same blindness returns at the output edge — two
   # survivors rendered by short name alone arrive byte-identical — so the
   # RENDERED set is swept for equal details and the colliding ones spelled apart
-  # until none are (R1.10, see render_branch_details).
+  # until none are (see render_branch_details).
   REMOTES=()
   rc=0
   REMOTES_RAW=$(git remote 2>/dev/null) || rc=$?
@@ -793,7 +779,7 @@ if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
     done <<< "$MERGED_RAW"
   fi
 
-  # SELECT, then RENDER — two passes, and the split is load-bearing (R1.10).
+  # SELECT, then RENDER — two passes, and the split is load-bearing.
   # "Does another survivor render this same detail?" is unanswerable at the
   # moment the FIRST of a colliding pair is reached: the second has not been
   # seen yet. Emitting inside the selection loop can therefore only ever
@@ -823,18 +809,18 @@ if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
   # be named merely because its remote-tracking counterpart reached main.
   # render_branch_details only ever RENDERS those keys, at whichever rung it
   # takes to tell them apart, so WHICH ref gets named is settled entirely above
-  # and R1.8 is untouched by R1.10.
+  # and escalation never changes it.
   render_branch_details
   for BRANCH_DETAIL in ${BRANCH_DETAILS+"${BRANCH_DETAILS[@]}"}; do
     add_evidence "branch-merged" "$BRANCH_DETAIL"
   done
 
-  # Rule 2 — message-ref (R1.2): a commit subject reachable from MAIN carrying
-  # the story anchor, per the token rules built above (R1.3). The rule is
+  # Rule 2 — message-ref: a commit subject reachable from MAIN carrying
+  # the story anchor, per the token rules built above. The rule is
   # existential, so the first (most recent) matching subject is reported as the
   # detail and the walk stops there. The anchored-commit count below applies the
   # same two patterns to a different range and counts instead of stopping —
-  # which is exactly why the patterns are not built here any more.
+  # which is why the patterns are built above, not here.
   rc=0
   SUBJECTS=$(git log "$MAIN_REF" --format=%s -- 2>/dev/null) || rc=$?
   if [[ "$rc" -eq 0 && -n "$SUBJECTS" ]]; then
@@ -847,7 +833,7 @@ if [[ -n "$MAIN_REF" && -n "$STORY_NUM" ]]; then
   fi
 fi
 
-# --- Anchored-commit count (R4.2, R4.3, R4.4) ---
+# --- Anchored-commit count ---
 # THE REVERSE QUESTION, and it is a different one from `integrated`: that field
 # asks whether the work REACHED MAIN, this counts whether the work is FINDABLE
 # AT ALL. A finished story whose commits carry no anchor is invisible to both
@@ -856,10 +842,10 @@ fi
 # Consumers surface at most one of the two; the precedence is settled in
 # references/validate-mode.md, not here. This script measures, it never warns.
 #
-# HEAD, NOT MAIN, and that is the whole point of the field (R4.2). A story is
+# HEAD, NOT MAIN, and that is the whole point of the field. A story is
 # validated where it was just finished — on its own, still-unmerged branch — so
 # a main-relative count would read zero for every correctly anchored story
-# awaiting a merge, which is the state 006's `integrated` warning already
+# awaiting a merge, which is the state the `integrated` warning already
 # covers. Counting from HEAD keeps the two questions independent: one is about
 # the merge, this one is about the anchor.
 #
@@ -915,7 +901,7 @@ fi
 #                 is knowable there, and withholding it would understate what
 #                 was measured just as surely as `false` overstates it.
 #   integrated  — the CLAIM, gated on MAIN_REF, the revision the queries
-#                 actually ran against (R1.5, R1.11).
+#                 actually ran against.
 #     true   at least one evidence entry — the queries ran and found something;
 #     false  the queries RAN and found nothing. A positive claim, and consumers
 #            treat it as one: validate appends a warning naming the missing
@@ -942,12 +928,10 @@ fi
 # MAIN_REF is not an oversight: the count is a fact about HEAD, so it stays
 # measurable in a repository where no main branch resolves at all and
 # `integrated` is null.
-# ADDITIVE, AND EMITTED BEFORE checked_at FOR THAT REASON (R4.4). Every existing
-# line of this document is byte-identical to what it was before the field
-# existed: evidence already ended in a comma, checked_at already ended without
-# one, so the new line lands between them without rewriting either. Appending
-# after checked_at would have moved a comma onto a line no consumer asked to
-# change. checked_at stays the trailer it has always been.
+# EMITTED BEFORE checked_at so every other line keeps its exact bytes:
+# evidence ends in a comma, checked_at ends without one, so this line sits
+# between them without rewriting either. Appending after checked_at would move
+# a comma onto a line consumers already parse. checked_at stays the last field.
 if [[ -n "$MAIN_BRANCH" ]]; then
   MAIN_JSON="\"$(json_escape "$MAIN_BRANCH")\""
 else

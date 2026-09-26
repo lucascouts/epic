@@ -178,9 +178,9 @@ epic/
 | **Versioned artifacts** (recommended) | `.epic/.gitignore` with `.draft/`, `*.wip` and `node_modules/`; offers to remove a root-`.gitignore` rule that ignores `.epic/` — quoting the line, never silently | `tracked-md` |
 | **Local-only** | `.epic/` appended to the root `.gitignore` | `local-only` |
 
-Versioned tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `archive/manifest.yaml`. **`.draft/` is never versioned under either policy** — it is scratch space: run logs, authored tests, phase snapshots, `*.wip`, and the story's evidence files (`deviations.yaml`, `red-evidence.yaml`, the validation and audit reports) — the last by decision: their durable forms are the archive's summary and, where `ai-memory` is detected, the pages the orchestrator writes.
+Versioned tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `archive/manifest.yaml`. **`.draft/` is never versioned under either policy** — it is scratch space: run logs, authored tests, phase snapshots, `*.wip`, and the story's evidence files (`deviations.yaml`, `red-evidence.yaml`, the validation and audit reports) — the last because their durable forms are the archive's summary and, where `ai-memory` is detected, the pages the orchestrator writes.
 
-**Why it is a question and not a default.** In a 26-project corpus, having no declared policy is what destroyed lifecycle history: a track→untrack transition **wiped 54 stories** in one project, a squash left **9 zombie duplicates** split across `stories/` and `archive/` in another, one project had **47 `.epic` files committed through a `.gitignore` that said they were never committed**, and another **flip-flopped its policy five times**. The three projects with the most auditable lifecycle had all deliberately broken the older "never commit `.epic`" doctrine and converged on the same model — version the `.md` artifacts, ignore `.draft/`. That is why versioned is *recommended*; it is still *asked*, because every failure above came from a policy nobody said out loud.
+**Why it is a question and not a default.** Without a declared policy, lifecycle history gets lost: a track→untrack transition deletes stories from history, a squash leaves duplicates split across `stories/` and `archive/`, and a `.gitignore` stops matching what is actually committed. Versioning the `.md` artifacts and ignoring `.draft/` gives the most auditable lifecycle, so versioned is *recommended*; it is still *asked*, because each of those failures comes from a policy nobody said out loud.
 
 **Non-interactive runs get local-only, without prompting.** A headless or Agent SDK `init` applies the conservative status quo and never starts committing `.epic` behind your back. It also never overrides a policy already recorded: a workspace that declares `tracked-md` is left exactly as it is.
 
@@ -221,7 +221,7 @@ For a session recorded without telemetry, `scripts/story-telemetry.sh` reads the
 
 ```bash
 bash "$EPIC_PLUGIN_ROOT/scripts/story-telemetry.sh"                      # this project's latest session
-bash "$EPIC_PLUGIN_ROOT/scripts/story-telemetry.sh" --since 2026-09-16T18:00:00Z   # one phase, by window
+bash "$EPIC_PLUGIN_ROOT/scripts/story-telemetry.sh" --since 2026-01-01T18:00:00Z   # one phase, by window
 ```
 
 One JSON object on stdout: tokens split `main` / `subagent` (input, cache creation, cache read, output), models seen, wall clock, and `events` beside `unique_messages`.
@@ -229,7 +229,7 @@ One JSON object on stdout: tokens split `main` / `subagent` (input, cache creati
 Three things it deliberately does **not** do, each for a stated reason:
 
 - **No dollars.** The transcript carries usage and no price. A price table shipped inside a plugin ages into a confident wrong answer; the reader knows the current prices.
-- **No silent summing.** The transcript repeats a message's usage on every content block — measured at **462 events for 190 messages**, a 2.4x inflation — so usage is summed per distinct `message.id`, and both counts are emitted so you can see that it happened.
+- **No silent summing.** The transcript repeats a message's usage on every content block — so usage is summed per distinct `message.id`, and both counts are emitted so you can see that it happened.
 - **No claim it cannot back.** `subagent_split_verified` is `false` until the run actually saw a sidechain event, so a zeroed `subagent` block reads as *none seen*, never as *confirmed none*.
 
 Generate stories programmatically with the Agent SDK:

@@ -4,11 +4,10 @@
 # The floor is the four items no engineering level drops
 # (references/quality-catalog.md, The security floor): the supported and
 # declared runtime, secrets, the README, and the dependency-vulnerability scan
-# (SCA). Until this lint the whole chain that carries them was prose — legend,
-# generated gate, Validate running the command — so a story whose legend
-# omitted the floor produced no gate, gave Validate nothing to run, and passed.
-# Measured 2026-09-19: four of fourteen Epic arms in a seven-language matrix
-# skipped floor items and all four validated clean.
+# (SCA). Without this lint the whole chain that carries them is prose —
+# legend, generated gate, Validate running the command — so a story whose
+# legend omits the floor would produce no gate, give Validate nothing to run,
+# and pass.
 #
 #   F1  a declared level with no floor gates is an ERROR naming all four
 #   F2  a declared level with all four gates raises no floor error
@@ -219,7 +218,8 @@ refute_mentions() {
   for decl in 'engines' '`go` directive' 'requires-python' 'rust-version' '.ruby-version' 'require.php' '.tool-versions'; do
     printf '%s' "$row" | grep -qF -- "$decl" || { echo "runtime row does not name: $decl" >&2; return 1; }
   done
-  # The two guesses measured on 2026-09-24: a Rust edition and a README-only version.
+  # The row also rules out two wrong declarations: a Rust edition and a
+  # version stated only in the README.
   printf '%s' "$row" | grep -qi 'edition. is a language dialect'
   printf '%s' "$row" | grep -qi 'only in the README'
 }

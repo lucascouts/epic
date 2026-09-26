@@ -1,16 +1,13 @@
 #!/usr/bin/env bats
-# Integration round-trip for story 015 (sub-task 4.2): one story carrying all
-# five legacy variants migrates to a clean embedded validate in ONE --apply,
-# the second apply is a proven no-op (R1.4), and a migrated field-form story
-# archives with manifest counters derived from the boxes that exist (R4.2).
-# Authored Red-first by the Test Advisor from the EARS requirements and the
-# design.md contract — never from any ToDo.
-# Target location after materialization: tests/migrate-roundtrip.bats
+# Integration round-trip: one story carrying all five legacy variants
+# migrates to a clean embedded validate in ONE --apply, the second apply is a
+# proven no-op, and a migrated field-form story archives with manifest
+# counters derived from the boxes that exist.
 #
 # The all-variants fixture is a FAST tasks-only story on purpose: fast scale
 # is the only shape that can carry variant 4 (dangling Requirements) while
-# variants 1, 2, 3 and 5 ride along in the same file — one story, all five,
-# per the sub-task objective. The archive leg uses a standard complete story
+# variants 1, 2, 3 and 5 ride along in the same file — one story, all five.
+# The archive leg uses a standard complete story
 # whose commit point is a CLOSED Commit checkbox pre-migration, so the
 # counter delta (exactly one box fewer) is attributable to the conversion.
 
@@ -98,7 +95,7 @@ EOF
 }
 
 # Standard, complete, archivable story whose only legacy shape is a CLOSED
-# Commit checkbox — the R4.2 counter fixture.
+# Commit checkbox — the counter fixture.
 make_complete_commit_story() {
   local dir="$PROJ/.epic/stories/$1"
   mkdir -p "$dir"
@@ -151,9 +148,9 @@ status: done
 EOF
 }
 
-# --- 4.2 All-variants integration round-trip (R1.4, R4.2) ---
+# --- All-variants integration round-trip ---
 
-@test "4.2: one --apply migrates all five variants and embeds a clean validate" {
+@test "one --apply migrates all five variants and embeds a clean validate" {
   make_all_variants_story 090-all-variants
   run --separate-stderr bash "$MIGRATE_SH" .epic/stories/090-all-variants --apply
   [ "$status" -eq 0 ]
@@ -173,7 +170,7 @@ EOF
   grep -qF -- '- Commit: "feat(090): everything at once"' "$f"
 }
 
-@test "4.2: the second apply reports zero rewrites and no diff — the tree does not move" {
+@test "the second apply reports zero rewrites and no diff — the tree does not move" {
   make_all_variants_story 090-all-variants
   bash "$MIGRATE_SH" .epic/stories/090-all-variants --apply > /dev/null 2>&1
   local mid
@@ -185,7 +182,7 @@ EOF
   [ "$(tree_hash "$PROJ")" = "$mid" ]
 }
 
-@test "4.2: a migrated field-form story archives with counters derived from the boxes that exist" {
+@test "a migrated field-form story archives with counters derived from the boxes that exist" {
   make_complete_commit_story 091-field-form
   local f="$PROJ/.epic/stories/091-field-form/tasks.md"
   local pre post

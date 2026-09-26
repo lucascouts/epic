@@ -180,10 +180,9 @@ migrate_file() {
     #
     # WHY THE BOX HAS TO GO. A Commit sub-task is a checkbox that is never the
     # unit of work: it exists to carry a message. Left as a box it makes every
-    # group look partially open, which is the false-partial factory the corpus
-    # kept reporting. The message is carried VERBATIM — punctuation, em dashes
-    # and all — because a commit message that drifts in migration is worse than
-    # one that was never moved.
+    # group look partially open — a false partial. The message is carried
+    # VERBATIM — punctuation, em dashes and all — because a commit message that
+    # drifts in migration is worse than one that was never moved.
     #
     # THE NUMBER IS NOT REUSED. Dropping `1.3` leaves a gap, and the gap stays:
     # renumbering 2.1 into 1.3 would silently break every `Dependencies: Task
@@ -226,9 +225,8 @@ migrate_file() {
       # THE TWO RULES COMPOSE IN ONE PASS, and that is what makes migrate
       # idempotent. A fast story has no requirements chain, so the field this
       # conversion just produced is subject to exactly the same rule as one that
-      # was already in the file. Emitting it here and deleting it on the NEXT
-      # run is how the all-variants fixture measured a second apply still
-      # rewriting — R1.4 broken by two correct rules that never met.
+      # was already in the file. Emitting it here and deleting it only on the
+      # NEXT run would make a second apply still rewrite, breaking idempotency.
       if [ "$SCALE" = "fast" ] || [ "$SCALE" = "spike" ]; then
         case "$converted" in
           *satisfied-by:*) : ;;
@@ -247,7 +245,7 @@ migrate_file() {
 
     # Variant 4 — a fast/spike story has no requirements chain, so a
     # `Requirements:` field there points at nothing. A field carrying the
-    # sanctioned `satisfied-by:` suffix is NEVER stripped (story 014's grammar):
+    # sanctioned `satisfied-by:` suffix is NEVER stripped:
     # that one names a real deliverable.
     if [[ ( "$SCALE" = "fast" || "$SCALE" = "spike" ) && "$line" =~ $REQ_FIELD_RE ]]; then
       case "$line" in
@@ -269,12 +267,10 @@ migrate_file() {
 # or a field of an OPEN canonical group would stand, so no detector can say
 # which slot the line owns.
 #
-# THE FIRST RULE HERE WAS TOO BROAD, and the all-variants fixture measured it.
-# It refused any file carrying canonical boxes anywhere AND legacy shapes
-# anywhere — which is the shape of nearly every real legacy story, since they
-# accumulated canonical sections over time. A guard that refuses the corpus the
-# tool exists to convert makes the tool useless while still passing its own
-# refusal test. Narrowed to the ambiguity itself:
+# CO-OCCURRENCE ALONE IS NOT AMBIGUITY. Real legacy stories routinely mix
+# canonical and legacy sections, since they accumulate canonical sections over
+# time; a guard that refused them would make the tool useless on the stories it
+# exists to convert. Only a legacy shape inside an open canonical group refuses:
 #
 #   ## T1 Parse            <- own section, ownership obvious      -> migrate
 #   **Covers:** R1.1
@@ -350,7 +346,7 @@ if [ "$APPLY" = false ]; then
 fi
 
 # --- Apply -------------------------------------------------------------------
-# `version:` bumps only in an artifact that actually changed (R1.5): a bump on
+# `version:` bumps only in an artifact that actually changed: a bump on
 # an untouched sibling would claim an edit that never happened.
 for f in ${CHANGED_FILES+"${CHANGED_FILES[@]}"}; do
   base=$(basename "$f")

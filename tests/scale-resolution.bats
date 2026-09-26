@@ -1,44 +1,31 @@
 #!/usr/bin/env bats
-# Story 008 — a leftover artifact must not overrule the declared scale.
-# Authored Red-first by the Test Advisor from the EARS requirements plus the
-# design contract. Target location after materialization: tests/scale-resolution.bats
-#
-# WHY A NEW FILE. Run mode materializes the staged tests by COPYING and skips
-# any target that already exists, so a case appended to scale-validation.bats or
-# to spike-validation.bats could never reach the tree. Those suites stay
-# byte-untouched and are re-run as pure regression — the R2.2 legacy golden
-# included.
+# A leftover artifact must not overrule the declared scale.
 #
 # Contract under test:
-#   R1.1  tasks.md wins when tasks.md and story.md both declare a valid scale
-#   R1.2  a single declaring artifact resolves, whichever file carries it
-#   R1.3  an out-of-enum value is an error per artifact and resolves to nothing
-#   R2.1  two artifacts declaring different valid values is a WARNING naming
-#         each pair and the resolved value
-#   R2.2  full agreement is silent
-#   R2.3  design.md is enum-checked like the other two
-#   R2.4  design.md is compared, never resolved from
-#   R3.1  a scale with no requirements chain is not told to add `Requirements:`
-#   R3.2  ...and is not compared against one by --cross-ref, orphan and phantom
-#         arms included
-#   R3.3  no declared scale at all still carries a requirements chain (legacy)
-#   R3.4  ...and cross-reference.sh reports the inapplicability and exits 0
-#   R4.1  the spike Verdict contract survives a leftover story.md
-#   R4.2  ...and so does the archive preflight, at BOTH its call sites
-#
-# TEST NAMES ARE PREFIXED WITH THE SUB-TASK NUMBER so Red/Green evidence can be
-# produced per sub-task with `bats --filter '^1\.1:' tests/scale-resolution.bats`.
+#   - tasks.md wins when tasks.md and story.md both declare a valid scale
+#   - a single declaring artifact resolves, whichever file carries it
+#   - an out-of-enum value is an error per artifact and resolves to nothing
+#   - two artifacts declaring different valid values is a WARNING naming each
+#     pair and the resolved value
+#   - full agreement is silent
+#   - design.md is enum-checked like the other two
+#   - design.md is compared, never resolved from
+#   - a scale with no requirements chain is not told to add `Requirements:`
+#   - ...and is not compared against one by --cross-ref, orphan and phantom
+#     arms included
+#   - no declared scale at all still carries a requirements chain (legacy)
+#   - ...and cross-reference.sh reports the inapplicability and exits 0
+#   - the spike Verdict contract survives a leftover story.md
+#   - ...and so does the archive preflight, at BOTH its call sites
 #
 # ASSERTIONS ARE ON MESSAGE CONTENT, NEVER ON EXIT STATUS, wherever the fixture
 # is malformed by construction — which is most of them. Pinning `$status` would
 # pin the SUM of everything the validator says about a broken story and would
-# redden on any unrelated future check. Where a whole sentence is quoted in
-# design.md it is still matched by its stable substrings plus the value that
+# redden on any unrelated future check. Where a message's whole sentence is
+# specified it is still matched by its stable substrings plus the value that
 # matters, never verbatim end to end.
 #
-# Some cases below are GREEN PINS — behaviour that is already correct and that
-# the change must not move (marked `PIN` in their comment). Red for this story
-# is judged on the new-contract cases only.
+# Cases marked `PIN` guard behaviour that is correct and must not move.
 
 bats_require_minimum_version 1.5.0
 
@@ -62,7 +49,7 @@ teardown() {
   rm -rf "$WORK"
 }
 
-# isolate_git_env — the four environment knobs that stop this machine's own git
+# isolate_git_env — the four environment knobs that stop the host's own git
 # configuration from reaching the fixtures, copied from tests/epic-gitpolicy.bats.
 # archive-story.sh asks git whether the story is tracked and picks `git mv` or
 # `mv` from the answer; a global config (or an XDG ignore file) that says
@@ -177,9 +164,8 @@ write_design_md() {
 }
 
 # write_spike_tasks <scale-line> <verdict-block|""> — a spike-shaped tasks.md.
-# An empty verdict block means NO `## Verdict` section at all, which is the
-# reproduction's shape and the one defect the whole spike contract exists to
-# catch.
+# An empty verdict block means NO `## Verdict` section at all, the one defect
+# the whole spike contract exists to catch.
 write_spike_tasks() {
   local scale_line="$1" verdict="${2:-}"
   {
@@ -206,8 +192,7 @@ write_spike_tasks() {
 }
 
 # write_tasks_md <scale-line> <with-requirements: yes|no> — a lifecycle-shaped
-# tasks.md. "no" is the shape the fast contract tells the author to write, and
-# the shape the coverage gate currently reports as an error whatever the scale.
+# tasks.md. "no" is the shape the fast contract tells the author to write.
 write_tasks_md() {
   local scale_line="$1" with_reqs="${2:-yes}"
   {
@@ -230,8 +215,8 @@ write_tasks_md() {
 }
 
 # =============================================================================
-# 1.1 — resolution: tasks.md wins, every artifact is enum-checked, design.md is
-#       compared but never resolved from (R1.1, R1.2, R1.3, R2.3, R2.4)
+# resolution: tasks.md wins, every artifact is enum-checked, design.md is
+# compared but never resolved from
 # =============================================================================
 
 # The resolved scale is not printed anywhere, so every case below reads it
@@ -239,7 +224,7 @@ write_tasks_md() {
 # attached, so "the Verdict error fired" means "spike was resolved" and nothing
 # else — the guard on that block is satisfiable only by a declared spike.
 
-@test "1.1: tasks.md wins over story.md when both declare a valid scale" {
+@test "tasks.md wins over story.md when both declare a valid scale" {
   write_spike_tasks 'scale: spike' ''
   write_story_md 'scale: standard'
   run bash "$VALIDATE_SH" "$STORY"
@@ -249,8 +234,8 @@ write_tasks_md() {
   assert_error 'Verdict'
 }
 
-@test "1.1: the scale-vs-files warning attributes the declaration to tasks.md" {
-  # DECLARED_SCALE_FILE is user-visible in the R2.3 mismatch sentence, and for a
+@test "the scale-vs-files warning attributes the declaration to tasks.md" {
+  # DECLARED_SCALE_FILE is user-visible in the scale-mismatch sentence, and for a
   # story declaring in BOTH files the winner is the only honest thing to name
   # there. Two substrings, not the sentence: the wording around them is free.
   write_spike_tasks 'scale: spike' ''
@@ -261,8 +246,8 @@ write_tasks_md() {
   assert_warning 'in tasks.md'
 }
 
-@test "1.1: PIN a scale declared only in story.md still resolves" {
-  # R1.2, the half that already works. tasks.md carries no opinion at all.
+@test "PIN a scale declared only in story.md still resolves" {
+  # tasks.md carries no opinion at all, so story.md's declaration resolves.
   write_spike_tasks '' ''
   write_story_md 'scale: spike'
   run bash "$VALIDATE_SH" "$STORY"
@@ -270,15 +255,15 @@ write_tasks_md() {
   assert_error 'Verdict'
 }
 
-@test "1.1: PIN a scale declared only in tasks.md still resolves" {
+@test "PIN a scale declared only in tasks.md still resolves" {
   write_spike_tasks 'scale: spike' ''
   run bash "$VALIDATE_SH" "$STORY"
   echo "$output" | jq -e . > /dev/null
   assert_error 'Verdict'
 }
 
-@test "1.1: PIN an invalid value in the losing artifact still errors and never occupies the slot" {
-  # R1.3, and the property a rewrite that returns early on the first match
+@test "PIN an invalid value in the losing artifact still errors and never occupies the slot" {
+  # The property a rewrite that returns early on the first match
   # silently loses: `medium` must be REPORTED and must not become the resolved
   # scale, while tasks.md's `spike` still resolves. Both halves in one case
   # because either alone is satisfied by the wrong implementation.
@@ -290,9 +275,9 @@ write_tasks_md() {
   assert_error 'Verdict'
 }
 
-@test "1.1: an invalid scale in design.md is an error naming the artifact, the value and the valid set" {
-  # R2.3. design.md is the third artifact that may carry the field and the one
-  # no script reads today, so `scale: medium` there is reported by nobody.
+@test "an invalid scale in design.md is an error naming the artifact, the value and the valid set" {
+  # design.md is the third artifact that may carry the field, so an invalid
+  # value there must be reported like any other.
   write_tasks_md '' yes
   write_story_md 'scale: full'
   write_design_md 'scale: medium'
@@ -308,11 +293,10 @@ write_tasks_md() {
   echo "$DETAIL" | grep -q 'spike'
 }
 
-@test "1.1: PIN a valid scale in design.md does not resolve the declared scale" {
-  # R2.4. design.md describes the SOLUTION; it does not declare the work's
-  # shape. A rewrite that simply adds design.md to the resolution list resolves
-  # `full` here and the spike contract disappears again — which is exactly the
-  # defect this story is closing, re-entered through the other door.
+@test "PIN a valid scale in design.md does not resolve the declared scale" {
+  # design.md describes the SOLUTION; it does not declare the work's shape. A
+  # rewrite that simply adds design.md to the resolution list resolves `full`
+  # here and the spike contract disappears.
   write_spike_tasks 'scale: spike' ''
   write_design_md 'scale: full'
   run bash "$VALIDATE_SH" "$STORY"
@@ -321,10 +305,10 @@ write_tasks_md() {
 }
 
 # =============================================================================
-# 1.2 — the divergence warning (R2.1, R2.2)
+# the divergence warning
 # =============================================================================
 
-@test "1.2: two artifacts declaring different scales warn naming both pairs and the resolved value" {
+@test "two artifacts declaring different scales warn naming both pairs and the resolved value" {
   write_spike_tasks 'scale: spike' ''
   write_story_md 'scale: standard'
   run bash "$VALIDATE_SH" "$STORY"
@@ -342,8 +326,8 @@ write_tasks_md() {
   echo "$DIVERGENCE" | grep -q "'spike'"
 }
 
-@test "1.2: PIN three artifacts declaring the same scale produce no divergence warning" {
-  # R2.2. The shipped examples carry the same `scale:` in all three artifacts,
+@test "PIN three artifacts declaring the same scale produce no divergence warning" {
+  # The shipped examples carry the same `scale:` in all three artifacts,
   # so a "warn whenever two artifacts declare" variant would fire on
   # assets/examples/full-feature.md — silence on agreement is the contract.
   write_tasks_md 'scale: full' yes
@@ -354,11 +338,10 @@ write_tasks_md() {
   refute_warning "different 'scale' values"
 }
 
-@test "1.2: an invalid value produces its enum error and no divergence warning" {
+@test "an invalid value produces its enum error and no divergence warning" {
   # The one deliberate divergence from the `status:` collector, which DOES pair
   # a value that failed its enum. An invalid scale already has its own error;
-  # pairing it too would report one defect twice in two vocabularies, which is
-  # the failure mode this story exists to stop.
+  # pairing it too would report one defect twice in two vocabularies.
   write_spike_tasks 'scale: spike' ''
   write_story_md 'scale: medium'
   run bash "$VALIDATE_SH" "$STORY"
@@ -369,16 +352,14 @@ write_tasks_md() {
 }
 
 # =============================================================================
-# 1.3 — the reproduction, end to end (R4.1)
+# a spike beside a leftover story.md, end to end
 # =============================================================================
 
-@test "1.3: the reproduction reports the missing Verdict and not the coverage demand" {
-  # story.md Reproduction Step 3, measured: `errors: 1`, the sole error being
-  # `tasks.md has 1 tasks but no 'Requirements:' fields`, and no spike check run
-  # at all. The movement must show in BOTH directions — the Verdict error now
-  # present, the coverage demand now absent — because either one alone is
-  # satisfied by the wrong implementation (suppressing the gate without fixing
-  # resolution, or fixing resolution while the gate keeps firing).
+@test "a spike beside a leftover story.md reports the missing Verdict and not the coverage demand" {
+  # Both directions are asserted — the Verdict error present, the coverage
+  # demand absent — because either one alone is satisfied by the wrong
+  # implementation (suppressing the gate without fixing resolution, or fixing
+  # resolution while the gate keeps firing).
   write_spike_tasks 'scale: spike' ''
   write_story_md 'scale: standard'
   run bash "$VALIDATE_SH" "$STORY"
@@ -387,10 +368,10 @@ write_tasks_md() {
   refute_error "no 'Requirements:' fields"
 }
 
-@test "1.3: deleting the leftover scale line does not change what the spike is told" {
-  # Reproduction Step 4: one line in an unrelated artifact decided whether the
-  # contract existed. After the fix the two runs must agree, and the assertion
-  # is the AGREEMENT — the same two facts before and after the line is removed.
+@test "deleting the leftover scale line does not change what the spike is told" {
+  # One line in an unrelated artifact must not decide whether the contract
+  # exists. The two runs must agree, and the assertion is the AGREEMENT — the
+  # same two facts before and after the line is removed.
   write_spike_tasks 'scale: spike' ''
   write_story_md 'scale: standard'
   run bash "$VALIDATE_SH" "$STORY"
@@ -406,14 +387,14 @@ write_tasks_md() {
 }
 
 # =============================================================================
-# 2.1 — the requirements-coverage gate reads the scale (R3.1, R3.3)
+# the requirements-coverage gate reads the scale
 # =============================================================================
 
-@test "2.1: a fast story with a leftover story.md is not told to add 'Requirements:' fields" {
-  # R3.1. references/tasks.md tells a fast author to omit the field; the gate
-  # reports its absence as an error the moment any story.md is on disk. The
-  # story is still malformed (fast is tasks-only) and the R2.3 mismatch warning
-  # still says so — what goes away is the second, contradictory instruction.
+@test "a fast story with a leftover story.md is not told to add 'Requirements:' fields" {
+  # references/tasks.md tells a fast author to omit the field, so a leftover
+  # story.md must not turn its absence into an error. The story is still
+  # malformed (fast is tasks-only) and the scale-mismatch warning still says so
+  # — what goes away is the second, contradictory instruction.
   write_tasks_md 'scale: fast' no
   write_story_md ''
   run bash "$VALIDATE_SH" "$STORY"
@@ -423,7 +404,7 @@ write_tasks_md() {
   assert_warning "declared scale 'fast'"
 }
 
-@test "2.1: PIN a standard story omitting 'Requirements:' fields is still an error" {
+@test "PIN a standard story omitting 'Requirements:' fields is still an error" {
   # The gate's real job, and the case a predicate written as a positive list
   # would keep by accident rather than by design.
   write_tasks_md 'scale: standard' no
@@ -433,9 +414,9 @@ write_tasks_md() {
   assert_error "no 'Requirements:' fields"
 }
 
-@test "2.1: PIN a story with no declared scale is still told to add them" {
-  # R3.3, the legacy corpus: 340+ stories predate the field and must keep
-  # carrying a requirements chain. A predicate written as `standard|full|"")`
+@test "PIN a story with no declared scale is still told to add them" {
+  # Stories that predate the `scale` field must keep carrying a requirements
+  # chain. A predicate written as `standard|full|"")`
   # makes this pass by accident and opts every future enum member into the
   # chain; written as the false set `fast|spike)` it passes on purpose.
   write_tasks_md '' no
@@ -446,16 +427,15 @@ write_tasks_md() {
 }
 
 # =============================================================================
-# 2.2 — the whole --cross-ref block, not one arm of it (R3.2)
+# the whole --cross-ref block, not one arm of it
 # =============================================================================
 
-# write_spike_tasks_with_r_tokens — the RICHER fixture the measured
-# reproduction (Step 7) never reached. Step 7 produced the "no R-number
-# references" warning, which is the block's `elif` arm; a spike whose tasks.md
-# DOES carry R-tokens takes the other branch instead and gets one warning per
-# orphan and one per phantom, each advising exactly what the spike's
-# no-requirements-chain rule makes an error. Gating only the arm that was
-# measured leaves the larger half of the defect in place.
+# write_spike_tasks_with_r_tokens — a spike whose tasks.md DOES carry R-tokens.
+# It skips the block's `elif` arm (the "no R-number references" warning) and
+# takes the other branch instead, where it would get one warning per orphan and
+# one per phantom, each advising exactly what the spike's no-requirements-chain
+# rule makes an error. So every arm of the block must be gated, not only the
+# `elif`.
 write_spike_tasks_with_r_tokens() {
   {
     echo '---'
@@ -506,7 +486,7 @@ write_story_md_two_reqs() {
   } > "$STORY/story.md"
 }
 
-@test "2.2: --cross-ref on a spike reports no orphan and no phantom" {
+@test "--cross-ref on a spike reports no orphan and no phantom" {
   write_spike_tasks_with_r_tokens
   write_story_md_two_reqs ''
   run bash "$VALIDATE_SH" "$STORY" --cross-ref
@@ -517,10 +497,10 @@ write_story_md_two_reqs() {
   refute_warning 'does not exist in story.md'
 }
 
-@test "2.2: --cross-ref on a spike does not report the missing R-number references" {
-  # The measured arm of Step 7: a conforming spike (no R-token anywhere, exactly
-  # as its contract demands) beside a story.md carrying R-numbers is told to add
-  # references that R1.4 of story 007 makes an error to write.
+@test "--cross-ref on a spike does not report the missing R-number references" {
+  # The `elif` arm: a conforming spike (no R-token anywhere, exactly as its
+  # contract demands) beside a story.md carrying R-numbers must not be told to
+  # add references its own contract makes an error to write.
   write_spike_tasks 'scale: spike' '- status: open
 - conclusion: pending'
   write_story_md_two_reqs ''
@@ -529,7 +509,7 @@ write_story_md_two_reqs() {
   refute_warning 'no R-number references'
 }
 
-@test "2.2: PIN --cross-ref on a standard story still reports orphans and phantoms" {
+@test "PIN --cross-ref on a standard story still reports orphans and phantoms" {
   # The block's real job. Identical fixture shape to the spike case above, one
   # frontmatter line apart, so the suppression is attributable to the scale and
   # to nothing else.
@@ -560,22 +540,18 @@ write_story_md_two_reqs() {
 }
 
 # =============================================================================
-# 2.3 — scripts/cross-reference.sh reports the inapplicability, never zero
-#       (R3.4)
+# scripts/cross-reference.sh reports the inapplicability, never zero
 # =============================================================================
 #
-# THE THIRD GATE, and the one no earlier survey named. It is the gate the
-# story's own first Quality Gate runs, and on the leftover-artifact shape it
-# reports `orphan_requirements: ["R1.1","R1.2"]`, `status:
-# "untraceable-format"`, exit 1 — measured. Its `:37-40` guard exits 2 when
-# story.md is absent, so a CONFORMING tasks-only spike never reaches the report
-# at all: the contradictory output is reachable only through the leftover
-# artifact, which is why nothing caught it before.
+# THE THIRD GATE. cross-reference.sh exits 2 when story.md is absent, so a
+# CONFORMING tasks-only spike never reaches the report at all: only a leftover
+# story.md routes a spike through it, and then the report must state the
+# inapplicability, not orphans or an `untraceable-format` verdict.
 #
 # WHY EXIT STATUS IS ASSERTED HERE AND NOWHERE ELSE IN THIS SUITE. Everywhere
 # above, the exit code is the sum of every diagnostic a malformed fixture
 # collects, so pinning it pins the whole validator. Here the exit code IS the
-# contract: R3.4 says exit 0, cross-reference.sh has exactly three exit codes,
+# contract: the rule says exit 0, cross-reference.sh has exactly three exit codes,
 # and a consumer (the Quality Gate, ci-mode) reads nothing else.
 #
 # "REPORT THE INAPPLICABILITY, NEVER MEASURE ZERO." `traced: 0` with `coverage:
@@ -584,7 +560,7 @@ write_story_md_two_reqs() {
 # reading a gate report. The shape follows epic-gitpolicy.sh's non-git object:
 # the keys that would report a measurement are ABSENT, not zeroed.
 
-@test "2.3: cross-reference.sh on a spike reports no orphan and exits 0" {
+@test "cross-reference.sh on a spike reports no orphan and exits 0" {
   # The leftover-artifact shape, deliberately: story.md declares `standard` and
   # tasks.md declares `spike`, so the reported `scale` doubles as the only
   # place in any output where the RESOLVED scale is directly visible. A fix
@@ -606,7 +582,7 @@ write_story_md_two_reqs() {
   # The resolution itself, named in the report rather than inferred from it.
   echo "$output" | jq -e '.scale == "spike"' > /dev/null
   # No orphan and no phantom. Written total (`// []`) so it holds whether the
-  # key is absent or empty — R3.4 says "reports no orphan", and which of the
+  # key is absent or empty — the rule says "reports no orphan", and which of the
   # two spellings satisfies that is the implementer's call.
   echo "$output" | jq -e '(.orphan_requirements // []) | length == 0' > /dev/null
   echo "$output" | jq -e '(.phantom_references // []) | length == 0' > /dev/null
@@ -615,7 +591,7 @@ write_story_md_two_reqs() {
   echo "$output" | jq -e 'has("coverage") | not' > /dev/null
 }
 
-@test "2.3: PIN cross-reference.sh on a standard story still reports its orphan and exits 1" {
+@test "PIN cross-reference.sh on a standard story still reports its orphan and exits 1" {
   # The gate's real job, on the same fixture shape one frontmatter line apart:
   # R1.2 is defined and declared by no sub-task. If this ever goes quiet, the
   # suppression above stopped being a suppression and became a hole.
@@ -646,9 +622,9 @@ write_story_md_two_reqs() {
   echo "$output" | jq -e '.coverage == "1/2"' > /dev/null
 }
 
-@test "2.3: PIN a conforming tasks-only spike still exits 2 with no report" {
-  # The guard at cross-reference.sh:37-40, unchanged and pinned on purpose. The
-  # tempting "fix" is to make a missing story.md exit 0 now that a spike is
+@test "PIN a conforming tasks-only spike still exits 2 with no report" {
+  # The missing-story.md guard in cross-reference.sh, pinned on purpose. The
+  # tempting "fix" is to make a missing story.md exit 0 because a spike is
   # allowed to have none — that would swallow a genuinely malformed lifecycle
   # story (one whose story.md was deleted by mistake) under the same silence.
   # A spike simply must not be routed through this script; being TOLD so, on
@@ -663,14 +639,13 @@ write_story_md_two_reqs() {
 }
 
 # =============================================================================
-# 3.1 — archive-story.sh resolves the scale from tasks.md, at BOTH call sites
-#       (R4.2)
+# archive-story.sh resolves the scale from tasks.md, at BOTH call sites
 # =============================================================================
 
 # make_archive_spike <dir> <verdict-status|""> <story.md scale line>
-# The archive shape of the reproduction: a spike whose probe boxes are all
-# closed — which is what makes the generic closed-boxes rule fire when the scale
-# is mis-resolved — beside a story.md left over from an earlier attempt.
+# The archive shape of a spike whose probe boxes are all closed — which is what
+# makes the generic closed-boxes rule fire when the scale is mis-resolved —
+# beside a story.md left over from an earlier attempt.
 # `status: in-progress` on both artifacts so the status branch can never be the
 # thing that decides.
 make_archive_spike() {
@@ -710,11 +685,10 @@ make_archive_spike() {
   } > "$dir/story.md"
 }
 
-@test "3.1: a spike with no Verdict beside a leftover story.md is refused and nothing is moved" {
-  # story.md Reproduction Step 5, the only IRREVERSIBLE consequence in this
-  # story: measured `status: "archived"`, `moved: true` — a spike filed away
-  # without the conclusion that is its only deliverable. With the story.md scale
-  # line absent the same fixture is already refused.
+@test "a spike with no Verdict beside a leftover story.md is refused and nothing is moved" {
+  # Archiving is IRREVERSIBLE: a spike filed away without its Verdict loses the
+  # conclusion that is its only deliverable. With the story.md scale line absent
+  # the same fixture is refused, and the scale line must not change that.
   make_archive_spike 031-probe '' 'scale: full'
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/031-probe
   echo "$output" | jq -e '.status == "refused"' > /dev/null
@@ -725,7 +699,7 @@ make_archive_spike() {
   [ ! -e "$MANIFEST" ]
 }
 
-@test "3.1: an archivable spike records 'spike' in its manifest entry" {
+@test "an archivable spike records 'spike' in its manifest entry" {
   # THE SECOND CALL SITE. A fix applied only to the completion gate refuses the
   # case above correctly and then files this one under `scale: full` — the
   # manifest is the archive's permanent record and its scale is derived, never
@@ -742,16 +716,15 @@ make_archive_spike() {
 }
 
 # =============================================================================
-# 3.2 — the documentation contract: no sentence left describing the old rule
-#       (R1.1)
+# the documentation contract: no sentence may describe story.md-first
+# scale resolution
 # =============================================================================
 
 # comment_blocks <file> — every run of consecutive `#` comment lines, flattened
-# to one line per run. Wrapping is an editing artifact: the claim under test is
-# split across two source lines ("...story.md FIRST — it is the" / "story's own
-# frontmatter and therefore wins..."), so a line-by-line grep for
-# `story.md.*wins` finds nothing and the check would pass while the sentence is
-# still there. Flattening makes the assertion about the PROSE, not the layout.
+# to one line per run. Wrapping is an editing artifact: a claim split across
+# two source lines defeats a line-by-line grep for `story.md.*wins`, which would
+# pass while the sentence is still there. Flattening makes the assertion about
+# the PROSE, not the layout.
 comment_blocks() {
   awk '
     /^[[:space:]]*#/ {
@@ -765,133 +738,97 @@ comment_blocks() {
   ' "$1"
 }
 
-@test "3.2: references/tasks.md states that tasks.md is authoritative for the declared scale" {
-  # The contract sentence today (references/tasks.md, Spike Scale Adaptations)
-  # only IMPLIES precedence — "the only place a spike can declare it, and
-  # validation reads it from there" — which is why two documents could point
-  # opposite ways for this long without either being wrong on its face. The fix
-  # retracts one of them, so the surviving one has to say the rule out loud.
+@test "references/tasks.md states that tasks.md is authoritative for the declared scale" {
+  # references/tasks.md must state the precedence outright: a sentence that
+  # only IMPLIES it lets two documents point opposite ways without either being
+  # wrong on its face.
   DOC="$PLUGIN_ROOT/references/tasks.md"
   [ -f "$DOC" ]
   # Flattened to one line: the statement may wrap, and `[^.]` keeps a match from
-  # spanning a sentence boundary. The whole file, not one section — measured
-  # 2.3: exactly one span satisfies each pattern below, so no sentence
-  # elsewhere in the file can answer for the rule this case is about.
+  # spanning a sentence boundary. The whole file, not one section: exactly one
+  # span satisfies each pattern below, so no sentence elsewhere in the file can
+  # answer for the rule this case is about.
   FLAT=$(tr '\n' ' ' < "$DOC")
-  # THE POLARITY IS REFUSED, NOT SPELLED. Measured 2.3 — the predecessor,
-  # `tasks\.md[^.]{0,160}authoritative`, stayed GREEN when line 68 became
-  # "`tasks.md` is not authoritative ... — `story.md` is", because a negation
-  # parks between two anchors as easily as anything else does. 2.3 answered
-  # that by writing the polarity into the match as the literal `is (the )?`,
-  # and 6.4 replaces it: a LITERAL VERB PHRASE IS NOT A POLARITY, it is one
-  # phrasing of it. Measured, on prose that states the rule exactly as it
-  # stands — `is always authoritative`, `is strictly authoritative`, `is and
-  # remains authoritative` — all three RED against `is (the )?`, all three
-  # rule-preserving. That false Red fired THIS case at THIS line, the same
-  # place a real inversion fires, so a reader seeing `not ok` could not tell a
-  # reverted rule from an inserted adverb without diffing the prose.
+  # THE POLARITY IS REFUSED, NOT SPELLED. A bare `tasks.md ... authoritative`
+  # window stays GREEN on "`tasks.md` is not authoritative ... — `story.md` is",
+  # because a negation parks between two anchors as easily as anything else
+  # does. Spelling the polarity as a literal verb phrase (`is (the )?`) fails
+  # the other way: a LITERAL VERB PHRASE IS NOT A POLARITY, it is one phrasing
+  # of it, and `is always authoritative` or `is and remains authoritative` would
+  # false-Red at the same place a real inversion fires.
   #
-  # The form is 2.2's, the one that survived this story's own hostile pass
-  # (`never refuse to mutate`, `never say no to mutating`): match the anchors
-  # POSITIVELY and refuse a negation on the word that carries the direction.
-  # A rewording may then say anything between them, and a reversal has nowhere
-  # to park — the negation must sit next to `authoritative` to reverse it.
+  # So: match the anchors POSITIVELY and refuse a negation on the word that
+  # carries the direction. A rewording may then say anything between them, and
+  # a reversal has nowhere to park — the negation must sit next to
+  # `authoritative` to reverse it.
   #
-  # THE WINDOW IS SLACK, NOT REACH, and that is measured rather than argued:
-  # this file yields ONE span at 24, at 40 and at 60 characters alike, so 40 is
-  # room for a qualifier and nothing more. Swapping the subject at :68 to
-  # `story.md` still Reds — the nearest surviving `tasks.md` is far outside any
-  # of the three windows.
+  # THE WINDOW IS SLACK, NOT REACH: this file yields ONE span at 24, at 40 and
+  # at 60 characters alike, so 40 is room for a qualifier and nothing more.
+  # Swapping the subject to `story.md` still Reds — the nearest surviving
+  # `tasks.md` is far outside the window.
   grep -qiE "tasks\.md[^.]{0,40}authoritative" <<< "$FLAT"
-  # The refusal. Measured RED on `is not authoritative`, `is never
-  # authoritative`, `is not the authoritative one`, and on the 1.5 inversion
-  # this case exists for (`is not authoritative ... — `story.md` is`). Measured
-  # SILENT on the unmutated file — 0 hits, and the file does write `never a
-  # leftover` two clauses away, which the 1-to-3-character leash keeps out. The
-  # hedge list is the file's own plus `the`, which its :271 sentence needs.
+  # The refusal: RED on `is not authoritative`, `is never authoritative`, `is
+  # not the authoritative one`, and on the inversion this case exists for
+  # (`is not authoritative ... — `story.md` is`). SILENT on the correct file —
+  # `never a leftover` two clauses away is kept out by the 1-to-3-character
+  # leash. The hedge list is the shared one plus `the`.
   if grep -qiE "(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely|the)[^A-Za-z]{1,3})?authoritative" <<< "$FLAT"; then
     echo "the tasks.md-is-authoritative rule is stated with a negation on it — the rule is reversed"
     return 1
   fi
   # Half a rule is not the rule: the reader also has to be told what happens to
   # the artifact that disagrees — it is REPORTED, not honoured, and not silently
-  # ignored either. Here the polarity IS the pairing, so both halves are pinned.
-  # Measured 2.3 — the predecessor accepted the bare token `reported`, which
-  # the reversed sentence "is honoured, not reported" still contains, so it
-  # read prose stating the opposite rule as a pass. `never` is admitted beside
-  # `not` because it negates the same verb; what is not admitted is either word
-  # standing alone.
+  # ignored either. Here the polarity IS the pairing, so both halves are pinned:
+  # a bare `reported` token would also match the reversed sentence "is
+  # honoured, not reported". `never` is admitted beside `not` because it
+  # negates the same verb; what is not admitted is either word standing alone.
   #
-  # BOTH ORDERS, WHICH IS 3.1'S REPAIR APPLIED HERE (6.4). 2.3 pinned the pair
-  # in the ORDER the rule happens to state them, and an order is not a polarity
-  # either: `is not honoured but merely reported` says the identical rule with
-  # the halves swapped and Redded — a pure stylistic flip, measured. The
-  # alternation admits both arrangements and refuses neither half standing
-  # alone, so the reversal `is **honoured**, not reported` still Reds: it holds
+  # BOTH ORDERS, because an order is not a polarity either: `is not honoured
+  # but merely reported` says the identical rule with the halves swapped. The
+  # alternation admits both arrangements and neither half standing alone, so
+  # the reversal `is **honoured**, not reported` still Reds: it holds
   # `reported` and it holds a negation, but never a negation on `honoured`.
   grep -qiE "story\.md[^.]{0,200}(reported[^.]{0,40}(not|never) honou?red|(not|never) honou?red[^.]{0,40}reported)" <<< "$FLAT"
 }
 
-@test "3.2: no comment in validate-story.sh still claims story.md wins for scale" {
-  # scripts/validate-story.sh:131-137 does not merely implement the defect, it
-  # ARGUES for it in prose. Shipping the fix beside the rationale for the bug is
-  # the defect class story 007 spent its last sub-task removing.
+@test "no comment in validate-story.sh claims story.md wins for scale" {
+  # A comment arguing for story.md-first precedence beside code implementing
+  # tasks.md-first misleads every reader of the code.
   BLOCKS=$(comment_blocks "$PLUGIN_ROOT/scripts/validate-story.sh")
   SCALE_BLOCKS=$(grep -i 'scale' <<< "$BLOCKS" || true)
   [ -n "$SCALE_BLOCKS" ]
-  # THE RETRACTION, STATED AT EVERY SITE THAT STATES IT AND IN THE DIRECTION IT
+  # THE RULE, STATED AT EVERY SITE THAT STATES IT AND IN THE DIRECTION IT
   # STATES. This file carries the rule in THREE comment spans — the shared-rule
-  # header (:136), the written-contract paragraph (:148) and the disagreement
-  # warning's rationale (:233) — and the predecessor asked only whether ONE of
-  # them existed. Measured 3.3, that is exactly what it did: a `not` inserted
-  # into ALL THREE left it GREEN, and each span's rule deleted outright left it
-  # GREEN too. Six mutations, six greens, one at a time. Both halves are
-  # repaired here, because either alone leaves the other open (R3.2, R1.1).
+  # header, the written-contract paragraph and the disagreement warning's
+  # rationale. Checking only that ONE exists leaves the others free to vanish
+  # or reverse, so every one is counted and a negation on any is refused.
   #
-  # COUNTED OVER THE FLATTENED BLOCKS, the representation measured rather than
-  # assumed. `grep -c` counts matching LINES, and `comment_blocks` joins a run
-  # of `#` lines — a bare `#` continues the run — so :136 and :148 land on ONE
-  # line: it answers 2 here, and still answers 2 with either of those two spans'
-  # rule deleted. It cannot see them apart at all. Counting MATCHES answers 3,
-  # and 2 for every one-site removal. Counting over the raw file instead fails
-  # the other way: each of the three spans reworded across a line break drops a
-  # raw `grep -c` to 1 — a false Red on prose that still states the rule three
-  # times — while this form still answers 3. All three forms measured, on the
-  # same mutations.
+  # COUNTED OVER THE FLATTENED BLOCKS. `grep -c` counts matching LINES, and
+  # `comment_blocks` joins a run of `#` lines — a bare `#` continues the run —
+  # so two spans can land on ONE line and `grep -c` cannot see them apart.
+  # Counting MATCHES answers 3, and 2 for every one-site removal. Counting over
+  # the raw file instead fails the other way: a span reworded across a line
+  # break drops a raw `grep -c` — a false Red on prose that still states the
+  # rule three times.
   #
-  # THE POLARITY IS NOT THE COUNT'S JOB, which is why a count alone would not
-  # close this. 1.5's negation PREFIXES the anchor — `is not authoritative` —
-  # and no count reaches a prefix: three negated spans would still count three.
-  # 2.3 answered by folding the literal `is (the )?` into the pattern; 6.4
-  # replaces that here for the reason the case above states at length — a
-  # literal verb phrase is one phrasing of a rule, not its direction, and it
-  # false-Redded `is always authoritative`. THE TWO SITES MOVE TOGETHER because
-  # they are ONE allowlist key: `file:pattern` is the unit, so a pattern edited
-  # at one site and not the other silently splits a row in two, one of them an
-  # orphan. Measured after the edit: this scope yields 3 spans at 24, 40 and 60
-  # alike, so the wider window buys rewording slack and no reach.
+  # THE POLARITY IS NOT THE COUNT'S JOB: a negation that PREFIXES the anchor —
+  # `is not authoritative` — is invisible to a count, so three negated spans
+  # would still count three. The direction is refused rather than spelled, by
+  # the guard below, for the reason the case above states. THE TWO SITES MOVE
+  # TOGETHER because they are ONE allowlist key: `file:pattern` is the unit, so
+  # a pattern edited at one site and not the other silently splits a row in
+  # two, one of them an orphan.
   #
-  # The direction is refused rather than spelled, by the guard below — the form
-  # 2.2 uses. Measured: the three-span negation counts 3 here and Reds there,
-  # where 2.3's pattern counted 0 and Redded here; either way the mutation is
-  # caught, and the rewordings that used to false-Red no longer do.
-  #
-  # EXACTLY THREE, AND THE COST IS MEASURED RATHER THAN PREFERRED: a legitimate
-  # FOURTH statement of the rule false-Reds — measured, a restatement added
-  # inside the :136 block counts 4. `-ge 3` Reds all six removals just as well
-  # and buys that fourth span silence; exactness is taken because DUPLICATION is
-  # what blinded this site — the rule already stands at three places, which is
-  # why one could vanish unnoticed — so a fourth belongs in front of a reader
-  # rather than under a green. The trade 3.2 took at the `.draft/` carve-out,
-  # for the same reason.
+  # EXACTLY THREE, not at least three: a legitimate FOURTH statement of the
+  # rule fails on purpose. DUPLICATION is what lets one statement vanish
+  # unnoticed, so a fourth belongs in front of a reader rather than under a
+  # green.
   #
   # The count is captured before it is compared rather than inlined into
   # `[ "$(…)" ]`: the window-pattern census keys a row on the WHOLE quoted span,
-  # and inlining would key one nobody would recognise. Measured on both shapes.
+  # and inlining would key one nobody would recognise.
   spans=$(grep -oiE 'tasks\.md[^.]{0,40}authoritative' <<< "$SCALE_BLOCKS" | wc -l)
-  # The refusal, on the same scope the count reads. Measured RED with a `not`
-  # inserted at one span, at two, and at all three; measured SILENT on the
-  # unmutated comment blocks — 0 hits.
+  # The refusal, on the same scope the count reads.
   if grep -qiE "(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely|the)[^A-Za-z]{1,3})?authoritative" <<< "$SCALE_BLOCKS"; then
     echo "a scale comment in validate-story.sh states the authoritative rule with a negation on it — the rule is reversed"
     return 1
@@ -904,9 +841,9 @@ comment_blocks() {
     cut -c1-120 <<< "$SCALE_BLOCKS"
     return 1
   fi
-  # And the claim it replaces is gone. Phrase the retraction as what the rule IS
-  # ("tasks.md owns scale:") rather than as a restatement of what it was, or
-  # this assertion will read the quotation as the claim — it cannot tell them
+  # And no comment claims the opposite rule. State the rule as what it IS
+  # ("tasks.md owns scale:") rather than by quoting the opposite, or this
+  # assertion will read the quotation as the claim — it cannot tell them
   # apart, and neither can a reader skimming the comment.
   if grep -qiE "story\.md[^.]{0,120}(first|wins)" <<< "$SCALE_BLOCKS"; then
     echo "a comment still claims story.md is read first / wins for 'scale':"
@@ -915,13 +852,12 @@ comment_blocks() {
   fi
 }
 
-@test "3.2: epic-index.sh no longer attributes the scale lookup to archive-story.sh's story_field" {
-  # scripts/epic-index.sh:751-754 states that scale "is looked up the way
-  # archive-story.sh's story_field looks it up — story.md first, then tasks.md".
-  # `story_field` stops resolving scale the moment 3.1 lands, so the sentence
-  # becomes false about a function it names by hand. Its CODE is out of scope
-  # and may keep its own precedence; what it may not keep is an appeal to a
-  # reader that no longer works that way.
+@test "epic-index.sh does not attribute the scale lookup to archive-story.sh's story_field" {
+  # archive-story.sh's `story_field` does not resolve scale, so a comment
+  # explaining epic-index.sh's scale lookup through it is false about a
+  # function it names by hand. epic-index.sh's CODE may keep its own
+  # precedence; what it may not carry is an appeal to a reader that does not
+  # work that way.
   BLOCKS=$(comment_blocks "$PLUGIN_ROOT/scripts/epic-index.sh")
   if grep -q 'story_field' <<< "$BLOCKS"; then
     echo "a comment in epic-index.sh still explains 'scale' through archive-story.sh's story_field:"

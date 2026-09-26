@@ -1,23 +1,17 @@
 #!/usr/bin/env bats
-# Variant-rewriter tests for scripts/migrate-story.sh (story 015). Authored
-# Red-first by the Test Advisor from the EARS requirements (R2.1-R2.4) and the
-# design.md variant table — never from any ToDo.
-# Target location after materialization: tests/migrate-variants.bats
+# Variant-rewriter tests for scripts/migrate-story.sh.
 #
-# Contract under test (design.md, Component 2 — one pass, one detector table):
+# Contract under test (one pass, one detector table):
 #   1. `## T1`/`### T2` headers + `**Covers:**`/`Covers:` fields -> canonical
-#      `- [ ] N - Name` boxes + `- Requirements:` lines (R2.1)
+#      `- [ ] N - Name` boxes + `- Requirements:` lines
 #   2. checkbox-less task lists -> boxes added as `[ ]` ONLY — migrate records
-#      shape and never invents done-ness (R2.2)
+#      shape and never invents done-ness
 #   3. leaked `</content>`/`</invoke>` wrapper tags: stripped outside fences,
-#      documentation inside them (R2.3)
+#      documentation inside them
 #   4. `Requirements:` fields and R-tokens removed when the RESOLVED scale
 #      (tasks.md authoritative) is fast/spike; any `satisfied-by:` suffix
-#      survives byte-for-byte (R2.4)
+#      survives byte-for-byte
 #   Fence-immunity is the stated immunity line for variants 1 and 3.
-#
-# Test names carry the sub-task prefix ("2.1:"/"2.2:") for per-sub-task
-# Red/Green evidence via `bats --filter '^2\.1:'`.
 
 bats_require_minimum_version 1.5.0
 
@@ -66,9 +60,9 @@ status: in-progress
 EOF
 }
 
-# --- 2.1 Variants 1-2: T1/Covers house style, checkbox-less lists ---
+# --- Variants 1-2: T1/Covers headers, checkbox-less lists ---
 
-make_bento_story() {
+make_t1_covers_story() {
   local dir="$PROJ/.epic/stories/$1"
   mkdir -p "$dir"
   write_story_md "$dir"
@@ -80,7 +74,7 @@ scale: standard
 status: in-progress
 ---
 
-# Implementation Plan - bentoolkit shape
+# Implementation Plan - T1/Covers shape
 
 ## Task List
 
@@ -161,10 +155,10 @@ Documentation of the legacy shape this fixture is about:
 EOF
 }
 
-@test "2.1: T1 headers and Covers fields become canonical boxes with Requirements lines" {
-  make_bento_story 090-bento
-  bash "$MIGRATE_SH" .epic/stories/090-bento --apply > /dev/null 2>&1
-  local f="$PROJ/.epic/stories/090-bento/tasks.md"
+@test "T1 headers and Covers fields become canonical boxes with Requirements lines" {
+  make_t1_covers_story 090-t1-covers
+  bash "$MIGRATE_SH" .epic/stories/090-t1-covers --apply > /dev/null 2>&1
+  local f="$PROJ/.epic/stories/090-t1-covers/tasks.md"
   grep -qE '^- \[ \] [0-9]+ - .*Parse the input' "$f"
   grep -qE '^- \[ \] [0-9]+ - .*Emit the output' "$f"
   grep -qE '^[[:space:]]*- Requirements: .*R1\.1' "$f"
@@ -173,15 +167,15 @@ EOF
   run ! grep -qi 'Covers:' "$f"
 }
 
-@test "2.1: the migrated bentoolkit story is visible to cross-reference.sh — status clean, non-empty mapping" {
-  make_bento_story 090-bento
-  bash "$MIGRATE_SH" .epic/stories/090-bento --apply > /dev/null 2>&1
-  run --separate-stderr bash "$CROSSREF_SH" .epic/stories/090-bento
+@test "the migrated T1/Covers story is visible to cross-reference.sh — status clean, non-empty mapping" {
+  make_t1_covers_story 090-t1-covers
+  bash "$MIGRATE_SH" .epic/stories/090-t1-covers --apply > /dev/null 2>&1
+  run --separate-stderr bash "$CROSSREF_SH" .epic/stories/090-t1-covers
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "clean" and (.mapping | length > 0)' > /dev/null
 }
 
-@test "2.1: checkbox-less list items gain only [ ] boxes — never [x], and field lines stay fields" {
+@test "checkbox-less list items gain only [ ] boxes — never [x], and field lines stay fields" {
   make_boxless_story 091-boxless
   bash "$MIGRATE_SH" .epic/stories/091-boxless --apply > /dev/null 2>&1
   local f="$PROJ/.epic/stories/091-boxless/tasks.md"
@@ -192,7 +186,7 @@ EOF
   run ! grep -qE '^[[:space:]]*- \[[ x~]\] (Validation|Requirements):' "$f"
 }
 
-@test "2.1: a T1 header inside a fenced block is documentation and survives" {
+@test "a T1 header inside a fenced block is documentation and survives" {
   make_fenced_t1_story 092-fenced-t1
   bash "$MIGRATE_SH" .epic/stories/092-fenced-t1 --apply > /dev/null 2>&1
   local f="$PROJ/.epic/stories/092-fenced-t1/tasks.md"
@@ -202,7 +196,7 @@ EOF
   grep -qE '^- \[ \] [0-9]+ - .*Parse the input' "$f"
 }
 
-# --- 2.2 Variants 3-4: wrapper tags, fast-scale Requirements ---
+# --- Variants 3-4: wrapper tags, fast-scale Requirements ---
 
 make_wrapper_story() {
   local dir="$PROJ/.epic/stories/$1"
@@ -300,7 +294,7 @@ status: in-progress
 EOF
 }
 
-@test "2.2: a naked wrapper tag strips and a fenced one survives" {
+@test "a naked wrapper tag strips and a fenced one survives" {
   make_wrapper_story 093-wrapper
   run --separate-stderr bash "$MIGRATE_SH" .epic/stories/093-wrapper --apply
   [ "$status" -eq 0 ]
@@ -310,7 +304,7 @@ EOF
   grep -qF '</invoke>' "$f"
 }
 
-@test "2.2: a fast story loses Requirements fields and R-tokens, keeping satisfied-by byte-for-byte" {
+@test "a fast story loses Requirements fields and R-tokens, keeping satisfied-by byte-for-byte" {
   make_fast_story 094-fast
   run --separate-stderr bash "$MIGRATE_SH" .epic/stories/094-fast --apply
   [ "$status" -eq 0 ]
@@ -323,7 +317,7 @@ EOF
   run ! grep -q 'R2\.2' "$f"
 }
 
-@test "2.2: a fully canonical standard story is a byte-identical no-op" {
+@test "a fully canonical standard story is a byte-identical no-op" {
   make_canonical_standard_story 095-standard
   local before
   before=$(tree_hash "$PROJ")

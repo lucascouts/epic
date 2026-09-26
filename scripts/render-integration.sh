@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # The LIST annotation and the validate warning, as pure functions of the
-# integration detector's JSON (story 006, R2.1-R2.3; design.md component 2, and
-# the `Unit (integration rendering)` level added to its Testing Strategy at v8).
+# integration detector's JSON.
 #
 # Usage: bash scripts/render-integration.sh --list                < detector.json
 #        bash scripts/render-integration.sh --validate <NNN>      < detector.json
@@ -17,7 +16,7 @@
 #                      (references/validate-mode.md, Integration Warning).
 #                      <NNN> is the story number as the reader knows it and is
 #                      interpolated verbatim — `006`, not `6`.
-#   --should-annotate  the cost rule (R2.1) as a decision, NOT a rendering: it
+#   --should-annotate  the cost rule as a decision, NOT a rendering: it
 #                      reads no stdin and writes no output. Exit 0 = evaluate
 #                      this story, exit 1 = skip it. <is-stories-full> is `true`
 #                      only for `/epic:epic stories full`.
@@ -33,11 +32,11 @@
 # never dress up as a finding.** Everything below follows from it.
 #
 # EVERY RENDERING PATH EXITS 0, and that is a contract rather than a
-# convenience. R2.2 requires the warning to be a warning: "Appending it changes
-# nothing else: not the pass, not step 2's status write, not step 3's offer, not
-# the validation's exit semantics." A caller that checks `$?` around this script
-# would turn that warning into a verdict — precisely the corpus's worst case, a
-# project where integration state blocked things it was never meant to gate. So
+# convenience. The warning must stay a warning: appending it changes nothing
+# else — not the pass, not step 2's status write, not step 3's offer, not the
+# validation's exit semantics. A caller that checks `$?` around this script
+# would turn that warning into a verdict, letting integration state block things
+# it was never meant to gate. So
 # empty stdin, unparseable stdin, a missing `integrated` key, a story whose
 # state is unknowable and a `jq` that is not installed all mean the SAME thing
 # here — render nothing, exit 0 — and none of them is an error to report.
@@ -77,16 +76,15 @@ set -euo pipefail
 ANNOTATION_INTEGRATED="integrated"
 ANNOTATION_NOT_INTEGRATED="not-integrated"
 
-# The cost rule's threshold (R2.1): "when the project has more than 50 stories
-# skip the per-story evaluation". MORE THAN, so 50 itself is still evaluated.
+# The cost rule's threshold: when the project has more than 50 stories, skip
+# the per-story evaluation. MORE THAN, so 50 itself is still evaluated.
 ANNOTATION_SWEEP_THRESHOLD=50
 
 # The five states `integrated` can arrive in, as one jq expression. FIVE, not
 # two, and keeping them apart is the whole point of this filter:
 #   true        the queries ran and found evidence
 #   false       the queries RAN and found nothing — a positive claim
-#   null        no queryable revision, so nothing was ever asked (R1.5, the arm
-#               8.6 made reachable)
+#   null        no queryable revision, so nothing was ever asked
 #   absent      an object with no `integrated` key — not this script's producer
 #   unreadable  not an object, or `integrated` holding something that is not a
 #               boolean and not null
@@ -127,7 +125,7 @@ MAIN_BRANCH_FILTER='
 '
 
 # jq_read <filter> <json>: <filter> applied to <json>, or the empty string when
-# jq cannot answer — a parse failure, no input, or no jq on this machine.
+# jq cannot answer — a parse failure, no input, or no jq installed.
 # TOTAL: it always exits 0, because it is read through a command substitution in
 # an assignment, where a non-zero status would trip `set -e`. jq's stderr is
 # silenced for the same reason the whole script is silent: a parse error is an
@@ -189,7 +187,7 @@ render_list() {
     absent | unreadable)
       # An object this script's producer did not write, or no readable JSON at
       # all — which is the detector's exit-2 path as the caller sees it (a
-      # workspace without git is legal, R1.4). Nothing was measured either way,
+      # workspace without git is legal). Nothing was measured either way,
       # so nothing is claimed: degrade silently — no annotation, no warning, no
       # error. Folded into ONE arm because they differ in cause and not in
       # consequence; the fold that would matter, `null` into `false`, is the one
@@ -222,9 +220,9 @@ render_validate() {
   state=$(jq_read "$INTEGRATED_STATE_FILTER" "$json")
   # <main> is FILLED FROM THE JSON, never assumed. The detector resolves the
   # default branch through four ordered candidates and it is regularly not named
-  # `main`; a hard-coded name would print a branch the reader does not have, and
-  # story 006 spent a whole sub-task (8.2) on getting that name right.
-  # Re-inventing it here would throw that away at the last inch.
+  # `main`; a hard-coded name would print a branch the reader does not have.
+  # The detector's resolution is the one answer; re-inventing it here would
+  # discard it at the last inch.
   main=$(jq_read "$MAIN_BRANCH_FILTER" "$json")
 
   # WELL-FORMEDNESS IS ASKED ONCE, HERE, AND NEVER AGAIN INSIDE AN ARM. The
@@ -236,17 +234,16 @@ render_validate() {
   # this is a pure function of whatever JSON and argv it is handed, and neither
   # is an error — the exit-0 contract covers a missing field like any other.
   #
-  # THE PLACEMENT IS THE POINT, AND IT WAS MEASURED RATHER THAN REASONED. This
-  # test first sat INSIDE the `false)` arm, and there it silently disarmed the
-  # test suite: fold `null` into `false)` — the one collapse this whole file is
-  # built to forbid — and the case that exists to catch that fold
-  # (tests/render-integration.bats, "integrated null produces no warning") went
-  # on passing, because its fixture carries `main_branch: null` and the guard
-  # inside the arm swallowed the warning the fold produced. A guard inside one
-  # arm is a guard every other arm inherits when someone merges into it. Hoisted
-  # here it classifies, and the three-valued decision below then rests on
-  # `integrated` ALONE, so no arm of it can be silenced by a later test.
-  # Same lesson as scripts/story-git-status.sh's single MAIN_REF gate: a rule
+  # THE PLACEMENT IS THE POINT. Inside the `false)` arm this test would
+  # silently disarm the test suite: fold `null` into `false)` — the one collapse
+  # this whole file is built to forbid — and the case that exists to catch that
+  # fold (tests/render-integration.bats, "integrated null produces no warning")
+  # would go on passing, because its fixture carries `main_branch: null` and the
+  # guard inside the arm would swallow the warning the fold produced. A guard
+  # inside one arm is a guard every other arm inherits when someone merges into
+  # it. Hoisted here it classifies, and the three-valued decision below then
+  # rests on `integrated` ALONE, so no arm of it can be silenced by a later test.
+  # Same reason as scripts/story-git-status.sh's single MAIN_REF gate: a rule
   # applied per arm is a rule a newly added arm skips for free.
   if [[ "$state" == "false" && ( -z "$main" || -z "$story_num" ) ]]; then
     state="unnameable"
@@ -262,8 +259,8 @@ render_validate() {
       :
       ;;
     null)
-      # Nothing at all: no main branch is resolvable, so the fact is unknowable
-      # (R1.4/R1.5). Its own arm for the same reason it is in render_list — and
+      # Nothing at all: no main branch is resolvable, so the fact is unknowable.
+      # Its own arm for the same reason it is in render_list — and
       # the one that turns red the moment `null` is folded into `false`, which
       # is true only because of where the well-formedness test above sits.
       :
@@ -282,8 +279,8 @@ render_validate() {
   return 0
 }
 
-# should_annotate <status> <story-count> <is-stories-full>: the cost rule
-# (R2.1). Exit 0 = evaluate, 1 = skip. Every annotation costs one git
+# should_annotate <status> <story-count> <is-stories-full>: the cost rule.
+# Exit 0 = evaluate, 1 = skip. Every annotation costs one git
 # evaluation, so this is where a 400-story project stops paying for 400 of them.
 #
 # THE THREE GATES ARE ORDERED, AND THE ORDER IS PART OF THE RULE:

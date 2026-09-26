@@ -85,8 +85,8 @@ declares_spike_scale() {
 #
 # The GRAMMAR — heading_re, verdict_re, status_re — is copied VERBATIM from the
 # parse_verdict shared by scripts/epic-index.sh, scripts/archive-story.sh and
-# scripts/validate-story.sh. FOUR readers of that grammar now, and if 007 ever
-# amends it all four move together. This is the only PARTIAL one: staleness
+# scripts/validate-story.sh. Four readers share that grammar, and if it ever
+# changes all four move together. This is the only PARTIAL one: staleness
 # keys on the status alone, so the fourth regex there (`promoted-to:`) is
 # deliberately absent — a `promote` with no target recorded is still a DECIDED
 # verdict, and nagging "promote or close" at it would state something false;
@@ -126,8 +126,8 @@ find_stale() {
 
     # ONE mtime read, hoisted above both rules. The THRESHOLD
     # differs per scale; the MEASUREMENT must not. A second `stat` down in the
-    # spike branch would be a second dialect of "how old is this story?" — the
-    # exact duplication the story's constraint forbids.
+    # spike branch would be a second dialect of "how old is this story?",
+    # letting the two rules disagree.
     local mtime
     mtime=$(stat -c %Y "$tasks_file" 2>/dev/null || stat -f %m "$tasks_file" 2>/dev/null || echo "$now_epoch")
     local story_name

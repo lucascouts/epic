@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # Unit tests for scripts/validate-story.sh. Covers:
-#   - Fast mode (tasks.md only) — regression for v1.2.1 TASK_COUNT fix
+#   - Fast mode (tasks.md only) — TASK_COUNT regression guard
 #   - Standard/Full mode with required sections
 #   - Bugfix Unchanged Behavior enforcement
 #   - --strict flag promoting warnings to errors
@@ -33,7 +33,7 @@ teardown() {
   echo "$output" | grep -q 'Missing tasks.md'
 }
 
-@test "fast mode: tasks.md only does not crash (v1.2.1 regression)" {
+@test "fast mode: tasks.md only does not crash" {
   cat > "$STORY/tasks.md" <<'EOF'
 ---
 story: test-fast
@@ -154,7 +154,7 @@ EOF
   # The keyword check listens for SHOUTING. An EARS obligation is written in
   # uppercase, so lowercase "should" is ordinary English describing behaviour,
   # not a weakened requirement — and a case-insensitive check cannot tell the
-  # two apart. It used to fail assets/examples/bugfix-complete.md, the document
+  # two apart, and would fail assets/examples/bugfix-complete.md, the document
   # authors are told to copy, on the prose line of its own Summary. The fixture
   # below is a `feature` only to isolate the variable: a `bugfix` would also have
   # to satisfy the mandatory-section check, which is a different rule's job.
@@ -344,7 +344,7 @@ EOF
   echo "$output" | grep -q 'Requirement R1.2 in story.md has no matching'
 }
 
-# --- Wave-0 regressions: structural silence and JSON validity ---
+# --- Regressions: structural silence and JSON validity ---
 
 @test "tasks.md with zero parseable tasks is an error, not a silent pass" {
   cat > "$STORY/tasks.md" <<'TASKS'
@@ -376,13 +376,11 @@ TASKS
   echo "$output" | jq -e . > /dev/null
 }
 
-# --- 10.3: group-header consistency ------------------------------------------
-# A group header is a claim about its own sub-tasks, and until story 006 nothing
-# checked it — group 8 of 006 shipped `- [ ] 8` over seven closed sub-tasks and
-# every validator returned pass. The rule is an IDENTITY, so it is enforced in
-# BOTH directions; shipping one half of one is exactly what this story did four
-# consecutive times. And it must leave the THIRD box state alone: `[~]` is a
-# header closed without doing the work, which 004's grammar allows and which
+# --- group-header consistency -------------------------------------------------
+# A group header is a claim about its own sub-tasks — `- [ ] 8` over seven
+# closed sub-tasks is a false claim. The rule is an IDENTITY, so it is enforced
+# in BOTH directions. And it must leave the THIRD box state alone: `[~]` is a
+# header closed without doing the work, which the grammar allows and which
 # neither direction may touch.
 #
 # `write_group` builds a fast-mode tasks.md (no story.md, so no Requirements
@@ -417,7 +415,7 @@ $body
 EOF
 }
 
-@test "10.3 an open group header over all-closed sub-tasks is an error (the shape group 8 shipped)" {
+@test "group-header: an open group header over all-closed sub-tasks is an error" {
   write_group ' ' x x x
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   [ "$status" -eq 1 ]
@@ -425,7 +423,7 @@ EOF
   echo "$output" | grep -q 'group 1 is open'
 }
 
-@test "10.3 a closed group header over an open sub-task is an error (the other direction)" {
+@test "group-header: a closed group header over an open sub-task is an error (the other direction)" {
   write_group x x ' ' x
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   [ "$status" -eq 1 ]
@@ -433,7 +431,7 @@ EOF
   echo "$output" | grep -q 'group 1 is closed'
 }
 
-@test "10.3 both honest shapes stay green" {
+@test "group-header: both honest shapes stay green" {
   write_group ' ' x ' ' x
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   [ "$status" -eq 0 ]
@@ -445,8 +443,8 @@ EOF
   echo "$output" | jq -e '.status == "pass"' > /dev/null
 }
 
-@test "10.3 a [~] group header is untouched by either direction (the third element)" {
-  # 8.1's derived-value question asked of this rule: a check written over two
+@test "group-header: a [~] group header is untouched by either direction (the third element)" {
+  # The derived-value question asked of this rule: a check written over two
   # states forgets the third. Both sub-task shapes that make a `[ ]` or `[x]`
   # header an error must leave a qualified `[~]` header alone.
   write_group '~' x x x
@@ -462,14 +460,13 @@ EOF
   echo "$output" | jq -e '.status == "pass"' > /dev/null
 }
 
-@test "10.3 a group owns its sub-tasks by number, so 1 never owns 10.1" {
-  # 8.1's derived-value question asked of the OTHER derived value in this rule.
+@test "group-header: a group owns its sub-tasks by number, so 1 never owns 10.1" {
+  # The derived-value question asked of the OTHER derived value in this rule.
   # The group number is a computed key, and `1` is a string prefix of `10` —
   # the third-element collision that a rule written over one group forgets.
   #
-  # Red is established by MUTATION rather than by precedence: the behaviour was
-  # already correct when this case was written, so it is a regression guard, and
-  # the gate's own reading is "a case that fails when its behaviour is removed".
+  # Red is established by MUTATION: this case is a regression guard, read as "a
+  # case that fails when its behaviour is removed".
   # Removed (owning by first digit instead of by number), this fixture still
   # reports exactly ONE error — it merely blames group 1 for group 10's open
   # box. A case asserting only the error COUNT would stay green through that,
@@ -507,22 +504,21 @@ TASKS
   echo "$output" | jq -e '[.error_details[] | select(contains("group 1 is"))] | length == 0' > /dev/null
 }
 
-# --- 10.3 fix cycle 1: what the tech review found, each with its own case -----
+# --- group-header: Quality Gates, duplicates and messages -----------------------
 # `write_doc` takes a whole tasks.md body so a fixture can carry its own
-# `## Quality Gates` section — the section `write_group` hard-codes and which
-# turned out to be where the rule's worst defect lived.
+# `## Quality Gates` section — the section `write_group` hard-codes.
 write_doc() {
   { printf -- '---\nstory: header-consistency\ntype: feature\nscale: fast\nversion: 1\ncreated: 2026-08-07\n---\n\n## Overview\nGroup-header consistency fixture.\n\n'
     cat
   } > "$STORY/tasks.md"
 }
 
-@test "10.3 a numbered Quality Gate line cannot mask a group's violation" {
-  # The rule read the WHOLE file, so any `- [box] N - ...` line outside the task
-  # list overwrote that group's header state. Quality Gates share the checkbox
+@test "group-header: a numbered Quality Gate line cannot mask a group's violation" {
+  # Read over the WHOLE file, any `- [box] N - ...` line outside the task list
+  # would overwrite that group's header state. Quality Gates share the checkbox
   # grammar by design (references/tasks.md), so a numbered gate is a legal
-  # shape — and this one silenced the exact violation group 8 of story 006
-  # shipped, which is the shape the whole rule exists to catch.
+  # shape — and it must not silence an open header over closed sub-tasks, the
+  # shape the whole rule exists to catch.
   write_doc <<'TASKS'
 ## Task List
 
@@ -539,9 +535,9 @@ TASKS
   echo "$output" | jq -e '[.error_details[] | select(contains("group 1 is closed"))] | length == 1' > /dev/null
 }
 
-@test "10.3 a numbered Quality Gate line cannot invent a violation" {
-  # The converse guard. The same whole-file read also FLAGGED an honest file,
-  # and pointed the line number at the gate rather than at any group header.
+@test "group-header: a numbered Quality Gate line cannot invent a violation" {
+  # The converse guard: a whole-file read would also FLAG an honest file, and
+  # point the line number at the gate rather than at any group header.
   write_doc <<'TASKS'
 ## Task List
 
@@ -558,10 +554,10 @@ TASKS
   echo "$output" | jq -e '.status == "pass"' > /dev/null
 }
 
-@test "10.3 a duplicate group number is an error, not a silent overwrite" {
+@test "group-header: a duplicate group number is an error, not a silent overwrite" {
   # Last-write-wins is the mechanism behind both cases above, and it bites
-  # inside the task list too: the `[ ]` header over an all-closed 1.1 vanished
-  # because a second `1` header overwrote it. A repeated group number is an
+  # inside the task list too: a second `1` header would overwrite the `[ ]`
+  # header over an all-closed 1.1. A repeated group number is an
   # identity violation in its own right, and the consistency verdict for that
   # number is not computable while it stands.
   write_doc <<'TASKS'
@@ -583,11 +579,11 @@ TASKS
   echo "$output" | jq -e '[.error_details[] | select(contains("group 1 has more than one header"))] | length == 1' > /dev/null
 }
 
-@test "10.3 the open-header message states the tested condition, not an inference" {
+@test "group-header: the open-header message states the tested condition, not an inference" {
   # `[~] (deferred: ...)` is the case where nothing is pending and the work did
   # NOT happen — references/tasks.md is emphatic about it. The predicate is
-  # right (the honest header is `[~] deferred:`), but the message told the
-  # author the opposite of what their own file says.
+  # right (the honest header is `[~] deferred:`), so the message must not tell
+  # the author the opposite of what their own file says.
   write_doc <<'TASKS'
 ## Task List
 
@@ -607,11 +603,11 @@ TASKS
   echo "$output" | jq -e '[.error_details[] | select(contains("already done"))] | length == 0' > /dev/null
 }
 
-@test "10.3 an unqualified [~] sub-task makes the group's state uncomputable" {
-  # The census calls an unqualified `[~]` a grammar error of unknown state; the
-  # group tally called it closed. One typo produced two errors, the second
-  # accusing a header that is correct — and it evaporates the moment the author
-  # fixes the first the honest way, by writing `- [ ] 1.1`. validate-mode.md:
+@test "group-header: an unqualified [~] sub-task makes the group's state uncomputable" {
+  # The census calls an unqualified `[~]` a grammar error of unknown state, so
+  # the group tally must not call it closed. Otherwise one typo produces two
+  # errors, the second accusing a header that is correct — and it evaporates the
+  # moment the author fixes the first the honest way, by writing `- [ ] 1.1`. validate-mode.md:
   # not computable must never dress up as a finding.
   write_doc <<'TASKS'
 ## Task List
@@ -631,7 +627,7 @@ TASKS
   echo "$output" | jq -e '[.error_details[] | select(contains("group 1 is"))] | length == 0' > /dev/null
 }
 
-@test "10.3 the message names the group as it is spelled, not as it is keyed" {
+@test "group-header: the message names the group as it is spelled, not as it is keyed" {
   # `10#` normalises `08` to 8 so it can be an array subscript. That is right
   # for keying and wrong for the message: grepping the file for the reported
   # number would not find the line it names.
@@ -651,10 +647,10 @@ TASKS
   echo "$output" | jq -e '[.error_details[] | select(contains("group 08 is open"))] | length == 1' > /dev/null
 }
 
-@test "10.3 an absurd group number cannot kill the emitter" {
+@test "group-header: an absurd group number cannot kill the emitter" {
   # A number past 2^63 wraps to a negative array subscript, which bash treats as
-  # fatal. Under `set -euo pipefail` the script died emitting NOTHING — no JSON,
-  # no message, exit 1 — and every consumer of this script parses that JSON.
+  # fatal. Under `set -euo pipefail` the script would die emitting NOTHING — no
+  # JSON, no message, exit 1 — and every consumer of this script parses that JSON.
   # Unrealistic input; total failure is the point.
   write_doc <<'TASKS'
 ## Task List
@@ -673,23 +669,20 @@ TASKS
   echo "$output" | jq -e 'has("status") and has("errors")' > /dev/null
 }
 
-# --- 10.3 fix cycle 2: the exclusion must not be section arithmetic ----------
-# Cycle 1 stopped the Quality Gates section from overwriting group headers by
-# scoping the gathering to `## Task List`. That traded one defect for three,
-# all of the same kind: deciding where a markdown section ENDS is genuinely
-# hard, and every way of getting it wrong is silent. A decorated or
-# differently-cased heading fell back to whole-document scope; a `###` Quality
-# Gates never terminated the scope; and any column-0 `#` line — a shell comment
-# in a fenced block, say — truncated it for the rest of the file.
+# --- group-header: the exclusion must not be section arithmetic ----------------
+# Scoping the gathering to `## Task List` would mean deciding where a markdown
+# section ENDS, which is genuinely hard, and every way of getting it wrong is
+# silent: a decorated or differently-cased heading, a `###` Quality Gates, or a
+# column-0 `#` line — a shell comment in a fenced block, say — each mis-scope it.
 #
-# The cases below pin the inverted criterion: gather group state EVERYWHERE
+# The cases below pin the criterion: gather group state EVERYWHERE
 # EXCEPT from the `Quality Gates` heading onward (any level, any case) and
 # except inside fenced code blocks. Two rules, no section arithmetic, and no
 # dependence on how `## Task List` happens to be spelled.
 
-@test "10.3 a decorated Task List heading does not change the verdict" {
-  # `## Task List (1 group)` used to fall back to whole-document scope, where
-  # the numbered gate below was read as a second header for group 3.
+@test "group-header: a decorated Task List heading does not change the verdict" {
+  # A decorated heading such as `## Task List (1 group)` must not change the
+  # scope, or the numbered gate below reads as a second header for group 3.
   write_doc <<'TASKS'
 ## Task List (1 group)
 
@@ -706,7 +699,7 @@ TASKS
   echo "$output" | jq -e '.status == "pass"' > /dev/null
 }
 
-@test "10.3 a differently-cased Task List heading does not change the verdict" {
+@test "group-header: a differently-cased Task List heading does not change the verdict" {
   write_doc <<'TASKS'
 ## Task list
 
@@ -723,7 +716,7 @@ TASKS
   echo "$output" | jq -e '.status == "pass"' > /dev/null
 }
 
-@test "10.3 Quality Gates is excluded at any heading level" {
+@test "group-header: Quality Gates is excluded at any heading level" {
   # `### Quality Gates` passes the validator's own presence check, which is
   # case-insensitive and level-agnostic. The exclusion must be too, or the two
   # disagree about where the gates are.
@@ -743,10 +736,10 @@ TASKS
   echo "$output" | jq -e '.status == "pass"' > /dev/null
 }
 
-@test "10.3 a fenced code block does not truncate the gathering" {
+@test "group-header: a fenced code block does not truncate the gathering" {
   # The false-NEGATIVE direction, and the dangerous one: group 2 is the exact
-  # shape the rule exists to catch, and a `#` comment inside a fence made it
-  # vanish with no error, no warning and no trace in the JSON.
+  # shape the rule exists to catch, and a `#` comment inside a fence must not
+  # make it vanish with no error, no warning and no trace in the JSON.
   write_doc <<'TASKS'
 ## Task List
 
@@ -772,7 +765,7 @@ TASKS
   echo "$output" | jq -e '[.error_details[] | select(contains("group 2 is closed"))] | length == 1' > /dev/null
 }
 
-@test "10.3 a checkbox inside a fenced block is not a group header" {
+@test "group-header: a checkbox inside a fenced block is not a group header" {
   # The converse of the case above. Fences are excluded in BOTH directions: an
   # illustrative task list inside a code block is documentation, not a claim.
   write_doc <<'TASKS'
@@ -795,18 +788,17 @@ TASKS
   echo "$output" | jq -e '.status == "pass"' > /dev/null
 }
 
-@test "10.3 three headers for one number name all three lines" {
+@test "group-header: three headers for one number name all three lines" {
   # The duplicate message renders a list, and a list rendered from a
   # space-joined string is the kind of thing that works for two and breaks for
   # three. Pinned rather than believed.
   #
-  # This one is a GUARD, not a hostile half: three-header rendering was already
-  # correct when the case was written, so its Red is by removal, not by
+  # This one is a GUARD, not a hostile half: its Red is by removal, not by
   # precedence — same standing as the number-prefix case above.
   #
   # The expected line numbers are derived from the fixture rather than written
-  # in, because a hard-coded pointer into a file the test itself generates is
-  # exactly the drift this story has spent four groups repairing.
+  # in, because a hard-coded pointer into a file the test itself generates
+  # drifts.
   write_doc <<'TASKS'
 ## Task List
 

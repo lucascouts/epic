@@ -1,16 +1,13 @@
 #!/usr/bin/env bats
-# Story 004, sub-task 5.3 — census regression pin for hook-session-restore.sh (R3.5).
+# Census regression pin for hook-session-restore.sh.
 #
-# hook-session-restore.sh holds the FIFTH copy of the checkbox regex, and it is the
-# only script that actually *renders* progress: its snapshot is injected into
-# the model's context after a compaction. A drifted copy here does not fail a
-# build — it quietly feeds the model a wrong progress number, which is exactly
-# the lying-progress class story 004 exists to kill. Before this suite it was
-# the one consumer with no automated coverage.
+# hook-session-restore.sh holds its own copy of the checkbox regex, and it is
+# the only script that actually *renders* progress: its snapshot is injected
+# into the model's context after a compaction. A drifted copy here does not
+# fail a build — it quietly feeds the model a wrong progress number.
 #
-# These tests are regression PINS, not TDD: the implementation already carries
-# the correct census (commit edbb8e5). They fail if a future maintainer widens,
-# narrows or re-derives it.
+# These tests are regression PINS: they fail if a future maintainer widens,
+# narrows or re-derives the census.
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -33,7 +30,7 @@ run_census() {
   [ "$status" -eq 0 ]
 }
 
-@test "R3.5: mixed fixture — closed is [x] plus terminal [~], deferred counted apart" {
+@test "mixed fixture — closed is [x] plus terminal [~], deferred counted apart" {
   run_census <<'EOF'
 ## Task List
 - [x] 1.1 - Done
@@ -46,7 +43,7 @@ EOF
   [ "$output" = "- Tasks: 3/5 completed (+1 deferred)" ]
 }
 
-@test "R3.5: the (+N deferred) suffix appears only when a deferred box exists" {
+@test "the (+N deferred) suffix appears only when a deferred box exists" {
   run_census <<'EOF'
 ## Task List
 - [x] 1.1 - Done
@@ -56,8 +53,8 @@ EOF
   [ "$output" = "- Tasks: 2/3 completed" ]
 }
 
-@test "R3.5: a story whose only open boxes are terminal [~] reads fully closed" {
-  # The corpus's #1 false signal: a waived gate used to render 3/4 forever.
+@test "a story whose only open boxes are terminal [~] reads fully closed" {
+  # A waived gate must not keep the census short of fully closed.
   run_census <<'EOF'
 ## Task List
 - [x] 1.1 - Done
@@ -68,7 +65,7 @@ EOF
   [ "$output" = "- Tasks: 4/4 completed" ]
 }
 
-@test "R3.5: done-except-external — no [ ] remains, deferred still reported apart" {
+@test "done-except-external — no [ ] remains, deferred still reported apart" {
   run_census <<'EOF'
 ## Task List
 - [x] 1.1 - Done
@@ -80,7 +77,7 @@ EOF
 }
 
 @test "precedence: a line carrying both deferred: and a terminal qualifier counts as deferred" {
-  # Must match validate-story.sh's census (deviations.yaml, task 1.1): deferred
+  # Must match validate-story.sh's census: deferred
   # wins, because deferred work is not actually finished.
   run_census <<'EOF'
 ## Task List
@@ -90,14 +87,11 @@ EOF
   [ "$output" = "- Tasks: 1/2 completed (+1 deferred)" ]
 }
 
-@test "R4.1: a qualifier with no space after the box still closes — the census loop's reason for being" {
-  # `- [~]waived: …`. validate-story.sh has always read this as a closed box:
-  # its box regex never required the space, and the qualifier is token-anchored,
-  # so `]waived:` qualifies. The `grep | grep -cv` pipeline that used to live
-  # here needed something before the qualifier and counted the line in the total
-  # and in NEITHER closed nor deferred — one rule, two implementations, two
-  # answers. Sub-task 6.5 replaced the pipeline with the shared census loop;
-  # this test is what stops the disagreement coming back.
+@test "a qualifier with no space after the box still closes" {
+  # `- [~]waived: …`. validate-story.sh reads this as a closed box: its box
+  # regex does not require the space, and the qualifier is token-anchored, so
+  # `]waived:` qualifies. The hook must count it the same way — one rule, one
+  # answer.
   run_census <<'EOF'
 ## Task List
 - [x] 1.1 - Done
@@ -107,23 +101,17 @@ EOF
   [ "$output" = "- Tasks: 2/3 completed" ]
 }
 
-@test "R5.1: a legacy story with no [~] renders exactly as it did pre-change" {
+@test "a legacy story with no [~] counts only its [x] boxes as closed" {
   run_census <<'EOF'
 ## Task List
 - [ ] 1 - Group
   - [x] 1.1 - implement first
   - [ ] 1.2 - implement second
 EOF
-  # Pre-change: TOTAL counted `[ x]`, DONE counted `[x]` — same three boxes,
-  # one closed, and no suffix because no deferred box can exist.
-  #
-  # The header read `- [x] 1 - Group` until story 006 group 10, which made a
-  # group header that contradicts its own sub-tasks a validation error. `1.2`
-  # is open, so `[x]` was a false claim, and the golden `2/3` was reachable
-  # ONLY through that falsehood — the honest fixture is one box closed of
-  # three. What R5.1 pins is that the census is a pure function of the boxes
-  # on disk, and that is unchanged: this is the same arithmetic on a corrected
-  # input, not a different rule. `hook-session-restore.sh` is untouched.
+  # Three boxes, one closed, and no suffix because no deferred box can exist.
+  # The group header stays open because a header that contradicts its own
+  # sub-tasks is a validation error. The census is a pure function of the
+  # boxes on disk.
   [ "$output" = "- Tasks: 1/3 completed" ]
 }
 

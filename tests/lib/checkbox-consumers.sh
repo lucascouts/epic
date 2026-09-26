@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 # tests/lib/checkbox-consumers.sh — the checkbox-grammar consumer roster, as
-# DATA (story 017: R1.1, R1.2, R1.4).
+# DATA.
 #
-# WHY THIS FILE EXISTS. The roster used to live in prose, in a test header, and
-# a sentence cannot fail — so every time a script started reading the grammar,
-# the enumeration went stale and nothing turned red. Five successive
-# enumerations were wrong that way. Here the roster is an array, and a scan of
-# scripts/ is compared against it: when the two disagree the comparison fails
-# and NAMES the script, so nobody is sent back to counting.
+# WHY THIS FILE EXISTS. A roster kept in prose cannot fail, so it goes stale
+# silently whenever a script starts reading the grammar. Here the roster is an
+# array, and a scan of scripts/ is compared against it: when the two disagree
+# the comparison fails and NAMES the script, so nobody is sent back to counting.
 #
 # THE ONE PLACE A HUMAN EDITS is CHECKBOX_CONSUMERS below (or, for a false
 # positive, CHECKBOX_CONSUMER_EXEMPT). Nothing else in the tree carries the
@@ -35,7 +33,7 @@ CHECKBOX_CONSUMERS=(
   validate-story.sh
 )
 
-# CHECKBOX_CONSUMER_EXEMPT — R1.2. A script the predicate below FINDS but which
+# CHECKBOX_CONSUMER_EXEMPT. A script the predicate below FINDS but which
 # does not really read the grammar (a false positive) is silenced here, and
 # only with a written reason after the colon:
 #
@@ -113,7 +111,7 @@ detect_checkbox_consumers() {
 # checkbox_roster_diff <scripts-dir> — the COMPARISON. Exit 0 when the derived
 # set equals the declared roster, exemptions absorbed. Otherwise non-zero, with
 # one line per discrepancy on stdout that NAMES the script and says which side
-# it is missing from. Naming is the requirement (R1.1): a red that says only
+# it is missing from. Naming is the requirement: a red that says only
 # "the roster disagrees" sends the reader back to counting, which is the whole
 # defect this file exists to end.
 #
@@ -125,8 +123,7 @@ checkbox_roster_diff() {
   # portability notes, all house rules from scripts/: `${arr[@]+"${arr[@]}"}`
   # rather than plain `"${arr[@]}"` (expanding an EMPTY array that way aborts
   # under `set -u` on bash < 4.4); `${map[$k]:-}` for the miss-safe lookup; and
-  # never `${#map[@]}` on an associative array, which this tree has measured
-  # tripping `set -u`.
+  # never `${#map[@]}` on an associative array, which can trip `set -u`.
   local -A declared=() exempt=() derived=()
 
   # stdout only — detect_checkbox_consumers' stderr flows past, so a file it
@@ -143,7 +140,7 @@ checkbox_roster_diff() {
     declared["$entry"]=1
   done
 
-  # --- The exemption list is validated before it is trusted (R1.2) ----------
+  # --- The exemption list is validated before it is trusted ---------------
   for entry in ${CHECKBOX_CONSUMER_EXEMPT[@]+"${CHECKBOX_CONSUMER_EXEMPT[@]}"}; do
     name="${entry%%:*}"
     reason="${entry#*:}"
@@ -152,7 +149,7 @@ checkbox_roster_diff() {
     # No colon, no name before it, or nothing but whitespace after it: a bare
     # name explains nothing, so it silences nothing.
     if [[ "$entry" != *:* ]] || [ -z "$name" ] || [ -z "${reason//[[:space:]]/}" ]; then
-      printf '%s\n' "exemption rejected: '$entry' carries no written reason — an exemption is spelled \"name.sh: why it is not really a consumer\", and a bare name is a second roster nobody can audit (R1.2)"
+      printf '%s\n' "exemption rejected: '$entry' carries no written reason — an exemption is spelled \"name.sh: why it is not really a consumer\", and a bare name is a second roster nobody can audit"
       rc=1
       continue
     fi

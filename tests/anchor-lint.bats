@@ -1,25 +1,21 @@
 #!/usr/bin/env bats
-# Story 010, sub-tasks 3.1 and 3.2 — the commit anchor is checked, not just
-# recommended (R4.1, R4.2, R4.3, R4.4).
-# Authored by the Test Advisor BEFORE implementation (TDD Red phase).
+# The commit anchor is checked, not just recommended.
 #
-# 3.1 — authoring lint in scripts/validate-story.sh: a Commit field whose
-#       subject does not carry `type(NNN):` for this story's number draws a
-#       WARNING naming the expected shape and the offending value. Never an
-#       error. Zero-padded and unpadded anchors both accepted.
-# 3.2 — scripts/story-git-status.sh gains `anchored_commits`: count of
-#       subjects reachable from HEAD matching the existing token rules
-#       (conventional `type(0*NNN):` or word-bounded `0*NNN-slug`); a bare
-#       number never counts. Additive only — existing fields keep their
-#       values on an unchanged repo. references/validate-mode.md names the
-#       consumption rule.
+# Authoring lint in scripts/validate-story.sh: a Commit field whose subject
+#   does not carry `type(NNN):` for this story's number draws a WARNING naming
+#   the expected shape and the offending value. Never an error. Zero-padded
+#   and unpadded anchors both accepted.
+# scripts/story-git-status.sh reports `anchored_commits`: count of subjects
+#   reachable from HEAD matching the existing token rules (conventional
+#   `type(0*NNN):` or word-bounded `0*NNN-slug`); a bare number never counts.
+#   Additive only — existing fields keep their values on an unchanged repo.
+#   references/validate-mode.md names the consumption rule.
 #
-# Cases marked PIN assert behaviour that must NOT change (no false positive
-# from the new lint; existing story-git-status fields intact). Red is judged
-# on the new-contract cases only.
+# Cases marked PIN assert behaviour that must not change: no false positive
+# from the lint, and the existing story-git-status fields intact.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so the draft copy under
-# .draft/authored-tests/tests/ can run before materialization into tests/.
+# EPIC_PLUGIN_ROOT overrides root resolution so the suite can run against a
+# plugin tree other than its parent directory.
 
 setup() {
   PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
@@ -43,7 +39,7 @@ refute_grep() {
 # heading that matches <start> and the next heading that matches <end>. The
 # doc-contract case below reads a rule whose wording recurs elsewhere in the
 # same file for unrelated reasons, and a whole-file grep cannot tell the rule
-# from its homonyms (R3.1). Same helper, same three arguments and same idiom as
+# from its homonyms. Same helper, same three arguments and same idiom as
 # tests/reports-by-artifact-policy.bats' — copied rather than shared because a
 # .bats file cannot source another without becoming its runner.
 md_section() { # $1 = file, $2 = start regex, $3 = end regex
@@ -53,9 +49,9 @@ md_section() { # $1 = file, $2 = start regex, $3 = end regex
     inb {print}' "$1"
 }
 
-# --- 3.1 fixtures ----------------------------------------------------------
-# Calibrated against the pre-change validator: 0 errors, 0 warnings — so any
-# warning a case sees is the lint's own. Story number comes from the dir name
+# --- Commit-field lint fixtures ---------------------------------------------
+# The fixture validates with 0 errors and 0 warnings on its own, so any warning
+# a case sees is the lint's own. The story number comes from the dir name
 # (010-anchored → anchor `type(010):` / `type(10):`).
 
 write_lint_story() { # write_lint_story <commit-message>
@@ -117,10 +113,10 @@ EOF
 }
 
 # =====================================================================
-# Sub-task 3.1 — Commit-field anchor lint in validate-story.sh (R4.1)
+# Commit-field anchor lint in validate-story.sh
 # =====================================================================
 
-@test "3.1 unanchored Commit field warns, naming the expected shape and the value (R4.1)" {
+@test "unanchored Commit field warns, naming the expected shape and the value" {
   write_lint_story "feat: add the scaffold"
   run bash "$VALIDATE" "$LINT"
   [ "$status" -eq 0 ]                       # a warning, never an error
@@ -130,24 +126,24 @@ EOF
   echo "$output" | grep -qF 'feat: add the scaffold'   # and the offending value
 }
 
-@test "3.1 PIN anchored Commit field stays quiet (R4.1)" {
+@test "PIN anchored Commit field stays quiet" {
   write_lint_story "feat(010): add the scaffold"
   run bash "$VALIDATE" "$LINT"
   [ "$status" -eq 0 ]
   echo "$output" | grep -q '"warnings": 0'
 }
 
-@test "3.1 PIN unpadded anchor accepted — fix(10): stays quiet (R4.1)" {
+@test "PIN unpadded anchor accepted — fix(10): stays quiet" {
   write_lint_story "fix(10): add the scaffold"
   run bash "$VALIDATE" "$LINT"
   [ "$status" -eq 0 ]
   echo "$output" | grep -q '"warnings": 0'
 }
 
-@test "3.1 the lint reads the field on a Commit sub-task too — not the checkbox shape (R4.1)" {
+@test "the lint reads the field on a Commit sub-task too — not the checkbox shape" {
   write_lint_story "feat(010): add the scaffold"
   # Append a Commit SUB-TASK carrying an unanchored message: the field is what
-  # is matched, whichever shape (015 changes the shape, not the field).
+  # is matched, whichever shape carries it.
   sed -i 's|^## Quality Gates|- [ ] 1.6 - Commit\n  - Validation: all green\n  - Commit: "chore: tidy the scaffold"\n\n## Quality Gates|' "$LINT/tasks.md"
   run bash "$VALIDATE" "$LINT"
   [ "$status" -eq 0 ]
@@ -155,7 +151,7 @@ EOF
   echo "$output" | grep -qF 'chore: tidy the scaffold'
 }
 
-# --- 3.2 fixtures ----------------------------------------------------------
+# --- anchored_commits fixtures ------------------------------------------------------
 # Real temp git repos, story dir 010-widget-flow (STORY_NUM 10, slug
 # widget-flow) — same helpers as tests/story-git-status.bats.
 
@@ -181,10 +177,10 @@ run_status() {
 }
 
 # =====================================================================
-# Sub-task 3.2 — anchored_commits in story-git-status.sh (R4.2-R4.4)
+# anchored_commits in story-git-status.sh
 # =====================================================================
 
-@test "3.2 counts conventional and slug anchors reachable from HEAD (R4.3)" {
+@test "counts conventional and slug anchors reachable from HEAD" {
   make_repo "$WORK/r" main
   commit_msg "$WORK/r" "feat(010): add the closing writer"      # conv, padded
   commit_msg "$WORK/r" "fix(10): tighten the writer"            # conv, unpadded
@@ -196,7 +192,7 @@ run_status() {
   echo "$output" | jq -e '.anchored_commits == 3'
 }
 
-@test "3.2 a bare story number never counts (R4.3)" {
+@test "a bare story number never counts" {
   make_repo "$WORK/r" main
   commit_msg "$WORK/r" "docs: story 10 notes"
   commit_msg "$WORK/r" "feat: value 1010 handled"
@@ -205,7 +201,7 @@ run_status() {
   echo "$output" | jq -e '.anchored_commits == 0'
 }
 
-@test "3.2 counts from HEAD, not from main (R4.2)" {
+@test "counts from HEAD, not from main" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" checkout -q -b feat/010-widget-flow
   commit_msg "$WORK/r" "feat(010): add the writer"
@@ -219,7 +215,7 @@ run_status() {
   echo "$output" | jq -e '.anchored_commits == 0'
 }
 
-@test "3.2 additive only — existing fields keep their values beside the new one (R4.4)" {
+@test "additive only — existing fields keep their values beside anchored_commits" {
   make_repo "$WORK/r" main
   commit_msg "$WORK/r" "feat(010): add the writer"
   run_status "$WORK/r"
@@ -229,19 +225,18 @@ run_status() {
     and (.checked_at | type) == "string" and (.anchored_commits | type) == "number"'
 }
 
-@test "3.2 validate-mode.md names the anchored_commits consumption rule (R4.2, doc contract)" {
+@test "validate-mode.md names the anchored_commits consumption rule (doc contract)" {
   command grep -q 'anchored_commits' "$PLUGIN_ROOT/references/validate-mode.md"
 }
 
 # =====================================================================
-# Refine delta 2 (cross-artifact review) — group-level Commit shape (3.1)
-# and the no-double-fire precedence doc contract (3.2, design §4)
+# Group-level Commit shape and the no-double-fire precedence doc contract
 # =====================================================================
 
-# write_group_lint_story <commit-message>: story 015's group-level Commit
-# field — `- Commit: "..."` on the parent task body, no checkbox, no Commit
-# sub-task. Calibrated against the pre-change validator: 0 errors, 0 warnings,
-# so any warning a case sees is the lint's own.
+# write_group_lint_story <commit-message>: the group-level Commit field —
+# `- Commit: "..."` on the parent task body, no checkbox, no Commit sub-task.
+# The fixture validates with 0 errors and 0 warnings on its own, so any
+# warning a case sees is the lint's own.
 write_group_lint_story() {
   GROUPED="$WORK/010-grouped"
   mkdir -p "$GROUPED"
@@ -293,7 +288,7 @@ created: 2026-08-16
 TASKSEOF
 }
 
-@test "3.1 group-level unanchored Commit field on a parent draws the warning (R4.1)" {
+@test "group-level unanchored Commit field on a parent draws the warning" {
   write_group_lint_story "feat: add the grouped scaffold"
   run bash "$VALIDATE" "$GROUPED"
   [ "$status" -eq 0 ]                       # still a warning, never an error
@@ -303,77 +298,57 @@ TASKSEOF
   echo "$output" | grep -qF 'feat: add the grouped scaffold'
 }
 
-@test "3.1 PIN group-level anchored Commit field stays quiet (R4.1)" {
+@test "PIN group-level anchored Commit field stays quiet" {
   write_group_lint_story "feat(010): add the grouped scaffold"
   run bash "$VALIDATE" "$GROUPED"
   [ "$status" -eq 0 ]
   echo "$output" | grep -q '"warnings": 0'
 }
 
-@test "3.2 validate-mode.md settles the no-double-fire precedence (design §4, doc contract)" {
+@test "validate-mode.md settles the no-double-fire precedence (doc contract)" {
   # At most ONE integration-flavored warning: `anchored_commits == 0` wins;
-  # 006's integrated=false warning fires only when anchored commits exist but
+  # the integrated=false warning fires only when anchored commits exist but
   # none reached main; `integrated: null` silences both. Matched on the
   # flattened text so wrapping never decides the verdict.
   FLAT=$(tr -s '[:space:]' ' ' < "$PLUGIN_ROOT/references/validate-mode.md")
   grep -qF 'anchored_commits == 0' <<< "$FLAT"
-  # WHICH SIDE WINS, not that the word `wins` is somewhere in the file. The
-  # bare literal survived the precedence being reversed to `Rule 3 **wins**
-  # over `anchored_commits == 0`` — measured GREEN, and RED only when the rule
-  # was deleted, so it asserted a word and never a direction. `wins` occurs
-  # exactly once in the whole file and the real gap is four characters
-  # (`` ` ** ``), so requiring the specific finding to PRECEDE it inside one
-  # sentence reds the swap: the nearest `anchored_commits == 0` is then the
-  # table row two lines up, ~200 characters away. Measured GREEN on `...
-  # therefore **wins** over the integration warning at rule 3` — the window is
-  # what buys that — and on the line reflowed, which the flatten above carries.
-  # Residual, measured and named rather than hidden: a rewording that keeps the
-  # same side winning while replacing the verb (`rule 3 yields to
-  # `anchored_commits == 0``) false-reds. The order of the two sides IS the
-  # direction, and pinning it is what direction costs.
+  # WHICH SIDE WINS, not that the word `wins` is somewhere in the file: the
+  # specific finding must PRECEDE `wins` inside one sentence, so a reversed
+  # precedence (`Rule 3 **wins** over `anchored_commits == 0``) reds, while a
+  # rewording that keeps the same side winning, or a reflow, stays green.
+  # Residual: a rewording that keeps the same side winning while replacing the
+  # verb (`rule 3 yields to `anchored_commits == 0``) false-reds. The order of
+  # the two sides IS the direction, and pinning it is what direction costs.
   grep -qE 'anchored_commits == 0[^.]{0,40}wins' <<< "$FLAT"
   # WHICH CONDITION THE `only when` GOVERNS, and in which section it is stated.
-  # The predecessor was the bare literal `only when`, which occurs THREE times
-  # in this file and is this rule at only one of them: `:195` writes `done`
-  # "only when no `[ ]` and no deferred `[~]` remains" — a status transition —
-  # and `:263` is a shell comment inside a code block, "then, only when the
-  # table below says so". Either answered for the rule, so DELETING the rule
-  # outright left the case GREEN. Measured, and it is the R1.3 vector this
-  # repair exists to Red.
+  # The bare literal `only when` recurs in this file for unrelated rules (a
+  # status transition, a shell comment inside a code block), so a whole-file
+  # match cannot tell this rule from its homonyms and would stay green with the
+  # rule deleted.
   #
-  # SCOPED FIRST (R3.1), to `## Integration Warning` — the section that owns
-  # both warnings and the precedence between them, its `###` subsection
-  # included. That puts `:195` out of scope by construction, and the exclusion
-  # is measured in the other direction too: `:195` reworded with the rule
-  # intact stays GREEN. The `##` boundary is taken over the `###` one that also
-  # excludes `:195` because the rule may legitimately move between the section
-  # and its own subsection, and both capture the same two `only when` spans
-  # today — measured: 66 lines against 31, one pinned span either way. `:263`
-  # sits inside either scope and is refused by the pin instead.
+  # SCOPED to `## Integration Warning` — the section that owns both warnings
+  # and the precedence between them, its `###` subsection included. The `##`
+  # boundary is used rather than the `###` one because the rule may
+  # legitimately move between the section and its own subsection.
   #
-  # THE TRAILING SPACE IN `^## ` IS LOAD-BEARING HERE, measured rather than
-  # copied: `^##` without it matches the `### The anchor warning` heading, so
-  # the capture stops at line 33 of the section, holds no `only when` at all
-  # and this assertion would Red on unmutated prose. Elsewhere in the suite the
-  # space is slack, and one sibling drops it ON PURPOSE to stop at a `###`.
-  # Which one a section wants is a question about that section, never a style.
+  # THE TRAILING SPACE IN `^## ` IS LOAD-BEARING HERE: without it the end
+  # pattern matches the `### The anchor warning` heading, the capture holds no
+  # `only when` at all, and this assertion would red on unmutated prose.
+  # Whether a boundary wants the space depends on the section, never on style.
   #
-  # THEN THE PIN, because a scope alone still passes `:263`. Three anchors,
-  # each buying a measured vector: `integration warning` … `fires` Reds the
-  # swap to `The anchor warning therefore fires only when …`, which is the
-  # other warning and the opposite rule; `only when` Reds `except when`; and
-  # `ha(s|ve) anchored commits` Reds the condition negated to `has no anchored
-  # commits`, which no count and no scope would reach. Rewordings measured
-  # GREEN: `Which means the integration warning fires **only when** the story
-  # does have anchored commits, none of which reached the main branch`, and the
-  # sentence reflowed across five lines without a word changed — the flatten
-  # below is what carries that.
+  # THEN THE PIN, because a scope alone still admits the code-block comment.
+  # Three anchors: `integration warning` … `fires` reds a swap to `The anchor
+  # warning therefore fires only when …`, the other warning and the opposite
+  # rule; `only when` reds `except when`; and `ha(s|ve) anchored commits` reds
+  # the condition negated to `has no anchored commits`, which no count and no
+  # scope would reach. Rewordings and reflows stay green — the flatten below
+  # carries the reflow.
   #
-  # Residuals, named rather than hidden, both measured: a pronoun subject (`It
-  # therefore fires only when …`) false-Reds, and the SECOND conjunct reversed
-  # (`and at least one of them reached the main branch`) stays GREEN. Reaching
-  # that one costs a fourth anchor over a `none|no|not one|never` alternation
-  # whose false-Red surface is wider than the vector it buys.
+  # Known residuals: a pronoun subject (`It therefore fires only when …`)
+  # false-reds, and the SECOND conjunct reversed (`and at least one of them
+  # reached the main branch`) stays green. Reaching that one costs a fourth
+  # anchor over a `none|no|not one|never` alternation whose false-red surface
+  # is wider than the inversion it catches.
   SEC=$(md_section "$PLUGIN_ROOT/references/validate-mode.md" '^## Integration Warning' '^## ')
   # md_section yields lines, so the section is flattened here exactly as $FLAT
   # is above — otherwise a wrap decides the verdict.
@@ -383,31 +358,21 @@ TASKSEOF
 }
 
 # =====================================================================
-# Story 016, sub-task 1.1 — the SECOND copy of the key set
+# The SECOND copy of the key set
 # =====================================================================
-# The detector's key set is written down in two reference files, and story
-# 010 pinned only one of them: validate-mode.md gained `anchored_commits` and
-# its doc-contract case above, while list-mode.md kept the pre-010 five-key
-# enumeration. Story 010's audit found the stale copy and booked it rather
-# than fixing it — the failure mode this repository documents twice
-# (close-subtask.sh's BOX_RE block, checkbox-grammar.bats' header): a fact
-# stated in prose cannot fail, so it is never corrected. The case below is
-# what makes the second copy fail, by the same mechanism as the first.
+# The detector's key set is written in two reference files, validate-mode.md
+# and list-mode.md. This case pins the list-mode.md copy so it fails when it
+# drifts from the script, because a fact stated only in prose cannot fail, so
+# it is never corrected.
 #
-# CITED BY NAME, NOT BY LINE, and this comment is why: the first draft of it
-# cited `checkbox-grammar.bats:11-15`, and sub-task 1.2 shifted that paragraph
-# to line 20 in the same commit — a pointer that went stale inside the very
-# story written to kill stale pointers. close-subtask.sh already states the
-# rule, in the STATUS_WRITTEN_JSON block: "cited by name, not by line: story
-# 010 moved that trigger from :583 to :687 and a line number would have gone
-# stale in the same commit that wrote it". This is the second time the
-# repository has paid for it.
+# CITED BY NAME, NOT BY LINE: a line number goes stale with the next edit
+# above it.
 
-@test "1.1 list-mode.md enumerates anchored_commits in the detector's key set (016, doc contract)" {
+@test "list-mode.md enumerates anchored_commits in the detector's key set (doc contract)" {
   # Asserted as the WHOLE key set rather than the bare field name, so the
   # position is pinned too: `anchored_commits` sits between `evidence` and
-  # `checked_at`, which is the order story-git-status.sh:988 emits and the
-  # order validate-mode.md:131 already names. A field present but reordered
+  # `checked_at`, which is the order story-git-status.sh emits and the order
+  # validate-mode.md already names. A field present but reordered
   # would still be a doc that disagrees with the script.
   #
   # Matched on the flattened text so wrapping never decides the verdict — the

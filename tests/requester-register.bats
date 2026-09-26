@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # Requester profile, plain register, question budget, adaptive rounds and
-# constitution defaults — the doc contract (Onda A + T1).
+# constitution defaults — the doc contract.
 #
 # The surface is agent-executed prose, so every case pins a BLOCK found by a
 # structural anchor and asserts a keyword inside it, case-insensitively. No
@@ -8,13 +8,13 @@
 #
 #   Q1  SKILL.md triage reads the requester from the request as a four-field
 #       block (level, persona, always, never), names both registers, defaults
-#       to developer, and says the level never changes the scale — the 0.6.0
-#       Fast lock for a layperson is retired by story 022 and must not return
+#       to developer, and says the level never changes the scale; no text
+#       holds a layperson at Fast
 #   Q2  the triage proposal block carries a Requester line
 #   Q3  SKILL.md Clarify names a budget, both registers, the three counted
 #       sources (gates, run), and the calibration question
-#   Q4  plain-register.md exists and names the measured process words as
-#       words that stay out of the chat, the per-turn ceiling, run-and-show
+#   Q4  plain-register.md exists and names the process words that stay
+#       out of the chat, the per-turn ceiling, run-and-show
 #   Q5  plain-register.md says what does NOT change: artifacts, sub-agents
 #   Q6  phase-gates.md gives a layperson a one-line gate that counts
 #   Q7  run-mode.md rules count run-time questions and name run-and-show
@@ -32,7 +32,7 @@
 #   Q16 the Question shape example carries a labelled recommendation
 #   Q17 the Analyst's checklist speaks in consequences and is asked in rounds
 #   Q18 a request for speed changes the words, not the steps; a downgrade is
-#       a gate question and the mode changes only on the answer (story 027)
+#       a gate question and the mode changes only on the answer
 #
 # Note on awk patterns: passed as strings, so no backslash escapes; literal
 # punctuation goes in a bracket class.
@@ -63,11 +63,11 @@ has() { # has <label> <block> <keyword>
     has "Q1 field" "$block" "$f:"
   done
   has "Q1 decoupled" "$block" "never changes the scale"
-  # The 0.6.0 rule held a layperson at Fast "unless they ask". Story 022
-  # retired it: the level governs the register, the budget, the defaults and
-  # the gate shape, never the mode. Its text returning is a regression.
+  # The level governs the register, the budget, the defaults and the gate
+  # shape, never the mode: text holding a layperson at Fast "unless they ask"
+  # is a regression.
   if printf '%s' "$block" | grep -qi "unless they ask"; then
-    echo "Q1: the Fast lock for a layperson is back — retired by story 022" >&2
+    echo "Q1: the triage block holds a layperson at Fast — the level must never change the scale" >&2
     return 1
   fi
 }
@@ -87,7 +87,7 @@ has() { # has <label> <block> <keyword>
   has "Q3 adaptive" "$block" "left open"
 }
 
-@test "Q4: plain-register.md keeps the measured process words out of the chat, caps the turn, runs and shows" {
+@test "Q4: plain-register.md keeps the process words out of the chat, caps the turn, runs and shows" {
   f="$ROOT/references/plain-register.md"
   [ -f "$f" ]
   words=$(section "$f" '^## Words that stay' '^## ')
@@ -174,7 +174,7 @@ has() { # has <label> <block> <keyword>
     has "Q12 field" "$block" "$f:"
   done
   if printf '%s' "$block" | grep -qE '^requester: (developer|layperson)'; then
-    echo "Q12: meta.yaml still shows the bare 0.6.0 value" >&2
+    echo "Q12: meta.yaml shows a bare requester value instead of the four-field block" >&2
     return 1
   fi
 }
@@ -197,7 +197,7 @@ has() { # has <label> <block> <keyword>
   has "Q14 recommended" "$block" "(Recommended)"
   has "Q14 bundling" "$block" "cannot change each other"
   if printf '%s' "$block" | grep -q "3–7 related questions"; then
-    echo "Q14: the fixed 3–7 bundle is back — rounds are free in size since story 023" >&2
+    echo "Q14: a fixed 3–7 question bundle is stated — round size is free" >&2
     return 1
   fi
 }
@@ -241,8 +241,8 @@ has() { # has <label> <block> <keyword>
 }
 
 @test "Q19: the skill's core loads the requester's register — it is not left to a link inside triage.md" {
-  # Measured 2026-09-24: once triage moved out of SKILL.md, two of five layperson
-  # runs never opened plain-register.md and shipped a beginner's program with no test.
+  # A run that never opens its register loses the register's rules — for a
+  # layperson, that can mean a program shipped with no test.
   core=$(section "$ROOT/skills/epic/SKILL.md" '^## Triage Protocol' '^## ')
   has "Q19 plain" "$core" "plain-register.md"
   has "Q19 developer" "$core" "developer-register.md"

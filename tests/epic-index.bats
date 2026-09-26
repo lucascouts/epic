@@ -1,21 +1,16 @@
 #!/usr/bin/env bats
-# Contract tests for scripts/epic-index.sh (story 005 - archive-in-the-flow).
-# Authored Red-first by the Test Advisor from EARS requirements + design contract.
-# Target location after materialization: tests/epic-index.bats
+# Contract tests for scripts/epic-index.sh.
 #
-# Contract under test (design.md, Components 3):
+# Contract under test:
 #   epic-index.sh scans .epic/stories/ + .epic/archive/ and rewrites ONLY the
 #   block between <!-- epic:index:start --> / <!-- epic:index:end --> in
 #   .epic/EPIC.md - one row per story (number, slug, status, progress, link
 #   resolving to the story's current location). Idempotent, stable ordering.
 #   File absent -> created with markers when the project has >= 1 story.
 #
-# 4.2 scenarios integrate with the real scripts/archive-story.sh (no stub):
-# archiving must retarget the story link, and an index-regen failure must
-# never roll back the move.
-#
-# Test names are prefixed with the sub-task number so Red/Green evidence can
-# be produced per sub-task via `bats --filter '^4\.1:'`.
+# The archive scenarios integrate with the real scripts/archive-story.sh (no
+# stub): archiving must retarget the story link, and an index-regen failure
+# must never roll back the move.
 
 bats_require_minimum_version 1.5.0
 
@@ -69,9 +64,9 @@ created: 2026-08-01
 EOF
 }
 
-# --- 4.1 Generator (R5.1, R5.3, R5.4) ---
+# --- Generator ---
 
-@test "4.1: index lists stories with links resolving to their location" {
+@test "index lists stories with links resolving to their location" {
   make_story stories 001-alpha
   make_story archive 002-beta
   run --separate-stderr bash "$INDEX_SH"
@@ -79,12 +74,12 @@ EOF
   [ -f "$EPIC_MD" ]
   grep -q 'epic:index:start' "$EPIC_MD"
   grep -q 'epic:index:end' "$EPIC_MD"
-  # R5.1: every story present, link resolving to its current area.
+  # Every story present, link resolving to its current area.
   grep -q 'stories/001-alpha' "$EPIC_MD"
   grep -q 'archive/002-beta' "$EPIC_MD"
 }
 
-@test "4.1: content outside the generated markers is preserved unchanged" {
+@test "content outside the generated markers is preserved unchanged" {
   make_story stories 001-alpha
   cat > "$EPIC_MD" <<'EOF'
 # Hand-written program context
@@ -101,19 +96,19 @@ EOF
   awk 'f{print} /epic:index:end/{f=1}' "$EPIC_MD" > "$WORK/tail.before"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  # R5.3: everything outside the markers is byte-preserved...
+  # Everything outside the markers is byte-preserved...
   awk '/epic:index:start/{exit} {print}' "$EPIC_MD" > "$WORK/head.after"
   awk 'f{print} /epic:index:end/{f=1}' "$EPIC_MD" > "$WORK/tail.after"
   cmp -s "$WORK/head.before" "$WORK/head.after"
   cmp -s "$WORK/tail.before" "$WORK/tail.after"
   # ...while the block itself is regenerated.
   # NOT `! grep -q`: bash's set -e exempts an inverted command, so a non-last
-  # line `!` is a no-op assertion (deviations.yaml, 2.2 test-hygiene discovery).
+  # line `!` is a no-op assertion.
   [[ "$(cat "$EPIC_MD")" != *"old stale row"* ]]
   grep -q 'stories/001-alpha' "$EPIC_MD"
 }
 
-@test "4.1: double regeneration with no state change produces no diff" {
+@test "double regeneration with no state change produces no diff" {
   make_story stories 001-alpha
   make_story archive 002-beta
   run --separate-stderr bash "$INDEX_SH"
@@ -121,11 +116,11 @@ EOF
   cp "$EPIC_MD" "$WORK/epic.snapshot"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  # R5.4: second run is a byte-for-byte no-op.
+  # Second run is a byte-for-byte no-op.
   cmp -s "$EPIC_MD" "$WORK/epic.snapshot"
 }
 
-@test "4.1: absent index file is created with markers when a story exists" {
+@test "absent index file is created with markers when a story exists" {
   make_story stories 001-alpha
   [ ! -e "$EPIC_MD" ]
   run --separate-stderr bash "$INDEX_SH"
@@ -135,16 +130,14 @@ EOF
   grep -q 'epic:index:end' "$EPIC_MD"
 }
 
-@test "4.1: no index file is created in a project with zero stories" {
+@test "no index file is created in a project with zero stories" {
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   [ ! -e "$EPIC_MD" ]
 }
 
-# --- 4.1 Generator, additive cases (written at execution) ---
-# Each pins a behavior the authored block leaves unpinned and each was
-# mutation-checked (break the fix -> case red -> restore -> green). Prefixed
-# `4.1:` so they run inside the existing `--filter '^4\.1:'`.
+# --- Generator, edge cases ---
+# Each pins a behavior the cases above leave unpinned.
 
 # mk_story <area> <dir> [status] [extra-frontmatter-line] - story.md only.
 mk_story() {
@@ -210,7 +203,7 @@ count_marker() {
   printf '%s' "$n"
 }
 
-@test "4.1: rows are ordered by number, not lexicographically" {
+@test "rows are ordered by number, not lexicographically" {
   # Created out of order on purpose. The discriminator is the MIXED-WIDTH set:
   # a lexicographic sort puts 010/100 before 2 and 99, a numeric one does not.
   # (009 vs 010 alone proves nothing - both sorts agree on zero-padded pairs.)
@@ -225,9 +218,9 @@ EOF
   [ "$(link_order)" = "stories/2-two/story.md stories/009-india/story.md stories/010-jay/story.md stories/99-nines/story.md stories/100-century/story.md " ]
 }
 
-@test "4.1: a story with no status frontmatter renders an em dash" {
-  # The legacy case: 340+ corpus stories predate the status: field, and a
-  # story.md with no frontmatter at all is the same class of legacy.
+@test "a story with no status frontmatter renders an em dash" {
+  # The legacy case: a story that predates the status: field, and a story.md
+  # with no frontmatter at all is the same class of legacy.
   mk_story stories 001-legacy
   mk_tasks stories 001-legacy <<'EOF'
 - [x] 1 - done
@@ -243,11 +236,11 @@ EOF
   [ "$(row_for 002-nofront)" = "| 002 | [nofront](stories/002-nofront/story.md) | — | 0/1 | active |" ]
 }
 
-@test "4.1: a tasks-only story renders the status its tasks.md carries" {
+@test "a tasks-only story renders the status its tasks.md carries" {
   # A `fast` (or `spike`) story HAS no story.md - tasks.md is the only artifact
   # it is guaranteed to have, so that is where its lifecycle fields live. Reading
-  # status from story.md alone printed an em dash for every Fast row in the
-  # corpus while `status: done` sat in tasks.md one directory over. The em dash
+  # status from story.md alone would print an em dash for every tasks-only row
+  # while `status: done` sits in tasks.md one directory over. The em dash
   # is reserved for a story that genuinely declares no status (the case above);
   # spending it on a story that declares one reads as a rendering bug because it
   # IS one. Precedence: story.md when there is one, tasks.md otherwise — the same
@@ -271,7 +264,7 @@ EOF
   [[ "$(cat "$EPIC_MD")" != *"| — |"* ]]
 }
 
-@test "4.1: story.md still outranks tasks.md when both declare a status" {
+@test "story.md still outranks tasks.md when both declare a status" {
   # The fallback is a FALLBACK, not an override: with both artifacts present the
   # row's story.md decides, exactly as it does for the scale lookup. Without this
   # case, resolving the two in the wrong order would still pass the test above.
@@ -290,17 +283,17 @@ EOF
   [ "$(row_for 001-both)" = "| 001 | [both](stories/001-both/story.md) | in-progress | 1/1 | active |" ]
 }
 
-@test "4.1: progress folds no unqualified tilde box into the closed count" {
+@test "progress folds no unqualified tilde box into the closed count" {
   # make_story's fixture is 2 [x] + 1 [~] whose line carries NO qualifier
-  # ("Deferred external thing" has no `deferred:` token), so per the 004
-  # grammar that box counts in the total and closes nothing: 2/3.
+  # ("Deferred external thing" has no `deferred:` token), so under the
+  # tilde-qualifier grammar that box counts in the total and closes nothing: 2/3.
   make_story stories 001-alpha
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   [ "$(row_for 001-alpha)" = "| 001 | [alpha](stories/001-alpha/story.md) | done | 2/3 | active |" ]
 }
 
-@test "4.1: a deferred box is reported apart while a terminal one closes" {
+@test "a deferred box is reported apart while a terminal one closes" {
   mk_story stories 001-owed done
   mk_tasks stories 001-owed <<'EOF'
 - [x] 1 - a
@@ -319,7 +312,7 @@ EOF
   [ "$(row_for 002-dropped)" = "| 002 | [dropped](stories/002-dropped/story.md) | done | 3/3 | active |" ]
 }
 
-@test "4.1: a superseded story renders the successor it points at" {
+@test "a superseded story renders the successor it points at" {
   mk_story stories 003-old superseded 'superseded-by: 010'
   mk_tasks stories 003-old <<'EOF'
 - [x] 1 - a
@@ -333,7 +326,7 @@ EOF
   [ "$(row_for 003-old)" = "| 003 | [old](stories/003-old/story.md) | superseded by 010 | 1/1 | active |" ]
 }
 
-@test "4.1: a superseded-by pointing nowhere is rendered as missing" {
+@test "a superseded-by pointing nowhere is rendered as missing" {
   # Resolution is numeric, so it also has to survive an archived successor
   # written with a different zero padding.
   mk_story stories 004-orphan superseded 'superseded-by: 042'
@@ -354,7 +347,7 @@ EOF
   [ "$(row_for 005-pointed)" = "| 005 | [pointed](stories/005-pointed/story.md) | superseded by 7 | 1/1 | active |" ]
 }
 
-@test "4.1: a non-NNN directory and a story without tasks.md still get a row" {
+@test "a non-NNN directory and a story without tasks.md still get a row" {
   # Neither may crash the generator, and neither may silently vanish: an index
   # that disagrees with the filesystem is the failure this generator ends.
   mkdir -p "$PROJ/.epic/stories/notes-scratch"
@@ -366,7 +359,7 @@ EOF
   [ "$(row_for notes-scratch)" = "| — | [notes-scratch](stories/notes-scratch/) | — | — | active |" ]
 }
 
-@test "4.1: markers adjacent to hand-written text keep their bytes exactly" {
+@test "markers adjacent to hand-written text keep their bytes exactly" {
   # No blank line above the start marker, none below the end marker, and NO
   # FINAL NEWLINE - the byte-level properties a line-based splice destroys.
   make_story stories 001-alpha
@@ -388,7 +381,7 @@ EOF
   [ "$(row_for 001-alpha)" = "| 001 | [alpha](stories/001-alpha/story.md) | done | 2/3 | active |" ]
 }
 
-@test "4.1: a start marker with no end marker refuses and writes nothing" {
+@test "a start marker with no end marker refuses and writes nothing" {
   # Decided behavior: a broken pair is REFUSED (exit 1, file untouched).
   # Treating "no end marker" as "the block runs to EOF" would swallow the rest
   # of the document; inserting the missing marker would reinterpret
@@ -409,7 +402,7 @@ EOF
   [[ "$stderr" == *"epic:index:end"* ]]
 }
 
-@test "4.1: an index with no markers gains the block and keeps its content" {
+@test "an index with no markers gains the block and keeps its content" {
   # The adoption path for a project whose EPIC.md predates this script.
   make_story stories 001-alpha
   printf '# Program\n\nhand-written, keep me.\n' > "$EPIC_MD"
@@ -428,7 +421,7 @@ EOF
   cmp -s "$WORK/snap" "$EPIC_MD"
 }
 
-@test "4.1: a changed checkbox updates the row, outside bytes untouched" {
+@test "a changed checkbox updates the row, outside bytes untouched" {
   make_story stories 001-alpha
   printf 'ABOVE\n' > "$EPIC_MD"
   run --separate-stderr bash "$INDEX_SH"
@@ -448,7 +441,7 @@ EOF
   cmp -s "$WORK/above.expect" "$WORK/above.after"
 }
 
-@test "4.1: --help exits 0 and an unknown flag exits 2, neither writing" {
+@test "--help exits 0 and an unknown flag exits 2, neither writing" {
   make_story stories 001-alpha
   run --separate-stderr bash "$INDEX_SH" --help
   [ "$status" -eq 0 ]
@@ -459,9 +452,9 @@ EOF
   [ ! -e "$EPIC_MD" ]
 }
 
-# --- 4.2 Archive integration (R5.2) - real archive-story.sh, no stub ---
+# --- Archive integration - real archive-story.sh, no stub ---
 
-@test "4.2: archiving a story retargets its index link into archive" {
+@test "archiving a story retargets its index link into archive" {
   make_story stories 005-gamma
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
@@ -469,12 +462,12 @@ EOF
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-gamma
   [ "$status" -eq 0 ]
   [ -d "$PROJ/.epic/archive/005-gamma" ]
-  # R5.2: the regenerated row now resolves into .epic/archive/.
+  # The regenerated row now resolves into .epic/archive/.
   grep -q 'archive/005-gamma' "$EPIC_MD"
   [[ "$(cat "$EPIC_MD")" != *"stories/005-gamma"* ]]
 }
 
-@test "4.2: index regen failure warns but the move stands" {
+@test "index regen failure warns but the move stands" {
   make_story stories 005-delta
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
@@ -492,15 +485,13 @@ EOF
   cmp -s "$EPIC_MD" "$WORK/epic.snapshot"
 }
 
-# --- 4.2 Archive integration, additive cases (written at execution) ---
-# The authored failure case above is GREEN FOR THE WRONG REASON on its own: its
+# --- Archive integration, edge cases ---
+# The failure case above is GREEN FOR THE WRONG REASON on its own: its
 # fixture chmods EPIC.md read-only, so `cmp -s` against the snapshot is
 # satisfied just as well by a step 8 that DOES NOT EXIST as by one that ran and
-# failed. These cases close that gap and pin the decisions step 8 had to make.
-# Each was mutation-checked (break the wiring -> red -> restore -> green).
-# Prefixed `4.2:` so they run inside the existing `--filter '^4\.2:'`.
+# failed. These cases close that gap and pin the decisions step 8 makes.
 
-@test "4.2: archiving really regenerates the index and reports index ok" {
+@test "archiving really regenerates the index and reports index ok" {
   # THE REPAIR of the false green: the same archive with EVERYTHING WRITABLE,
   # where the only way for EPIC.md's bytes to move is a regeneration that
   # actually happened. No absent step 8 can satisfy this.
@@ -524,7 +515,7 @@ EOF
   [[ "$idx" != *"stories/005-gamma"* ]]
 }
 
-@test "4.2: index regeneration runs LAST, after the move and after the status" {
+@test "index regeneration runs LAST, after the move and after the status" {
   # Proven from OUTSIDE the script, two independent ways.
   make_story stories 005-gamma
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-gamma
@@ -544,8 +535,8 @@ EOF
   [ "$s7" -lt "$s8" ]
 }
 
-@test "4.2: a regen failure reports regen-failed, never ok, and still exits 0" {
-  # The authored case pins that the move stands; this one pins WHAT THE REPORT
+@test "a regen failure reports regen-failed, never ok, and still exits 0" {
+  # The regen-failure case pins that the move stands; this one pins WHAT THE REPORT
   # SAYS about it. `ok` here would be the dangerous value: it would tell every
   # consumer the index agrees with the disk while the row is stale.
   make_story stories 005-delta
@@ -565,7 +556,7 @@ EOF
   [[ "$stderr" == *"index=regen-failed"* ]]
 }
 
-@test "4.2: a refusal and a guard block both keep index skipped, never ok" {
+@test "a refusal and a guard block both keep index skipped, never ok" {
   # `skipped` is NOT a synonym for regen-failed. It means step 8 NEVER RAN, so
   # nothing moved and the index still agrees with the disk — a different fact,
   # and the one that must survive on every path that exits before the move.
@@ -577,7 +568,7 @@ EOF
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused" and .index == "skipped"' > /dev/null
   # ...and a guard block, which exits from further down the same pipeline. A NUL
-  # byte is what makes a file non-text for step 2's heuristic (R1.2).
+  # byte is what makes a file non-text for step 2's heuristic.
   make_story stories 002-blob
   printf 'a\000b' > "$PROJ/.epic/stories/002-blob/blob.bin"
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/002-blob
@@ -586,7 +577,7 @@ EOF
   [ ! -d "$PROJ/.epic/archive/002-blob" ]
 }
 
-@test "4.2: a project with no EPIC.md has one created by the archive" {
+@test "a project with no EPIC.md has one created by the archive" {
   # After the move the project still holds exactly one story — the archived one
   # — so the generator's "no stories, stay quiet" branch is unreachable from
   # here and the file IS created. Pinned so the verdict is not re-litigated:
@@ -600,8 +591,8 @@ EOF
   [ "$(row_for 005-gamma)" = "| 005 | [gamma](archive/005-gamma/story.md) | archived | 2/3 | archived |" ]
 }
 
-@test "4.2: hand-written content outside the markers survives a real archive" {
-  # The PARENT TASK's named Risk — clobbering hand-written content — proven end
+@test "hand-written content outside the markers survives a real archive" {
+  # Clobbering hand-written content, proven end
   # to end through archive-story.sh rather than through the generator alone, on
   # the byte-level shapes a line-based splice destroys: no blank line above the
   # start marker, none below the end marker, and NO FINAL NEWLINE.
@@ -627,7 +618,7 @@ EOF
   [[ "$idx" == *"archive/005-gamma"* ]]
 }
 
-@test "4.2: a missing epic-index.sh is regen-failed, and the archive completes" {
+@test "a missing epic-index.sh is regen-failed, and the archive completes" {
   # An older install, or someone deleted the generator. Two things must hold:
   # the archive must NOT die with an empty stdout (every consumer pipes it into
   # jq), and it must NOT report `skipped` — the move completed, so the index is
@@ -653,16 +644,12 @@ EOF
   [[ "$stderr" == *"index=regen-failed"* ]]
 }
 
-# --- 6.1 Manifest-backed rows for stories no longer on disk (R5.1, R5.4) ---
-# design.md:67 says the generator scans stories/ + archive/ + THE MANIFEST. The
-# first two were shipped in 4.1; this closes the third. `.epic/archive/` can be
+# --- Manifest-backed rows for stories no longer on disk ---
+# The generator scans stories/ + archive/ + THE MANIFEST. `.epic/archive/` can be
 # pruned — the manifest is the permanent record that outlives it, so a story
 # recorded there and gone from disk must still get a row, from the numbers
 # archive-story.sh DERIVED at move time, and with no link to a directory that
 # is not there.
-# Each case below was mutation-checked (break the specific line it pins ->
-# case red -> restore -> green). Prefixed `6.1:` so they run under
-# `bats --filter '^6\.1:'`.
 
 # row_with <cell-text> - the generated row whose Story cell is exactly that.
 # row_for cannot see a manifest row: it matches on the link target, and a
@@ -732,17 +719,16 @@ man_entry() {
 EOF
 }
 
-# man_torn <story> <number> <slug> - a LAST entry cut off mid-append. This is
-# not a hypothetical: the append lock serializes WRITERS, NOT READERS, and the
-# append is one write(2) per line, so a reader running during an archive sees
-# exactly this prefix (deviations.yaml, concurrency fix cycle).
+# man_torn <story> <number> <slug> - a LAST entry cut off mid-append. The
+# append lock serializes WRITERS, NOT READERS, and the append is one write(2)
+# per line, so a reader running during an archive sees exactly this prefix.
 #
 # THE TEAR POINT IS THE POINT. It is placed AFTER archived_at, so every field
 # this renderer reads - number, slug, status and all three counts - is present
 # AND well formed. Nothing but the missing `overrides_used` sentinel can reject
 # this entry, which is what makes the case a real discriminator: an earlier cut
-# (measured) is thrown out by the digits check on tasks_deferred instead, and
-# the case then passes with the completeness rule deleted.
+# is thrown out by the digits check on tasks_deferred instead, and the case
+# would then pass with the completeness rule deleted.
 man_torn() {
   cat >> "$PROJ/.epic/archive/manifest.yaml" <<EOF
   - story: "$1"
@@ -760,7 +746,7 @@ man_torn() {
 EOF
 }
 
-@test "6.1: a story only in the manifest keeps its row, with no link at all" {
+@test "a story only in the manifest keeps its row, with no link at all" {
   # The manifest here is written by the REAL archive-story.sh, so the reader is
   # pinned against the writer's own bytes rather than against a transcription
   # of them: key order, indentation, quoting and the 6-space deferred_items
@@ -770,7 +756,7 @@ EOF
   [ "$status" -eq 0 ]
   [ -f "$PROJ/.epic/archive/manifest.yaml" ]
   # ...and then the archived directory is pruned, which is the situation this
-  # sub-task exists for. Only the record survives.
+  # case exists for. Only the record survives.
   rm -rf "$PROJ/.epic/archive/003-webhooks"
   [ ! -e "$PROJ/.epic/archive/003-webhooks" ]
   run --separate-stderr bash "$INDEX_SH"
@@ -781,15 +767,15 @@ EOF
   # 2/3 (+1 deferred) is the recorded census, not a recount of files that are
   # gone.
   [ "$(row_with webhooks)" = "| 003 | webhooks | done | 2/3 (+1 deferred) | archived (directory removed) |" ]
-  # NO href: R5.1 asks for a link resolving to the story's CURRENT location, and
-  # this story has none - a href here would 404 by construction.
+  # NO href: a row links to the story's CURRENT location, and this story has
+  # none - a href here would 404 by construction.
   idx=$(cat "$EPIC_MD")
   [[ "$idx" != *"archive/003-webhooks"* ]]
   [[ "$idx" != *"stories/003-webhooks"* ]]
   [[ "$(row_with webhooks)" != *"]("* ]]
 }
 
-@test "6.1: a torn trailing entry is skipped and the run still succeeds" {
+@test "a torn trailing entry is skipped and the run still succeeds" {
   # The reader must tolerate a half-written last entry. Blocking on it would
   # hand any concurrent archive the power to break the index; rendering it would
   # publish a row assembled from half a record.
@@ -812,7 +798,7 @@ EOF
   [[ "$idx" != *"| 003 |"* ]]
 }
 
-@test "6.1: an absent manifest changes nothing" {
+@test "an absent manifest changes nothing" {
   # Two things, because "changes nothing" has two halves: no manifest must not
   # alter any row, and no manifest must be indistinguishable from a manifest
   # with no entries in it.
@@ -832,7 +818,7 @@ EOF
   cmp -s "$WORK/no-manifest" "$EPIC_MD"
 }
 
-@test "6.1: an unreadable manifest renders every other row and exits 0" {
+@test "an unreadable manifest renders every other row and exits 0" {
   # The index is a rendering, never a gate: a manifest it cannot open costs the
   # manifest rows and nothing else. fail() here would let one unreadable file
   # take the whole index down.
@@ -846,9 +832,9 @@ EOF
   [[ "$(cat "$EPIC_MD")" != *"| beta |"* ]]
 }
 
-@test "6.1: a story still on disk always wins over its manifest entry" {
+@test "a story still on disk always wins over its manifest entry" {
   # An archive that died between the append and the move leaves exactly this:
-  # the entry is written FIRST (R3.4), so the story is recorded AND still in
+  # the entry is written FIRST, so the story is recorded AND still in
   # stories/. It must render ONCE, from disk, with a working link - never as a
   # second row claiming its directory was removed.
   make_story stories 004-delta
@@ -872,8 +858,8 @@ EOF
   [ "$(row_for 005-renamed)" = "| 005 | [renamed](archive/005-renamed/story.md) | done | 2/3 | archived |" ]
   [[ "$(cat "$EPIC_MD")" != *"| original |"* ]]
   # ...and by NAME as well as by number, which is the half a numbered fixture
-  # cannot show (measured: with the name check deleted, the two cases above stay
-  # green because the number catches them). A directory that is not NNN-slug is
+  # cannot show: with the name check deleted, the two cases above stay green
+  # because the number catches them. A directory that is not NNN-slug is
   # recorded with an EMPTY number - archive-story.sh's derive_entry_fields leaves
   # it empty rather than guessing one - so its name is the only identity there is.
   mkdir -p "$PROJ/.epic/stories/notes-scratch"
@@ -887,7 +873,7 @@ EOF
   [[ "$idx" != *"2/2"* ]]
 }
 
-@test "6.1: a recorded value is unescaped, not just stripped of its quotes" {
+@test "a recorded value is unescaped, not just stripped of its quotes" {
   # Every manifest scalar was written by archive-story.sh's quote_scalar as ONE
   # double-quoted token whose escapes are the union JSON and YAML decode the
   # same way. Stripping the quotes and stopping would publish the escape itself.
@@ -909,9 +895,9 @@ EOF
   [ "$(row_with quoted)" = "| 006 | quoted | he said \"hi\" and a back\\\\slash | 1/1 | archived (directory removed) |" ]
 }
 
-@test "6.1: manifest rows sort among the disk rows and regen stays a no-op" {
-  # R5.4 has to keep holding with manifest rows in play, and manifest rows have
-  # to take their place on the SAME number axis as disk rows - a manifest row
+@test "manifest rows sort among the disk rows and regen stays a no-op" {
+  # Regeneration stays a byte-for-byte no-op with manifest rows in play, and
+  # manifest rows have to take their place on the SAME number axis as disk rows - a manifest row
   # appended after the sort would order by where it was read, not by its number.
   # Mixed widths on purpose: a lexicographic sort puts 010 and 100 before 2.
   mk_story stories 010-jay draft
@@ -932,19 +918,15 @@ EOF
   cp "$EPIC_MD" "$WORK/snap"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  # Second regeneration with no state change: zero diff (R5.4).
+  # Second regeneration with no state change: zero diff.
   cmp -s "$WORK/snap" "$EPIC_MD"
 }
 
-# --- 6.2 Spike rows render the Verdict status (R5.1) ---
-# design.md:67: "`scale: spike` rows render the Verdict status (007)". A spike
-# has no lifecycle status to show — its conclusion lives in a `## Verdict`
+# --- Spike rows render the Verdict status ---
+# A spike has no lifecycle status to show — its conclusion lives in a `## Verdict`
 # section, and the index must state THAT. The grammar is archive-story.sh's
 # parse_verdict verbatim; only the aggregation differs (preflight decides
 # completion, this renders).
-# Each case below was mutation-checked against the specific line it pins
-# (break -> that case red -> restore -> green). Prefixed `6.2:` so they run
-# under `bats --filter '^6\.2:'`.
 
 # spike_story <area> <dir> [status] - story.md for a `scale: spike` story,
 # carrying a lifecycle status on purpose: the verdict must win over it.
@@ -989,9 +971,9 @@ spike_tasks() {
   } > "$dir/tasks.md"
 }
 
-@test "6.2: a spike renders its Verdict where a lifecycle status would go" {
+@test "a spike renders its Verdict where a lifecycle status would go" {
   # The fixture carries `status: in-progress` in its frontmatter. A spike's
-  # boxes are probe steps and its status is not its conclusion (007 R1.7), so
+  # boxes are probe steps and its status is not its conclusion, so
   # the Verdict must REPLACE it, not sit next to it.
   spike_story stories 001-probe in-progress
   spike_tasks stories 001-probe <<'EOF'
@@ -1007,7 +989,7 @@ EOF
   [[ "$(cat "$EPIC_MD")" != *"in-progress"* ]]
 }
 
-@test "6.2: a promote verdict names the story it was promoted to" {
+@test "a promote verdict names the story it was promoted to" {
   # No story.md at all on the spikes here: that is the shape archive-story.sh
   # documents (a spike is tasks-only), so the scale itself must be readable from
   # tasks.md or the row silently renders as a lifecycle story.
@@ -1046,14 +1028,14 @@ EOF
   [ "$(row_for 003-mesh)" = "| 003 | [mesh](stories/003-mesh/) | promote to 042 (missing) | 1/1 | active |" ]
   [ "$(row_for 004-bare)" = "| 004 | [bare](stories/004-bare/) | promote | 1/1 | active |" ]
   [[ "$(cat "$EPIC_MD")" != *"NNN"* ]]
-  # R5.4 still holds with spike rows in play.
+  # Regeneration stays a no-op with spike rows in play.
   cp "$EPIC_MD" "$WORK/snap"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   cmp -s "$WORK/snap" "$EPIC_MD"
 }
 
-@test "6.2: a spike with no readable Verdict renders the em dash" {
+@test "a spike with no readable Verdict renders the em dash" {
   # Absent is absent. The em dash is the SAME one a story with no `status:`
   # renders - never the frontmatter status, never an invented `open`.
   spike_story stories 001-running in-progress
@@ -1087,19 +1069,16 @@ EOF
   [[ "$idx" != *"promote"* ]]
 }
 
-# --- 3.3 Post-supersede rendering (story 006, R3.7) ---
-# The 4.1 supersede cases above pinned the renderer's contract FORWARD, before
-# any writer for the companion key existed. Story 006's supersede op is that
-# writer, and these cases pin the FULL artifact shape it leaves behind
+# --- Post-supersede rendering ---
+# The generator's supersede cases above pin the renderer's contract on its own;
+# these cases pin the FULL artifact shape the supersede op leaves behind
 # (supersede-mode.md, Closure + Walkthrough): `status: superseded` plus
 # `superseded-by: MMM` in EVERY artifact's frontmatter — tasks.md included,
 # which the renderer must ignore for status — and every open box closed as a
 # terminal `[~] (superseded-by: MMM)`, which progress folds into closed, never
-# into deferred. Both were mutation-checked against a copy of the script with
-# the pointer rendering removed (both red) and with the `(missing)` suffix
-# removed (the second red). Prefixed `3.3:` for `bats --filter '^3\.3:'`.
+# into deferred.
 
-@test "3.3: a story the supersede op closed renders superseded by MMM" {
+@test "a story the supersede op closed renders superseded by MMM" {
   # NNN exactly as steps 2-3 leave it, MMM present in stories/. The fixture is
   # the walkthrough's: one [x] survivor, three boxes closed by the op.
   mk_story stories 042-legacy-import superseded 'superseded-by: 051'
@@ -1132,7 +1111,7 @@ EOF
   [[ "$(cat "$EPIC_MD")" != *"deferred"* ]]
 }
 
-@test "3.3: a superseded story whose successor left the project renders missing" {
+@test "a superseded story whose successor left the project renders missing" {
   # Same post-op shape, but MMM has no directory anywhere - neither stories/
   # nor archive/. The dangling pointer is surfaced, never an error (exit 0).
   mk_story stories 007-dead superseded 'superseded-by: 099'
@@ -1153,11 +1132,9 @@ EOF
   [ "$(row_for 007-dead)" = "| 007 | [dead](stories/007-dead/story.md) | superseded by 099 (missing) | 2/2 | active |" ]
 }
 
-@test "6.2: a non-spike story is untouched by the Verdict rule" {
-  # The regression this sub-task could have shipped: reading a Verdict from a
-  # story that is not a spike. All three rows below carry one and none may show
-  # it - their status column is the lifecycle status, byte for byte what it was
-  # before this rule existed.
+@test "a non-spike story is untouched by the Verdict rule" {
+  # Only a spike reads a Verdict. All three rows below carry one and none may
+  # show it - their status column is the lifecycle status, byte for byte.
   mk_story stories 001-alpha done
   mk_tasks stories 001-alpha <<'EOF'
 - [x] 1 - done
@@ -1165,7 +1142,7 @@ EOF
 - status: wont-do
 - promoted-to: 012
 EOF
-  # No `scale:` key at all - the 340+ legacy stories that predate the field.
+  # No `scale:` key at all - a legacy story that predates the field.
   mkdir -p "$PROJ/.epic/stories/002-legacy"
   {
     echo '---'

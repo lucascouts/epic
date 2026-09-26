@@ -1,13 +1,13 @@
 #!/usr/bin/env bats
-# Story 007, Task 1.1 — scale-aware validation in scripts/validate-story.sh.
-# Contract (R2.1–R2.3):
+# Scale-aware validation in scripts/validate-story.sh.
+# Contract:
 #   - A declared `scale:` outside fast|standard|full|spike is an ERROR naming
 #     both the invalid value and the valid set.
-#   - An ABSENT `scale:` field keeps today's file-presence inference with
-#     byte-identical output (golden captured from the pre-change validator).
+#   - An ABSENT `scale:` field keeps the file-presence inference, with output
+#     byte-identical to the golden below.
 #   - A declared scale contradicting the files present is a WARNING naming both.
 # Spike enum acceptance (a conforming `scale: spike` fixture passing) is
-# asserted in tests/spike-validation.bats (Task 2.2) — not duplicated here.
+# asserted in tests/spike-validation.bats — not duplicated here.
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -60,7 +60,7 @@ created: 2026-08-02
 EOF
 }
 
-# --- R2.1: enum enforcement ---
+# --- Enum enforcement ---
 
 @test "scale: medium is an error naming the value and the valid set" {
   write_story_md "scale: medium"
@@ -125,12 +125,12 @@ EOF
   echo "$output" | grep -q '"status": "pass"'
 }
 
-# --- R2.2: absent scale field = legacy behavior, byte-identical ---
+# --- Absent scale field = legacy behavior, byte-identical ---
 
 @test "absent scale field keeps legacy output byte-identical (golden)" {
-  # Fixture is identical to the one the golden below was captured from,
-  # against the PRE-CHANGE validator (2026-08-02). Any drift — even an added
-  # field or reordered key — is a regression against R2.2.
+  # The golden below is the legacy output for this fixture: a story with no
+  # scale field validates exactly as before. Any drift — even an added field or
+  # reordered key — is a regression.
   cat > "$STORY/story.md" <<'EOF'
 ---
 story: legacy-no-scale
@@ -184,7 +184,7 @@ EOF
   diff <(printf '%s\n' "$GOLDEN") <(printf '%s\n' "$output")
 }
 
-# --- R2.3: declared scale vs files present ---
+# --- Declared scale vs files present ---
 
 @test "scale: spike with a story.md present warns naming both sides" {
   write_story_md "scale: spike"

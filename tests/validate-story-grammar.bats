@@ -1,13 +1,13 @@
 #!/usr/bin/env bats
-# Story 004, sub-task 1.1 — `[~]` checkbox grammar in scripts/validate-story.sh.
-# Contract under test (R3.1, R3.2, R3.5):
+# `[~]` checkbox grammar in scripts/validate-story.sh.
+# Contract under test:
 #   - A `[~]` line with a same-line qualifier among deferred:/waived:/n-a:/
-#     superseded-by: is a VALID closed-state checkbox (R3.1).
+#     superseded-by: is a VALID closed-state checkbox.
 #   - A `[~]` line without a recognized qualifier is an ERROR listing the four
-#     valid qualifier forms (R3.2).
+#     valid qualifier forms.
 #   - `[~]` boxes participate in the box totals: a tasks.md whose only boxes
 #     are qualified `[~]` has parseable tasks, not "no parseable checkbox
-#     tasks" (R3.5 — closed counts include terminal `[~]`).
+#     tasks" (closed counts include terminal `[~]`).
 #   - Legacy fixtures (no `[~]`) keep passing unchanged.
 
 setup() {
@@ -31,7 +31,7 @@ refute_grep() {
 }
 
 # Fast-mode fixture (tasks.md only) whose ONLY checkboxes are `[~]` with the
-# given qualifier. Under the new grammar these are valid closed boxes, so the
+# given qualifier. These are valid closed boxes, so the
 # story must validate clean — not "no parseable checkbox tasks".
 write_tilde_only_tasks() { # $1 = qualifier text, e.g. "waived: tool absent"
   cat > "$STORY/tasks.md" <<EOF
@@ -52,7 +52,7 @@ created: 2026-08-02
 EOF
 }
 
-@test "R3.1: [~] with waived: qualifier is a valid closed checkbox (story passes)" {
+@test "[~] with waived: qualifier is a valid closed checkbox (story passes)" {
   write_tilde_only_tasks "waived: tool absent"
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   [ "$status" -eq 0 ]
@@ -60,7 +60,7 @@ EOF
   refute_grep 'no parseable checkbox tasks'
 }
 
-@test "R3.1: all four qualifier forms are accepted" {
+@test "all four qualifier forms are accepted" {
   local q
   for q in "deferred: waiting on hardware" "waived: user decision" "n-a: not applicable here" "superseded-by: 006"; do
     write_tilde_only_tasks "$q"
@@ -70,7 +70,7 @@ EOF
   done
 }
 
-@test "R3.2: [~] without a qualifier is an error listing the four valid forms" {
+@test "[~] without a qualifier is an error listing the four valid forms" {
   cat > "$STORY/tasks.md" <<'EOF'
 ---
 version: 1
@@ -94,7 +94,7 @@ EOF
   echo "$output" | grep -q 'superseded-by:'
 }
 
-@test "R3.2: [~] with an unrecognized qualifier is an error (fail-closed grammar)" {
+@test "[~] with an unrecognized qualifier is an error (fail-closed grammar)" {
   cat > "$STORY/tasks.md" <<'EOF'
 ---
 version: 1
@@ -115,7 +115,7 @@ EOF
   echo "$output" | grep -q 'superseded-by:'
 }
 
-@test "R3.5: mixed [x]/[ ]/[~] story is accepted with no grammar errors" {
+@test "mixed [x]/[ ]/[~] story is accepted with no grammar errors" {
   cat > "$STORY/tasks.md" <<'EOF'
 ---
 version: 1

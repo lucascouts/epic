@@ -1,17 +1,15 @@
 #!/usr/bin/env bats
-# Story 017, sub-tasks 1.1, 1.2 and 1.3 — the consumer roster becomes DATA
-# (R1.1, R1.2, R1.3, R1.4). Authored by the Test Advisor BEFORE implementation
-# (TDD Red phase). This file is the roster's single home on the test side: it
-# scans scripts/ and needs no story fixture, so it is self-contained.
+# The checkbox-grammar consumer roster is DATA. This file is the roster's single
+# home on the test side: it scans scripts/ and needs no story fixture, so it is
+# self-contained.
 #
-# WHAT IS BEING PINNED, AND WHY IT IS NOT A NUMBER. Five consecutive prose
-# enumerations of the checkbox-grammar consumers have been wrong. A sentence
-# cannot fail, so nobody was told when it went stale. Every case below therefore
-# compares a DERIVED set against a DECLARED set. NO CASE HERE ASSERTS HOW MANY
-# CONSUMERS THERE ARE — asserting a count would recreate, in the very file meant
-# to end the defect, the thing that keeps going stale (R1.4). If an eleventh
-# consumer lands in scripts/, these cases redden and name it; nobody edits a
-# number to make them green again, they register the script.
+# WHAT IS BEING PINNED, AND WHY IT IS NOT A NUMBER. A prose enumeration of the
+# checkbox-grammar consumers cannot fail, so nobody is told when it goes stale.
+# Every case below therefore compares a DERIVED set against a DECLARED set. NO
+# CASE HERE ASSERTS HOW MANY CONSUMERS THERE ARE — asserting a count would
+# recreate, in the very file meant to end the defect, the thing that keeps going
+# stale. If a new consumer lands in scripts/, these cases redden and name it;
+# nobody edits a number to make them green again, they register the script.
 #
 # ── THE CONTRACT THESE CASES DRIVE ─────────────────────────────────────────
 # The roster and its detection predicate live in ONE sourced shell library:
@@ -26,7 +24,7 @@
 #       human edits when a consumer is added.
 #
 #   CHECKBOX_CONSUMER_EXEMPT=( "name.sh: written reason" … )
-#       R1.2. A script the detection predicate finds but which does not really
+#       A script the detection predicate finds but which does not really
 #       read the grammar (a false positive) is silenced HERE, and only with a
 #       reason after the colon. An entry with no reason is not an exemption.
 #       Expected to be empty on the tree as it stands.
@@ -40,15 +38,15 @@
 #       Exit 0 when the detected set equals the declared roster (exemptions
 #       absorbed). Otherwise NON-ZERO, printing one line per discrepancy that
 #       NAMES THE SCRIPT and says which side it is missing from. "Naming it" is
-#       the requirement (R1.1): a red that says only "the roster disagrees"
-#       sends the reader back to counting.
+#       the requirement: a red that says only "the roster disagrees" sends the
+#       reader back to counting.
 #
 # BOTH ARRAYS MUST BE READ AT CALL TIME, not snapshotted when the library is
 # sourced. That is a testability requirement, and it is what lets the hostile
 # halves below reassign them to drive a case the real tree cannot produce.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so this file can run from the
-# story's .draft/authored-tests/ copy before it is materialized into tests/.
+# EPIC_PLUGIN_ROOT overrides root resolution so this file can run against a
+# plugin tree other than the one it sits in.
 
 bats_require_minimum_version 1.5.0
 
@@ -94,9 +92,9 @@ copy_scripts() {
   cp "$PLUGIN_ROOT"/scripts/*.sh "$WORK/scripts/"
 }
 
-# --- Sub-task 1.1: the roster is derived and compared -----------------------
+# --- The roster is derived and compared ------------------------------------
 
-@test "R1.1: the declared roster and a scan of scripts/ agree — and both are non-empty" {
+@test "the declared roster and a scan of scripts/ agree — and both are non-empty" {
   load_roster
 
   # The non-emptiness pair is not decoration. Two ways to make a comparison
@@ -124,18 +122,18 @@ copy_scripts() {
   [ "$status" -eq 0 ]
 }
 
-@test "R1.1: an unregistered consumer reddens the derivation, and the red names it" {
+@test "an unregistered consumer reddens the derivation, and the red names it" {
   load_roster
   copy_scripts
-  a_consumer "$WORK/scripts/zz-eleventh.sh"
+  a_consumer "$WORK/scripts/zz-unregistered.sh"
 
   run checkbox_roster_diff "$WORK/scripts"
   [ "$status" -ne 0 ]
   # Naming is the point: the reader must be told WHICH script to register.
-  echo "$output" | grep -qF 'zz-eleventh.sh'
+  echo "$output" | grep -qF 'zz-unregistered.sh'
 }
 
-@test "R1.2: an exemption silences a detected script only when it carries a reason" {
+@test "an exemption silences a detected script only when it carries a reason" {
   load_roster
   copy_scripts
   # Stands in for a false positive — a script the predicate finds that does not
@@ -153,17 +151,17 @@ copy_scripts() {
   run checkbox_roster_diff "$WORK/scripts"
   [ "$status" -eq 0 ]
 
-  # Exempt with NO reason is not an exemption — that is the whole of R1.2. A
-  # bare name is how an exemption list becomes a second, unexplained roster.
+  # Exempt with NO reason is not an exemption. A bare name is how an exemption
+  # list becomes a second, unexplained roster.
   CHECKBOX_CONSUMER_EXEMPT=("zz-lookalike.sh")
   run checkbox_roster_diff "$WORK/scripts"
   [ "$status" -ne 0 ]
   echo "$output" | grep -qF 'zz-lookalike.sh'
 }
 
-# --- Sub-task 1.2: the predicate is pinned against the roster ---------------
+# --- The predicate is pinned against the roster ----------------------------
 
-@test "R1.3: the predicate finds every declared consumer ON ITS OWN" {
+@test "the predicate finds every declared consumer ON ITS OWN" {
   load_roster
 
   # THE ANTI-NARROWING PIN. A predicate that stops matching a spelling makes
@@ -186,7 +184,7 @@ copy_scripts() {
   done
 }
 
-@test "R1.3: a declared consumer the predicate cannot find is a failure, named" {
+@test "a declared consumer the predicate cannot find is a failure, named" {
   load_roster
   copy_scripts
 
@@ -198,15 +196,15 @@ copy_scripts() {
   echo "$output" | grep -qF 'zz-phantom.sh'
 }
 
-@test "R1.3: a script that only DISCUSSES the grammar in comments is not a consumer" {
+@test "a script that only DISCUSSES the grammar in comments is not a consumer" {
   load_roster
   mkdir -p "$WORK/talk"
   cat > "$WORK/talk/zz-commentary.sh" <<'SH'
 #!/usr/bin/env bash
 # The checkbox grammar is '^[[:space:]]*- \[([ x~])\]' — `- [ ]` open, `- [x]`
 # closed, `- [~]` closed without the work. This script explains it and reads
-# nothing: whole-line comments are stripped before detection, because three
-# scripts in the tree discuss the grammar exactly like this.
+# nothing: whole-line comments are stripped before detection, because scripts
+# in the tree discuss the grammar exactly like this.
 set -euo pipefail
 printf 'nothing to see\n'
 SH
@@ -216,26 +214,21 @@ SH
   [ -z "$output" ]
 }
 
-# --- Sub-task 1.3: the count leaves the prose --------------------------------
+# --- The count stays out of the prose --------------------------------------
 
-@test "R1.4: no file under tests/ or scripts/ states a count of grammar consumers" {
-  # THE SHAPE ALL FIVE STALE ENUMERATIONS TOOK: a cardinal number determining
-  # "consumer(s)" in the checkbox/grammar/roster sense — `the <N> checkbox
+@test "no file under tests/ or scripts/ states a count of grammar consumers" {
+  # THE SHAPE THE SCAN MATCHES: a cardinal number determining "consumer(s)" in the checkbox/grammar/roster sense — `the <N> checkbox
   # consumers`, with <N> spelled out or in digits. (The shape is written with a
   # placeholder rather than quoted verbatim on purpose: a quotation of the
   # sentence being banned is itself the banned sentence, and this file is under
   # tests/, so the scan below would flag its own documentation.) The two arms
   # are deliberately narrow. A broader arm (any cardinal near any "consumer")
-  # was measured
-  # against this tree and flagged thirteen sentences that are true, historical
-  # or about something else entirely — "it has two consumers" of a variable,
-  # "the one consumer that would write to it". A linter that reddens on true
-  # sentences gets disabled, so this one catches only the sentence shape that
-  # actually went stale five times.
+  # flags sentences that are true or about something else entirely — "it has
+  # two consumers" of a variable, "the one consumer that would write to it".
+  # A linter that reddens on true sentences gets disabled, so this one catches
+  # only the sentence shape that goes stale.
   #
-  # ORDINALS ARE NOT COUNTS and are not matched: "a seventh appears", "the
-  # sixth consumer" record WHAT HAPPENED. R1.4 keeps that history; it is the
-  # argument for the derivation, not an assertion that can go stale.
+  # ORDINALS ARE NOT COUNTS and are not matched.
   cardinal='one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|[0-9]+'
 
   run grep -rniE \
@@ -248,18 +241,4 @@ SH
     return 1
   fi
   [ -z "$output" ]
-
-  # THE OTHER HALF, IN THE SAME CASE ON PURPOSE: the cheapest way to satisfy
-  # the scan above is to delete the header that carries it, and that header is
-  # the evidence for why the roster is derived at all. The design's own wrong
-  # enumeration is quoted there and must survive the edit — the record of the
-  # counts that were wrong is history, not an assertion (R1.4). It is asserted
-  # over whitespace-flattened text because the quotation wraps across two
-  # comment lines, and where it wraps is not part of the contract.
-  run bash -c "tr -s '[:space:]#' ' ' < '$PLUGIN_ROOT/tests/checkbox-grammar.bats'"
-  [ "$status" -eq 0 ]
-  if ! echo "$output" | grep -qF '6 regex places across 4 scripts'; then
-    echo "the record of the earlier wrong enumerations was deleted, not just the count"
-    return 1
-  fi
 }

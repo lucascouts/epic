@@ -1,9 +1,7 @@
 #!/usr/bin/env bats
-# Contract tests for scripts/archive-story.sh (story 005 - archive-in-the-flow).
-# Authored Red-first by the Test Advisor from EARS requirements + design contract.
-# Target location after materialization: tests/archive-story.bats
+# Contract tests for scripts/archive-story.sh.
 #
-# Contract under test (design.md, Components 1):
+# Contract under test:
 #   archive-story.sh <NNN|story-dir> [--allow-heavy] [--skip-secrets]
 #                    [--keep-logs] [--keep-copies] [--force <reason>]
 #   JSON on stdout: {story, status: archived|blocked|refused, moved,
@@ -11,9 +9,6 @@
 #                    secrets{}, manifest_entry{}}
 #   Exit 0 only on a completed move; 1 = guard hit / refusal; 2 = invalid input.
 #   Step order: guards -> prune -> manifest append -> move -> status -> index.
-#
-# Test names are prefixed with the sub-task number (e.g. "1.1:") so Red/Green
-# evidence can be produced per sub-task via `bats --filter '^1\.1:'`.
 
 bats_require_minimum_version 1.5.0
 
@@ -86,7 +81,7 @@ EOF
 }
 
 # make_spike <dir-name> <verdict-status> [promoted-to] [probe-box]
-# scale: spike (story 007) - tasks-only, no story.md, no R-chain, and a
+# scale: spike - tasks-only, no story.md, no requirements chain, and a
 # mandatory `## Verdict` section that IS the spike's conclusion.
 # The probe box state is a parameter so each case isolates the verdict rule:
 # refusals use a CLOSED box (only the verdict can refuse) and passes use an
@@ -114,14 +109,14 @@ make_spike() {
   return 0
 }
 
-# --- 1.1 Preflight, flags, JSON contract (R1.5, R1.6, R1.7) ---
+# --- Preflight, flags, JSON contract ---
 
-@test "1.1: help flag exits 0" {
+@test "help flag exits 0" {
   run bash "$ARCHIVE_SH" --help
   [ "$status" -eq 0 ]
 }
 
-@test "1.1: unknown flag exits 2 with nothing moved" {
+@test "unknown flag exits 2 with nothing moved" {
   make_story 005-flagged complete
   run bash "$ARCHIVE_SH" .epic/stories/005-flagged --bogus
   [ "$status" -eq 2 ]
@@ -129,19 +124,19 @@ make_spike() {
   [ ! -d "$PROJ/.epic/archive/005-flagged" ]
 }
 
-@test "1.1: incomplete story without --force is refused with the open count" {
+@test "incomplete story without --force is refused with the open count" {
   make_story 005-open incomplete
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-open
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused"' > /dev/null
-  # R1.5: the refusal reports the open items count (2 in this fixture).
+  # The refusal reports the open items count (2 in this fixture).
   echo "$output" | grep -qi 'open'
   echo "$output" | grep -q '2'
   [ -d "$PROJ/.epic/stories/005-open" ]
   [ ! -d "$PROJ/.epic/archive/005-open" ]
 }
 
-@test "1.1: already-archived story is refused untouched" {
+@test "already-archived story is refused untouched" {
   mkdir -p "$PROJ/.epic/archive/004-old"
   cat > "$PROJ/.epic/archive/004-old/story.md" <<'EOF'
 ---
@@ -152,18 +147,16 @@ EOF
   run --separate-stderr bash "$ARCHIVE_SH" .epic/archive/004-old
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused"' > /dev/null
-  # R1.7: nothing modified - story stays, no manifest springs into existence.
+  # Nothing modified - the story stays, no manifest springs into existence.
   [ -d "$PROJ/.epic/archive/004-old" ]
   [ ! -e "$MANIFEST" ]
 }
 
-# Spike preflight (story 007 R1.7, whose CODE lives here in 005's preflight).
-# ADDITIVE cases appended at execution time: the authored suite predates this
-# rule. No assertion above was modified.
+# Spike preflight.
 # A spike is complete for archive purposes ONLY via its Verdict - `wont-do`, or
 # `promote` with a `promoted-to:` target recorded.
 
-@test "1.1: spike with an open verdict is refused" {
+@test "spike with an open verdict is refused" {
   make_spike 005-spike-open open
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-spike-open
   [ "$status" -eq 1 ]
@@ -173,7 +166,7 @@ EOF
   [ ! -e "$MANIFEST" ]
 }
 
-@test "1.1: spike promoted without promoted-to is refused" {
+@test "spike promoted without promoted-to is refused" {
   make_spike 005-spike-nopromo promote
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-spike-nopromo
   [ "$status" -eq 1 ]
@@ -183,7 +176,7 @@ EOF
   [ ! -d "$PROJ/.epic/archive/005-spike-nopromo" ]
 }
 
-@test "1.1: spike with a wont-do verdict passes preflight" {
+@test "spike with a wont-do verdict passes preflight" {
   # Open probe box: only the verdict rule can make this complete.
   make_spike 005-spike-wontdo wont-do "" " "
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-spike-wontdo
@@ -192,15 +185,15 @@ EOF
   echo "$output" | jq -e '.status != "refused"' > /dev/null
 }
 
-@test "1.1: spike promoted with promoted-to passes preflight" {
+@test "spike promoted with promoted-to passes preflight" {
   make_spike 005-spike-promo promote 012 " "
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-spike-promo
   echo "$output" | jq -e '.status != "refused"' > /dev/null
 }
 
-# --- 1.2 Derived manifest, append-before-move (R3.1, R3.2, R3.3, R3.4) ---
+# --- Derived manifest, append-before-move ---
 
-@test "1.2: manifest entry counts are derived from the checkboxes" {
+@test "manifest entry counts are derived from the checkboxes" {
   make_story 005-counts complete
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-counts
   [ "$status" -eq 0 ]
@@ -210,20 +203,20 @@ EOF
   grep -Eq 'tasks_deferred:[[:space:]]*1' "$MANIFEST"
 }
 
-@test "1.2: forced archive records the true open count and the reason" {
+@test "forced archive records the true open count and the reason" {
   make_story 005-forced incomplete
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-forced --force "schedule pressure"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.moved == true' > /dev/null
   [ -d "$PROJ/.epic/archive/005-forced" ]
-  # R3.2: totals expose the truth (3 total, only 1 closed => 2 still open).
+  # Totals expose the truth (3 total, only 1 closed => 2 still open).
   grep -Eq 'tasks_total:[[:space:]]*3' "$MANIFEST"
   grep -Eq 'tasks_closed:[[:space:]]*1' "$MANIFEST"
-  # R1.6: the --force reason lands in the manifest entry.
+  # The --force reason lands in the manifest entry.
   grep -q 'schedule pressure' "$MANIFEST"
 }
 
-@test "1.2: manifest is created with the never-recycled policy header" {
+@test "manifest is created with the never-recycled policy header" {
   make_story 005-header complete
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-header
   [ "$status" -eq 0 ]
@@ -231,25 +224,21 @@ EOF
   grep -qi 'never recycled' "$MANIFEST"
 }
 
-@test "1.2: manifest append failure aborts before anything moves" {
+@test "manifest append failure aborts before anything moves" {
   make_story 005-interrupt complete
   mkdir -p "$PROJ/.epic/archive"
   chmod 555 "$PROJ/.epic/archive"
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-interrupt
-  # R3.4: append is before the move; an unappendable manifest means no move.
+  # The append is before the move; an unappendable manifest means no move.
   [ "$status" -ne 0 ]
   echo "$output" | jq -e . > /dev/null
   [ -d "$PROJ/.epic/stories/005-interrupt" ]
   [ ! -d "$PROJ/.epic/archive/005-interrupt" ]
 }
 
-# ADDITIVE 1.2 cases appended at execution time. Each pins behavior the sub-task
-# mandates that the authored suite leaves unpinned. No assertion above was
-# modified, weakened or deleted.
-
-@test "1.2: interrupted archive keeps its entry and the re-run completes it once" {
-  # R3.4's other half: the authored case pins the append FAILING; this pins the
-  # append SUCCEEDING and the move not completing - the state a kill between
+@test "interrupted archive keeps its entry and the re-run completes it once" {
+  # The other half of append-before-move: the case above pins the append
+  # FAILING; this pins the append SUCCEEDING and the move not completing - the state a kill between
   # step 5 and step 6 leaves behind.
   # The interruption is produced BY the script (a read-only stories/ lets the
   # append through and makes the rename fail) rather than hand-planted: a real
@@ -272,8 +261,8 @@ EOF
   [ "$(grep -c 'story: "005-resume"' "$MANIFEST")" -eq 1 ]
 }
 
-@test "1.2: deferred boxes are recorded as items, not just as a count" {
-  # R4.4: "3 deferred" tells a future reader nothing about what is still owed.
+@test "deferred boxes are recorded as items, not just as a count" {
+  # "3 deferred" tells a future reader nothing about what is still owed.
   # make_story's [~] box carries no qualifier; this adds one that does, so both
   # renderer branches run.
   make_story 005-deferred complete
@@ -293,11 +282,10 @@ EOF
       and contains("(deferred: needs the provider live account)")' > /dev/null
 }
 
-@test "1.2: the entry reports the story's own frontmatter status, never a verdict" {
-  # The corpus failure this replaces: a sweep stamped 71 stories
-  # `complete-merged-to-master`, some of them with 0/14 tasks done. A forced
-  # archive of an in-progress story must say `in-progress` and show the open
-  # boxes (R3.1 derived-not-declared, R3.2 the true open count).
+@test "the entry reports the story's own frontmatter status, never a verdict" {
+  # A forced archive of an in-progress story must say `in-progress` and show
+  # the open boxes: the entry is derived from the artifact, never a declared
+  # verdict.
   make_story 005-truth incomplete
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-truth --force "schedule pressure"
   [ "$status" -eq 0 ]
@@ -307,9 +295,9 @@ EOF
   grep -Eq 'tasks_open:[[:space:]]*2' "$MANIFEST"
 }
 
-# --- 1.3 Move, history preservation, status transition (R1.1, R6.1, R6.2) ---
+# --- Move, history preservation, status transition ---
 
-@test "1.3: complete story moves to .epic/archive with structured report" {
+@test "complete story moves to .epic/archive with structured report" {
   make_story 005-move complete
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-move
   [ "$status" -eq 0 ]
@@ -318,14 +306,14 @@ EOF
   [ ! -d "$PROJ/.epic/stories/005-move" ]
 }
 
-@test "1.3: moved artifacts carry status archived in frontmatter" {
+@test "moved artifacts carry status archived in frontmatter" {
   make_story 005-status complete
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-status
   [ "$status" -eq 0 ]
   grep -q '^status: archived' "$PROJ/.epic/archive/005-status/story.md"
 }
 
-@test "1.3: tracked story preserves git history across the move" {
+@test "tracked story preserves git history across the move" {
   git -C "$PROJ" init -q
   git -C "$PROJ" config user.email test@example.com
   git -C "$PROJ" config user.name "Test"
@@ -337,35 +325,32 @@ EOF
   [ -d "$PROJ/.epic/archive/005-hist" ]
   git -C "$PROJ" add -A
   git -C "$PROJ" commit -qm "archive commit"
-  # R6.1: the rename is tracked - history from before the move is reachable.
+  # The rename is tracked - history from before the move is reachable.
   run git -C "$PROJ" log --follow --format=%s -- .epic/archive/005-hist/story.md
   [ "$status" -eq 0 ]
   echo "$output" | grep -q 'seed story'
 }
 
-@test "1.3: untracked story is moved without git" {
+@test "untracked story is moved without git" {
   git -C "$PROJ" init -q
   make_story 005-loose complete
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-loose
   [ "$status" -eq 0 ]
   [ -d "$PROJ/.epic/archive/005-loose" ]
   [ ! -d "$PROJ/.epic/stories/005-loose" ]
-  # R6.2: plain filesystem move - nothing staged in git for the story.
+  # Plain filesystem move - nothing staged in git for the story.
   run git -C "$PROJ" ls-files -- .epic/archive/005-loose
   [ -z "$output" ]
 }
 
-# ADDITIVE 1.3 cases appended at execution time. No assertion above was
-# modified, weakened or deleted.
-#
-# WHY THEY EXIST: the authored `preserves git history` case above passes with a
-# plain `mv`. It commits first (`git add -A` + commit), and git then recovers
-# the rename by CONTENT SIMILARITY - so `git log --follow` succeeds whichever
+# The `preserves git history` case above also passes with a plain `mv`. It
+# commits first (`git add -A` + commit), and git then recovers the rename by
+# CONTENT SIMILARITY - so `git log --follow` succeeds whichever
 # branch ran, and the case cannot tell `git mv` from `mv`. The cases below
 # inspect the index BEFORE anything is committed, where only `git mv` can have
-# left a trace, which is what actually pins R6.1.
+# left a trace, which is what actually pins history preservation.
 
-@test "1.3: tracked move stages the rename in git before anything is committed" {
+@test "tracked move stages the rename in git before anything is committed" {
   git -C "$PROJ" init -q
   git -C "$PROJ" config user.email test@example.com
   git -C "$PROJ" config user.name "Test"
@@ -385,21 +370,21 @@ EOF
   echo "$output" | grep -q '^R.*\.epic/stories/005-staged/tasks\.md.*\.epic/archive/005-staged/tasks\.md'
 }
 
-@test "1.3: untracked story in a repo leaves the index untouched" {
+@test "untracked story in a repo leaves the index untouched" {
   git -C "$PROJ" init -q
   git -C "$PROJ" config user.email test@example.com
   git -C "$PROJ" config user.name "Test"
   make_story 005-noindex complete
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-noindex
   [ "$status" -eq 0 ]
-  # R6.2, and the mirror image of the case above - it is the pair that makes
+  # The mirror image of the case above - it is the pair that makes
   # either one a discriminator rather than a tautology.
   run git -C "$PROJ" diff --cached -M --name-status
   [ -z "$output" ]
   [ -d "$PROJ/.epic/archive/005-noindex" ]
 }
 
-@test "1.3: partially tracked story still takes the git branch" {
+@test "partially tracked story still takes the git branch" {
   # The rule, stated: ANY tracked file under the story dir means `git mv`.
   # `git mv` on a directory is one rename(2) of the whole directory, so the
   # untracked files travel with it exactly as `mv` would move them while the
@@ -421,9 +406,8 @@ EOF
   [ ! -d "$PROJ/.epic/stories/005-partial" ]
 }
 
-@test "1.3: legacy artifact without a status field has one added, in every artifact" {
-  # The 340+ legacy stories story 004 stays compatible with carry no `status:`
-  # at all. The transition must ADD the field there, not silently skip the file
+@test "legacy artifact without a status field has one added, in every artifact" {
+  # Legacy stories may carry no `status:` at all. The transition must ADD the field there, not silently skip the file
   # - a skipped artifact would sit in archive/ claiming nothing forever.
   local dir="$PROJ/.epic/stories/005-legacy"
   mkdir -p "$dir"
@@ -459,15 +443,13 @@ EOF
 }
 
 # ============================================================================
-# REGRESSION cases from the tech-review fix cycle. ADDITIVE ONLY - no assertion
-# above was modified, weakened or deleted. Each one is named with the sub-task
-# prefix of the code it pins, so it runs inside the existing `^1\.[123]:`
-# filters, and each was mutation-checked (break the fix -> the case fails).
+# Regression cases: each pins a failure mode of the preflight, manifest and
+# move code above.
 # ============================================================================
 
-# --- A + B: one escaping rule that BOTH formats accept ---
+# --- One escaping rule that BOTH formats accept ---
 
-@test "1.2: control characters in a forced reason keep the report and the manifest parseable" {
+@test "control characters in a forced reason keep the report and the manifest parseable" {
   # A --force reason is arbitrary user input by definition - a paste from a
   # coloured terminal carries ESC (0x1b). Escaping only \n \r \t left every
   # other C0 byte raw, and the run still reported exit 0: the story archived
@@ -499,15 +481,14 @@ assert "bs=\b" in r and "ff=\f" in r, r
 ' "$MANIFEST"
 }
 
-# --- C: the append is one write, and the resume keys on a COMPLETE entry ---
+# --- The append is one write, and the resume keys on a COMPLETE entry ---
 
-@test "1.2: a truncated manifest entry blocks instead of being resumed behind" {
-  # The entry used to be emitted as 14+ separate writes, and the resume check
-  # grepped for `  - story: "<id>"` - the FIRST line the writer emits. So a run
-  # killed mid-entry left exactly the token the check looked for, and the
-  # re-run "resumed": it skipped the append, archived the story, exited 0, and
-  # the permanent record became a stub with no tasks_total, no archived_at, no
-  # overrides_used. R3.1 inverted - the entry claims nothing at all, silently.
+@test "a truncated manifest entry blocks instead of being resumed behind" {
+  # `  - story: "<id>"` is the FIRST line the writer emits, so a run killed
+  # mid-entry leaves exactly that line. A resume check keyed on it would
+  # "resume": skip the append, archive the story, exit 0, and leave the
+  # permanent record a stub with no tasks_total, no archived_at, no
+  # overrides_used - an entry that claims nothing at all, silently.
   make_story 005-trunc complete
   chmod 555 "$PROJ/.epic/stories"
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-trunc
@@ -541,8 +522,8 @@ open(p, "w").write("".join(out))
 # Entry LENGTH IN LINES is what makes the append race reproducible. Bash
 # line-buffers stdout, so `printf '%s\n' "$entry" >> file` is one write(2) PER
 # LINE, and every one of those is a seam a concurrent archive can cut into.
-# make_story's 3-box story is a 15-line entry and only tripped under whole-suite
-# contention (1 run in 3); 40 boxes is a ~58-line entry and trips every time.
+# A short entry collides only under heavy contention; 40 boxes give a ~58-line
+# entry that exposes the race reliably.
 make_bulky_story() {
   local dir="$PROJ/.epic/stories/$1" n="${2:-40}" i
   mkdir -p "$dir"
@@ -573,11 +554,8 @@ EOF
 }
 
 # keep_concurrent_evidence <n-runs> - surface AND preserve everything a failure
-# needs. The first version of this test sent all six runs to `> /dev/null 2>&1`,
-# so the day it finally went red there was nothing left to diagnose it with: the
-# corrupt manifest, every run's verdict and every stderr line died with the temp
-# directory, and the bug had to be reproduced from scratch by a separate
-# harness. EVERYTHING is copied out of $WORK (teardown deletes it) and the path
+# needs: the corrupt manifest, every run's verdict and every stderr line would
+# otherwise die with the temp directory. EVERYTHING is copied out of $WORK (teardown deletes it) and the path
 # is printed; inline, only the runs that did NOT archive are echoed, because 80
 # successful JSON reports in a failure report bury the two that matter.
 keep_concurrent_evidence() {
@@ -599,13 +577,13 @@ keep_concurrent_evidence() {
   echo "--- every run's stdout/stderr and the manifest preserved in $keep ---"
 }
 
-@test "1.2: concurrent first-runs keep one header and lose no entry" {
+@test "concurrent first-runs keep one header and lose no entry" {
   # TWO bugs, one case.
   #
   # (1) `manifest_header > "$MANIFEST_FILE"` used `>`, which TRUNCATES. Two runs
   # could both pass `[[ ! -e ]]`, and the second erased the first run's entry
   # while that first run reported exit 0 and moved its story - the moved-story-
-  # without-its-entry state R3.4 exists to make impossible.
+  # without-its-entry state append-before-move exists to make impossible.
   #
   # (2) the append itself was unsynchronized. `printf '%s\n' "$entry" >> file`
   # is NOT one write(2): bash line-buffers, so it is one write PER LINE, and two
@@ -616,13 +594,11 @@ keep_concurrent_evidence() {
   #
   # WHY TEN ROUNDS. A collision needs two writers inside their append at the
   # same instant, and the append is ~60us against a spread of arrival times of
-  # several ms - so ONE burst is a coin flip, not a proof. Measured against the
-  # unfixed code: a single 8-writer burst corrupts about 5-7 times in 10, so ten
-  # independent bursts miss with probability ~1e-4 at worst. Bigger entries do
-  # NOT help (measured: 200 boxes drops the rate to 2/10, because the longer
-  # census de-synchronizes the writers faster than it widens the window), and
-  # neither does a FIFO start barrier (5/10). Repetition is what buys the power;
-  # the deterministic pin of the mechanism itself is the mutual-exclusion case
+  # several ms - so ONE burst is a coin flip, not a proof. Ten independent
+  # bursts make a miss unlikely. Bigger entries do NOT help (the longer census
+  # de-synchronizes the writers faster than it widens the window), and neither
+  # does a FIFO start barrier. Repetition is what buys the power; the
+  # deterministic pin of the mechanism itself is the mutual-exclusion case
   # below. All rounds share ONE manifest, exactly as real archives do, so a
   # single parse at the end catches a corruption from any of them.
   local rounds=10 writers=8 r n idx total=80
@@ -684,7 +660,7 @@ print("OK")
   fi
 }
 
-@test "1.2: an archive cannot append while another run holds the manifest lock" {
+@test "an archive cannot append while another run holds the manifest lock" {
   # The DETERMINISTIC pin of the mechanism the case above can only pin
   # statistically. Mutual exclusion is not "two writers rarely collide" - it is
   # "while one run holds the lock, no other run writes a byte". So this case
@@ -717,7 +693,7 @@ print("OK")
     wait "$archiver" 2> /dev/null || true
     false
   }
-  # The story has not moved either - the append is before the move (R3.4).
+  # The story has not moved either - the append is before the move.
   [ -d "$PROJ/.epic/stories/005-excl" ]
   # Release, and it finishes normally.
   rm -f "$lock"/owner.*
@@ -728,7 +704,7 @@ print("OK")
   jq -e '.status == "archived"' < "$WORK/excl.out" > /dev/null
 }
 
-@test "1.2: a stale manifest lock left by a killed run is broken, not inherited" {
+@test "a stale manifest lock left by a killed run is broken, not inherited" {
   # The append is serialized by a lock directory. A run SIGKILLed inside the
   # critical section cannot release it, and a lock nobody will ever release
   # would wedge every future archive on the machine - the tool blocking forever
@@ -750,7 +726,7 @@ print("OK")
   [ ! -e "$PROJ/.epic/archive/.manifest.lock" ]
 }
 
-@test "1.2: a manifest lock that keeps changing hands is waited for, never broken" {
+@test "a manifest lock that keeps changing hands is waited for, never broken" {
   # The other half of the stale rule, and the one that keeps the break safe: a
   # lock is stale only when ONE identity has held it for the whole timeout. A
   # holder that finishes hands it on to the next run's nonce, which resets the
@@ -760,12 +736,9 @@ print("OK")
   # The simulated holder KEEPS THE DIRECTORY the whole time and only rotates the
   # marker inside it - the new marker is created BEFORE the old one is removed,
   # so the directory is never empty and never legitimately breakable. That is
-  # the point being isolated: identity changed, ownership did not. (An earlier
-  # version of this scaffold let the directory go and then wrote markers into a
-  # path that no longer existed, so the "holder" held nothing, every write went
-  # to stderr, and the case failed on its own scaffolding - hence the
-  # holder-stderr assertion at the end, which turns that into a loud failure
-  # rather than a mysterious one.)
+  # the point being isolated: identity changed, ownership did not. The
+  # holder-stderr assertion at the end turns a scaffold that holds nothing into
+  # a loud failure rather than a mysterious one.
   make_story 005-busy complete
   local lock="$PROJ/.epic/archive/.manifest.lock"
   mkdir -p "$PROJ/.epic/archive"
@@ -803,7 +776,7 @@ print("OK")
   [ ! -e "$lock" ]
 }
 
-@test "1.2: a lock path that cannot be a lock is a verdict, not a 30-second wait" {
+@test "a lock path that cannot be a lock is a verdict, not a 30-second wait" {
   # `mkdir` failing is TWO different answers: EEXIST means somebody holds the
   # lock and waiting is right; anything else (a plain file in the way, a
   # read-only archive directory, ENOSPC) means the lock can never appear and
@@ -825,9 +798,9 @@ print("OK")
   [ "$elapsed" -lt 10 ]
 }
 
-# --- D: a verdict, with JSON, on the paths that used to die silently ---
+# --- A verdict, with JSON, on every path that could otherwise die silently ---
 
-@test "1.1: an unreadable tasks.md is refused with JSON, not a bare non-zero" {
+@test "an unreadable tasks.md is refused with JSON, not a bare non-zero" {
   # `census_tasks` guarded with `[[ -f ]]` and then redirected `done < "$file"`.
   # `-f` says the file EXISTS, not that it opens: a bare failed redirection at
   # top level under `set -e` killed the shell with ZERO bytes on stdout - the
@@ -844,7 +817,7 @@ print("OK")
   [ ! -e "$MANIFEST" ]
 }
 
-@test "1.2: an unreadable clock blocks with JSON, not a bare non-zero" {
+@test "an unreadable clock blocks with JSON, not a bare non-zero" {
   # `ARCHIVED_AT=$(date -Iseconds)` takes the command's status, and `set -e` is
   # armed - so a `date` that fails (and `date -I` is GNU-only, so every BSD or
   # macOS host is that case) ended the run with no JSON at all.
@@ -866,9 +839,9 @@ print("OK")
   [ ! -d "$PROJ/.epic/archive/005-clock" ]
 }
 
-# --- E: a derived value must appear in the artifact it was derived from ---
+# --- A derived value must appear in the artifact it was derived from ---
 
-@test "1.2: a frontmatter value with a trailing comment is not squeezed into the manifest" {
+@test "a frontmatter value with a trailing comment is not squeezed into the manifest" {
   # `tr -d '[:space:]'` deleted whitespace INSIDE the value, not just at its
   # edges: `status: done  # closed early` became `done#closedearly`, which was
   # written verbatim into the permanent record - a derived field that appears
@@ -879,19 +852,21 @@ print("OK")
     "$PROJ/.epic/stories/005-cmt/story.md"
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-cmt
   # The status branch sees `done`, so an incomplete story archives without
-  # --force - which is exactly story 004's rule.
+  # --force, because a status naming a completion state completes the story
+  # whatever the boxes say.
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.manifest_entry.status == "done"' > /dev/null
   grep -Eq 'status:[[:space:]]*"done"' "$MANIFEST"
   # NOT `! grep -q …`: bash's set -e exempts a command inverted with `!`, so
   # such an assertion is a NO-OP anywhere but the last line of the body — and
-  # one appended line turns even a working one into silence. See the 2.2 block.
+  # one appended line turns even a working one into silence. See the secrets
+  # guard section.
   [[ "$(cat "$MANIFEST")" != *closedearly* ]]
 }
 
-# --- F: the destination is derived from the story's PHYSICAL location ---
+# --- The destination is derived from the story's PHYSICAL location ---
 
-@test "1.1: a symlinked story directory is refused, not archived outside the project" {
+@test "a symlinked story directory is refused, not archived outside the project" {
   # `pwd -P` resolves the symlink and EPIC_DIR was re-derived from the physical
   # path, so a `.epic/stories/005-sym -> /elsewhere/shared/stories/005-sym`
   # created /elsewhere/shared/archive/, wrote the manifest there, reported
@@ -911,14 +886,15 @@ print("OK")
   [ -d "$WORK/elsewhere/stories/005-sym" ]
 }
 
-# --- G: a git error is not the same answer as "untracked" ---
+# --- A git error is not the same answer as "untracked" ---
 
-@test "1.3: an ambient GIT_DIR does not send the story down the plain branch" {
+@test "an ambient GIT_DIR does not send the story down the plain branch" {
   # `git -C <dir>` sets the working directory; it does NOT override GIT_DIR /
   # GIT_WORK_TREE / GIT_INDEX_FILE. Any run from a git hook or from
   # `git rebase --exec` exports them, so the probe answered about a DIFFERENT
   # repository - and a tracked story took the plain `mv`, silently dropping the
-  # history R6.1 exists to preserve (or staged the rename into a foreign index).
+  # history the git branch exists to preserve (or staged the rename into a
+  # foreign index).
   git -C "$PROJ" init -q
   git -C "$PROJ" config user.email test@example.com
   git -C "$PROJ" config user.name "Test"
@@ -938,7 +914,7 @@ print("OK")
   [ -z "$output" ]
 }
 
-@test "1.3: a tracked story whose trackedness git cannot answer is blocked, never guessed" {
+@test "a tracked story whose trackedness git cannot answer is blocked, never guessed" {
   # `ls-files --error-unmatch` exits 1 for "untracked" and 128 for "could not
   # answer" (story inside a submodule, path outside the work tree, unreadable
   # index). Collapsing both into "take the plain branch" fails in the UNSAFE
@@ -958,9 +934,9 @@ print("OK")
   [ ! -d "$PROJ/.epic/archive/005-unreadable" ]
 }
 
-# --- H: CRLF artifacts are transitioned, and a partial pass is not silent ---
+# --- CRLF artifacts are transitioned, and a partial pass is not silent ---
 
-@test "1.3: a CRLF artifact gets status archived instead of being silently skipped" {
+@test "a CRLF artifact gets status archived instead of being silently skipped" {
   # `head -1 | grep -q '^---$'` fails on `---\r`, so on a checkout with
   # core.autocrlf=true the artifact was skipped - and the story archived with
   # story.md still claiming `done` while tasks.md said `archived`. The
@@ -986,9 +962,9 @@ open(p, "wb").write(d)
   [ "$status" -ne 0 ]
 }
 
-@test "1.3: an artifact left without frontmatter is named, not passed over in silence" {
-  # The note used to fire only when NOTHING was applied. A PARTIAL application
-  # is the worse case: the story sits in archive/ with its own artifacts
+@test "an artifact left without frontmatter is named, not passed over in silence" {
+  # The note must fire on a PARTIAL application too, not only when NOTHING was
+  # applied. A partial application is the worse case: the story sits in archive/ with its own artifacts
   # contradicting each other, which is the divergence validate-story.sh reports.
   make_story 005-partialfm complete
   printf '# Plain notes, no frontmatter block\n' \
@@ -1001,14 +977,13 @@ open(p, "wb").write(d)
   echo "$stderr" | grep -qi 'disagree'
 }
 
-# --- I: on the resume path, stdout describes what is actually RECORDED ---
+# --- On the resume path, stdout describes what is actually RECORDED ---
 
-@test "1.2: the resumed report describes the recorded entry, not a fresh derivation" {
+@test "the resumed report describes the recorded entry, not a fresh derivation" {
   # Both renderings read the live variables, so a resume re-derived the entry
   # and reported values the manifest does not hold: archived_at always differed
   # (date re-runs) and so did every flag whenever the two runs were invoked
-  # differently. The comment claimed the two "can never disagree"; on this path
-  # they always did.
+  # differently.
   make_story 005-recorded complete
   chmod 555 "$PROJ/.epic/stories"
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-recorded \
@@ -1033,7 +1008,7 @@ open(p, "wb").write(d)
   [[ "$(cat "$MANIFEST")" != *"giving up"* ]]
 }
 
-@test "1.1: a refusal names the orphan entry an interrupted forced run left behind" {
+@test "a refusal names the orphan entry an interrupted forced run left behind" {
   # Run 1 with --force dies before the move; run 2 WITHOUT --force is refused
   # at preflight and never reaches the resume, so the orphan entry has no
   # command of its own to clean it. The refusal has to say so.
@@ -1050,16 +1025,16 @@ open(p, "wb").write(d)
   echo "$output" | jq -e '.reason | contains("--force")' > /dev/null
 }
 
-# --- J: cheap hardening ---
+# --- Cheap hardening ---
 
-@test "1.1: a story directory whose name starts with a dash is reachable after --" {
+@test "a story directory whose name starts with a dash is reachable after --" {
   make_story -005-dashy complete
   run --separate-stderr bash "$ARCHIVE_SH" -- .epic/stories/-005-dashy
   [ "$status" -eq 0 ]
   [ -d "$PROJ/.epic/archive/-005-dashy" ]
 }
 
-@test "1.3: a DANGLING symlink in the destination slot blocks before the move" {
+@test "a DANGLING symlink in the destination slot blocks before the move" {
   # The pre-move check used `[[ -e ]]`, which FOLLOWS the link and is false for
   # a dangling one - so the move went ahead and failed with a bare ENOTDIR.
   make_story 005-dangle complete
@@ -1072,9 +1047,9 @@ open(p, "wb").write(d)
   [ -d "$PROJ/.epic/stories/005-dangle" ]
 }
 
-# --- 2.1 Weight/binary guard (R1.2, R1.4) ---
+# --- Weight/binary guard ---
 
-@test "2.1: text file over 10 MB blocks with the offender listed" {
+@test "text file over 10 MB blocks with the offender listed" {
   make_story 005-heavy complete
   yes 'padding line for the weight guard fixture' \
     | head -c 10485761 > "$PROJ/.epic/stories/005-heavy/big.txt"
@@ -1087,7 +1062,7 @@ open(p, "wb").write(d)
   [ ! -d "$PROJ/.epic/archive/005-heavy" ]
 }
 
-@test "2.1: text file at exactly 10485760 bytes passes the weight guard" {
+@test "text file at exactly 10485760 bytes passes the weight guard" {
   make_story 005-boundary complete
   yes 'padding line for the weight guard fixture' \
     | head -c 10485760 > "$PROJ/.epic/stories/005-boundary/edge.txt"
@@ -1096,7 +1071,7 @@ open(p, "wb").write(d)
   [ -d "$PROJ/.epic/archive/005-boundary" ]
 }
 
-@test "2.1: NUL-containing file blocks as non-text" {
+@test "NUL-containing file blocks as non-text" {
   make_story 005-binary complete
   printf 'ab\0cd' > "$PROJ/.epic/stories/005-binary/blob.dat"
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-binary
@@ -1106,18 +1081,18 @@ open(p, "wb").write(d)
   [ ! -d "$PROJ/.epic/archive/005-binary" ]
 }
 
-@test "2.1: --allow-heavy archives and records the override" {
+@test "--allow-heavy archives and records the override" {
   make_story 005-allowed complete
   yes 'padding line for the weight guard fixture' \
     | head -c 10485761 > "$PROJ/.epic/stories/005-allowed/big.txt"
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-allowed --allow-heavy
   [ "$status" -eq 0 ]
   [ -d "$PROJ/.epic/archive/005-allowed" ]
-  # R1.4: the override is recorded in the manifest entry.
+  # The override is recorded in the manifest entry.
   grep -q 'allow-heavy' "$MANIFEST"
 }
 
-@test "2.1: a node_modules/ tree blocks once, naming the directory, whatever its files weigh" {
+@test "a node_modules/ tree blocks once, naming the directory, whatever its files weigh" {
   make_story 005-deps complete
   local story="$PROJ/.epic/stories/005-deps"
   mkdir -p "$story/node_modules/left-pad" "$story/node_modules/.bin"
@@ -1136,7 +1111,7 @@ open(p, "wb").write(d)
   [ ! -d "$PROJ/.epic/archive/005-deps" ]
 }
 
-@test "2.1: --allow-heavy archives a node_modules/ tree as it is and records the override" {
+@test "--allow-heavy archives a node_modules/ tree as it is and records the override" {
   make_story 005-deps-allowed complete
   local story="$PROJ/.epic/stories/005-deps-allowed"
   mkdir -p "$story/node_modules/left-pad"
@@ -1147,13 +1122,8 @@ open(p, "wb").write(d)
   grep -q 'allow-heavy' "$MANIFEST"
 }
 
-# ADDITIVE 2.1 cases appended at execution time. Each pins behavior the ToDo
-# mandates that the four authored cases above leave unpinned. No assertion above
-# was modified, weakened or deleted, and every case below was mutation-checked
-# (break the fix -> the case fails).
-
-@test "2.1: every offending file is listed, not just the first" {
-  # R1.2 says "list EVERY offending file". A guard that stops at the first one
+@test "every offending file is listed, not just the first" {
+  # The guard lists EVERY offending file. A guard that stops at the first one
   # turns a clean-up into a game of whack-a-mole: block, delete, block again.
   make_story 005-many complete
   local story="$PROJ/.epic/stories/005-many"
@@ -1169,8 +1139,8 @@ open(p, "wb").write(d)
   [ ! -d "$PROJ/.epic/archive/005-many" ]
 }
 
-@test "2.1: each violation carries the offending file's size and its reason" {
-  # R1.2 asks for the size AND the reason per offender. As a NUMBER in a field,
+@test "each violation carries the offending file's size and its reason" {
+  # Each offender carries its size AND its reason. The size as a NUMBER in a field,
   # not a figure a consumer has to fish back out of a prose sentence.
   make_story 005-sized complete
   yes 'padding line for the weight guard fixture' \
@@ -1187,9 +1157,9 @@ open(p, "wb").write(d)
   echo "$output" | jq -e '.reason | contains("10485761")' > /dev/null
 }
 
-@test "2.1: a file inside .draft/ is scanned like any other" {
+@test "a file inside .draft/ is scanned like any other" {
   # The guard walks the whole story tree: a blob is no lighter for sitting one
-  # directory down, and .draft/ is exactly where the corpus put its evidence.
+  # directory down, and .draft/ is where a story's evidence accumulates.
   make_story 005-draftblob complete
   mkdir -p "$PROJ/.epic/stories/005-draftblob/.draft/logs"
   printf 'core\0dump' > "$PROJ/.epic/stories/005-draftblob/.draft/logs/crash.dump"
@@ -1202,9 +1172,8 @@ open(p, "wb").write(d)
   [ ! -d "$PROJ/.epic/archive/005-draftblob" ]
 }
 
-@test "2.1: a UTF-16 text artifact is blocked as non-text, with --allow-heavy as the escape" {
-  # THE RISK NAMED IN THE PARENT TASK, pinned as a decision rather than left to
-  # be rediscovered: a UTF-16 file is real text, and it IS reported as binary,
+@test "a UTF-16 text artifact is blocked as non-text, with --allow-heavy as the escape" {
+  # Pinned as a decision rather than left to be rediscovered: a UTF-16 file is real text, and it IS reported as binary,
   # because every ASCII-range character it holds carries a NUL byte.
   # Kept deliberately. A BOM exemption would miss BOM-less UTF-16 anyway AND
   # hand any 2.3 GB blob a two-byte prefix that buys it a free pass - the exact
@@ -1229,7 +1198,7 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   grep -q 'allow-heavy' "$MANIFEST"
 }
 
-@test "2.1: an empty file and a newline-only file are text, not binary" {
+@test "an empty file and a newline-only file are text, not binary" {
   # `grep -qI .` finds no character on either of them, so reading its exit code
   # as "binary" would block a clean story over an empty placeholder - the guard
   # failing in the direction that costs trust rather than safety.
@@ -1242,7 +1211,7 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   [ -d "$PROJ/.epic/archive/005-emptyish" ]
 }
 
-@test "2.1: a blocked story leaves no manifest entry and no archive directory" {
+@test "a blocked story leaves no manifest entry and no archive directory" {
   # The step order, asserted from the outside: the guard runs BEFORE the append
   # (step 5) and the move (step 6). A blocked story that had already been
   # written into the permanent record would be a record of an archive that
@@ -1259,7 +1228,7 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   [ -f "$PROJ/.epic/stories/005-nowrite/blob.dat" ]
 }
 
-@test "2.1: a file the guard cannot read is a reported verdict, not a silent abort" {
+@test "a file the guard cannot read is a reported verdict, not a silent abort" {
   # `[[ -f ]]` says a file EXISTS, not that it opens. A `grep` that fails on an
   # unreadable file exits 2, and taking that for "no match, therefore text"
   # would clear a file nobody inspected; letting it abort under `set -e` would
@@ -1282,7 +1251,7 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   [ ! -d "$PROJ/.epic/archive/005-opaque" ]
 }
 
-@test "2.1: a tree the guard cannot fully enumerate blocks instead of passing" {
+@test "a tree the guard cannot fully enumerate blocks instead of passing" {
   # The quiet way for a guard to fail is to pass on a tree it never saw: a
   # directory it cannot descend into makes `find` exit non-zero AFTER printing
   # the files it did reach, and a scan that reads only the output would clear a
@@ -1302,13 +1271,12 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   [ ! -d "$PROJ/.epic/archive/005-locked" ]
 }
 
-@test "2.1: a 2 GB-class binary is blocked with the offender and its size listed" {
-  # story.md's success metric, in the shape the corpus actually produced: zeo-002
-  # archived a 2.3 GB binary. The fixture is sparse, so it costs no disk - and
+@test "a 2 GB-class binary is blocked with the offender and its size listed" {
+  # A multi-GB binary must be refused. The fixture is sparse, so it costs no disk - and
   # the guard must not have to READ it to refuse it (size first, then text).
-  make_story 005-zeo complete
-  truncate -s 2469606195 "$PROJ/.epic/stories/005-zeo/vendor-blob.bin"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-zeo
+  make_story 005-huge-binary complete
+  truncate -s 2469606195 "$PROJ/.epic/stories/005-huge-binary/vendor-blob.bin"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-huge-binary
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked"' > /dev/null
   echo "$output" | jq -e '.guard.violations[0].size == 2469606195' > /dev/null
@@ -1318,15 +1286,15 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   # would block it as "non-text" and look just as correct while the 10 MB rule
   # sat broken. The size test runs first precisely so 2.3 GB is never read.
   echo "$output" | jq -e '.guard.violations[0].reason | test("larger than")' > /dev/null
-  [ -d "$PROJ/.epic/stories/005-zeo" ]
-  [ ! -d "$PROJ/.epic/archive/005-zeo" ]
+  [ -d "$PROJ/.epic/stories/005-huge-binary" ]
+  [ ! -d "$PROJ/.epic/archive/005-huge-binary" ]
 }
 
-# --- 2.2 Secrets guard (R1.3, R1.4, R1.8) ---
+# --- Secrets guard ---
 # Gated on gitleaks presence; the fixture key is a FAKE pattern (not a real
 # credential) that the gitleaks aws rule detects.
 
-@test "2.2: gitleaks finding blocks the archive with a findings count" {
+@test "gitleaks finding blocks the archive with a findings count" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
   make_story 005-leaky complete
   printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
@@ -1339,7 +1307,7 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   [ ! -d "$PROJ/.epic/archive/005-leaky" ]
 }
 
-@test "2.2: --skip-secrets bypasses the scan and records the override" {
+@test "--skip-secrets bypasses the scan and records the override" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
   make_story 005-skipped complete
   printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
@@ -1347,12 +1315,12 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-skipped --skip-secrets
   [ "$status" -eq 0 ]
   [ -d "$PROJ/.epic/archive/005-skipped" ]
-  # R1.4: the override is recorded in the manifest entry.
+  # The override is recorded in the manifest entry.
   grep -q 'skip-secrets' "$MANIFEST"
 }
 
-@test "2.2: absent gitleaks proceeds and notes the skipped scan" {
-  # R1.8 - simulate a machine without gitleaks via a PATH that mirrors
+@test "absent gitleaks proceeds and notes the skipped scan" {
+  # Simulate a machine without gitleaks via a PATH that mirrors
   # /usr/bin minus the gitleaks binary.
   mkdir "$WORK/nobin"
   local t
@@ -1369,14 +1337,9 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   printf '%s\n%s\n' "$output" "$stderr" | grep -qi 'gitleaks'
 }
 
-# ADDITIVE 2.2 cases appended at execution time. Each pins behavior the ToDo
-# mandates that the three authored cases above leave unpinned. No assertion
-# above was modified, weakened or deleted, and every case below was
-# mutation-checked (break the fix -> the case fails).
-
 # gl_shim_path <exit-code> - a PATH directory mirroring /usr/bin with a FAKE
 # `gitleaks` that exits with the given code and writes NO report. Same mirroring
-# trick the 1.2 clock case uses; a shim is the only honest way to produce a scan
+# trick the failing-clock case uses; a shim is the only honest way to produce a scan
 # failure, since the real binary cannot be made to fail on demand.
 #
 # The shim's diagnostic is deliberately NASTY - ANSI escapes (which gitleaks
@@ -1399,10 +1362,10 @@ gl_shim_path() {
   printf '%s' "$dir"
 }
 
-@test "2.2: a scan that exits neither 0 nor 1 blocks instead of passing" {
+@test "a scan that exits neither 0 nor 1 blocks instead of passing" {
   # THE difference between "scanned and clean" and "never actually scanned".
   # A scanner that RAN and could not answer is a guard hit like any other -
-  # only an ABSENT scanner is the documented degradation (R1.8). Collapsing the
+  # only an ABSENT scanner is the documented degradation. Collapsing the
   # two turns every broken gitleaks on every machine into a silent free pass.
   make_story 005-scanfail complete
   local p
@@ -1431,7 +1394,7 @@ gl_shim_path() {
   [ ! -e "$MANIFEST" ]
 }
 
-@test "2.2: gitleaks' own fatal exit 1 is a scan failure, not a findings count" {
+@test "gitleaks' own fatal exit 1 is a scan failure, not a findings count" {
   # gitleaks exits 1 for FINDINGS *and* for its own fatal errors - an
   # unparseable config, an unwritable report path, a target that does not exist.
   # So the exit code alone cannot tell "found something" from "never looked",
@@ -1456,13 +1419,10 @@ gl_shim_path() {
   echo "$output" | jq -e '.secrets.error | test("/tmp/") | not' > /dev/null
 }
 
-@test "2.2: exit 0 without a report is a scanner that answered without looking" {
-  # The mirror of the exit-1 fatal above, and the branch no shim reached until
-  # now: a CLEAN exit is trusted only when a report proves a scan happened.
+@test "exit 0 without a report is a scanner that answered without looking" {
+  # The mirror of the exit-1 fatal above: a CLEAN exit is trusted only when a report proves a scan happened.
   # gitleaks writes the report after the scan, so exit 0 with nothing on disk
   # is an answer with no scan behind it — which must not become `findings: 0`.
-  # Found by the orchestrator: mutating this check away left every existing
-  # 2.2 case green, so the branch was implemented but pinned by nothing.
   make_story 005-noreport complete
   local p
   p=$(gl_shim_path 0)
@@ -1482,12 +1442,11 @@ gl_shim_path() {
   [ ! -e "$MANIFEST" ]
 }
 
-@test "2.2: the absent-scanner note says WHAT was skipped, not just the scanner's name" {
-  # The authored case greps stdout+stderr for 'gitleaks' - which the constant
-  # `"scanner": "gitleaks"` key satisfies ON ITS OWN, so it cannot tell a real
-  # note from no note at all (mutation-checked: strip both notes and it still
-  # reports ok). R1.8 asks for the SKIPPED SCAN to be noted, so that is what
-  # this pins, in both registers.
+@test "the absent-scanner note says WHAT was skipped, not just the scanner's name" {
+  # The absent-scanner case above greps stdout+stderr for 'gitleaks' - which
+  # the constant `"scanner": "gitleaks"` key satisfies ON ITS OWN, so it cannot
+  # tell a real note from no note at all. The SKIPPED SCAN must be noted, so
+  # that is what this pins, in both registers.
   mkdir "$WORK/nobin2"
   local t
   for t in /usr/bin/*; do ln -s "$t" "$WORK/nobin2/${t##*/}" 2> /dev/null || true; done
@@ -1505,10 +1464,9 @@ gl_shim_path() {
   echo "$stderr" | grep -q 'UNSCANNED'
 }
 
-@test "2.2: a clean story reports a scan that RAN, and silence still means not-run" {
+@test "a clean story reports a scan that RAN, and silence still means not-run" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
-  # `secrets: {}` used to be the only value there was, so every consumer had to
-  # read silence as safety. A clean archive must now say so POSITIVELY...
+  # Silence must never read as safety: a clean archive says so POSITIVELY...
   make_story 005-clean complete
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-clean
   [ "$status" -eq 0 ]
@@ -1525,10 +1483,10 @@ gl_shim_path() {
   echo "$output" | jq -e '.secrets == {}' > /dev/null
 }
 
-@test "2.2: --skip-secrets on a story that really holds a secret archives, and the skip shows" {
+@test "--skip-secrets on a story that really holds a secret archives, and the skip shows" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
-  # R1.4 on the path that actually exercises the override: the authored case
-  # asserts the exit code and the manifest, but a skip that LOOKS like a clean
+  # The override on the path that actually exercises it: the --skip-secrets
+  # case above asserts the exit code and the manifest, but a skip that LOOKS like a clean
   # scan in the report is worse than no scan at all.
   make_story 005-leakskip complete
   printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
@@ -1541,7 +1499,7 @@ gl_shim_path() {
   echo "$output" | jq -e '.secrets.skipped == "--skip-secrets"' > /dev/null
   # Nothing was measured on this path, so no count claims to be one.
   echo "$output" | jq -e '.secrets.unscanned_files == null' > /dev/null
-  # R1.4: recorded in the entry, on stdout and in the permanent record.
+  # Recorded in the entry, on stdout and in the permanent record.
   echo "$output" | jq -e '.manifest_entry.overrides_used | index("skip-secrets") != null' > /dev/null
   grep -q 'skip-secrets' "$MANIFEST"
   # Archive does not scrub: the file travels as it is...
@@ -1552,9 +1510,9 @@ gl_shim_path() {
   [[ "$(cat "$MANIFEST")" != *AKIAQWERTYUIOPASDFGH* ]]
 }
 
-@test "2.2: the findings count is the real count, not a boolean" {
+@test "the findings count is the real count, not a boolean" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
-  # R1.3 says "reporting the findings count". A guard that answers 1 for any
+  # The guard reports the findings count. A guard that answers 1 for any
   # number of leaks tells the operator nothing about the size of the clean-up.
   make_story 005-two complete
   printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
@@ -1569,7 +1527,7 @@ gl_shim_path() {
   echo "$output" | jq -e '.reason | contains("2 secret")' > /dev/null
 }
 
-@test "2.2: no secret material reaches stdout, stderr or the permanent record" {
+@test "no secret material reaches stdout, stderr or the permanent record" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
   # A guard that quotes the leak into its own diagnostics copies it into every
   # log that captures the run - CI output, shell history, an orchestrator
@@ -1581,8 +1539,7 @@ gl_shim_path() {
   [ "$status" -eq 1 ]
   # `[[ != ]]`, NOT `! grep -q ...`: bash exempts a `!`-inverted command from
   # `set -e`, so a `! cmd` anywhere but the LAST line of a bats test body is a
-  # no-op that can never fail the case. Mutation-checked - with the secret
-  # deliberately spliced into the block reason, the `!` form still reported ok.
+  # no-op that can never fail the case.
   [[ "$output" != *AKIAQWERTYUIOPASDFGH* ]]
   [[ "$stderr" != *AKIAQWERTYUIOPASDFGH* ]]
   [ ! -e "$MANIFEST" ]
@@ -1590,7 +1547,7 @@ gl_shim_path() {
   echo "$output" | jq -e '.secrets.report | test("gitleaks-report.json")' > /dev/null
 }
 
-@test "2.2: a story blocked on secrets leaves no manifest entry and no archive directory" {
+@test "a story blocked on secrets leaves no manifest entry and no archive directory" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
   # The step order, asserted from the outside: the secrets guard runs BEFORE the
   # prune (step 4), the append (step 5) and the move (step 6). A blocked story
@@ -1609,7 +1566,7 @@ gl_shim_path() {
   [ -f "$PROJ/.epic/stories/005-order/story.md" ]
 }
 
-@test "2.2: the scan report lives outside the project and never rides into the archive" {
+@test "the scan report lives outside the project and never rides into the archive" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
   # gitleaks' JSON report holds the MATCHED SECRET, the file and the line. Two
   # places it must never be: world-readable in a shared temp directory, and
@@ -1638,14 +1595,14 @@ gl_shim_path() {
   [ -z "$(find "$PROJ/.epic/archive/005-reportgone" -name '*gitleaks*' -print -quit)" ]
 }
 
-@test "2.2: a file over the scanner's size limit is reported as unscanned, not as clean" {
+@test "a file over the scanner's size limit is reported as unscanned, not as clean" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
   # PINNED AS A DECISION, not left to be rediscovered: --max-target-megabytes 15
-  # makes gitleaks skip any file over 15,000,000 bytes (decimal MB, probed
-  # exactly: 15000000 is scanned, 15000001 is not) WITHOUT saying so - it exits
+  # makes gitleaks skip any file over 15,000,000 bytes (decimal MB: 15000000
+  # is scanned, 15000001 is not) WITHOUT saying so - it exits
   # 0 and reports "no leaks found". A scanner that silently skips the biggest
-  # file in the tree while reporting clean is the exact failure R1.3 exists to
-  # prevent. Step 2 blocks anything over 10 MB, so only --allow-heavy can bring
+  # file in the tree while reporting clean is the exact failure the secrets
+  # guard exists to prevent. Step 2 blocks anything over 10 MB, so only --allow-heavy can bring
   # a file this size to the scanner at all - and when it does, the archive says
   # what the pass does NOT cover.
   make_story 005-toobig complete
@@ -1663,9 +1620,9 @@ gl_shim_path() {
   echo "$stderr" | grep -qi 'skips'
 }
 
-# --- 3.1 Log pruning (R2.1, R2.3) ---
+# --- Log pruning ---
 
-@test "3.1: draft logs collapse into a single summary file" {
+@test "draft logs collapse into a single summary file" {
   make_story 005-logs complete
   mkdir -p "$PROJ/.epic/stories/005-logs/.draft/logs"
   seq 1 20000 > "$PROJ/.epic/stories/005-logs/.draft/logs/build.log"
@@ -1676,7 +1633,7 @@ gl_shim_path() {
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-logs
   [ "$status" -eq 0 ]
   local arch="$PROJ/.epic/archive/005-logs"
-  # R2.1: one summary carrying names + the tail of the most recent log...
+  # One summary carrying names + the tail of the most recent log...
   [ -f "$arch/.draft/logs-summary.md" ]
   grep -q 'build.log' "$arch/.draft/logs-summary.md"
   grep -q 'test-run.log' "$arch/.draft/logs-summary.md"
@@ -1687,27 +1644,20 @@ gl_shim_path() {
   echo "$output" | jq -e '.pruned.logs_kb > 0' > /dev/null
 }
 
-@test "3.1: --keep-logs preserves logs and records the override" {
+@test "--keep-logs preserves logs and records the override" {
   make_story 005-keeplogs complete
   mkdir -p "$PROJ/.epic/stories/005-keeplogs/.draft/logs"
   seq 1 200 > "$PROJ/.epic/stories/005-keeplogs/.draft/logs/build.log"
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-keeplogs --keep-logs
   [ "$status" -eq 0 ]
   [ -f "$PROJ/.epic/archive/005-keeplogs/.draft/logs/build.log" ]
-  # R2.3: the override is recorded.
+  # The override is recorded.
   grep -q 'keep-logs' "$MANIFEST"
 }
 
-# ADDITIVE 3.1 cases appended at execution time. Each pins behavior the ToDo
-# mandates that the two authored cases leave unpinned. No authored assertion was
-# modified, weakened or deleted, and every case below was mutation-checked
-# (break the fix -> the case fails).
-#
-# NOTE ON THE AUTHORED PAIR: `3.1: --keep-logs preserves logs and records the
-# override` was ALREADY GREEN before this sub-task, because nothing pruned at
-# all - it could not tell "the flag was honoured" from "the feature does not
-# exist". It only becomes a discriminator now that the prune exists, which is
-# why `--keep-logs writes no summary at all` sits beside it.
+# `--keep-logs preserves logs and records the override` alone cannot tell "the
+# flag was honoured" from "nothing prunes at all", which is why `--keep-logs
+# writes no summary at all` sits beside it.
 
 # make_log_story <dir-name> [lines] - a COMPLETE story with .draft/logs/build.log
 make_log_story() {
@@ -1717,7 +1667,7 @@ make_log_story() {
   seq 1 "${2:-500}" > "$dir/.draft/logs/build.log"
 }
 
-@test "3.1: a story blocked by the weight guard keeps every log file" {
+@test "a story blocked by the weight guard keeps every log file" {
   # THE STEP ORDER, asserted from outside the script. Prune is the FIRST
   # destructive step in the pipeline, so it must be unreachable on any path that
   # can still return `blocked`. A prune that ran before the guards would collapse
@@ -1735,11 +1685,12 @@ make_log_story() {
   [ ! -e "$story/.draft/logs-summary.md" ]
   echo "$output" | jq -e '.pruned.logs_kb == 0' > /dev/null
   # ...and the prune never announced itself at all. (`[[ != ]]`, not `! grep`:
-  # an inverted command is exempt from set -e - see the 2.2 discovery.)
+  # an inverted command is exempt from set -e - see the note in the secrets
+  # guard's no-secret-material case.)
   [[ "$stderr" != *"prune=logs"* ]]
 }
 
-@test "3.1: a story blocked by the secrets guard keeps every log file" {
+@test "a story blocked by the secrets guard keeps every log file" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
   # The same assertion against the OTHER guard, because the two block from
   # different steps and only running both proves the prune sits after each.
@@ -1755,14 +1706,14 @@ make_log_story() {
   [[ "$stderr" != *"prune=logs"* ]]
 }
 
-@test "3.1: the prune reports itself after both guards, never before" {
+@test "the prune reports itself after both guards, never before" {
   # The other half of the pair: the two cases above prove the prune does not run
   # when a guard blocks; this proves that when it DOES run, it runs last. All
   # three verdicts are key=value lines on stderr, so the ORDER is readable
   # without parsing prose - and `guards_passed=true` is the script's own
   # sequence assertion, stated where a test can see it.
-  make_log_story 005-order31 500
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-order31
+  make_log_story 005-order-logs 500
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-order-logs
   [ "$status" -eq 0 ]
   local weight secrets prune
   weight=$(echo "$stderr" | grep -n 'guard=weight-binary' | head -1 | cut -d: -f1)
@@ -1776,10 +1727,9 @@ make_log_story() {
   echo "$stderr" | grep -q 'prune=logs verdict=pruned.*guards_passed=true'
 }
 
-@test "3.1: logs_kb measures what was actually freed, not a constant" {
-  # The sub-task's Validation criterion is "pruned.logs_kb ~ freed size". A
-  # constant, a boolean or a file count would satisfy the authored `> 0` just as
-  # well, so this asserts the EXACT arithmetic on two fixtures whose log sizes
+@test "logs_kb measures what was actually freed, not a constant" {
+  # pruned.logs_kb must equal the freed size. A constant, a boolean or a file
+  # count would satisfy the basic `> 0` just as well, so this asserts the EXACT arithmetic on two fixtures whose log sizes
   # differ by two orders of magnitude. Rounded UP, deliberately: integer division
   # reports 0 for anything under a kilobyte, and `logs_kb: 0` already means
   # "nothing was freed".
@@ -1804,9 +1754,9 @@ make_log_story() {
   grep -Eq 'logs_kb:[[:space:]]*2930' "$MANIFEST"
 }
 
-@test "3.1: the summary records each log's size and last-modified time, not just its name" {
-  # R2.1 asks for the NAME, the SIZE and the LAST-MODIFIED TIME of every log.
-  # The authored case greps for the two names only - which a summary listing
+@test "the summary records each log's size and last-modified time, not just its name" {
+  # The summary records the NAME, the SIZE and the LAST-MODIFIED TIME of every
+  # log. The basic case greps for the two names only - which a summary listing
   # nothing but names would satisfy exactly as well.
   make_story 005-facts complete
   local d="$PROJ/.epic/stories/005-facts/.draft/logs"
@@ -1827,7 +1777,7 @@ make_log_story() {
   grep -q '2026-08-02 11:30' "$s"
 }
 
-@test "3.1: a single log collapses, and its own tail is the one recorded" {
+@test "a single log collapses, and its own tail is the one recorded" {
   # The degenerate case of "the most recently modified log": one file, which is
   # both the newest and the oldest. It must not crash and must not skip the tail.
   make_story 005-onelog complete
@@ -1844,7 +1794,7 @@ make_log_story() {
   echo "$output" | jq -e '.pruned.logs_kb > 0' > /dev/null
 }
 
-@test "3.1: an empty logs directory produces no summary and reports no prune" {
+@test "an empty logs directory produces no summary and reports no prune" {
   # DECIDED, not left to chance: with no log files there is nothing to record and
   # nothing to replace, so NO summary is written - a file listing zero logs and
   # holding no tail would be a permanent record of nothing. It must also not
@@ -1858,13 +1808,13 @@ make_log_story() {
   echo "$stderr" | grep -q 'prune=logs verdict=none'
 }
 
-@test "3.1: a log that cannot be read is reported and kept, never deleted unrecorded" {
+@test "a log that cannot be read is reported and kept, never deleted unrecorded" {
   # A file whose evidence could not be captured must not be destroyed by the step
   # whose whole purpose is to preserve that evidence. And it must be a REPORTED
   # verdict with JSON on stdout: a bare `set -e` abort would end the run with
   # zero bytes on stdout, which the output contract promises never happens.
   # --allow-heavy is needed to reach step 4 at all - the weight/binary guard
-  # blocks an unreadable file first (2.1), which is the step order doing its job.
+  # blocks an unreadable file first, which is the step order doing its job.
   make_story 005-unreadlog complete
   local d="$PROJ/.epic/stories/005-unreadlog/.draft/logs"
   mkdir -p "$d"
@@ -1893,7 +1843,7 @@ make_log_story() {
   echo "$stderr" | grep -q 'prune=logs verdict=partial'
 }
 
-@test "3.1: a log name with a quote, a space and a newline lands intact in the summary" {
+@test "a log name with a quote, a space and a newline lands intact in the summary" {
   # A file name is arbitrary bytes, and it reaches the summary as CONTENT - so it
   # goes through quote_scalar, the one escaper whose output BOTH JSON and YAML
   # decode the same way, and never through some second rule invented for this
@@ -1929,10 +1879,9 @@ assert sys.argv[2] in names, (sys.argv[2], names)
   [ ! -e "$PROJ/.epic/archive/005-oddname/.draft/logs/$odd" ]
 }
 
-@test "3.1: --keep-logs writes no summary at all" {
-  # The authored --keep-logs case passed BEFORE this sub-task existed, because
-  # nothing pruned - so it cannot tell "the flag was honoured" from "the feature
-  # is missing". This is the half that can: the flag means keep the logs INSTEAD
+@test "--keep-logs writes no summary at all" {
+  # The basic --keep-logs case cannot by itself tell "the flag was honoured"
+  # from "the feature is missing". This is the half that can: the flag means keep the logs INSTEAD
   # of collapsing them, so a run that wrote a summary AND kept the logs would be
   # honouring neither reading.
   make_log_story 005-keepnosum 500
@@ -1946,7 +1895,7 @@ assert sys.argv[2] in names, (sys.argv[2], names)
   echo "$stderr" | grep -q 'prune=logs verdict=skipped reason=--keep-logs'
 }
 
-@test "3.1: an existing logs-summary.md is never overwritten" {
+@test "an existing logs-summary.md is never overwritten" {
   # The summary is the artifact this step produces, so one already sitting there
   # was written by a hand or by an interrupted run. Replacing a document about
   # the logs with a generated one - and then deleting the logs it described - is
@@ -1964,7 +1913,7 @@ assert sys.argv[2] in names, (sys.argv[2], names)
   echo "$stderr" | grep -q 'prune=logs verdict=skipped reason=summary-exists'
 }
 
-# --- 3.1 THE CREDENTIAL DECISION (the hand-off sub-task 2.2 recorded) ---
+# --- The log summary and the secrets scan ---
 # Step 3 scans `.draft/logs/*` as they are, and the summary is written
 # AFTERWARDS - so no guard ever looks at it, and 40 lines of arbitrary log
 # output enter the archive unscanned. ACCEPTED, deliberately: the prune only
@@ -1977,7 +1926,7 @@ assert sys.argv[2] in names, (sys.argv[2], names)
 # AFTER a destructive step, which is what the step order forbids.
 # What is NOT accepted is silence about the guarantee. These two cases pin that.
 
-@test "3.1: an unscanned story says so in the summary it leaves behind" {
+@test "an unscanned story says so in the summary it leaves behind" {
   make_log_story 005-provenance 300
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-provenance --skip-secrets
   [ "$status" -eq 0 ]
@@ -1988,7 +1937,7 @@ assert sys.argv[2] in names, (sys.argv[2], names)
   grep -q 'skip-secrets' "$s"
 }
 
-@test "3.1: a scanned story records the scan, and the two summaries differ" {
+@test "a scanned story records the scan, and the two summaries differ" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
   # The pair is what makes either half a discriminator rather than a constant:
   # in a permanent record, "scanned and clean" and "nobody looked" must not be
@@ -2007,11 +1956,11 @@ assert sys.argv[2] in names, (sys.argv[2], names)
   [[ "$a" != "$b" ]]
 }
 
-@test "3.1: a log too big for the scanner is recorded as unscanned in its own summary" {
+@test "a log too big for the scanner is recorded as unscanned in its own summary" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
   # THE one case where `scanned: true, findings: 0` genuinely does NOT cover the
-  # tail: gitleaks silently skips any file over --max-target-megabytes (2.2's
-  # measured residual - no report entry, no exit code, `INF no leaks found`).
+  # tail: gitleaks silently skips any file over --max-target-megabytes (no
+  # report entry, no exit code, `INF no leaks found`).
   # Step 2 blocks anything over 10 MB, so only --allow-heavy brings a log this
   # size to the scanner at all; when it does, the summary refuses to let a clean
   # verdict stand for lines nothing ever looked at.
@@ -2032,9 +1981,9 @@ assert sys.argv[2] in names, (sys.argv[2], names)
   grep -q '15000000-byte limit' "$s"
 }
 
-# --- 3.2 Byte-identical draft copies (R2.2, R2.3) ---
+# --- Byte-identical draft copies ---
 
-@test "3.2: byte-identical draft copy is removed and differing copy kept" {
+@test "byte-identical draft copy is removed and differing copy kept" {
   make_story 005-copies complete
   local story="$PROJ/.epic/stories/005-copies"
   mkdir -p "$story/.draft"
@@ -2051,7 +2000,7 @@ assert sys.argv[2] in names, (sys.argv[2], names)
   echo "$output" | jq -e '.pruned.copies_removed == 1' > /dev/null
 }
 
-@test "3.2: --keep-copies preserves the duplicate and records the override" {
+@test "--keep-copies preserves the duplicate and records the override" {
   make_story 005-keepcopies complete
   local story="$PROJ/.epic/stories/005-keepcopies"
   mkdir -p "$story/.draft"
@@ -2060,20 +2009,13 @@ assert sys.argv[2] in names, (sys.argv[2], names)
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-keepcopies --keep-copies
   [ "$status" -eq 0 ]
   [ -f "$PROJ/.epic/archive/005-keepcopies/.draft/design.md" ]
-  # R2.3: the override is recorded.
+  # The override is recorded.
   grep -q 'keep-copies' "$MANIFEST"
 }
 
-# ADDITIVE 3.2 cases appended at execution time. Each pins behavior the ToDo
-# mandates that the two authored cases leave unpinned, and every one was
-# mutation-checked (break the fix -> the case fails, restore -> it passes). No
-# authored assertion was modified, weakened or deleted.
-#
-# NOTE ON THE AUTHORED PAIR: `3.2: --keep-copies preserves the duplicate` was
-# ALREADY GREEN before this sub-task, vacuously - nothing pruned, so it could not
-# tell "the flag was honoured" from "the feature does not exist". It becomes a
-# real discriminator now that the prune exists, which is the point of keeping it
-# untouched.
+# `--keep-copies preserves the duplicate` alone cannot tell "the flag was
+# honoured" from "nothing prunes"; the prune cases below are what make it a
+# discriminator.
 
 # make_copy_story <dir-name> - a COMPLETE story with an empty .draft/ ready for
 # the fixture's own files. Echoes nothing; the caller writes the pairs it needs.
@@ -2082,9 +2024,10 @@ make_copy_story() {
   mkdir -p "$PROJ/.epic/stories/$1/.draft"
 }
 
-@test "3.2: a story blocked by the weight guard keeps every .draft copy" {
-  # THE STEP ORDER, asserted from outside the script, for the COPIES half. 3.1
-  # pinned it for the logs half only, and step 4 is destructive on both: a copies
+@test "a story blocked by the weight guard keeps every .draft copy" {
+  # THE STEP ORDER, asserted from outside the script, for the COPIES half. The
+  # log-pruning cases pin it for the logs half, and step 4 is destructive on
+  # both: a copies
   # prune that ran before the guards would delete files for a story that is then
   # refused - and unlike the logs half it writes no summary, so the only record
   # that the file ever existed would be gone with it.
@@ -2101,24 +2044,25 @@ make_copy_story() {
   grep -q 'promoted design body' "$story/.draft/design.md"
   echo "$output" | jq -e '.pruned.copies_removed == 0' > /dev/null
   # ...and the copies prune never announced itself at all. (`[[ != ]]`, not
-  # `! grep`: an inverted command is exempt from set -e - see the 2.2 discovery.)
+  # `! grep`: an inverted command is exempt from set -e - see the note in the
+  # secrets guard's no-secret-material case.)
   [[ "$stderr" != *"prune=copies"* ]]
 }
 
-@test "3.2: the copies prune reports itself after both guards and after the logs prune" {
+@test "the copies prune reports itself after both guards and after the logs prune" {
   # The other half of the pair: the case above proves the copies prune does not
   # run when a guard blocks; this proves that when it DOES run, it runs last -
   # after both guards AND after the logs half, which is the order the summary it
   # must not delete depends on. All four verdicts are key=value lines on stderr,
   # so the ORDER is readable without parsing prose, and `guards_passed=true` is
   # the script's own sequence assertion stated where a test can see it.
-  make_copy_story 005-order32
-  local story="$PROJ/.epic/stories/005-order32"
+  make_copy_story 005-order-copies
+  local story="$PROJ/.epic/stories/005-order-copies"
   mkdir -p "$story/.draft/logs"
   seq 1 500 > "$story/.draft/logs/build.log"
   echo 'promoted design body' > "$story/design.md"
   cp "$story/design.md" "$story/.draft/design.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-order32
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-order-copies
   [ "$status" -eq 0 ]
   local weight secrets logs copies
   weight=$(echo "$stderr" | grep -n 'guard=weight-binary' | head -1 | cut -d: -f1)
@@ -2135,8 +2079,8 @@ make_copy_story() {
   echo "$stderr" | grep -q 'prune=copies verdict=pruned.*guards_passed=true'
 }
 
-@test "3.2: a near-duplicate survives - one byte, one newline, or the same length" {
-  # THE load-bearing word of R2.2 is "byte-identical". A near-duplicate is a
+@test "a near-duplicate survives - one byte, one newline, or the same length" {
+  # THE load-bearing word is "byte-identical". A near-duplicate is a
   # DIFFERENT DOCUMENT - usually the working draft the promoted artifact grew out
   # of, which is exactly what a reader opens .draft/ for. Three shapes, because
   # the plausible wrong implementations each miss a different one: comparing
@@ -2165,8 +2109,8 @@ make_copy_story() {
   echo "$stderr" | grep -q 'prune=copies verdict=clean files_seen=3 compared=3 removed=0'
 }
 
-@test "3.2: identical bytes are a duplicate whatever the permissions and the mtime say" {
-  # R2.2 is about CONTENT. A copy someone chmod'ed or touched is still a copy,
+@test "identical bytes are a duplicate whatever the permissions and the mtime say" {
+  # Duplicate detection is about CONTENT. A copy someone chmod'ed or touched is still a copy,
   # and metadata equality is neither necessary nor sufficient for it - which is
   # why the comparison is cmp on the bytes and not a stat-based shortcut.
   make_copy_story 005-meta
@@ -2184,8 +2128,8 @@ make_copy_story() {
   echo "$output" | jq -e '.pruned.copies_removed == 1' > /dev/null
 }
 
-@test "3.2: copies_removed is a real count, not a boolean" {
-  # The authored case removes exactly one copy, so a boolean, a constant 1 or a
+@test "copies_removed is a real count, not a boolean" {
+  # The first copies case removes exactly one copy, so a boolean, a constant 1 or a
   # "did anything happen" flag satisfies it identically. Three copies is what
   # tells a count from a flag - and the number has to reach the PERMANENT record,
   # not just stdout.
@@ -2206,7 +2150,7 @@ make_copy_story() {
   grep -Eq 'copies_removed:[[:space:]]*3' "$MANIFEST"
 }
 
-@test "3.2: a .draft file with no promoted sibling is never touched" {
+@test "a .draft file with no promoted sibling is never touched" {
   # This is MOST of .draft/, and it is the failure mode that would hurt worst:
   # "prune the drafts" read as "empty .draft/" destroys the working notes the
   # archive exists to keep. A file that is a copy of nothing can never be a
@@ -2230,7 +2174,7 @@ make_copy_story() {
   echo "$stderr" | grep -q 'prune=copies verdict=pruned files_seen=3 compared=1 removed=1'
 }
 
-@test "3.2: a nested draft copy pairs by relative path, never by basename" {
+@test "a nested draft copy pairs by relative path, never by basename" {
   # THE RULE, pinned in both directions, because getting it wrong deletes a file
   # that was never a duplicate. `.draft/<rel>` pairs with `<story>/<rel>`:
   #   .draft/adr/002.md vs a top-level 002.md  -> NOT a pair (different document
@@ -2255,12 +2199,12 @@ make_copy_story() {
   echo "$output" | jq -e '.pruned.copies_removed == 1' > /dev/null
 }
 
-@test "3.2: a draft copy that cannot be read is kept, never assumed identical" {
-  # 3.1's rule for the logs half, and it matters more here: `[[ -f ]]` says a
+@test "a draft copy that cannot be read is kept, never assumed identical" {
+  # The logs half's rule, and it matters more here: `[[ -f ]]` says a
   # file EXISTS, not that it opens, and reading an unreadable file as a duplicate
   # deletes the one copy nobody was able to check. cmp answers 0/1/>1 and only 0
   # deletes. --allow-heavy is needed to reach step 4 at all - the weight/binary
-  # guard blocks an unreadable file first (2.1), which is the step order working.
+  # guard blocks an unreadable file first, which is the step order working.
   make_copy_story 005-unreadcopy
   local story="$PROJ/.epic/stories/005-unreadcopy"
   printf 'promoted design body\n' > "$story/design.md"
@@ -2283,7 +2227,7 @@ make_copy_story() {
   echo "$stderr" | grep -q 'design.md'
 }
 
-@test "3.2: a draft file whose promoted counterpart is a directory is not a duplicate" {
+@test "a draft file whose promoted counterpart is a directory is not a duplicate" {
   # A type mismatch is not a comparison. Both directions: a draft FILE whose
   # promoted path is a DIRECTORY (cmp against a directory is an error, and an
   # error is never "equal"), and a draft DIRECTORY whose promoted path is a FILE
@@ -2308,10 +2252,10 @@ make_copy_story() {
   echo "$stderr" | grep -q 'prune=copies verdict=clean files_seen=2 compared=0 removed=0'
 }
 
-@test "3.2: a symlinked draft copy is left as a link, never deleted" {
+@test "a symlinked draft copy is left as a link, never deleted" {
   # cmp FOLLOWS symlinks, so a link to the promoted artifact reads as
   # "identical". It is left alone anyway: it holds no bytes of its own, so
-  # R2.2's "remove the copy" has nothing to remove, and a symlink is how someone
+  # there is no copy to remove, and a symlink is how someone
   # deliberately wrote down "same file". Two layers keep it safe - `find -type f`
   # never enumerates it, and the loop tests -L again - and only removing BOTH
   # changes the outcome.
@@ -2328,7 +2272,7 @@ make_copy_story() {
   echo "$output" | jq -e '.pruned.copies_removed == 0' > /dev/null
 }
 
-@test "3.2: a promoted artifact that is a symlink into .draft is never made to dangle" {
+@test "a promoted artifact that is a symlink into .draft is never made to dangle" {
   # THE dangerous direction. cmp follows the promoted link, so the pair reads as
   # byte-identical - and deleting the .draft file would leave the promoted
   # artifact pointing at nothing. A removal of a redundant duplicate would have
@@ -2348,7 +2292,7 @@ make_copy_story() {
   echo "$output" | jq -e '.pruned.copies_removed == 0' > /dev/null
 }
 
-@test "3.2: the generated logs summary is not deleted by the copies half" {
+@test "the generated logs summary is not deleted by the copies half" {
   # Step 4 runs the logs half FIRST, so .draft/logs-summary.md exists by the time
   # the copies half enumerates the subtree. It has no promoted sibling, so it is
   # inert - and it must stay that way, because it is now the ONLY record of logs
@@ -2368,12 +2312,11 @@ make_copy_story() {
   echo "$stderr" | grep -q 'prune=copies verdict=clean files_seen=1 compared=0 removed=0'
 }
 
-# --- 4.2 The superseded preflight state (story 006, R3.6) ---
+# --- The superseded preflight state ---
 # `superseded` is the third word in assess_completion's status alternation, and
-# it is the one story 006's supersede op depends on: its step 5 offers the
-# archive by DELEGATING to this script, so the offer is only honest if
-# `superseded` clears the completion gate here. That word shipped with zero
-# coverage - this section is it. Prefixed `4.2:` for `bats --filter '^4\.2:'`.
+# supersede mode depends on it: it offers the archive by DELEGATING to this
+# script, so the offer is only honest if `superseded` clears the completion
+# gate here.
 #
 # TWO cases, because one cannot do both jobs:
 #   - the canonical post-supersede shape has every box closed, so BOX_OPEN is 0
@@ -2382,24 +2325,20 @@ make_copy_story() {
 #     artifact, not the word.
 #   - the second keeps one box open, so the status branch is the ONLY thing
 #     that can complete it. That is the mutation guard: deleting `superseded`
-#     turns it red (verified - the archive is refused with the open count).
-# The interrupted shape is no longer one supersede can WRITE: supersede-mode.md
-# step 3 was reordered to close-then-flip, so the status write is the commit
-# point and an interruption leaves the story visibly unfinished instead. Its
-# Interrupted-Run Recovery says that shape "did not come from this command" -
-# but that is a claim about the WRITER, and this gate is a READER. The shape
-# still arrives: a hand-edited frontmatter, an artifact predating the op.
-# Archive must accept it because assess_completion takes the status OR the
-# boxes, never both (story 004) - a `status:` naming a completion state carries
-# the story through whatever the boxes say. The reorder therefore did not make
-# this case dead, and the guard riding on it stays.
+#     turns it red (the archive is refused with the open count).
+# Supersede itself does not write the interrupted shape (it closes the boxes
+# before flipping the status, so the status write is the commit point), but
+# this gate is a READER, and the shape still arrives: a hand-edited
+# frontmatter, an artifact predating the op. Archive must accept it because
+# assess_completion takes the status OR the boxes, never both - a `status:`
+# naming a completion state carries the story through whatever the boxes say.
 
 # make_superseded_story <dir-name> <MMM> [leftover-open-box]
 # The artifacts as the supersede op leaves them (references/supersede-mode.md,
 # Closure + Walkthrough): `status: superseded` plus the machine-readable
 # `superseded-by: MMM` companion in EVERY artifact with frontmatter, and every
 # open sub-task closed on its own line as a terminal `[~] ... (superseded-by:
-# MMM)` - story 004's checkbox grammar, verbatim.
+# MMM)` - the checkbox grammar, verbatim.
 # A non-empty third argument leaves box 3.1 OPEN - the status-written,
 # closures-unfinished shape described above, however it came to be written.
 make_superseded_story() {
@@ -2439,7 +2378,7 @@ make_superseded_story() {
   return 0
 }
 
-@test "4.2: a superseded story clears the completion gate and archives" {
+@test "a superseded story clears the completion gate and archives" {
   # The walkthrough's own fixture: 042 superseded by 051, one [x] survivor and
   # three boxes the op closed. What the step-5 offer actually hands this script.
   make_superseded_story 042-legacy-import 051
@@ -2466,7 +2405,7 @@ make_superseded_story() {
   grep -q 'superseded-by: 051' "$MANIFEST"
 }
 
-@test "4.2: status superseded archives a story whose closures were interrupted" {
+@test "status superseded archives a story whose closures were interrupted" {
   # THE MUTATION GUARD. One box is still `[ ]`, so BOX_OPEN is 1 and every other
   # branch of assess_completion refuses: only `FM_STATUS == "superseded"` can
   # complete this. Drop that word from the alternation and this case goes red

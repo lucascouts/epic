@@ -1,14 +1,11 @@
 #!/usr/bin/env bats
-# `close-subtask.sh --restate` — the edit the checkbox grammar had no tool for.
+# `close-subtask.sh --restate` — rewrites a deferral's reason without moving the box.
 #
 # WHY THIS EXISTS. A `[~] (deferred: <reason>)` box records a debt AND why it is
 # owed. When the reason stops being true — the blocker was fixed, the cause
 # turned out to be something else — the debt stands but the explanation lies.
-# Before this flag the only way to correct it was editing tasks.md by hand,
-# outside the transaction that takes the census, stamps `status:` and validates.
-# Measured: story 013's three deferral reasons were hand-edited twice in one day
-# for exactly this reason, and the gate "close-subtask.sh remains the only
-# writer of the checkbox grammar" had to be marked `waived` because of it.
+# Without this flag, correcting it means editing tasks.md by hand, outside the
+# transaction that takes the census, stamps `status:` and validates.
 #
 # THE BOX DOES NOT MOVE. Every other path changes a box's state; this one
 # changes only what the box says. The assertions below pin that from both

@@ -6,8 +6,8 @@
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   WORK=$(mktemp -d)
-  mkdir -p "$WORK/proj/.epic/stories/001-teste"
-  STORY="$WORK/proj/.epic/stories/001-teste"
+  mkdir -p "$WORK/proj/.epic/stories/001-test"
+  STORY="$WORK/proj/.epic/stories/001-test"
 }
 
 teardown() {
@@ -28,7 +28,7 @@ run_monitor_once() {
   run timeout 5 bash "$PLUGIN_ROOT/scripts/monitor-stale.sh" --story-days 7
 }
 
-@test "R4.3: a story whose only open boxes are [~] is not reported stale" {
+@test "a story whose only open boxes are [~] is not reported stale" {
   cat > "$STORY/tasks.md" <<'EOF'
 ---
 version: 1
@@ -41,10 +41,10 @@ EOF
   cd "$WORK/proj"
   run_monitor_once
   [ "$status" -eq 0 ]
-  refute_grep '001-teste'
+  refute_grep '001-test'
 }
 
-@test "R4.3: a story with a real [ ] box untouched past the threshold is reported stale" {
+@test "a story with a real [ ] box untouched past the threshold is reported stale" {
   cat > "$STORY/tasks.md" <<'EOF'
 ---
 version: 1
@@ -57,6 +57,6 @@ EOF
   cd "$WORK/proj"
   run_monitor_once
   [ "$status" -eq 0 ]
-  echo "$output" | grep -q '001-teste'
+  echo "$output" | grep -q '001-test'
   echo "$output" | grep -q 'pending tasks'
 }

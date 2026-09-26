@@ -36,19 +36,17 @@
 # actually spent in tokens, which does not age.
 #
 # WHY DEDUPLICATION IS NOT OPTIONAL. The transcript writes one event per
-# content block and REPEATS the same `message.usage` on each. Measured on a
-# real session: 438 assistant events carrying 179 distinct `message.id`s —
-# summing events instead of messages inflates every figure ~2.4x. So usage is
-# summed per DISTINCT `message.id`, and both counts are emitted side by side so
-# a consumer can see the deduplication happened rather than trust that it did.
+# content block and REPEATS the same `message.usage` on each, so summing events
+# instead of messages inflates every figure by the number of content blocks
+# each message carries. So usage is summed per DISTINCT `message.id`, and both
+# counts are emitted side by side so a consumer can see the deduplication happened rather than trust that it did.
 #
 # TWO STREAM SHAPES MARK A SUB-AGENT DIFFERENTLY, and both are read. An
 # interactive session transcript carries `isSidechain` on every assistant event;
 # a `claude -p` stream has no `isSidechain` at all and marks a child by a
-# non-null `parent_tool_use_id` instead (measured: 135 of 358 assistant events
-# in one `-p` run). Reading only the first would attribute every sub-agent token
-# to the orchestrator, silently, on exactly the runs where delegation is what
-# you are trying to measure.
+# non-null `parent_tool_use_id` instead. Reading only the first would attribute
+# every sub-agent token to the orchestrator, silently, on exactly the runs where
+# delegation is what you are trying to measure.
 #
 # WHY `subagent_split_verified` EXISTS. It is `true` once this run actually saw
 # a child event by either marker, and `false` when it did not — so a zeroed
@@ -137,7 +135,7 @@ jq -R -s \
   --arg until "$UNTIL" \
   '
   # `fromdateiso8601` refuses fractional seconds and a numeric offset, and a
-  # transcript carries both (`2026-09-16T18:16:06.296Z`). Normalise before
+  # transcript carries both (`2026-01-02T03:04:05.678Z`). Normalise before
   # parsing rather than after failing: a timestamp this script cannot read is a
   # wall clock it would silently report as 0.
   def ts2epoch:
