@@ -2,6 +2,15 @@
 
 Supersede is the sanctioned story replacement — banner, remap, closure, archive offer. Story `MMM` takes over `NNN`'s scope: `NNN` is closed with a banner pointing at its replacement, every `NNN` artifact flips to `status: superseded` with `superseded-by: MMM`, the index re-renders, and the archive is offered on the spot. `MMM` must already exist before the command runs — creating the replacement is a separate CREATE, so a typo in `--by` can never mint a story.
 
+## Contents
+
+- [Procedure](#procedure)
+- [Refusal Matrix](#refusal-matrix)
+- [Banner Template](#banner-template)
+- [Closure](#closure)
+- [Interrupted-Run Recovery](#interrupted-run-recovery)
+- [Walkthrough](#walkthrough)
+
 **Superseding is one script, never a hand-edit.** [`scripts/supersede-story.sh`](../scripts/supersede-story.sh) runs verify → banner → close-then-flip → index as one fail-closed sequence. This mode supplies the two things only a conversation can — the rationale and the remap targets — calls the script **once**, and surfaces its verdict. It never prepends the banner itself, never closes a box itself and never writes `status: superseded` itself, for the reason [list-mode.md](list-mode.md) gives about the archive (Archive Command): a banner written by hand can claim a remap the checkboxes contradict, and a status written by hand can declare an operation finished over scope that is still open — the false completion `archive-story.sh`'s gate would then wave through.
 
 ## Procedure
@@ -12,7 +21,7 @@ Three steps: **ask**, **call**, **surface and offer**. The mechanical half — t
 2. **Call** — one invocation, which performs the whole mechanical sequence:
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/supersede-story.sh" <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=target>]... [--complete-interrupted]
+epic-supersede <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=target>]... [--complete-interrupted]
 ```
 
 3. **Surface, then offer** — report the verdict out of the JSON ([Output and exit codes](#output-and-exit-codes)), then, on exit 0 only, make [the archive offer](#the-archive-offer).
@@ -152,7 +161,7 @@ Example: `/epic:epic stories supersede 042 --by 051` — story `042-legacy-impor
 Three open sub-tasks (`2.1` and `2.2` as `[ ]`, `3.1` as a deferred `[~]`) → three remap rows; `1.1` gets none. The mode asks for the rationale and for a target per open row — `2.1` is left unanswered on purpose, so it takes the default — and then makes one call:
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/supersede-story.sh" 042 --by 051 \
+epic-supersede 042 --by 051 \
   --rationale 'Vendor retired the v1 export API; 051 rebuilds the import on the v2 bulk endpoint.' \
   --remap '2.2=task 2.3' \
   --remap '3.1=dropped: the v1 sandbox died with the API'

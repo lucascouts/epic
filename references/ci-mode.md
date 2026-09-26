@@ -2,9 +2,20 @@
 
 Use these patterns when running Epic plugin operations programmatically with `claude -p` or the Agent SDK. Every recipe that invokes `/epic:epic` must load the plugin: pass `--plugin-dir "$EPIC_PLUGIN_ROOT"` (a checkout of this repo), or install the plugin first. Do not add `--bare`: it skips plugins, skills, subagents and hooks, and it ignores OAuth logins.
 
+## Contents
+
+- [Validate Stories in CI](#validate-stories-in-ci)
+- [Generate Stories Programmatically](#generate-stories-programmatically)
+- [Validate Implementation Against Story](#validate-implementation-against-story)
+- [List Stories](#list-stories)
+- [GitHub Actions Example](#github-actions-example)
+- [Typed structured output with `--json-schema`](#typed-structured-output-with---json-schema)
+- [Detecting plugin load failures (`system/init` event)](#detecting-plugin-load-failures-systeminit-event)
+- [Notes](#notes)
+
 ## Validate Stories in CI
 
-Run validation as a PR check or CI step. The plugin scripts are bundled at `${CLAUDE_PLUGIN_ROOT}/scripts/` when invoked inside a session; for standalone CI pipelines clone the plugin repo and set `EPIC_PLUGIN_ROOT` to its path:
+Run validation as a PR check or CI step. Inside a session with the plugin enabled, the scripts are on PATH as `epic-validate`, `epic-xref` and the other `epic-*` wrappers; for standalone CI pipelines clone the plugin repo and set `EPIC_PLUGIN_ROOT` to its path:
 
 ```bash
 # Validate structural correctness
@@ -159,4 +170,4 @@ above for an end-to-end CI pipeline.
 - Scripts are standalone bash — no Claude Code dependency for validation
 - For structured output from Claude operations, use `--output-format json`
 - Combine with `--json-schema` for typed structured output (see example above)
-- When invoked inside a Claude session with the Epic plugin enabled, scripts are reachable via `${CLAUDE_PLUGIN_ROOT}/scripts/`
+- Inside a Claude session with the Epic plugin enabled, call the scripts through their `epic-*` wrappers on PATH (`epic-validate`, `epic-xref`, …)

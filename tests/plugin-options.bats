@@ -47,3 +47,25 @@ setup() {
   run bash -c "grep -nE -- '--bare( |\$)' '$ROOT/references/ci-mode.md' | grep -v 'Never use'"
   [ -z "$output" ]
 }
+
+@test "SKILL.md fits the post-compaction budget, standing rules first" {
+  # After compaction Claude Code re-attaches only the first 5,000 tokens of a
+  # skill (about 20,000 characters, before the injected project state). The
+  # rules that must survive sit above the routing, and the file stays well
+  # under the cap so the injected state does not push them out.
+  [ "$(wc -c < "$SKILL")" -lt 17000 ]
+  lang=$(grep -n '^## Language' "$SKILL" | cut -d: -f1)
+  gotchas=$(grep -n '^## Gotchas' "$SKILL" | cut -d: -f1)
+  routing=$(grep -n '^## Command Routing' "$SKILL" | cut -d: -f1)
+  [ "$lang" -lt "$routing" ]
+  [ "$gotchas" -lt "$routing" ]
+}
+
+@test "SKILL.md carries no thinking keyword and no paths gate" {
+  # `ultrathink` anywhere in the body raises effort on every invocation;
+  # `paths:` would keep the skill from triggering in a repo with no .epic yet.
+  run grep -niw 'ultrathink' "$SKILL"
+  [ "$status" -eq 1 ]
+  run grep -n '^paths:' "$SKILL"
+  [ "$status" -eq 1 ]
+}

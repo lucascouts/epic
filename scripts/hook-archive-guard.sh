@@ -23,7 +23,7 @@ FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 
 case "$FILE_PATH" in
   *".epic/archive/"*)
-    echo 'Archived stories are read-only. Use scripts/archive-story.sh for sanctioned archive operations.' >&2
+    echo 'Archived stories are read-only. Use epic-archive for sanctioned archive operations.' >&2
     exit 2
     ;;
 esac

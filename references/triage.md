@@ -2,6 +2,13 @@
 
 Loaded by Create and by Instant before anything is written. Instant reads it with its three pins already set. It lives outside [SKILL.md](../skills/epic/SKILL.md) so a run that does not need it does not carry it.
 
+## Contents
+
+- [Runtime dependency precheck (MANDATORY before Standard/Full triage)](#runtime-dependency-precheck-mandatory-before-standardfull-triage)
+- [Adaptive Modes](#adaptive-modes)
+- [Workflow Variants (Full mode, feature only)](#workflow-variants-full-mode-feature-only)
+- [Triage Protocol](#triage-protocol)
+
 ## Runtime dependency precheck (MANDATORY before Standard/Full triage)
 
 Standard and Full modes ask questions, so they need to know whether anyone can answer. The skill MUST settle that **before** entering the Triage Protocol and MUST tell the user when questions will fall back to prose — do not degrade silently.
@@ -91,7 +98,7 @@ requester:
    - WHEN no favorite and no fitting optional tool exist, record `none — no E2E tooling available` in design.md's `## Tooling Decisions` block AND as a story Constraint.
 
    The recommendation/pause happens at triage **only**. The resolved decision is written to design.md's `## Tooling Decisions` block and the relevant E2E/frontend sub-tasks are annotated in tasks.md — the Executor and Test Advisor consume that decision without re-detecting.
-8. Allocate the story number with `bash scripts/next-story-number.sh` — the one tested allocator, used by single create and batch create alike
+8. Allocate the story number with `epic-next-number` — the one tested allocator, used by single create and batch create alike
 9. Propose output path in `NNN-kebab-case`
 10. If no existing stories in `.epic/stories/`: append EARS primer
 

@@ -2,6 +2,17 @@
 
 Triggered by `/epic:epic stories validate NNN`.
 
+## Contents
+
+- [Post-Implementation Personas](#post-implementation-personas)
+- [Validator Sub-agent](#validator-sub-agent)
+- [Auditor Sub-agent](#auditor-sub-agent)
+- [Validate Mode Procedure](#validate-mode-procedure)
+- [Status Transition (`validated`)](#status-transition-validated)
+- [Integration Warning](#integration-warning)
+- [Archive Offer](#archive-offer)
+- [Index Refresh](#index-refresh)
+
 ## Post-Implementation Personas
 
 These personas are activated **after implementation**, not during story creation. They are optional — activated when the user invokes `/epic:epic validate` on a story directory, or when a sub-agent execution flow completes all tasks.
@@ -143,7 +154,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 6. If gaps found, offer to create new tasks to address them
 7. Apply the status transition for this verdict — see Status Transition (`validated`)
 7a. **Memory write (when memory is available)** — for each `findings[]` entry that is structural by the Auditor's own criterion (likely to recur in this codebase: a recurring scope-creep pattern, a false-positive deviation, a project-specific gate failure) and for each `deviations_reviewed[]` entry with `accurate: false`, write or rewrite one page at `epic/audit/<subject-slug>.md`: H1 = the subject, body = the finding, the story it came from and the file/line evidence. Same subject, same path — a finding seen again rewrites its page, and that rewrite is the supersession. A story-specific bug gets no page; it belongs to the tasks step 6 offers ([mcp-integration.md](mcp-integration.md#memory-mcp))
-8. On a passing verdict, surface **at most one** integration warning when it applies — run `story-git-status.sh` once, then either report its `anchored_commits == 0` sentence or pipe the same JSON into `bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --validate <NNN>`, which writes the sentence or nothing — then offer the archive and refresh the index. See Ordering at the pass point, then Integration Warning (and its precedence table), Archive Offer and Index Refresh
+8. On a passing verdict, surface **at most one** integration warning when it applies — run `story-git-status.sh` once, then either report its `anchored_commits == 0` sentence or pipe the same JSON into `epic-integration --validate <NNN>`, which writes the sentence or nothing — then offer the archive and refresh the index. See Ordering at the pass point, then Integration Warning (and its precedence table), Archive Offer and Index Refresh
 
 ### The verdict is the file; the reply is a courtesy
 
@@ -219,8 +230,8 @@ Step 1 of the pass point. A passing verdict says the work is finished; whether i
 **The warning is rendered by the same script LIST annotates from** — [`scripts/render-integration.sh`](../scripts/render-integration.sh), asked for a different rendering of the same JSON — so the sentence the user reads is the sentence the test suite pins. On a passing verdict, pipe the detector into its `--validate` mode and append whatever comes back to the presented results:
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir> \
-  | bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --validate <NNN>
+epic-git-status <story-dir> \
+  | epic-integration --validate <NNN>
 ```
 
 `<NNN>` is the story number **as the reader knows it** and is interpolated verbatim — pass `006`, not `6`. What the script writes, per the `integrated` field of the detector's JSON (`{story, main_branch, integrated, evidence, anchored_commits, checked_at}`), **documents its three arms rather than prescribing a rendering to perform by hand**:
@@ -262,9 +273,9 @@ this story's commits carry no (NNN) anchor — integration detection cannot see 
 **Run the detector once and decide from its JSON.** The count and `integrated` come out of the same object, so the pipe shown above becomes a second use of that object rather than a second detection — two runs could disagree, and the detector is the expensive half:
 
 ```
-status_json=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir>) || status_json=""
+status_json=$(epic-git-status <story-dir>) || status_json=""
 # then, only when the table below says so:
-printf '%s\n' "$status_json" | bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --validate <NNN>
+printf '%s\n' "$status_json" | epic-integration --validate <NNN>
 ```
 
 **Precedence — apply the first rule that matches.** Left to themselves the two warnings double-fire on one story: a story with no anchored commits has no `message-ref` evidence either, so `integrated` is usually `false` for the very same underlying fact, and the user reads two sentences about one problem.
@@ -319,7 +330,7 @@ Render each line as `N.N — title (qualifier: reason)` — the exact shape `arc
 ### On `[y]`
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/archive-story.sh" <story-dir>
+epic-archive <story-dir>
 ```
 
 The story number (`005`) works in place of the directory — it resolves against the nearest `.epic/`. Pass **no flags**. `--allow-heavy`, `--skip-secrets`, `--keep-logs`, `--keep-copies` and `--force <reason>` are the user's decisions and each is recorded in the manifest entry as an override: an override the engine chose for itself is an override nobody agreed to. Never re-run a blocked archive with a guard flag on your own initiative — report the verdict and let the user ask for the override by name.
@@ -348,7 +359,7 @@ The note names the command, so a logged suggestion is still actionable:
 ```
 Archive suggestion: story 003 is validated and complete (2 deferred, still owed
 externally). To archive it, run:
-  bash "${CLAUDE_PLUGIN_ROOT}/scripts/archive-story.sh" 003
+  epic-archive 003
 ```
 
 ## Index Refresh
@@ -356,7 +367,7 @@ externally). To archive it, run:
 Step 4 of the pass point, and **the single definition of the completion-time refresh** — Run mode invokes it at the end of a completed run and LIST refreshes it opportunistically, both pointing here.
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-index.sh"
+epic-index
 ```
 
 It regenerates the managed block between the `<!-- epic:index:start -->` / `<!-- epic:index:end -->` markers in `.epic/EPIC.md` and preserves every byte outside them.

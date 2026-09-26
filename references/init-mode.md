@@ -2,6 +2,12 @@
 
 Triggered by `/epic:epic init`. Interactive wizard to set up project configuration files.
 
+## Contents
+
+- [Procedure](#procedure)
+- [Rules](#rules)
+- [Versioning Policy](#versioning-policy)
+
 ## Procedure
 
 1. **Scan project** — detect language, framework, dependencies, existing config files
@@ -58,7 +64,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 ### Step 5.1 — Measure before asking
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-gitpolicy.sh"
+epic-gitpolicy
 ```
 
 Run it from the **workspace root** — it resolves `.epic/` against `$PWD` — and read the JSON it prints on stdout with `jq`. Every measurement path exits 0; exit 2 is a usage error only (an argument this script does not take), so a non-zero exit here is a bug in the call, never a finding about the workspace.

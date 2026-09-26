@@ -139,7 +139,7 @@ hasF() { # hasF <label> <block> <fixed string>
   draft=$(section "$ROOT/references/phase-execution.md" '^### Draft Saving' '^### Resume')
   [ -n "$draft" ]
   has "E5 meta" "$draft" "engineering:"
-  out=$(section "$ROOT/skills/epic/SKILL.md" '^## Output Rules' '^### Lifecycle')
+  out=$(cat "$ROOT/references/output-rules.md")
   [ -n "$out" ]
   hasF "E5 frontmatter" "$out" "engineering: experiment | tool | project | product"
   am=$(section "$ROOT/references/triage.md" '^## Adaptive Modes' '^## Workflow Variants')
@@ -307,8 +307,7 @@ hasF() { # hasF <label> <block> <fixed string>
 }
 
 @test "E14: instant is a shortcut with three pins, never a fourth scale" {
-  f="$ROOT/skills/epic/SKILL.md"
-  sec=$(section "$f" '^## Instant' '^## ')
+  sec=$(cat "$ROOT/references/instant-mode.md")
   [ -n "$sec" ]
   hasF "E14 scale pin"  "$sec" '`fast`'
   hasF "E14 level pin"  "$sec" '`experiment`'
@@ -377,7 +376,7 @@ hasF() { # hasF <label> <block> <fixed string>
 }
 
 @test "E19: instant declares what it drops, and the report carries it" {
-  sec=$(section "$ROOT/skills/epic/SKILL.md" '^## Instant' '^## ')
+  sec=$(cat "$ROOT/references/instant-mode.md")
   has "E19 cost" "$sec" "drops protections"
   has "E19 report" "$sec" "reduces protection or documentation"
   has "E19 not only plan" "$sec" "not only in the plan"

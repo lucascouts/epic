@@ -2,15 +2,28 @@
 
 Triggered by `/epic:epic stories`, `/epic:epic stories full`, or `/epic:epic stories NNN`.
 
+## Contents
+
+- [Procedure](#procedure)
+- [Policy Notice](#policy-notice)
+- [Status and Progress](#status-and-progress)
+- [Spike Lifecycle](#spike-lifecycle)
+- [Integration Annotation](#integration-annotation)
+- [Summary View (`/epic:epic stories`)](#summary-view-epicepic-stories)
+- [Detailed View (`/epic:epic stories full`)](#detailed-view-epicepic-stories-full)
+- [Single Story View (`/epic:epic stories NNN`)](#single-story-view-epicepic-stories-nnn)
+- [Archive View (`/epic:epic archive`)](#archive-view-epicepic-archive)
+- [Archive Command (`/epic:epic stories archive NNN[-MMM]|--done`)](#archive-command-epicepic-stories-archive-nnn-mmm--done)
+
 ## Procedure
 
 1. Glob `.epic/stories/*/tasks.md` to find all stories (exclude `.epic/archive/`)
-2. Run the workspace policy lint — `bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-gitpolicy.sh"` from the workspace root — and render the header notice it decides, before the first story row (see Policy Notice). **One invocation for the whole listing, before the per-story loop below**: it measures the workspace, not a story, so its cost is the same at 4 stories and at 400 and there is no gate to apply
+2. Run the workspace policy lint — `epic-gitpolicy` from the workspace root — and render the header notice it decides, before the first story row (see Policy Notice). **One invocation for the whole listing, before the per-story loop below**: it measures the workspace, not a story, so its cost is the same at 4 stories and at 400 and there is no gate to apply
 3. For each story, read the frontmatter (type, scale, version, status) and parse task checkboxes
 4. Take the checkbox census — `total`, `closed` and `deferred` are defined once, in [tasks.md](tasks.md#completion). Census the task list and the Quality Gates separately: each renders its own pair
 5. Derive the story's computed condition from the census (see Status and Progress) — except for a `scale: spike` story, whose condition comes from its `## Verdict` plus one staleness pass for the whole listing (see Spike Lifecycle)
-6. For each story, ask `bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --should-annotate <status> <story-count> <is-stories-full>` whether this story is annotated at all — exit 0 evaluates, exit 1 skips — and on exit 0 pipe `story-git-status.sh` into the same script's `--list` mode and append what it writes (see Integration Annotation). That one decision holds both gates: only `done`/`validated` stories are annotated, and more than 50 stories skips unless the command is `stories full`
-7. Refresh the managed index block opportunistically — `bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-index.sh"`; a non-zero exit warns and never blocks the listing (defined once, in [validate-mode.md](validate-mode.md#index-refresh))
+6. For each story, ask `epic-integration --should-annotate <status> <story-count> <is-stories-full>` whether this story is annotated at all — exit 0 evaluates, exit 1 skips — and on exit 0 pipe `story-git-status.sh` into the same script's `--list` mode and append what it writes (see Integration Annotation). That one decision holds both gates: only `done`/`validated` stories are annotated, and more than 50 stories skips unless the command is `stories full`
+7. Refresh the managed index block opportunistically — `epic-index`; a non-zero exit warns and never blocks the listing (defined once, in [validate-mode.md](validate-mode.md#index-refresh))
 
 ## Policy Notice
 
@@ -19,7 +32,7 @@ Triggered by `/epic:epic stories`, `/epic:epic stories full`, or `/epic:epic sto
 **The decision is the script's; only the wording is this mode's.** [`scripts/epic-gitpolicy.sh`](../scripts/epic-gitpolicy.sh) measures and prints `{git, policy, gitignore_ignores_epic, gitignore_source, tracked_md, tracked_draft, verdict}`, and **the notice fires on exactly one condition — `verdict != "consistent"` — which is read from that JSON and never re-derived here.** No `grep` over `.gitignore` to decide whether `.epic` is ignored, no `git ls-files` to decide whether anything is tracked, no reading of the index at all: the script already asked git, with `--no-index`, which is the only way "tracked *through* an ignoring `.gitignore`" answers truthfully, and a second reading of the same facts would be a second thing to keep in step. Unlike the Integration Annotation below there is no rendering script, so the *sentences* here are this mode's own — which is exactly why the *trigger* must not be.
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-gitpolicy.sh"
+epic-gitpolicy
 ```
 
 Run it from the **workspace root** — it resolves `.epic/` against `$PWD`. Every measurement path exits 0; exit 2 is a usage error only (the script takes no arguments), so a non-zero exit is a bug in the call and never a finding about the workspace. **A failed call, absent `jq`, or output that does not parse all render nothing and never block the listing** — the same silent degradation the annotation takes. "Not computable" must not dress up as a finding.
@@ -53,7 +66,7 @@ Stories in .epic/stories/:
 That is safe today by an invariant of the *script* rather than of the JSON, and it is stated here so a later edit cannot lose it: the non-git object always reports `verdict: "consistent"`, so the gate is never open on the one path where those four keys are missing. **If a future line ever needs a measurement key outside that branch, gate it on `git == true` instead** — the script's own stated consumer requirement, in [`scripts/epic-gitpolicy.sh`](../scripts/epic-gitpolicy.sh)'s header, and the same contract [init-mode.md](init-mode.md#step-51--measure-before-asking) reads it under.
 
 ```bash
-lint=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-gitpolicy.sh" 2>/dev/null) || lint=''
+lint=$(epic-gitpolicy 2>/dev/null) || lint=''
 verdict=$(jq -r '.verdict' <<<"$lint" 2>/dev/null); verdict=${verdict:-consistent}
 policy=$(jq -r '.policy' <<<"$lint" 2>/dev/null);   policy=${policy:-undeclared}
 
@@ -142,7 +155,7 @@ The arms below **document what [`scripts/epic-index.sh`](../scripts/epic-index.s
 **Stale stories and spikes.** A Verdict left `open` is the failure mode the spike scale exists to prevent, so it expires; pending `[ ]` work left untouched is flagged too. **The thresholds and the measurement are [`scripts/monitor-stale.sh`](../scripts/monitor-stale.sh)'s** — pass it the two values from SKILL.md's *Plugin options* (`staleThresholdDays`, `spikeStaleThresholdDays`; the script falls back to 7 and 14 on anything non-numeric). Ask it; never `stat` a file here and never restate a deadline as arithmetic.
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/monitor-stale.sh" --story-days <staleThresholdDays> --spike-days <spikeStaleThresholdDays>
+epic-stale --story-days <staleThresholdDays> --spike-days <spikeStaleThresholdDays>
 ```
 
 One pass over every story, **one invocation for the whole listing** — unlike the per-story git evaluation below, there is no cost rule to apply.
@@ -167,8 +180,8 @@ Both halves are load-bearing: **never create the story without asking** (a promo
 **The annotation is one script, never a prose rendering.** [`scripts/story-git-status.sh`](../scripts/story-git-status.sh) measures and prints `{story, main_branch, integrated, evidence, anchored_commits, checked_at}`; [`scripts/render-integration.sh`](../scripts/render-integration.sh) turns that JSON into the label. This mode pipes one into the other and appends the value that comes back, shown in the requester's language — it never derives the value itself. A rendering rule written down twice is two things to keep in step, and the copy the test suite exercises must be the copy the command runs.
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/story-git-status.sh" <story-dir> \
-  | bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --list
+epic-git-status <story-dir> \
+  | epic-integration --list
 ```
 
 `--list` reads the detector's JSON on **stdin** and writes the bare value; the separator is the list's business, so append it after a ` · `. What it writes, per the `integrated` field, **documents the script's arms — it is not an instruction to render them by hand**:
@@ -190,7 +203,7 @@ Exit 2 from the detector — not a git repository, or story not found — also r
 **Cost rule — a decision, not a rendering.** Each annotation is one git evaluation, so this is where a 400-story project stops paying for 400 of them. The rule is the script's third mode: it reads no stdin, writes no output, and **its exit code is the answer**.
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/render-integration.sh" --should-annotate <status> <story-count> <is-stories-full>
+epic-integration --should-annotate <status> <story-count> <is-stories-full>
 ```
 
 | Exit | Means |
@@ -315,7 +328,7 @@ A `done-except-external` story clears that gate — nothing is open — and is r
 ### Invocation and flags
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/archive-story.sh" <NNN|story-dir> [flags]
+epic-archive <NNN|story-dir> [flags]
 ```
 
 The story number (`003`) resolves against the nearest `.epic/`; a directory path also works.

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Wrapper over scripts/next-story-number.sh, on PATH while the Epic plugin is enabled.
+# Usage is identical to the underlying script.
+exec bash "$(dirname "$0")/../scripts/next-story-number.sh" "$@"

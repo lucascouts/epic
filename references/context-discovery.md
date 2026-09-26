@@ -27,7 +27,7 @@ The hits are injected as a **Prior Knowledge** block in the triage proposal and 
 
 ## Codebase Analysis (standard + full scales)
 
-If existing code is detected, spawn the **Analyst** sub-agent — `run_in_background: false`, and wait for its result: the proposal needs its output ([SKILL.md](personas.md#personas)):
+If existing code is detected, spawn the **Analyst** sub-agent — `run_in_background: false`, and wait for its result: the proposal needs its output ([personas.md](personas.md#personas)):
 
 > "Run Function 1 (Codebase Analysis) of your agent definition for this request.
 >

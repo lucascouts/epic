@@ -150,7 +150,7 @@ Artifacts are the stable interface between phases and between agents. Agents pas
 
 ### Frontmatter contract
 
-Every artifact carries a shared frontmatter block. See [`skills/epic/SKILL.md`](skills/epic/SKILL.md#output-rules):
+Every artifact carries a shared frontmatter block. See [`references/output-rules.md`](references/output-rules.md):
 
 ```yaml
 ---

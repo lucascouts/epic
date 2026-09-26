@@ -91,14 +91,19 @@ the plain register, and both get the context and the example.
 
 ### Question shape
 
+One `AskUserQuestion` call takes 1–4 questions, each with a short `header` (up to 12 characters) and 2–4 options with a `label` and a `description`. Context goes into the question text or an option's description — the tool has no separate field for it:
+
 ```
-question:    "What happens to the other signed-in devices when a user changes their password?"
-             ← the consequence; "invalidate the other tokens?" would ask the mechanism
+header:   "Sessions"
+question: "What happens to the other signed-in devices when a user changes their password? (affects R2.3, token lifetime)"
+          ← the consequence; "invalidate the other tokens?" would ask the mechanism
 options:
-  - "They are all signed out (Recommended)" — "the password change is the moment they wanted the others out; one extra query"
-  - "They keep working until they expire" — "nothing to build; a stolen session survives the change"
-  - "Out of scope for this story"
-context:     "Affects R2.3 (token TTL) and downstream session handling"
+  - label: "Signed out (Recommended)"
+    description: "The password change is the moment they wanted the others out; one extra query"
+  - label: "Keep working"
+    description: "Nothing to build; a stolen session survives the change until it expires"
+  - label: "Out of scope"
+    description: "Leave sessions as they are for this story"
 ```
 
 ### Fallback (headless or AskUserQuestion unavailable)

@@ -39,6 +39,9 @@ render() {
   echo
   echo "- **Story**: $STORY_NAME"
   echo "- **HEAD**: $HEAD_SHA"
+  if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    echo "- **Protocols**: compaction dropped the mode references read before it; the run protocol is $CLAUDE_PLUGIN_ROOT/references/run-mode.md, and every mode's is listed in the Epic skill's Mode Dispatch"
+  fi
   echo
 
   # Counting follows the three-state checkbox grammar: `[ ]` open, `[x]`

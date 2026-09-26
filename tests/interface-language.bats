@@ -51,7 +51,7 @@ has() {
 }
 
 @test "L4: instant states the interface language instead of inheriting the artifacts' English" {
-  inst=$(section "$SKILL" '^## Instant' '^## ')
+  inst=$(cat "$BATS_TEST_DIRNAME/../references/instant-mode.md")
   has "L4 rule" "$inst" "language the request was written in"
   has "L4 not artifacts" "$inst" "about artifacts"
 }

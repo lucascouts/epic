@@ -2,6 +2,19 @@
 
 Triggered by `/epic:epic stories create --batch <doc>`. One interview, N stories.
 
+## Contents
+
+- [Procedure](#procedure)
+- [1. Entry and the source document](#1-entry-and-the-source-document)
+- [2. Derivation](#2-derivation)
+- [3. One consolidated triage](#3-one-consolidated-triage)
+- [4. Reservation — the allocator contract](#4-reservation--the-allocator-contract)
+- [5. One interview](#5-one-interview)
+- [6. Per-story pipeline, unabridged](#6-per-story-pipeline-unabridged)
+- [7. One approval, per-story verdicts](#7-one-approval-per-story-verdicts)
+- [8. Interruption and resume](#8-interruption-and-resume)
+- [What batch does not change](#what-batch-does-not-change)
+
 The interview is the expensive part of creating a story, and creating stories one at a time repeats it wholesale. This mode amortizes the **conversation**. It amortizes nothing else — every story still runs its scale's full pipeline, including Phase 3 with the Test Advisor at engineering level `project` or `product`, and every materialized story still has to pass validation clean.
 
 `<doc>` is a path: an audit report, a proposal, an improvement plan. A batch with no document is out of scope.
@@ -39,7 +52,7 @@ One block, N rows, one confirmation:
 | 1 | `<slug>` | feature | Moderate | full | new contract between services — the architectural signal Full asks for |
 | 2 | `<slug>` | bugfix | Trivial | fast | — |
 
-**A Moderate row is `standard` unless it names an architectural signal.** Scale per row follows the same rule a single create follows ([SKILL.md](triage.md#complexity--mode-recommendation)): Full is opt-in on a signal, never on file count. Row 1 above earns its `full` in the last column — a row that cannot fill that column is a `standard`.
+**A Moderate row is `standard` unless it names an architectural signal.** Scale per row follows the same rule a single create follows ([triage.md](triage.md#complexity--mode-recommendation)): Full is opt-in on a signal, never on file count. Row 1 above earns its `full` in the last column — a row that cannot fill that column is a `standard`.
 
 Below the rows, the batch-wide context gathered once in step 2 — the runtime dependency check, the MCP health-check results and the resolved preferred tooling — then a single "Confirm or adjust?".
 
@@ -50,7 +63,7 @@ Below the rows, the batch-wide context gathered once in step 2 — the runtime d
 On confirmation, and not before, numbers are claimed by [`scripts/next-story-number.sh`](../scripts/next-story-number.sh) — the one tested allocator, used by single create too, so both flows agree by construction instead of by two prose descriptions that drift.
 
 ```bash
-bash scripts/next-story-number.sh --reserve N
+epic-next-number --reserve N
 ```
 
 It emits exactly one JSON object with three keys, and all three are the contract:
@@ -72,7 +85,7 @@ It emits exactly one JSON object with three keys, and all three are the contract
 Every clarification for every Standard/Full member goes into **one round-set**.
 
 - Each question is tagged `[story N/M — slug]`, so an answer is never ambiguous about which story it settles
-- 3-7 questions per `AskUserQuestion` call, as many calls as the round needs
+- 1–4 questions per `AskUserQuestion` call (2–4 options each), as many calls as the round needs
 - **At most 3 rounds for the entire batch** — the existing per-story cap, applied globally. It is a cap on the conversation, not on the stories
 - Ambiguity still standing after round 3 becomes a **documented assumption** in the story it belongs to, exactly as in single create
 
@@ -104,7 +117,7 @@ The batch ends with **one** decision moment carrying **one verdict per story**:
 
 **A skipped proposal keeps its number as a draft seed.** Its reserved directory persists carrying `.draft/meta.yaml` with `phase: 0`, the proposal as triaged, and the `source-doc:` path it derived from. The number is not returned to the pool — releasing it would recycle a number, which this framework does not do — and the seed is recoverable later by resume detection.
 
-**A materialized story gets `status: draft` frontmatter**, and the index is refreshed once at the end of the batch with `bash scripts/epic-index.sh`.
+**A materialized story gets `status: draft` frontmatter**, and the index is refreshed once at the end of the batch with `epic-index`.
 
 ## 8. Interruption and resume
 

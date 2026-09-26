@@ -2,6 +2,18 @@
 
 Use this template for the `tasks.md` file in all story types and scales.
 
+## Contents
+
+- [Template](#template)
+- [Why the Scale Rose](#why-the-scale-rose)
+- [The Declared Scale](#the-declared-scale)
+- [Task Format Rules](#task-format-rules)
+- [Rules](#rules)
+- [Sequencing Guidelines](#sequencing-guidelines)
+- [Gotchas](#gotchas)
+- [Fast Scale Adaptations](#fast-scale-adaptations)
+- [Spike Scale Adaptations](#spike-scale-adaptations)
+
 ## Template
 
 ```markdown

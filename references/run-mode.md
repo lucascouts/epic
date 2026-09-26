@@ -2,6 +2,21 @@
 
 Triggered by `/epic:epic stories run NNN`, `/epic:epic stories NNN run all`, or `/epic:epic stories NNN run N`.
 
+## Contents
+
+- [Procedure](#procedure)
+- [Execution Flags](#execution-flags)
+- [Tech Stack Detection](#tech-stack-detection)
+- [Execution Threshold](#execution-threshold)
+- [Task Execution Flow](#task-execution-flow)
+- [Executor Sub-agent](#executor-sub-agent)
+- [Multi-Tech Review](#multi-tech-review)
+- [Context Passing Between Tasks](#context-passing-between-tasks)
+- [Parallel Execution](#parallel-execution)
+- [Run Mode Rules](#run-mode-rules)
+- [Progress Tracking](#progress-tracking)
+- [Handling Missing Tasks for Quality Gates](#handling-missing-tasks-for-quality-gates)
+
 ## Procedure
 
 1. **Resolve story** — find `.epic/stories/NNN-*/`
@@ -149,7 +164,7 @@ Spawn overhead dominates when the unit is small, and a sub-task here is small by
 Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent section. The orchestrator:
 
 1. Builds the Executor prompt with task fields + story context + design interfaces + tech profile
-2. Spawns the Executor — `run_in_background: false`, result awaited; with `isolation: "worktree"` for parallel tasks, a parallel group being several Agent calls in one message, every one awaited before the next step ([SKILL.md](personas.md#personas))
+2. Spawns the Executor — `run_in_background: false`, result awaited; with `isolation: "worktree"` for parallel tasks, a parallel group being several Agent calls in one message, every one awaited before the next step ([personas.md](personas.md#personas))
 3. Waits for the Executor to complete
 4. Reads the Executor's structured report
 5. If PASS: check for tech boundaries → spawn Tech Reviewers if needed
@@ -167,7 +182,7 @@ For a **delegated** sub-task under the run-time ordering above (Fast, spike, or 
 **Every `[x]` and every `[~]` this engine writes is written by one script.** The orchestrator does not edit a checkbox: not after an Executor, not on the inline route, not when settling a Quality Gate, and never inside a worktree.
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/close-subtask.sh" <NNN|story-dir> <N.N|N|gate:<text-prefix>> \
+epic-close <NNN|story-dir> <N.N|N|gate:<text-prefix>> \
   [--tilde "<qualifier>: <reason>"]
 ```
 
@@ -240,7 +255,7 @@ A refusal names its own reason in `reason`, and each arm is a statement about th
 
 ### Status Transitions
 
-The story's `status:` frontmatter field is **engine-written, never hand-edited**. Run mode owns two of the six values — `in-progress` and `done` — and writes them right after a box in tasks.md is marked. The other four belong elsewhere and Run mode never writes them: `draft` to CREATE, `validated` to VALIDATE, `superseded` to the supersede operation, `archived` to the archive operation. `in-progress` has one further writer, and only for one edge: REFINE mode, when a refinement reopens a story — the table below is the single definition both modes apply. See [SKILL.md](lifecycle-status.md#lifecycle-status-status) for the full field spec.
+The story's `status:` frontmatter field is **engine-written, never hand-edited**. Run mode owns two of the six values — `in-progress` and `done` — and writes them right after a box in tasks.md is marked. The other four belong elsewhere and Run mode never writes them: `draft` to CREATE, `validated` to VALIDATE, `superseded` to the supersede operation, `archived` to the archive operation. `in-progress` has one further writer, and only for one edge: REFINE mode, when a refinement reopens a story — the table below is the single definition both modes apply. See [lifecycle-status.md](lifecycle-status.md#lifecycle-status-status) for the full field spec.
 
 **When the check runs:** after **every** marking in tasks.md — each sub-task marking, whichever path executed the sub-task (Trivial inline or Executor, step 7 above), and the end-of-Run quality-gate settlement, which is usually the marking that closes the last box.
 
@@ -310,10 +325,10 @@ tasks.md at the start                       status: in all three artifacts
    `- [x] 2` closed with it. 2 open (both Quality Gates). RULE 4.
 
 5. End-of-Run quality gates settled, one call per gate:
-   close-subtask.sh 042 "gate:Schema diff reviewed by the data owner"
+   epic-close 042 "gate:Schema diff reviewed by the data owner"
    {"box":"x","census":{"total":7,"open":1,"closed":6,"deferred":0},
     "status_written":null,"validate":{"errors":0,"warnings":0,"status":"pass"}}
-   close-subtask.sh 042 "gate:Load test at 1k rps" \
+   epic-close 042 "gate:Load test at 1k rps" \
      --tilde "waived: no load-test rig on this host — user decision"
    {"box":"~","qualifier":"waived",
     "census":{"total":7,"open":0,"closed":7,"deferred":0},
@@ -329,7 +344,7 @@ The same run, with one box deferred instead:
 ```
 4'. 2.1 cannot be executed here — the vendor's production account does not exist
     yet. The Executor reports outcome close-tilde, and the orchestrator lifts it:
-    close-subtask.sh 042 2.1 \
+    epic-close 042 2.1 \
       --tilde "deferred: needs the vendor's production account"
     {"box":"~","qualifier":"deferred",
      "census":{"total":7,"open":2,"closed":4,"deferred":1},
@@ -526,7 +541,7 @@ Two or more pending tasks whose dependencies are all satisfied may run at once, 
 - **Parallel when proven, sequential otherwise** — a group that passed the three detection checks (see [run-parallel.md](run-parallel.md)) runs in parallel without asking; everything not proven independent runs in order, respecting dependencies. `--serial` forces order for the whole run
 - **Stop on failure** — if validation or tests fail, stop and report. Do not continue to next task.
 - **No step skipping** — every step in the Executor protocol is mandatory. Context Gathering is not optional when a Context field exists. Validation commands must be executed and their output reported. This is the fundamental rule of Run Mode.
-- **Run-time questions count against the story's question budget** ([SKILL.md](clarify.md#clarify-protocol)). A decision with a default in the constitution's `## Defaults` block or in the [plain register](plain-register.md#decisions-the-requester-is-not-asked) table is taken and mentioned, never asked
+- **Run-time questions count against the story's question budget** ([clarify.md](clarify.md#clarify-protocol)). A decision with a default in the constitution's `## Defaults` block or in the [plain register](plain-register.md#decisions-the-requester-is-not-asked) table is taken and mentioned, never asked
 - **For a `layperson` requester** ([plain-register.md](plain-register.md)): run and show — never ask them to run a command; a stop per group is promised only when `--step` was passed — under the Fast default the run goes to the end and shows the result once, and a doubt the defaults do not cover stops it like a failure would — and when it is promised, it is one group per turn; visible text per turn stays under ~1,500 characters, the rest goes to files. **A build turn writes nothing to the chat between tool calls**: the step-by-step is collected as it happens and written into `run-report.md` once at the end of the turn — one `Write`, never an `Edit` per step (Fast already writes that report) — and the turn's only visible text is its closing three lines — what to type, what it does, and one choice that was made for them. Notes written between tool calls are where jargon leaks into the chat, and what pushes a build turn over its character ceiling
 - **User gates** — controlled by execution flags (default: gate after every task group)
 - **Context is fresh** — each Executor reads files directly. The orchestrator passes only metadata (paths, deviations, discoveries) between tasks.
@@ -537,8 +552,8 @@ Two or more pending tasks whose dependencies are all satisfied may run at once, 
 - **Quality gates check** — after all tasks complete (or after the last requested task), run through quality gates and report status. Settling a gate box is a marking like any other: it is closed with `close-subtask.sh <story> gate:<text prefix>` and carries its own status transition, since it is usually the marking that closes the story's last box
 - **Validator integration** — after all requested tasks complete, optionally spawn the Validator sub-agent for verification. Ask: "All tasks completed. Run Validator to verify? (y/n)"
 - **Spike promote offer** — when a run **sets** a `scale: spike` story's `## Verdict` to `promote`, offer to create the follow-up story, pre-filled with the spike's `conclusion:`. It is offered **at that moment, not at end of run**, and so lands ahead of the Archive offer — which is the order that works, since a promote whose follow-up was never created is not archivable yet. **The offer is defined once**, in [list-mode.md](list-mode.md#spike-lifecycle) — its gate, the ask-first rule, what is recorded on acceptance and the repeat after an interrupted run all live there, and Run mode reuses them unchanged. A spike's deliverable is the answer, and `promote` is the answer "this needs a story": the offer is how that answer becomes one, instead of a note nobody acts on
-- **Archive offer** — when the run's last close came back with **`status_written.to == "done"`** (rule 1 of Status Transitions, written by that invocation), offer `Archive story NNN? [y/n]`; on `[y]` run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/archive-story.sh" <story-dir>` and surface its JSON verdict in full — `blocked` and `refused` included, verbatim, since a refusal nobody sees is the failure this offer exists to end. In a **headless** session do not pause: log the suggestion and proceed. **The offer is defined once**, in [validate-mode.md](validate-mode.md#archive-offer) — gate, prompt text, the deferred-items variant, verdict surfacing and the headless branch all live there, and Run mode reuses them unchanged
-- **Index refresh** — regenerate the managed index block at the end of a completed run: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-index.sh"`. Defined once, in [validate-mode.md](validate-mode.md#index-refresh); a non-zero exit warns and never gates the run
+- **Archive offer** — when the run's last close came back with **`status_written.to == "done"`** (rule 1 of Status Transitions, written by that invocation), offer `Archive story NNN? [y/n]`; on `[y]` run `epic-archive <story-dir>` and surface its JSON verdict in full — `blocked` and `refused` included, verbatim, since a refusal nobody sees is the failure this offer exists to end. In a **headless** session do not pause: log the suggestion and proceed. **The offer is defined once**, in [validate-mode.md](validate-mode.md#archive-offer) — gate, prompt text, the deferred-items variant, verdict surfacing and the headless branch all live there, and Run mode reuses them unchanged
+- **Index refresh** — regenerate the managed index block at the end of a completed run: `epic-index`. Defined once, in [validate-mode.md](validate-mode.md#index-refresh); a non-zero exit warns and never gates the run
 - **The recorded line** — the end-of-run report opens with the line the execution plan opened with — scale, requester level, engineering level with its multiple, plan size in Task List boxes — and adds the wall clock and the boxes closed beside it ([engineering-level.md](engineering-level.md#where-it-is-recorded)). It lets the run's actual size and wall clock be compared against the engineering level's expected multiple; a report without it cannot be measured
 
 ### End of Run — Validator, archive, index
