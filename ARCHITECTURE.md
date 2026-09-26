@@ -69,7 +69,7 @@ The plugin surface maps to Claude Code's extension points:
 | `references/` | — | Mode-specific operational guides loaded on-demand by the skill. |
 | `.claude-plugin/plugin.json` | Manifest | Plugin metadata + `userConfig` schema. |
 | `assets/examples/` | — | Reference artifacts for each scale, used as format anchors. |
-| `evals/` | — | Trigger-query + test-case suite, and `README.md` — the measurement methodology, including why a trigger eval must not gate anything. |
+| `evals/` | — | Native `claude plugin eval` suite (trigger and end-to-end cases), and `README.md` — how to run it and why a trigger score must not gate anything. |
 | `tests/` | — | `bats` unit tests for scripts. |
 
 ---
@@ -316,8 +316,7 @@ Common contributions and where they go:
 | New hook event | Append to `hooks/hooks.json` with `if:` filter, add script under `scripts/hook-*.sh`, document in [Hook matrix](#hook-matrix) |
 | New validation rule | Extend `scripts/validate-story.sh` (errors vs warnings), add a `bats` test under `tests/` |
 | New user-config field | Add schema entry under `userConfig` in `.claude-plugin/plugin.json`, read via `${CLAUDE_PLUGIN_CONFIG_*}` env in scripts |
-| New eval case | Add under `evals/` (trigger-query + expected artifacts), runnable via `scripts/run-evals.sh` |
-| New trigger verdict | `scripts/trigger-detect.sh` is the single scorer of a trigger run — it reads a transcript and answers `triggered` / `not-triggered` / `error`; `run-evals.sh` matches nothing inline |
+| New eval case | Add a case directory under `evals/` (`prompt.md` + `graders/`), run with `claude plugin eval . --no-publish` |
 
 Before adding a new reference file under `references/`, check whether existing ones can absorb the content — reference fragmentation hurts skill-load discoverability.
 

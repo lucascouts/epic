@@ -162,7 +162,7 @@ epic/
 ├── references/                  # mode-specific operational guides
 ├── scripts/                     # bash validators + hook scripts + stale check + eval runner
 ├── assets/examples/             # reference outputs for each scale
-├── evals/                       # trigger queries + test cases
+├── evals/                       # native eval suite (claude plugin eval)
 ├── tests/                       # bats unit tests for scripts
 └── .github/workflows/           # shell-ci (shellcheck + bats + example validation)
 ```
@@ -245,15 +245,13 @@ See [references/ci-mode.md](references/ci-mode.md) for GitHub Actions examples.
 
 ### Running the eval suite
 
-The `evals/` directory ships 6 test cases and 30 trigger queries. The runner invokes `claude -p` against a fresh working directory per case and validates artifacts:
+The `evals/` directory is a suite for Claude Code's native runner — 30 trigger cases and 6 end-to-end cases, each run in an isolated home:
 
 ```bash
-bash scripts/run-evals.sh                # full suite
-bash scripts/run-evals.sh --cases        # artifact generation only
-bash scripts/run-evals.sh --triggers     # SKILL description sensitivity only
+claude plugin eval . --no-publish --scaffold --allow-tools Skill Bash Write Edit Agent
 ```
 
-Requires `claude`, `jq`, and network access for MCP health-checks.
+Always pass `--no-publish` (otherwise the report is published to claude.ai). Details and cheaper subsets: [evals/README.md](evals/README.md).
 
 ---
 

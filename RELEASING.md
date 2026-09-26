@@ -12,6 +12,10 @@ shellcheck scripts/*.sh bin/*
 for e in assets/examples/*.md; do bash scripts/validate-story.sh --help >/dev/null; done
 gitleaks protect --staged=false          # and `gitleaks detect --log-opts main..HEAD`
 jq -e . .claude-plugin/plugin.json .claude-plugin/marketplace.json
+for p in .claude-plugin/plugin.json .claude-plugin/marketplace.json skills agents; do
+  claude plugin validate --strict "$p"   # the schema Claude Code itself enforces
+done
+claude plugin eval . --no-publish --scaffold --allow-tools Skill Bash Write Edit Agent   # evals/README.md
 ```
 
 **Trap — run `bats` as yourself, not as root.** Fourteen cases make a file unreadable and require the script to refuse. Root can read a `chmod 000` file, so the refusal never fires and the cases report false failures: 11 in `archive-story.bats`, 3 in `epic-index.bats`. This is why `act -j bats` (whose image runs as root) is **not** the faithful run.
