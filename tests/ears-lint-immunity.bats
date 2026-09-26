@@ -1,13 +1,13 @@
 #!/usr/bin/env bats
 # Story 014, Task 1.2 — the immunity set for the EARS form checks, proven
-# by golden diff, plus the TaskCompleted hook contract.
+# by golden diff, plus the error/warning split of the new checks.
 # Contract (R1.4, R4.1, R4.2 + R1.6's blocking consequence):
 #   - fast (hostile: leftover story.md carrying an UNLABELED criterion), spike,
 #     bugfix-behavior and no-scale-declared legacy fixtures keep validator
 #     output BYTE-IDENTICAL to the pre-change goldens below (R4.1) — new
 #     strings only, no new count keys, is subsumed by byte-identity (R4.2).
-#   - The new R1.1 error blocks task completion through hook-task-completed.sh
-#     (exit 2); the new warnings never block (exit 0).
+#   - The new unlabeled-criterion check is an ERROR (validator exit 1); the
+#     new warnings never fail validation (exit 0).
 #
 # Goldens captured from the PRE-CHANGE validator (2026-08-16, story 014
 # Phase 3), each run as `validate-story.sh story` from the fixture's parent so
@@ -254,10 +254,7 @@ EOF
   diff <(printf '%s\n' "$GOLDEN") <(printf '%s\n' "$output")
 }
 
-# --- R1.6's teeth: the TaskCompleted hook ---
-# The hook blocks (exit 2) only when the validator reports ERRORS. The new
-# R1.1 unlabeled-criterion error must therefore block; the new R1.2/R1.3
-# warnings must never block.
+# --- Errors fail validation, warnings never do ---
 
 write_hook_project() { # $1 = Acceptance Criteria block for the story
   mkdir -p "$WORK/proj/.epic/stories/001-hook"
@@ -295,19 +292,16 @@ created: 2026-08-16
 EOF
 }
 
-@test "1.2: the unlabeled-criterion error blocks task completion (hook exit 2)" {
+@test "1.2: the unlabeled-criterion error fails validation (exit 1)" {
   write_hook_project '- R1.1: WHEN x THE SYSTEM SHALL y.
 - WHEN the user saves THE SYSTEM SHALL persist the draft.'
-  cd "$WORK/proj"
-  run env CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$PLUGIN_ROOT/scripts/hook-task-completed.sh"
-  [ "$status" -eq 2 ]
-  echo "$output" | grep -q 'failed validation'
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$WORK/proj/.epic/stories/001-hook"
+  [ "$status" -eq 1 ]
 }
 
-@test "1.2: PIN the compound and trigger-less warnings never block (hook exit 0)" {
+@test "1.2: PIN the compound and trigger-less warnings never fail validation (exit 0)" {
   write_hook_project '- R1.1: WHEN the form is submitted THE SYSTEM SHALL validate the fields and SHALL persist the record.
 - R1.2: The exporter SHALL write the report to disk.'
-  cd "$WORK/proj"
-  run env CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$PLUGIN_ROOT/scripts/hook-task-completed.sh"
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$WORK/proj/.epic/stories/001-hook"
   [ "$status" -eq 0 ]
 }

@@ -77,7 +77,6 @@ Run `/reload-plugins` after updating plugin files.
 | `PreCompact` + `SessionStart(compact)` hooks (context recovery) | **2.1.105** | No automatic snapshot/restore around compactions; drafts still work |
 | Plugin `bin/` executables on PATH | **2.1.91** | `epic-validate`/`epic-xref`/`epic-archive` not exposed; call scripts directly |
 | Output style `keep-coding-instructions: true` | **2.1.94** | Activating `/output-style epic` may override skill directives |
-| Agent-teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) | **2.1.32** | Teams proposal silently skipped; falls back to sequential/worktree execution |
 | `disableSkillShellExecution` setting honored | **2.1.91** | Inline `!` shell blocks always execute (not blockable by managed policy) |
 
 ---
@@ -127,7 +126,6 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 | `/epic:epic stories refine NNN` | Delta refinement (versioned) |
 | `/epic:epic stories supersede NNN --by MMM` | Replace story NNN with MMM via `references/supersede-mode.md` — supersede banner, per-task remap, `superseded` status in every artifact, archive offer |
 | `/epic:epic stories archive NNN[-MMM]\|--done` | Archive completed stories via `scripts/archive-story.sh` — guarded move, pruned evidence, derived manifest entry |
-| `/epic:epic stories teams {status\|enable\|disable}` | Manage the experimental agent-teams flag (opt-in, per-project) |
 
 ---
 
@@ -245,7 +243,7 @@ See [references/ci-mode.md](references/ci-mode.md) for GitHub Actions examples.
 
 ### Running the eval suite
 
-The `evals/` directory ships 6 test cases and 24 trigger queries. The runner invokes `claude -p` against a fresh working directory per case and validates artifacts:
+The `evals/` directory ships 6 test cases and 30 trigger queries. The runner invokes `claude -p` against a fresh working directory per case and validates artifacts:
 
 ```bash
 bash scripts/run-evals.sh                # full suite
@@ -273,22 +271,6 @@ Configurable via the install wizard or directly through settings. Each option is
 ## Stale stories
 
 The story list (`/epic:epic stories`) flags stories with pending tasks untouched for more than `staleThresholdDays` (7 by default) and spikes whose `## Verdict` is still `open` after `spikeStaleThresholdDays` (14 by default). It is a single pass run while you look at the list — nothing polls in the background.
-
----
-
-## Agent Teams (experimental, opt-in)
-
-Epic integrates with Claude Code's experimental [agent-teams](https://code.claude.com/docs/en/agent-teams) feature for the Run phase. When enabled, stories with 2+ independent tracks can spawn a dedicated teammate per track, each using Epic's existing `executor` agent definition in its own context window — an alternative to the default sequential or worktree-isolated execution.
-
-```
-/epic:epic stories teams status     # inspect state
-/epic:epic stories teams enable     # opt in (restart required)
-/epic:epic stories teams disable    # opt out
-```
-
-The flag is written to `.claude/settings.local.json` in the project, which Claude Code auto-gitignores. Nothing global is changed. When the flag is off, Run mode behaviour is identical to 1.3.0.
-
-During Triage of a **Full mode** story, if the request decomposes into independent tracks, the plugin will offer to enable agent-teams with a `[y] / [n] / [never]` prompt. Never activates silently. See [references/teams-mode.md](references/teams-mode.md) for the full reference and [agent-teams limitations](https://code.claude.com/docs/en/agent-teams#limitations).
 
 ---
 

@@ -192,7 +192,6 @@ All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — 
 | `PreCompact` | — | `hook-precompact.sh` | Snapshot active-story state before autocompaction | 2.1.105 |
 | `SessionStart` | `compact` | `hook-session-restore.sh` | Restore state after a compaction rewake | 2.1.105 |
 | `SessionStart` | `clear` | `hook-orphan-drafts.sh` | After `/clear`, list drafts untouched for 30+ days, one removal line each; deletes nothing | 2.1.85 |
-| `TaskCompleted` | — (asyncRewake) | `hook-task-completed.sh` | Run `validate-story.sh` on the active story when a TodoWrite item completes — it **writes nothing**: tasks.md markers are written only by `scripts/close-subtask.sh` | 2.1.85 |
 
 Degradation on older CC versions is documented in [README.md#minimum-claude-code-version-per-component](README.md#minimum-claude-code-version-per-component).
 
@@ -246,7 +245,7 @@ The story audit includes a **Red-evidence gate** (auditor check #10): every sub-
                                   Phase 3 ─► tasks.md + artifacts promoted from .draft/
                                     │
                                     ▼
-                                  Run mode ─► executor per sub-task ─► TaskCompleted hook
+                                  Run mode ─► executor per sub-task ─► close-subtask.sh
                                     │
                                     ▼
                                   Validate mode ─► validator + auditor
@@ -269,7 +268,7 @@ All hook scripts and validators are bash. The plugin has zero runtime dependenci
 
 ### Single skill (`/epic:epic`), not multiple slash commands
 
-Every mode (Create, List, Run, Validate, Refine, Archive, Teams, Init) lives under `/epic:epic` via `$ARGUMENTS` routing. This keeps discovery simple (one command to remember), concentrates triage/orchestration in one place, and lets reference files share context-loading rules. Modes that diverge heavily load dedicated `references/*-mode.md` files on entry.
+Every mode (Create, List, Run, Validate, Refine, Archive, Init) lives under `/epic:epic` via `$ARGUMENTS` routing. This keeps discovery simple (one command to remember), concentrates triage/orchestration in one place, and lets reference files share context-loading rules. Modes that diverge heavily load dedicated `references/*-mode.md` files on entry.
 
 ### Scale-adaptive (Fast / Standard / Full)
 
@@ -288,10 +287,6 @@ Plugin-scope hooks fire when the user edits `.epic/**` outside an active `/epic:
 ### Archive immutability via PreToolUse block, not convention
 
 A `PreToolUse` hook on `.epic/archive/**` returns a blocking response. Convention-only (a note in the README) would fail when an agent writes without reading the convention. Enforcement at the tool layer is robust against both drift and unfamiliar users.
-
-### Agent-teams as opt-in, project-scoped
-
-Agent-teams is an experimental CC flag. Epic proposes it only when the story has 2+ likely-independent tracks and the project hasn't opted out (`.epic/teams-opt-out`). The proposal never blocks triage — the user picks `y`/`n`/`never` and flow continues. See [`references/teams-mode.md`](references/teams-mode.md).
 
 ### Degrade gracefully on missing MCPs
 
@@ -347,7 +342,6 @@ Epic deliberately does not do these things. Adding them would conflict with the 
 - [`skills/epic/SKILL.md`](skills/epic/SKILL.md) — the orchestrator, command routing, phase execution
 - [`references/phase-gates.md`](references/phase-gates.md) — gate protocol, cascade rollback, checkpoint recovery
 - [`references/ci-mode.md`](references/ci-mode.md) — headless invocation, deferred commits
-- [`references/teams-mode.md`](references/teams-mode.md) — agent-teams experimental flag
 - [`references/mcp-integration.md`](references/mcp-integration.md) — MCP health-check procedure
 - [`references/constitution.md`](references/constitution.md) — project-level constraints on stories
 - [`CHANGELOG.md`](CHANGELOG.md) — release notes per version

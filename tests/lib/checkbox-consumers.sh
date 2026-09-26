@@ -29,7 +29,6 @@ CHECKBOX_CONSUMERS=(
   cross-reference.sh
   epic-index.sh
   hook-precompact.sh
-  hook-task-completed.sh
   migrate-story.sh
   monitor-stale.sh
   supersede-story.sh
@@ -71,9 +70,7 @@ detect_checkbox_consumers() {
   #   \[)([ x~])(\]      split around the state (close-subtask.sh)
   #
   # `{1,4}` is what spans them: one space, `x~`, ` x~`, and a bracket
-  # expression's contents all land inside it. hook-task-completed.sh spells its
-  # surrounding whitespace `\s*` rather than `[[:space:]]*` — irrelevant here,
-  # because the predicate looks at the box itself, not at what precedes it.
+  # expression's contents all land inside it.
   local box_re='\\\[\(?\[?[ x~]{1,4}\]?\)?\\\]'
 
   if [ -z "$dir" ] || [ ! -d "$dir" ]; then

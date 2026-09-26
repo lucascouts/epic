@@ -163,7 +163,7 @@ find_stale() {
     # whose only non-`[x]` boxes are `[~]` is not sitting on pending work and
     # must never be nagged about.
     # This is the DELIBERATE EXCEPTION to the `[ x~]` class used by
-    # validate-story.sh, cross-reference.sh and hook-task-completed.sh. Those
+    # validate-story.sh and cross-reference.sh. Those
     # ask "is this line a task?" — all three box states are. This one asks
     # "is work still owed here?" — only `[ ]` is. Do NOT widen it to
     # `\[[ x~]\]` for the sake of consistency: that resurrects stale

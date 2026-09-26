@@ -10,8 +10,8 @@ description: >
   story; validate implementation against plan. It also routes the
   management modes: init, instant for disposable work that nobody will
   maintain, migrate a story to the current format,
-  create --batch to draft many stories from one document, archive,
-  supersede, and teams. Also trigger when the user says "create an epic
+  create --batch to draft many stories from one document, archive and
+  supersede. Also trigger when the user says "create an epic
   for X", "document this feature", "structure this sprint", "what
   needs to be done to implement X?", "list stories", "run story",
   "execute tasks", "validate implementation" — even without saying
@@ -153,9 +153,6 @@ $ARGUMENTS parsing:
 "stories supersede NNN --by MMM"
   → SUPERSEDE mode (replace story NNN with MMM: banner, status, index, archive offer)
 
-"stories teams {status|enable|disable}"
-  → TEAMS mode (manage experimental agent-teams flag for this project)
-
 "stories NNN run all [--auto|--batch=N|--gate=commit|--serial]"
   → RUN mode (all pending tasks of story NNN)
 
@@ -194,7 +191,6 @@ When a command references `NNN`:
 | **Refine** | `/epic:epic stories refine NNN` | Load [refine-mode.md](../../references/refine-mode.md) |
 | **Archive** | `/epic:epic stories archive NNN[-MMM]\|--done` | Load [list-mode.md](../../references/list-mode.md) (Archive Command) — the mode resolves which stories to archive and calls `scripts/archive-story.sh` once per story; it never moves a directory or writes a manifest entry itself |
 | **Supersede** | `/epic:epic stories supersede NNN --by MMM` | Load [supersede-mode.md](../../references/supersede-mode.md) |
-| **Teams** | `/epic:epic stories teams {status\|enable\|disable}` | Load [teams-mode.md](../../references/teams-mode.md) |
 | **Expand** | User says "based on", "extends" existing story | Create new story referencing source |
 | **CI/Headless** | Programmatic invocation via Agent SDK | Load [ci-mode.md](../../references/ci-mode.md) |
 

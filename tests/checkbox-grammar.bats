@@ -248,12 +248,6 @@ load_roster() {
   echo "$output" | grep -qF '"R1.4": ["1.4"]'
 }
 
-@test "R4.1: hook-task-completed recognizes the mixed story and passes it" {
-  cd "$WORK/proj"
-  run env CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$PLUGIN_ROOT/scripts/hook-task-completed.sh"
-  [ "$status" -eq 0 ]
-}
-
 @test "R4.1: monitor-stale agrees — open [ ] pending, deferred/terminal [~] not pending" {
   # Mixed fixture has one [ ] box: an old story IS stale.
   touch -d '30 days ago' "$MIXED/tasks.md"

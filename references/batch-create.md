@@ -45,8 +45,6 @@ Below the rows, the batch-wide context gathered once in step 2 — the runtime d
 
 **Detection runs once per batch, not once per story.** The precheck, the MCP health-check and the tooling detection describe the environment, and the environment does not change between rows.
 
-**The agent-teams proposal never fires during batch.** It belongs to each story's Run phase, where the tracks it parallelizes actually exist. Offering it here would ask the user to decide about an execution shape no story has reached yet.
-
 ## 4. Reservation — the allocator contract
 
 On confirmation, and not before, numbers are claimed by [`scripts/next-story-number.sh`](../scripts/next-story-number.sh) — the one tested allocator, used by single create too, so both flows agree by construction instead of by two prose descriptions that drift.
@@ -122,4 +120,3 @@ Resume therefore stays per-story. What batch adds is one aggregated line: when s
 - Not Phase 3, not the Test Advisor, not red-evidence
 - Not validation — every story passes `validate-story.sh` clean or is reported `blocked`
 - Not the EARS grammar, the checkbox grammar, or the numbering rules
-- Not the agent-teams decision, which belongs to Run

@@ -1128,10 +1128,9 @@ if [[ "$HAS_TASKS" == true ]]; then
   # to. It is the same movement for both, measured on this story's
   # leftover-artifact fixture (tests/scale-resolution.bats): `errors: 1, exit 1`
   # became `errors: 0, exit 0`, with the R2.3 mismatch warning present and
-  # unchanged. So hook-task-completed.sh — which blocks on exit 1, extracts
-  # .error_details[] only, and has no warning branch — now lets BOTH shapes
-  # through in silence, and the CI loop references/ci-mode.md documents runs
-  # without --strict and now passes both. Under --strict the mismatch warning
+  # unchanged. So a consumer that blocks on exit 1 and reads .error_details[]
+  # only now lets BOTH shapes through in silence, and the CI loop
+  # references/ci-mode.md documents runs without --strict and now passes both. Under --strict the mismatch warning
   # still fails the run, for both.
   # That trade is deliberate: R2.3 classifies scale-vs-files as a WARNING
   # because which side is wrong is the author's call, and the error that was

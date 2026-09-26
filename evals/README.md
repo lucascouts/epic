@@ -103,13 +103,12 @@ Adding a mode to the routing cascade does **not** add it here. `--batch` and
 `migrate` sat in the cascade for eighteen months with no query and no
 description entry, and nothing went red.
 
-These four have a query but have **never been measured** — they were added to
+These three have a query but have **never been measured** — they were added to
 close the coverage hole, not because a number exists for them:
 
 - `set up epic in this project` (`init`)
 - `archive story 014, …` (`archive`)
 - `story 017 supersedes 012 — record that` (`supersede`)
-- `enable team mode for stories` (`teams`)
 
 Measuring them costs ~3 minutes per run per query. Until someone does, the
 deterministic lint is the whole of the evidence that these modes are reachable —

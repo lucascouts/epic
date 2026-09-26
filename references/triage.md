@@ -110,7 +110,7 @@ requester:
 - a **new contract between systems** — an API, an event, a schema that two components must agree on
 - a **data migration**, or any change to the shape of something already persisted
 - a **cross-cutting change with no established pattern** in the codebase to follow
-- **2+ independent tracks** that have to be designed to fit together (the same signal the Agent-Teams proposal reads)
+- **2+ independent tracks** that have to be designed to fit together
 - the user asking for Full explicitly
 
 Absent every one of them, a Moderate story is **Standard** however many files it touches: file count measures typing, not design risk.
@@ -146,42 +146,3 @@ Present as:
 > Confirm or adjust?"
 
 For a `layperson`, the same decisions are presented in the [plain register](plain-register.md): three lines in their words, one question — go on, or change something. The table above is what gets recorded, not what they are shown.
-
-### Agent-teams proposal (Full mode only, structural)
-
-After the main triage block, if **all** of the following hold, append the Agent-Teams proposal block below. Otherwise, skip it silently.
-
-Gating conditions:
-- Mode is **Full** (Fast/Standard never propose)
-- The request implies **2+ likely-independent tracks** (disjoint files, no cross-track data dependency; e.g. frontend + backend + migrations, or service-A + service-B)
-- `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is **not** already `"1"` (nothing to propose)
-- `.epic/teams-opt-out` does **not** exist in the project
-- The file `.claude/settings.local.json` has not been edited by the user in a way that already sets the flag
-
-Append to the triage proposal:
-
-> "**Parallel execution opportunity (Full mode):**
->
-> The story decomposes into likely-independent tracks. Enabling agent-teams
-> (experimental) would let the Run phase spawn one teammate per track, each
-> using Epic's existing `executor` agent definition and its own context window.
->
-> Options:
->   [y]     enable the flag now (restart required; writes to
->           `.claude/settings.local.json`, auto-gitignored)
->   [n]     proceed with current sequential/worktree execution
->   [never] opt out of this proposal for this project
->           (creates `.epic/teams-opt-out`)
->
-> Caveats:
-> - agent-teams is experimental
-> - teammates are not restored by `/resume` or `/rewind`
-> - teammates cannot spawn their own sub-agents
-> - one team at a time (cleanup is automatic at end of Run phase)
-> - see [teams-mode.md](teams-mode.md) for details"
-
-On `[y]`: call `bash "${CLAUDE_PLUGIN_ROOT}/scripts/teams-config.sh" enable` and proceed with the current story sequentially (the flag applies to the **next** session).
-On `[n]`: no side effects; continue triage.
-On `[never]`: `touch .epic/teams-opt-out` and continue triage.
-
-The proposal does **not** block triage — user choice is captured and the flow proceeds immediately.

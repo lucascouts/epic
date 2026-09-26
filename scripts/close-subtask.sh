@@ -1936,11 +1936,10 @@ parse_validate_json() {
 # already written: a marking that landed on disk and produced no JSON at all,
 # which is the worst outcome this contract has. `|| rc=$?` keeps the verdict.
 #
-# That is the 02/07 fail-open shape read from the other side, and both halves of
-# it are refused here. hook-task-completed.sh:48-52 records the same trap from
-# the swallowing side — a bare `OUTPUT=$(…)` inheriting the non-zero status and
-# aborting the hook before its blocking exit could run. Here the status is
-# captured AND used, never captured and dropped.
+# That is a fail-open shape, and both halves of it are refused here. The
+# swallowing side is a bare `OUTPUT=$(…)` inheriting the non-zero status and
+# aborting before the blocking exit can run. Here the status is captured AND
+# used, never captured and dropped.
 #
 # ONLY STDOUT IS CAPTURED. archive-story.sh:2715 folds its child's stderr into
 # the same variable because it parses none of it; this one parses exactly that

@@ -57,35 +57,6 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-orphan-drafts.sh\""
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-teams-session-start.sh\""
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-teams-prompt-submit.sh\""
-          }
-        ]
-      }
-    ],
-    "TaskCompleted": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "asyncRewake": true,
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-task-completed.sh\""
-          }
-        ]
       }
     ]
   }

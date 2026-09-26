@@ -17,8 +17,7 @@
     "stories migrate 007 --apply",
     "set up epic in this project",
     "archive story 014, it's finished and I want it out of the active list",
-    "story 017 supersedes 012 — record that",
-    "enable team mode for stories"
+    "story 017 supersedes 012 — record that"
   ],
   "should_not_trigger": [
     "write a unit test for validateCredentials() in src/auth/login.service.ts",

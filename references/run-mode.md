@@ -236,7 +236,7 @@ A refusal names its own reason in `reason`, and each arm is a statement about th
 
 **On a resumed run, "already closed" is benign confirmation, not a failure.** A run interrupted after a close and before its report is replayed over boxes that already carry their mark: read that refusal as *this one is already done*, log it, and move to the next box. Do not "repair" it by editing the file. The script stays strict on purpose — outside a resume, a second close is a real disagreement about what happened, and a silent one is what the refusal exists to prevent.
 
-**Close one story at a time.** The compaction snapshot (`hook-precompact.sh`) and the teams completion hook take the **most-recently-modified story** under `.epic/stories/` as the active one, so interleaving closes across two stories mid-run points them at whichever story was written last. The script itself only ever touches the story it was invoked for — the hazard is in the ordering, not in the write — so finish one story's closes before starting another's.
+**Close one story at a time.** The compaction snapshot (`hook-precompact.sh`) takes the **most-recently-modified story** under `.epic/stories/` as the active one, so interleaving closes across two stories mid-run points it at whichever story was written last. The script itself only ever touches the story it was invoked for — the hazard is in the ordering, not in the write — so finish one story's closes before starting another's.
 
 ### Status Transitions
 
@@ -559,9 +559,6 @@ A completed run finishes with these three steps, in this order:
 
 `tasks.md` is the progress record, and `close-subtask.sh` validates the story on every close. **When the Task tools are present** (`TaskCreate`/`TaskUpdate`, or `TodoWrite`), mirror the run in them for the user to watch — pending, in progress (with the Executor's status), completed once the sub-task passed validation and tech review **and its box is closed**. When they are absent, do nothing: they are offered only on some models, and nothing depends on them.
 
-## Agent Teams Mode (Experimental, opt-in)
-
-An opt-in alternative execution strategy: several Executors in one team instead of one at a time. **Read [teams-mode.md](teams-mode.md) before offering it** — the trigger conditions, the offer, the hand-off and the exit live there, with the rest of the feature reference. Nothing here changes when teams are off, which is the default.
 ## Handling Missing Tasks for Quality Gates
 
 If after running all tasks, a Quality Gate is unmet and no existing task covers it:
