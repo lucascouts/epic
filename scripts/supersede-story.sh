@@ -1119,13 +1119,13 @@ if banner_present "$BANNER_FILE"; then
 
   case "$RECOVERY" in
     refuse-complete)
-      refuse "story $STORY_ID already carries the supersede banner — re-running would duplicate it (R3.5)"
+      refuse "story $STORY_ID already carries the supersede banner — re-running would duplicate it"
       ;;
     refuse-unproducible)
       refuse "story $STORY_ID carries a supersede banner in a state this command cannot produce (status written with scope still open) — repair the frontmatter by hand, then re-run"
       ;;
     refuse-unclassified)
-      refuse "story $STORY_ID carries a supersede banner in a state this command cannot classify (status=$STATUS_STATE, open sub-tasks=$OPEN_STATE) — refusing rather than risking a second banner (R3.5)"
+      refuse "story $STORY_ID carries a supersede banner in a state this command cannot classify (status=$STATUS_STATE, open sub-tasks=$OPEN_STATE) — refusing rather than risking a second banner"
       ;;
   esac
   # Falling through means the prior run was INCOMPLETE. Recovery never touches
@@ -1147,7 +1147,7 @@ if banner_present "$BANNER_FILE"; then
       n/a:yes) PENDING="its sub-tasks are still open" ;;
       *) PENDING="it stopped between its closures and its status writes" ;;
     esac
-    offer_recovery "story $STORY_ID carries the supersede banner from an INTERRUPTED prior run — $PENDING. Nothing was written by this run. Re-run with --complete-interrupted to finish the remaining steps; the banner is never written a second time (R3.5)"
+    offer_recovery "story $STORY_ID carries the supersede banner from an INTERRUPTED prior run — $PENDING. Nothing was written by this run. Re-run with --complete-interrupted to finish the remaining steps; the banner is never written a second time"
   fi
   BANNER_WRITTEN=false
   FINAL_STATUS="completed"

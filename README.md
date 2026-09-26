@@ -79,9 +79,7 @@ Run `/reload-plugins` after updating plugin files.
 | Plugin `bin/` executables on PATH | **2.1.91** | `epic-validate`/`epic-xref`/`epic-archive` not exposed; call scripts directly |
 | Output style `keep-coding-instructions: true` | **2.1.94** | Activating `/output-style epic` may override skill directives |
 | `PermissionDenied` hook with `{retry: true}` | **2.1.89** | MCP retry-on-deny disabled; user sees raw permission errors |
-| `PreToolUse` `permissionDecision: "defer"` (headless commit gating) | **2.1.89** | `hook-defer-commit.sh` is a no-op in CI |
 | Agent-teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) | **2.1.32** | Teams proposal silently skipped; falls back to sequential/worktree execution |
-| `--bare` flag for headless invocation | **2.1.81** | Use plain `claude -p`; expect slower startup and reduced reproducibility |
 | `disableSkillShellExecution` setting honored | **2.1.91** | Inline `!` shell blocks always execute (not blockable by managed policy) |
 
 ---
@@ -241,15 +239,12 @@ Generate stories programmatically with the Agent SDK:
 
 ```bash
 claude -p "/epic:epic Add retry logic to the payment gateway" \
+  --plugin-dir /path/to/epic \
   --allowedTools "Read,Write,Glob,Grep,Bash,Agent" \
-  --bare --output-format json
+  --output-format json
 ```
 
 See [references/ci-mode.md](references/ci-mode.md) for GitHub Actions examples.
-
-### Gated commits in headless mode
-
-Epic ships a `PreToolUse` hook that detects `git commit` invocations. In interactive sessions it is a no-op (normal permission flow applies). When `CI=true` or `CLAUDE_CODE_HEADLESS=true` is set, the hook returns `permissionDecision: "defer"` — pausing the session at the commit and letting an Agent SDK wrapper (GitHub Action, Slack approval bot, etc.) collect a decision before resuming with `-p --resume`. See [`scripts/hook-defer-commit.sh`](scripts/hook-defer-commit.sh) and the [Deferred tool execution docs](https://code.claude.com/docs/en/hooks-guide).
 
 ### Running the eval suite
 
@@ -267,12 +262,12 @@ Requires `claude`, `jq`, and network access for MCP health-checks.
 
 ## Plugin Options
 
-Configurable via the install wizard or directly through settings. Each option is non-sensitive and injected into scripts as `CLAUDE_PLUGIN_OPTION_<KEY>`.
+Configurable via the install wizard or directly through settings. Each option is non-sensitive. `aiMemory` and `defaultScale` reach the skill through `${user_config.KEY}`; hook processes receive every option as `CLAUDE_PLUGIN_OPTION_<KEY>`.
 
 | Option | Default | Purpose |
 |---|---|---|
 | `defaultScale` | `standard` | Fallback mode when triage cannot determine complexity |
-| `artifactLanguage` | `en` | Override only if your organisation mandates non-English artifacts |
+| `aiMemory` | `auto` | `auto` uses the ai-memory MCP server when it answers; `off` never calls it |
 | `enableStaleMonitor` | `false` | Enable the background watcher for stories with no progress past the staleness threshold |
 | `staleThresholdDays` | `7` | Days of inactivity before a story with pending tasks is flagged (only when stale monitor is enabled) |
 | `spikeStaleThresholdDays` | `14` | Days of inactivity before a spike whose Verdict is still `open` is flagged — measured by its Verdict, not its checkboxes |

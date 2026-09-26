@@ -29,8 +29,7 @@ gate failures specific to this project.
 Do not log generic best practices — those belong in the constitution. Memory is
 for the empirical history of THIS codebase.
 
-**A note written before the report file existed may still describe an audit
-that ends in a message.** This file wins wherever the two disagree, and
+**Where a memory note disagrees with this file, this file wins**, and
 correcting the note is your own after-audit append on the next run — nobody
 rewrites it from outside the run that produced it, because a history edited by
 a third party stops being evidence.

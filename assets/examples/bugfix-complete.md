@@ -24,7 +24,7 @@ Authentication errors (wrong credentials) are being retried 3 times with exponen
 ## Reproduction Steps
 
 1. Configure a flow with incorrect portal credentials
-2. Execute the flow via `bam run`
+2. Execute the flow via `flow run`
 3. Observe: script retries 3 times (1s + 4s + 16s delay) before marking as FAILED
 
 ## Current Behavior (Defect)

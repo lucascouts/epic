@@ -190,7 +190,6 @@ All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — 
 |---|---|---|---|---|
 | `PostToolUse` | `Write(.epic/**)` | `hook-validate.sh` | Auto-run `validate-story.sh` on every story-artifact write | 2.1.85 |
 | `PreToolUse` | `Edit(.epic/archive/**)` · `Write(.epic/archive/**)` | `hook-archive-guard.sh` | Block mutations to archived stories | 2.1.85 |
-| `PreToolUse` | `Bash(git commit *)` | `hook-defer-commit.sh` | No-op interactively; returns `defer` when `CI=true`/`CLAUDE_CODE_HEADLESS=true` | 2.1.89 |
 | `PreCompact` | — | `hook-precompact.sh` | Snapshot active-story state before autocompaction | 2.1.105 |
 | `SessionStart` | `compact` | `hook-session-restore.sh` | Restore state after a compaction rewake | 2.1.105 |
 | `SessionEnd` | `clear` | `hook-session-end-cleanup.sh` | Clean transient drafts on explicit clear | 2.1.85 |
@@ -298,10 +297,6 @@ A `PreToolUse` hook on `.epic/archive/**` returns a blocking response. Conventio
 ### Agent-teams as opt-in, project-scoped
 
 Agent-teams is an experimental CC flag. Epic proposes it only when the story has 2+ likely-independent tracks and the project hasn't opted out (`.epic/teams-opt-out`). The proposal never blocks triage — the user picks `y`/`n`/`never` and flow continues. See [`references/teams-mode.md`](references/teams-mode.md).
-
-### `defer` for headless commits
-
-In headless mode (`CI=true`/`CLAUDE_CODE_HEADLESS=true`), `hook-defer-commit.sh` returns `permissionDecision: "defer"` on `git commit`. The Agent SDK wrapper can collect approval out-of-band (Slack, GitHub Action) and resume with `--resume`. Interactive sessions are unaffected. Requires CC 2.1.89+.
 
 ### Degrade gracefully on missing MCPs
 

@@ -1,6 +1,6 @@
 # CI/Headless Mode
 
-Use these patterns when running Epic plugin operations programmatically via the Claude Code Agent SDK.
+Use these patterns when running Epic plugin operations programmatically with `claude -p` or the Agent SDK. Every recipe that invokes `/epic:epic` must load the plugin: pass `--plugin-dir "$EPIC_PLUGIN_ROOT"` (a checkout of this repo), or install the plugin first. Do not add `--bare`: it skips plugins, skills, subagents and hooks, and it ignores OAuth logins.
 
 ## Validate Stories in CI
 
@@ -30,8 +30,8 @@ That object carries `story`, `scale` and `status` and **omits every measurement 
 
 ```bash
 claude -p "/epic:epic Add retry logic to the payment gateway" \
+  --plugin-dir "$EPIC_PLUGIN_ROOT" \
   --allowedTools "Read,Write,Glob,Grep,Bash,Agent" \
-  --bare \
   --output-format json
 ```
 
@@ -39,8 +39,8 @@ claude -p "/epic:epic Add retry logic to the payment gateway" \
 
 ```bash
 claude -p "/epic:epic stories validate 001" \
+  --plugin-dir "$EPIC_PLUGIN_ROOT" \
   --allowedTools "Read,Glob,Grep,Bash,Agent" \
-  --bare \
   --output-format json
 ```
 
@@ -48,8 +48,8 @@ claude -p "/epic:epic stories validate 001" \
 
 ```bash
 claude -p "/epic:epic stories" \
-  --allowedTools "Read,Glob,Grep" \
-  --bare \
+  --plugin-dir "$EPIC_PLUGIN_ROOT" \
+  --allowedTools "Read,Glob,Grep,Bash" \
   --output-format text
 ```
 
@@ -77,7 +77,7 @@ Example: extract a validation summary for a story:
 
 ```bash
 claude -p "/epic:epic stories validate 001" \
-  --bare --allowedTools "Read,Glob,Grep,Bash,Agent" \
+  --plugin-dir "$EPIC_PLUGIN_ROOT" --allowedTools "Read,Glob,Grep,Bash,Agent" \
   --output-format json \
   --json-schema '{
     "type": "object",
@@ -99,29 +99,34 @@ claude -p "/epic:epic stories validate 001" \
 Pipe to `jq` for CI gating:
 
 ```bash
-RESULT=$(claude -p "..." --json-schema '{...}' | jq '.structured_output')
+OUT=$(claude -p "..." --plugin-dir "$EPIC_PLUGIN_ROOT" --output-format json --json-schema '{...}')
+# A run that errored, or ended without a structured result, is a failure — not a pass.
+echo "$OUT" | jq -e '(.is_error | not) and (.structured_output != null)' >/dev/null \
+  || { echo "Epic run failed or returned no structured output" >&2; exit 1; }
+RESULT=$(echo "$OUT" | jq '.structured_output')
 STATUS=$(echo "$RESULT" | jq -r '.status')
 [ "$STATUS" = "fail" ] && { echo "$RESULT" | jq '.gaps'; exit 1; }
 ```
 
 ## Detecting plugin load failures (`system/init` event)
 
-When you run `claude -p` with `--output-format stream-json --verbose`, the first
-event of the stream is `system/init`. It contains a `plugins` array (loaded
-successfully) and an optional `plugin_errors` array (load-time failures such as
-unsatisfied dependency versions). Use this to **fail CI when Epic does not load**,
+When you run `claude -p` with `--output-format stream-json --verbose`, the stream
+carries one `system/init` event. It is not always the first line: SessionStart hook
+events (`hook_started`, `hook_response`) come before it, and Epic ships a
+SessionStart hook — so select it by type. It contains a `plugins` array (loaded
+successfully), an optional `plugin_errors` array (load-time failures such as
+unsatisfied dependency versions) and the `slash_commands` the session can run. Use this to **fail CI when Epic does not load**,
 which can happen if the marketplace is unreachable or `plugin.json` becomes invalid:
 
 ```bash
 claude -p "Validate epic stories in this repo" \
-  --bare \
+  --plugin-dir "$EPIC_PLUGIN_ROOT" \
   --output-format stream-json \
   --verbose \
-  --include-partial-messages \
   > stream.jsonl
 
-# First line is system/init. Confirm Epic is in `plugins` and not in `plugin_errors`.
-INIT=$(head -1 stream.jsonl)
+# Select system/init by type; hook events may precede it.
+INIT=$(jq -c 'select(.type == "system" and .subtype == "init")' stream.jsonl | head -1)
 
 if echo "$INIT" | jq -e '.plugin_errors[]? | select(.plugin == "epic")' >/dev/null; then
   echo "Epic plugin failed to load:" >&2
@@ -134,6 +139,11 @@ if ! echo "$INIT" | jq -e '.plugins[]? | select(.name == "epic")' >/dev/null; th
   exit 1
 fi
 
+if ! echo "$INIT" | jq -e '.slash_commands[]? | select(. == "epic:epic")' >/dev/null; then
+  echo "Epic loaded but /epic:epic is not available in this session." >&2
+  exit 1
+fi
+
 echo "Epic loaded successfully."
 ```
 
@@ -143,7 +153,8 @@ above for an end-to-end CI pipeline.
 
 ## Notes
 
-- Use `--bare` for consistent results across machines (skips auto-discovery)
+- Never use `--bare` with `/epic:epic`: it skips the plugin and every skill, subagent and hook it ships
+- When the plugin comes from a marketplace instead of `--plugin-dir`, set `CLAUDE_CODE_SYNC_PLUGIN_INSTALL=1` so it is installed before the first turn
 - Stories are always in English (no locale variation in artifacts)
 - Scripts are standalone bash — no Claude Code dependency for validation
 - For structured output from Claude operations, use `--output-format json`

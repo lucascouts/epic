@@ -1,6 +1,6 @@
 # Phase execution and recovery — Standard and Full
 
-Loaded when a Standard or Full story writes its phases, saves drafts or resumes. Moved out of [SKILL.md](../skills/epic/SKILL.md) so a run that does not need it does not carry it.
+Loaded when a Standard or Full story writes its phases, saves drafts or resumes. Kept out of [SKILL.md](../skills/epic/SKILL.md) so a run that does not need it does not carry it.
 
 ## Completeness Checklist
 

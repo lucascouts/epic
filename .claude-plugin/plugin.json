@@ -27,12 +27,6 @@
       "description": "Default scale when triage cannot determine one (fast | standard | full | spike)",
       "default": "standard"
     },
-    "artifactLanguage": {
-      "type": "string",
-      "title": "Artifact language",
-      "description": "Override artifact language. Claude performs best in English; change only if your organisation mandates another language for written artifacts.",
-      "default": "en"
-    },
     "aiMemory": {
       "type": "string",
       "title": "ai-memory integration",

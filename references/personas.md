@@ -1,6 +1,6 @@
 # Personas — the sub-agents and when they are spawned
 
-Loaded before a phase, a run or a validation spawns a sub-agent. Moved out of [SKILL.md](../skills/epic/SKILL.md) so a run that does not need it does not carry it.
+Loaded before a phase, a run or a validation spawns a sub-agent. Kept out of [SKILL.md](../skills/epic/SKILL.md) so a run that does not need it does not carry it.
 
 ## Personas
 
@@ -31,7 +31,7 @@ Sub-agents with specialized roles. Scale determines which personas are activated
 
 The **main agent** (this skill) orchestrates: generates artifacts (story.md, design.md, tasks.md) during planning, delegates to Executors during run-mode, and coordinates Validators/Auditors during validation. The main agent retains conversation context with the user and handles git operations (commits) — post-merge, with the pre-authored message verbatim. It closes boxes too, but never by editing one: it invokes `scripts/close-subtask.sh` with the Executor's closing block, and the script performs the marking, the census and the `status:` stamp in a single transaction (a `failed` outcome makes no call at all).
 
-**Every sub-agent this skill spawns runs in the foreground — `run_in_background: false` on the Agent call.** The orchestrator's next step is the sub-agent's result: the Analyst's scan feeds the proposal, the Test Advisor's tests gate Phase 3, the Executor's closing block closes the box, the Validator's and the Auditor's verdicts end the mode. A turn ended to wait for a sub-agent is a turn the requester spends saying "still waiting". Measured on 2026-09-17: a Standard run for a beginner spawned the Test Advisor in the background, spent 12 of 12 user turns on "ainda tá fazendo?", wrote no code and cost US$ 7; a developer's run did the same for ten turns. Both registers assume the assistant is working, not waiting. A parallel Executor group is not an exception: it is several foreground calls in one message, joined before the next step.
+**Every sub-agent this skill spawns runs in the foreground — `run_in_background: false` on the Agent call.** The orchestrator's next step is the sub-agent's result: the Analyst's scan feeds the proposal, the Test Advisor's tests gate Phase 3, the Executor's closing block closes the box, the Validator's and the Auditor's verdicts end the mode. A turn ended to wait for a sub-agent is a turn the requester spends saying "still waiting". A backgrounded sub-agent can consume every turn of a run on "is it done yet?" while no code gets written. Both registers assume the assistant is working, not waiting. A parallel Executor group is not an exception: it is several foreground calls in one message, joined before the next step.
 
 ### MCP Integration
 

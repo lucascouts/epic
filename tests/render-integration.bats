@@ -41,16 +41,16 @@ detector_json() {
 
 # --- R2.1: the LIST annotation ----------------------------------------------
 
-@test "R2.1: integrated true renders the contract string 'integrada'" {
+@test "R2.1: integrated true renders the value 'integrated'" {
   run bash -c "$(declare -f detector_json); detector_json true | bash '$RENDER' --list"
   [ "$status" -eq 0 ]
-  [ "$output" = "integrada" ]
+  [ "$output" = "integrated" ]
 }
 
-@test "R2.1: integrated false renders the contract string 'não-integrada'" {
+@test "R2.1: integrated false renders the value 'not-integrated'" {
   run bash -c "$(declare -f detector_json); detector_json false | bash '$RENDER' --list"
   [ "$status" -eq 0 ]
-  [ "$output" = "não-integrada" ]
+  [ "$output" = "not-integrated" ]
 }
 
 @test "R2.1: integrated null renders NOTHING AT ALL" {

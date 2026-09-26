@@ -60,14 +60,14 @@ Never hard-block triage on missing MCPs. The suggestion is informative, not gati
 
 ## Memory MCP
 
-A second category, separate from research: **memory**. One candidate, `ai-memory`, the long-term project-memory server. It is **optional and recommended**: when it is reachable the story is enriched by what the project already knows; when it is not, nothing changes — every reader of memory below degrades to today's behaviour, and the only trace is one line in the triage proposal.
+A second category, separate from research: **memory**. One candidate, `ai-memory`, the long-term project-memory server. It is **optional and recommended**: when it is reachable the story is enriched by what the project already knows; when it is not, nothing changes — every reader of memory below behaves as it does without memory, and the only trace is one line in the triage proposal.
 
 Its LLM work — the consolidation that turns raw observations into pages, the lint that finds contradictions between them — needs a provider Anthropic's terms allow for a third-party tool: an **API key** with a Haiku-class model, since the work is summarisation, or a **local model** through an OpenAI-compatible endpoint. **Never a Claude subscription OAuth token.** Since February 2026, OAuth from the Free, Pro and Max plans is for Claude Code and Claude.ai only — any other product, tool or service, the Agent SDK included, is outside the terms — and ai-memory's own documentation warns that its `anthropic-oauth` provider risks the account. The Epic's own reads and writes below need no LLM on the server at all.
 
 ### Detection
 
 - **Health check:** one call to `memory_status`. It is local and free, so — unlike the research checks — it runs in **every scale, Fast and spike included**. A success marks memory as available for the whole story; a failure, or a tool that is not there at all, marks it unavailable, silently.
-- **Opt-out:** `aiMemory: "off"` in the plugin's userConfig skips the check and every memory read or write below.
+- **Opt-out:** `aiMemory` set to `off` (its value is in SKILL.md's *Plugin options*) skips the check and every memory read or write below.
 - **Scope is the server's rule, not ours.** A session-aware client omits `workspace` and `project` for the current repository. A static client must pass both on every project-scoped call, read from the nearest `.ai-memory.toml` that declares them. When neither applies — no session identity and no declaring `.ai-memory.toml` — treat memory as **unavailable**: never guess the two names from a directory name, and never rely on the server's last active project.
 - Record the outcome once, in the triage proposal's `**Memory:**` line, and reuse it for the whole story — the same reuse rule the research MCPs follow.
 
@@ -85,7 +85,7 @@ Its LLM work — the consolidation that turns raw observations into pages, the l
 
 ### Hard rules
 
-- **Memory is never evidence.** A recalled page says where to look; a finding still needs the file and the line that show it. An audit gap, a deviation verdict or a coverage claim resting on memory alone is a protocol violation — memory is an input to verify, not a source to quote. (Measured, not hypothetical: an audit that took a memory note as evidence in September 2026 reported a defect the code did not have.)
+- **Memory is never evidence.** A recalled page says where to look; a finding still needs the file and the line that show it. An audit gap, a deviation verdict or a coverage claim resting on memory alone is a protocol violation — memory is an input to verify, not a source to quote. A recalled page can describe code that has since changed, so a finding that rests on it alone can report a defect the code does not have.
 - **Never call `memory_feedback`**, and never write a handoff by hand — the server's own lifecycle hooks capture sessions and hand off between them. The Epic writes durable pages and nothing else.
 - **Never copy a secret, a token or personal data** into a page. The register and the audit report are the sources; if one of them carries such a value, it is dropped from the page, not carried over.
 - **Recommend `ignore_paths = [".epic/**"]`** in the user's `.ai-memory.toml`, once, the first time memory is detected on a project — the server's hooks would otherwise capture the artifacts the Epic already versions, and the two records would drift. Informative, never gating.

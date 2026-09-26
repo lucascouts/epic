@@ -84,7 +84,7 @@ After all teammates mark their tasks complete, the lead synthesises a Run report
 
 ## Fallback behaviour
 
-When the flag is **inactive** or when the story does not meet the "2+ independent tracks" signal, Run mode behaves exactly as in 1.3.0:
+When the flag is **inactive** or when the story does not meet the "2+ independent tracks" signal, Run mode runs without teams:
 
 - Sequential execution for small stories.
 - `EnterWorktree` parallel execution for larger stories.
@@ -99,7 +99,7 @@ These are inherited from the upstream feature. Read them before enabling.
 |---|---|---|
 | Experimental; can change across upgrades | [agent-teams#top](https://code.claude.com/docs/en/agent-teams) | Epic pins only the flag; upstream behaviour changes are user's responsibility |
 | No `/resume` or `/rewind` of in-process teammates | [#limitations](https://code.claude.com/docs/en/agent-teams#limitations) | After resume, tell the lead to spawn fresh teammates |
-| One team per session | same | Epic uses teams only in the Run phase; Validate/Triage stay sequential in 1.4.0 |
+| One team per session | same | Epic uses teams only in the Run phase; Validate and Triage stay sequential |
 | No nested teams | same | Teammates cannot spawn their own sub-agents. If a track needs heavy research via sub-agents, use sequential mode for that story |
 | Task status can lag | same | The `TaskCompleted` hook mitigates partially — if a task is stuck, check manually |
 | Split panes require tmux or iTerm2 | [agent-teams#display-mode](https://code.claude.com/docs/en/agent-teams#choose-a-display-mode) | Epic uses `in-process` by default; split panes are the user's opt-in |
@@ -160,15 +160,6 @@ touch .epic/teams-opt-out
 ```
 
 The Triage flow reads this file and skips the proposal entirely. Delete the file to re-enable proposals.
-
-## Future expansion
-
-Agent-teams integration in 1.4.0 covers the Run phase only. Natural next candidates, tracked but not implemented:
-
-- **Validate phase** — validator + auditor + tech-reviewer in parallel is a classic "parallel review" use case from the upstream docs. High-value, low-complexity extension.
-- **Triage phase** — analyst + architect + reviewer would require sequential dependencies; the gain is marginal. Probably never implemented.
-
-See the `## Decisions documented (not applied)` section in CHANGELOG 1.4.0 for rationale.
 
 ## Run Mode Integration
 

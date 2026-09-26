@@ -2,9 +2,9 @@
 
 Triggered by `/epic:epic stories create --batch <doc>`. One interview, N stories.
 
-The interview is the expensive part of creating a story, and creating stories one at a time repeats it wholesale: ~951k fresh tokens for an isolated create against 163-366k per story in a batch, measured across the 2026-07 corpus, with 39% of create-mode output happening before the first artifact touches disk. This mode amortizes the **conversation**. It amortizes nothing else — every story still runs its scale's full pipeline, including Phase 3 with the Test Advisor at engineering level `project` or `product`, and every materialized story still has to pass validation clean.
+The interview is the expensive part of creating a story, and creating stories one at a time repeats it wholesale. This mode amortizes the **conversation**. It amortizes nothing else — every story still runs its scale's full pipeline, including Phase 3 with the Test Advisor at engineering level `project` or `product`, and every materialized story still has to pass validation clean.
 
-`<doc>` is a path: an audit report, a proposal, an improvement plan. A batch with no document is out of scope — the inline-list variant was deferred at clarify.
+`<doc>` is a path: an audit report, a proposal, an improvement plan. A batch with no document is out of scope.
 
 ## Procedure
 

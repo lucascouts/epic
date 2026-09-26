@@ -22,7 +22,7 @@
 #   Q9  init-mode.md writes a Defaults block, and its Rules say it is read,
 #       never re-asked
 #   Q10 developer-register.md exists: direct, context and example on every
-#       option, never the basics, and nothing measured yet
+#       option, never the basics
 #   Q11 plain-register.md explains by example — one analogy per concept
 #   Q12 the Draft Saving example carries the requester block, not a bare value
 #   Q13 Clarify appends a revealed working rule to always/never
@@ -144,7 +144,7 @@ has() { # has <label> <block> <keyword>
   has "Q9 never re-asked" "$rules" "silently"
 }
 
-@test "Q10: developer-register.md is direct, keeps context and an example, never teaches the basics, and admits nothing is measured" {
+@test "Q10: developer-register.md is direct, keeps context and an example, never teaches the basics" {
   f="$ROOT/references/developer-register.md"
   [ -f "$f" ]
   always=$(section "$f" '^## Always' '^## ')
@@ -156,8 +156,6 @@ has() { # has <label> <block> <keyword>
   has "Q10 no analogy for the term" "$never" "analogy"
   unchanged=$(section "$f" '^## What does not change' '^## ')
   has "Q10 scale" "$unchanged" "never changes the scale"
-  measured=$(section "$f" '^## Measured' '^## ')
-  has "Q10 honest" "$measured" "Nothing yet"
 }
 
 @test "Q11: plain-register.md explains by example — one analogy per new concept, inside the ceiling" {

@@ -69,7 +69,7 @@ created: <date>
 
 **`fast` is the floor, and rising above it costs a written reason.** `scale_reason:` holds it — one line, in the frontmatter, naming what in the request made the smaller shape insufficient. Absent at `fast`, expected at every other scale; validation warns when it is missing, never blocks.
 
-The field exists because the scale was the largest unexamined line of the bill. Measured 2026-09-19, same requester, same request, same `experiment` level: the run that resolved to `standard` cost **10.9×** its executed control and 21 minutes; the one that resolved to `fast` cost **4.3×** and 10 minutes. The level had been asked about and answered; the scale had not been mentioned once in the whole conversation — it surfaced only in the recorded line, with the plan already written. **A decision that moves the bill more than the level does cannot be the one decision nobody states.**
+The field exists because the scale moves a story's cost and duration more than any other triage decision, the engineering level included — and left unstated, it surfaces only in the recorded line, with the plan already written. **A decision that moves the bill more than the level does cannot be the one decision nobody states.**
 
 A reason is not a justification ritual: "three integrated surfaces and a migration" is a reason; "the request is complex" is not, because it names nothing the reader can check.
 
@@ -125,7 +125,7 @@ The fulfilled line carries both halves, what discharged the debt and the debt it
 
 **When the reason itself goes stale**, the box stays `[~]` and only its text changes: `close-subtask.sh <story> <box> --restate "<reason>"`. The debt is still owed — this says why it is owed *now* — so the census, the `status:` stamp and the group header are all untouched. It accepts the one state `--fulfill` accepts and refuses the same others, so it cannot tidy a decision away, and it is the only tool that can repair a `(deferred: )` carrying no reason at all.
 
-**This paragraph is the shape's only home** — every other file cites it rather than repeating it. The dash spelling is forced by measurement, not by taste: the canonical qualifier regex `(^|[^[:alnum:]_-])deferred:`, shared by every script that reads this grammar in code, still matches the obvious `(was deferred: ...)`. Written that way, an `[x]` box would be read back as an outstanding deferral by every one of those readers and the story could never reach `done`. `original deferral —` carries no qualifier token at all, so it depends on no regex detail surviving.
+**This paragraph is the shape's only home** — every other file cites it rather than repeating it. The dash spelling is required, not a matter of taste: the canonical qualifier regex `(^|[^[:alnum:]_-])deferred:`, shared by every script that reads this grammar in code, still matches the obvious `(was deferred: ...)`. Written that way, an `[x]` box would be read back as an outstanding deferral by every one of those readers and the story could never reach `done`. `original deferral —` carries no qualifier token at all, so it depends on no regex detail surviving.
 
 ### Completion
 
@@ -151,8 +151,6 @@ Whether a task may *start* is a different question from whether a story is *comp
 - A task is **satisfied** as a dependency when every one of its boxes is `[x]` or **terminal** `[~]` (`waived:`, `n-a:`, `superseded-by:`).
 - A task closed as `[~] (deferred: …)` is **not** satisfied — the plan settled it, the world still owes the work.
 
-> **Provenance.** This is a normative rule with an acceptance criterion behind it: **R3.6** of Epic's own story 004, the story that introduced the `[~]` grammar. It was written one sub-task *before* that criterion existed, and the deviation register carried it as "a NEW rule, flagged for review" — the review happened, its outcome was the criterion, and the flag is retired.
-
 This is the **strictest** of the places where terminal and deferred `[~]` part ways, not the only one. The two are interchangeable exactly where the question is *"is anything still owed by us?"* — **staleness**, where pending is `[ ]` and only `[ ]`, and the bare **complete** predicate, which asks only that no `[ ]` remains. They diverge wherever the question is whether the work actually happened: the **`closed` count** excludes deferred, **progress** renders it apart as `+D deferred`, **`done`** is blocked by it (a deferred box is not terminal), and, here, a **dependency** on it is not satisfied.
 
 The asymmetry between the last two is real and intended: a story whose only non-`[x]` boxes are deferred is `done-except-external` — nothing here is pending — yet a task depending on one of those boxes must still wait, because the thing it needs does not exist yet.
@@ -161,11 +159,11 @@ The asymmetry between the last two is real and intended: a story whose only non-
 
 **A plan warns when it passes 32 KB.** That is the only threshold on the plan as a whole, and this paragraph is its only home: every consumer cites it rather than restating the number, so recalibrating it is one edit and not a hunt.
 
-**There is no ceiling on the number of tasks, and there was one until 0.7.0.** It was a table per engineering level — 5 / 12 / 24 / 40 Task List boxes — justified by a measured pace of about one box per minute. Both halves failed. The pace fit exactly one run of the harness and contradicted the next two, which planned 58 and 33 boxes and closed none of them in seventeen minutes; and a box is not a unit of work in the first place — "create `.gitignore`" and "implement the collection module" are each one box. **How many tasks a story has is derived from the work, not from its level.** Industry practice agrees: a work breakdown structure bounds the *size of each work package* — the 8/80 rule, eight to eighty hours, and explicitly a heuristic rather than a requirement — and never the count; agile story splitting prescribes no number of sub-tasks at all, only that each slice be independently valuable and verifiable.
+**There is no ceiling on the number of tasks**, per engineering level or otherwise. A pace of boxes per minute does not predict a run, and a box is not a unit of work — "create `.gitignore`" and "implement the collection module" are each one box. **How many tasks a story has is derived from the work, not from its level.** Industry practice agrees: a work breakdown structure bounds the *size of each work package* — the 8/80 rule, eight to eighty hours, and explicitly a heuristic rather than a requirement — and never the count; agile story splitting prescribes no number of sub-tasks at all, only that each slice be independently valuable and verifiable.
 
-**What replaces it is a bound on the unit.** A sub-task is **one Executor pass**: one objective, one set of files it may touch, and a `Validation:` command that can be run to prove it. A sub-task that cannot be validated on its own is too big, whatever the plan's total — and that is the question to ask, at any count. The number that follows is whatever the work requires.
+**The bound is on the unit instead.** A sub-task is **one Executor pass**: one objective, one set of files it may touch, and a `Validation:` command that can be run to prove it. A sub-task that cannot be validated on its own is too big, whatever the plan's total — and that is the question to ask, at any count. The number that follows is whatever the work requires.
 
-The bytes arm comes from the corpus, not from taste: across the 2026-07 measurement a healthy `tasks.md` sits around 11 KB, and the plans that had to be split afterwards ran 51–109 KB.
+The 32 KB threshold sits well above a typical healthy `tasks.md` (around 11 KB) and below the size at which a plan usually has to be split (around 50 KB and up).
 
 The bytes warning is a **warning at every site, never a block**, and it makes two offers:
 

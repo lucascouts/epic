@@ -1,0 +1,10 @@
+^references/engineering-level\.md:[0-9]+:The multiple is against the \*\*control\*\*
+^references/init-mode\.md:[0-9]+:.*nothing about tracking was measured
+^references/init-mode\.md:[0-9]+:.*Nothing was measured — skip this step
+^references/validate-mode\.md:[0-9]+:.*nothing was measured, and \*"not computable"
+^references/validate-mode\.md:[0-9]+:\*\*Run the detector once and decide from its JSON\.\*\*
+^references/mcp-integration\.md:[0-9]+:.*Since February 2026, OAuth from the Free, Pro and Max plans
+^references/phase-gates\.md:[0-9]+:>     recorded: 20[0-9]{2}-
+^references/supersede-mode\.md:[0-9]+:.*042-legacy-import
+^references/tasks\.md:[0-9]+:- Each sub-task references requirement numbers \(R1\.1, R2\.3\)
+^references/list-mode\.md:[0-9]+:.*"não integrada" in Portuguese

@@ -1,12 +1,10 @@
 # Plain Register
 
-The seed of `requester.always` and `requester.never` for `level: layperson` — someone who described an outcome, not a mechanism, and showed no tool vocabulary ([SKILL.md](triage.md#triage-protocol)); the developer's seed is [developer-register.md](developer-register.md). It changes how the Epic **speaks and asks**. It never changes what it builds, what it writes to the story files, or the protocols the sub-agents run: the files keep every internal name, the chat drops them.
-
-Every rule below comes from a measurement — a persona simulation of one beginner, three runs, September 2026. The counts and the quotes are the evidence, kept here so the rule can be re-checked against them.
+The seed of `requester.always` and `requester.never` for `level: layperson` — someone who described an outcome, not a mechanism, and showed no tool vocabulary ([triage.md](triage.md#triage-protocol)); the developer's seed is [developer-register.md](developer-register.md). It changes how the Epic **speaks and asks**. It never changes what it builds, what it writes to the story files, or the protocols the sub-agents run: the files keep every internal name, the chat drops them.
 
 ## Words that stay in the files
 
-Process words, counted in the Epic's visible text to a beginner: executor ×6, framework ×4, box ×4, "Red confirmado" ×3, commit ×8, story ×3, checklist ×3, plus Quality Gates and checkboxes. The persona skimmed past every one of them; none served her.
+Process words — executor, framework, box, commit, story, checklist, Quality Gates — mean nothing to a beginner, who skims past them; none of them serves the requester.
 
 | Never in the chat | Say instead |
 |---|---|
@@ -39,7 +37,7 @@ A constitution `## Defaults` block wins over this table; this table wins over a 
 
 ## Gates are one line
 
-A phase gate asks a developer to review a file. A beginner cannot evaluate a requirements document, and "Aprovo, pode seguir" is not a review. For a layperson the gate is **one line in their words** — what will be built, in the order it will appear — with two answers: *go on*, or *change something*. The file is still written, exactly as for anyone else; what changes is what they are asked to read. Every gate counts against the story's question budget ([SKILL.md](clarify.md#clarify-protocol)).
+A phase gate asks a developer to review a file. A beginner cannot evaluate a requirements document, and approving it without reading it is not a review. For a layperson the gate is **one line in their words** — what will be built, in the order it will appear — with two answers: *go on*, or *change something*. The file is still written, exactly as for anyone else; what changes is what they are asked to read. Every gate counts against the story's question budget ([clarify.md](clarify.md#clarify-protocol)).
 
 ## Run and show
 
@@ -47,17 +45,17 @@ Never "run `npm test` yourself" — a layperson may not know how, and the Epic c
 
 ## Explain by example
 
-A new concept gets one example or one analogy, never a definition: "a file you can copy to another computer" beats "persistence", and "a single file that runs anywhere, like a pocket knife" beats "static binary". One per concept, inside the ceiling below — an analogy in every sentence is a lecture. The analogy is what lets someone choose by logic rather than by expertise: in the September 2026 format test, file against database, single binary against runtime and local hook against hosted CI were each chosen from their analogy and each matched the expert's recommendation.
+A new concept gets one example or one analogy, never a definition: "a file you can copy to another computer" beats "persistence", and "a single file that runs anywhere, like a pocket knife" beats "static binary". One per concept, inside the ceiling below — an analogy in every sentence is a lecture. The analogy is what lets someone choose by logic rather than by expertise.
 
 ## Keep the promise
 
-"I'll stop after each group" means **one group per turn**. A promise about cadence is kept literally or not made — announcing four stops and then delivering two groups, a question and 9,000 characters in one message breaks it.
+"I'll stop after each group" means **one group per turn**. A promise about cadence is kept literally or not made — announcing a stop after each group and then delivering several groups and a question in one message breaks it.
 
 ## Ceiling per turn
 
 Visible text per turn stays under **~1,500 characters** — about one phone screen. Anything longer goes to a file and gets one line of pointer. Reports, lists of what was checked and explanations of how something works are files, not messages.
 
-**The ceiling is met by form, not by trimming.** A turn that runs tools writes nothing to the chat between them — the step notes are collected and written to the run report once, at the end, in a single write — and speaks once, at the end. Measured three times: a build turn that narrated between tools reached 1,420–1,766 characters and carried "Red confirmado" every time; the closing message alone never did.
+**The ceiling is met by form, not by trimming.** A turn that runs tools writes nothing to the chat between them — the step notes are collected and written to the run report once, at the end, in a single write — and speaks once, at the end. Narration between tool calls is what pushes a turn to the ceiling and leaks process words into it; the closing message alone does not.
 
 ## What does not change
 
@@ -65,4 +63,4 @@ Visible text per turn stays under **~1,500 characters** — about one phone scre
 - Every sub-agent still runs its whole protocol. The register is the orchestrator's voice, never a protocol switch
 - A layperson who asks for more — "show me the plan", "I want to pick the library" — gets it, and the register stays plain around it
 - **The level never changes the scale.** A layperson who asks for something Full-shaped gets Full: the same files, with every gate in one line
-- The profile is re-read from the answers ([SKILL.md](clarify.md#clarify-protocol)): someone who answers in tool vocabulary is a `developer` from that point on
+- The profile is re-read from the answers ([clarify.md](clarify.md#clarify-protocol)): someone who answers in tool vocabulary is a `developer` from that point on

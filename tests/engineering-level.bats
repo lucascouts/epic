@@ -75,9 +75,9 @@ hasF() { # hasF <label> <block> <fixed string>
   done
   for m in "1×" "2–3×" "4–6×" "8×+"; do hasF "E1 multiple" "$levels" "$m"; done
   hasF "E1 5× rule" "$levels" "5×"
-  has "E1 recalibrated" "$levels" "recalibrated"
   read_=$(section "$f" '^## How the level is read' '^## ')
-  has "E1 tool when unsettled" "$read_" "does not settle it"
+  has "E1 asked when unsettled" "$read_" "does not settle it"
+  has "E1 tool fallback" "$read_" "only when nobody can answer"
   has "E1 price line" "$read_" "one line"
   has "E1 orientation" "$read_" "orientation"
   has "E1 never a choice of level" "$read_" "which level is this"
@@ -101,13 +101,14 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E1 never the scale" "$never" "scale"
 }
 
-@test "E2: triage reads the engineering level from the request, takes tool when unsettled, and the proposal carries an Engineering line" {
+@test "E2: triage reads the engineering level from the request, asks when unsettled (tool only when nobody can answer), and the proposal carries an Engineering line" {
   block=$(section "$ROOT/references/triage.md" '^## Triage Protocol' '^### Complexity')
   [ -n "$block" ]
   has "E2 level" "$block" "engineering level"
   has "E2 reference" "$block" "engineering-level"
   for l in experiment tool project product; do has "E2 $l" "$block" "\`$l\`"; done
-  has "E2 default" "$block" "when the request does not settle it"
+  has "E2 default" "$block" "ask when the request does not settle it"
+  has "E2 fallback" "$block" "only when nobody can answer"
   has "E2 price" "$block" "multiple"
   has "E2 never the scale" "$block" "never changes the scale and never changes the requester level"
   grep -q '^> - \*\*Engineering:\*\*' "$ROOT/references/triage.md"
@@ -174,7 +175,6 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E7 project" "$ta" "project"
   has "E7 product" "$ta" "product"
   has "E7 reference" "$ta" "engineering-level"
-  has "E7 measured" "$ta" "25 minutes"
   has "E7 foreground kept" "$ta" "run_in_background: false"
   lite=$(section "$f" '^### Test Advisor Lite' '^## ')
   [ -n "$lite" ]
@@ -334,9 +334,6 @@ hasF() { # hasF <label> <block> <fixed string>
 @test "E15: the scale is proposed beside the level — the requester sees the bigger price" {
   read_=$(section "$ROOT/references/engineering-level.md" '^## How the level is read' '^## ')
   has "E15 scale in proposal" "$read_" "scale"
-  # 10.9x vs 4.3x, same requester, same request, same level: the scale moved
-  # the bill further than the level did.
-  has "E15 measured" "$read_" "10.9"
 }
 
 @test "E15b: rising above the fast floor owes a written reason" {
@@ -360,8 +357,8 @@ hasF() { # hasF <label> <block> <fixed string>
   read_=$(section "$ROOT/references/engineering-level.md" '^## How the level is read' '^## ')
   has "E16 rule" "$read_" "ever marked recommended"
   has "E16 both registers" "$read_" "any register"
-  # The developer branch adopts the layperson form, changing only vocabulary.
-  has "E16 direction" "$read_" "layperson form is the correct one"
+  # Every register uses the same unmarked form, changing only vocabulary.
+  has "E16 direction" "$read_" "Every register asks it as its own question"
 }
 
 @test "E17: no dependencies is a verdict, not a failure" {
@@ -369,7 +366,7 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E17 verdict" "$floor" "verdict, not a failure"
   # osv-scanner exits 128 on a zero-dependency project: an error where the
   # honest answer is "nothing to report".
-  has "E17 measured" "$floor" "128"
+  has "E17 exit code" "$floor" "128"
   has "E17 never failed" "$floor" "never failed for having nothing to scan"
 }
 
@@ -389,8 +386,6 @@ hasF() { # hasF <label> <block> <fixed string>
 @test "E20: the report never states the multiple the run achieved" {
   rec=$(section "$ROOT/references/engineering-level.md" '^## Where it is recorded' '^## ')
   has "E20 rule" "$rec" "never states the multiple"
-  # Reported ~5-6x where the executed control put it at 11x.
-  has "E20 measured" "$rec" "11"
 }
 
 @test "E21: the commit stages by name — never a blanket add" {

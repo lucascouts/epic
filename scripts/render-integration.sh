@@ -9,8 +9,8 @@
 #                                           <story-count> <is-stories-full>
 #
 #   --list             read the JSON of scripts/story-git-status.sh on stdin and
-#                      write the LIST annotation — `integrada`, `não-integrada`
-#                      or nothing (references/list-mode.md, Integration
+#                      write the LIST annotation value — `integrated`,
+#                      `not-integrated` or nothing (references/list-mode.md, Integration
 #                      Annotation).
 #   --validate <NNN>   same input; write the validate warning for a story that
 #                      is not integrated, or nothing
@@ -71,14 +71,11 @@
 
 set -euo pipefail
 
-# The two LIST contract strings, spelled once (references/list-mode.md: "The
-# labels `integrada` and `não-integrada` are contract strings; render them
-# verbatim"). Portuguese and accented on purpose — this is the user-facing
-# vocabulary the reference fixes, not a translatable label, and the `ã` is
-# U+00E3 encoded as UTF-8 (0xC3 0xA3). A file re-saved in another encoding
-# breaks the contract without breaking the syntax.
-ANNOTATION_INTEGRATED="integrada"
-ANNOTATION_NOT_INTEGRATED="não-integrada"
+# The two LIST annotation values, spelled once (references/list-mode.md,
+# Integration Annotation). They are machine values, not display text: the list
+# shows them in the requester's language, so no human language is fixed here.
+ANNOTATION_INTEGRATED="integrated"
+ANNOTATION_NOT_INTEGRATED="not-integrated"
 
 # The cost rule's threshold (R2.1): "when the project has more than 50 stories
 # skip the per-story evaluation". MORE THAN, so 50 itself is still evaluated.
@@ -167,7 +164,7 @@ read_stdin() {
 
 # render_list <json>: the LIST annotation for <json>, or nothing.
 # references/list-mode.md, Integration Annotation:
-#   true  → `integrada`, false → `não-integrada`, null → nothing.
+#   true  → `integrated`, false → `not-integrated`, null → nothing.
 # The caller appends it after a ` · `; the separator is the list's business, not
 # this script's, so what comes back is the bare label.
 render_list() {

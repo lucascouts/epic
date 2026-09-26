@@ -85,7 +85,6 @@ has() { # has <label> <block> <keyword>
   [ -n "$personas" ]
   has "D6 rule" "$personas" "run_in_background: false"
   has "D6 foreground" "$personas" "foreground"
-  has "D6 measured" "$personas" "12 of 12"
   ta=$(section "$ROOT/references/phase-gates.md" '^## Test Advisor Sub-agent' '^### ')
   has "D6 test advisor" "$ta" "run_in_background: false"
   an=$(section "$ROOT/references/context-discovery.md" '^## Codebase Analysis' '^## ')

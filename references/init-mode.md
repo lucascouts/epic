@@ -29,7 +29,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
    - Free-text fields? [1] validated as text (default) [2] fixed lists where the domain has one
    - Branch for story commits? [1] the current branch (default) [2] one branch per story
 
-   Unanswered items take the default, and the block is written either way — so the same request gets the same answer on every run. Measured before this block existed: the same data file was gitignored in two runs and versioned in the third, and tests were silent in one run and asked-and-declined in two.
+   Unanswered items take the default, and the block is written either way — so the same request gets the same answer on every run.
 
    **Quality — the checks every story runs** (written into `.epic/constitution.md` as a `## Quality` block; a story's `## Quality Requirements` legend starts from it — [quality-catalog.md](quality-catalog.md)):
    - The always tier, one line per item with the command detected for this stack: formatter, linter, type checker, test runner, lockfile install, dependency scanner, secrets scanner
@@ -39,7 +39,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
    Unanswered items take the default. Activating an item never installs a tool — the [preferred-tooling policy](preferred-tooling.md) applies.
 
 4. **Generate files** — create all requested files with sensible defaults based on scan
-5. **Ask the versioning-policy question** — measure first, offer exactly two options, then write the chosen state. Defined once, below: [Versioning Policy](#versioning-policy). A non-interactive run never asks and never starts tracking (R3.4)
+5. **Ask the versioning-policy question** — measure first, offer exactly two options, then write the chosen state. Defined once, below: [Versioning Policy](#versioning-policy). A non-interactive run never asks and never starts tracking
 5a. **Offer to ignore the sub-agents' memory directories** — under either policy, consent-gated and additive: [Agent memory hygiene](#agent-memory-hygiene)
 6. **Report** — list all files created, and name the policy that was recorded
 
@@ -55,9 +55,9 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 
 ## Versioning Policy
 
-**Why this is a question and not a default.** Across a 26-project corpus, the absence of a *declared* policy is what destroyed lifecycle history. A track→untrack transition **wiped 54 stories** in one project; a squash left **9 zombie duplicates** straddling `stories/` and `archive/` in another. One project (`kpranois`) had **47 `.epic` files committed THROUGH a `.gitignore` that said they were never committed**, and another (`bentoolkit`) **flip-flopped its policy five times**. Meanwhile the three projects with the most auditable lifecycle had all deliberately broken the older "never commit `.epic`" doctrine and converged on the same model: **version the `.md` artifacts, ignore `.draft/`**. That model is option 1 and it is *recommended* because it is the measured winner; it is still a *question* because every failure above came from a policy nobody ever said out loud.
+**Why this is a question and not a default.** The absence of a *declared* policy is what destroys lifecycle history: a track→untrack transition wipes stories, a squash leaves duplicates straddling `stories/` and `archive/`, `.epic` files end up committed THROUGH a `.gitignore` that says they never are, and the policy flips back and forth. Option 1 — **version the `.md` artifacts, ignore `.draft/`** — is *recommended* because it keeps the lifecycle auditable; it is still a *question* because every failure above comes from a policy nobody said out loud.
 
-**The recommended policy tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `archive/manifest.yaml` — never `.draft/`.** `.draft/` is scratch space (run logs, authored tests, phase snapshots, `*.wip`) and is in no policy's tracked set. **That includes the story's evidence — `deviations.yaml`, `red-evidence.yaml`, `validation-report.yaml`, `audit-report.yaml` — by decision, not by omission** (September 2026): the register is a working record, and its durable forms live elsewhere — the archive's prune keeps a summary, and where the `ai-memory` server is detected the orchestrator writes the register and the structural audit findings as pages ([mcp-integration.md](mcp-integration.md#memory-mcp)). A reviewer who wants the evidence reads it from the story before it is archived, or from the page.
+**The recommended policy tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `archive/manifest.yaml` — never `.draft/`.** `.draft/` is scratch space (run logs, authored tests, phase snapshots, `*.wip`) and is in no policy's tracked set. **That includes the story's evidence — `deviations.yaml`, `red-evidence.yaml`, `validation-report.yaml`, `audit-report.yaml` — by decision, not by omission**: the register is a working record, and its durable forms live elsewhere — the archive's prune keeps a summary, and where the `ai-memory` server is detected the orchestrator writes the register and the structural audit findings as pages ([mcp-integration.md](mcp-integration.md#memory-mcp)). A reviewer who wants the evidence reads it from the story before it is archived, or from the page.
 
 **The per-project choice supersedes any global doctrine.** A global rule that says "never commit `.epic`" — in a user-level `CLAUDE.md` or a personal convention — is superseded by whatever this question records for this project. Init never reads, edits or reports on the user's global configuration; it asks, and the answer governs this repository.
 
@@ -83,9 +83,9 @@ Run it from the **workspace root** — it resolves `.epic/` against `$PWD` — a
 
 When `verdict` is not `consistent`, show it **before** asking, verbatim and with its numbers — e.g. `contradiction: 47 tracked files under an ignoring .gitignore` — so the choice is made against the real state rather than against the intention someone remembers having.
 
-### Step 5.2 — The question (R3.1)
+### Step 5.2 — The question
 
-**Exactly two options, and option 1 always carries the recommendation.** Ask with `AskUserQuestion` when the function schema list exposes it; otherwise fall back to the numbered-list prose form, per the Runtime dependency precheck in [SKILL.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage).
+**Exactly two options, and option 1 always carries the recommendation.** Ask with `AskUserQuestion` when the function schema list exposes it; otherwise fall back to the numbered-list prose form, per the Runtime dependency precheck in [triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage).
 
 ```
 How should this project version its .epic/ artifacts?
@@ -104,12 +104,12 @@ How should this project version its .epic/ artifacts?
 
 **Which option is the default answer:**
 
-- No policy declared yet (`policy: undeclared`) → **option 1**. That is R3.1's recommended default and the state a fresh init is in.
-- A policy already declared → **the declared one**, still with option 1 labelled "(recommended)" and the declared one labelled "(current)". Re-running the wizard must never flip a recorded decision by the user pressing enter: `.epic/.gitpolicy` is an existing file, the Rules above already forbid overwriting one without confirmation, and a policy that flips on a re-run is exactly the five-times flip-flop this section exists to prevent.
+- No policy declared yet (`policy: undeclared`) → **option 1**. That is the recommended default and the state a fresh init is in.
+- A policy already declared → **the declared one**, still with option 1 labelled "(recommended)" and the declared one labelled "(current)". Re-running the wizard must never flip a recorded decision by the user pressing enter: `.epic/.gitpolicy` is an existing file, the Rules above already forbid overwriting one without confirmation, and a policy that flips on a re-run is exactly the flip-flop this section exists to prevent.
 
 **There is no third option, and aborting is not one.** If the user abandons the wizard at this question, write **nothing** — no `.epic/.gitpolicy`, no gitignore edit. The lint then reports `undeclared`, which is deliberately low-signal and surfaces only in `stories full`. A policy nobody chose must never be recorded as one somebody did.
 
-### Step 5.3 — Versioned artifacts → `tracked-md` (R3.2)
+### Step 5.3 — Versioned artifacts → `tracked-md`
 
 Three writes, in this order. The gitignore step is second because it is the only one that can be declined, and neither of the other two depends on its outcome.
 
@@ -119,8 +119,8 @@ Three writes, in this order. The gitignore step is second because it is the only
 # Epic scratch space — never versioned under any policy.
 .draft/
 *.wip
-# A dependency tree under .epic/ is never an artifact — three projects in the
-# July 2026 corpus carried one, left by an `npm install` inside a story.
+# A dependency tree under .epic/ is never an artifact — an `npm install`
+# run inside a story leaves one.
 node_modules/
 ```
 
@@ -144,7 +144,7 @@ Locate the line before quoting it:
 grep -nE '^[[:space:]]*/?\.epic/?[[:space:]]*$' .gitignore
 ```
 
-That covers the four spellings the corpus shows (`.epic`, `.epic/`, `/.epic`, `/.epic/`). **If it matches nothing while the lint named `.gitignore`, the rule is spelled some other way** (`.ep*`, `**/.epic/`, a negation interplay) — do **not** guess and do **not** delete a line you inferred. Say the rule could not be pinned to one line, show the file, and let the user point at it or remove it themselves.
+That covers the four common spellings (`.epic`, `.epic/`, `/.epic`, `/.epic/`). **If it matches nothing while the lint named `.gitignore`, the rule is spelled some other way** (`.ep*`, `**/.epic/`, a negation interplay) — do **not** guess and do **not** delete a line you inferred. Say the rule could not be pinned to one line, show the file, and let the user point at it or remove it themselves.
 
 The consent prompt states the consequence of each answer:
 
@@ -159,7 +159,7 @@ Versioned artifacts cannot be committed while that rule stands. Remove this line
       will report `contradiction` until the rule is gone
 ```
 
-Default is **no**. Removing a line from a file the user wrote is a destructive edit, and R3.2 says *offer*: **never remove it silently, and never remove more than the one line that was shown.**
+Default is **no**. Removing a line from a file the user wrote is a destructive edit, so init only *offers* it: **never remove it silently, and never remove more than the one line that was shown.**
 
 **On `[n]`, record `tracked-md` anyway** and say plainly, in the step-6 report, that the lint will report `contradiction` and what closes it. The declaration is the user's intent; quietly downgrading it to match a rule they chose to keep would hide the disagreement, and surfacing exactly this disagreement is what the lint is for.
 
@@ -172,18 +172,18 @@ tracked-md
 # Docs: references/init-mode.md#versioning-policy
 ```
 
-### Step 5.4 — Local-only → `local-only` (R3.3)
+### Step 5.4 — Local-only → `local-only`
 
 **a. Ensure the *root* `.gitignore` ignores `.epic/`.**
 
 | `gitignore_ignores_epic` | `gitignore_source` | What init does |
 |---|---|---|
 | `true` | `.gitignore` | Nothing. The root file already carries the rule |
-| `true` | `.git/info/exclude` or any other path | **Append the rule to the root `.gitignore` anyway.** Neither `.git/info/exclude` nor a global `core.excludesFile` travels with the repository — a teammate who clones it has nothing ignoring `.epic/`. R3.3 asks for the root file specifically, and that is why |
+| `true` | `.git/info/exclude` or any other path | **Append the rule to the root `.gitignore` anyway.** Neither `.git/info/exclude` nor a global `core.excludesFile` travels with the repository — a teammate who clones it has nothing ignoring `.epic/`. That is why the rule must live in the root file |
 | `false` | `null` | Append the rule |
 | — | absent (`git: false`) | Append the rule. It costs nothing and takes effect the moment the directory becomes a repository |
 
-**Before appending, disclose what the rule would strand (R3.3).** The append writes a rule; it untracks nothing, and git will not untrack anything either. So in a repository that already tracks artifacts the rule leaves those files committed under a line saying they never are — `verdict: contradiction`, the lint's first arm, kpranois's 47 files exactly, this time manufactured by the wizard that exists to prevent them. Read `tracked_md` from the step 5.1 measurement already in hand — only when `git` is `true`, per the read-order contract there — and add `tracked_draft` to it when that is non-zero, because the arm counts both. At `0`, append with no prompt: nothing can be stranded, and a question that always answers itself is one people learn to click through. Above `0`, ask first, quoting the count:
+**Before appending, disclose what the rule would strand.** The append writes a rule; it untracks nothing, and git will not untrack anything either. So in a repository that already tracks artifacts the rule leaves those files committed under a line saying they never are — `verdict: contradiction`, the lint's first arm, manufactured by the wizard that exists to prevent it. Read `tracked_md` from the step 5.1 measurement already in hand — only when `git` is `true`, per the read-order contract there — and add `tracked_draft` to it when that is non-zero, because the arm counts both. At `0`, append with no prompt: nothing can be stranded, and a question that always answers itself is one people learn to click through. Above `0`, ask first, quoting the count:
 
 ```
 This repository already tracks 23 .epic artifacts.
@@ -223,11 +223,11 @@ local-only
 
 **c. Do not write `.epic/.gitignore` in this branch.** Under local-only the whole directory is excluded, so a nested ignore file inside it can never change what git does — it would be a generated file with no effect. An `.epic/.gitignore` left over from an earlier run is **kept, never deleted**: it is equally inert, and deleting a user's file to tidy up is not this wizard's business.
 
-### Step 5.5 — Non-interactive init (R3.4)
+### Step 5.5 — Non-interactive init
 
 **A headless run applies local-only, prompts for nothing, and never starts tracking.**
 
-Detect the session kind with the signal the skill already defines — `TaskCreate` present in the function schema list means an interactive session, otherwise the run is headless or Agent SDK (see the Runtime dependency precheck in [SKILL.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage)). This is the same signal, read the same way, that [preferred-tooling.md](preferred-tooling.md) and [validate-mode.md](validate-mode.md#headless) use for their own pauses. Do not invent a second detection.
+Detect the session kind with the signal the skill already defines — `TaskCreate` present in the function schema list means an interactive session, otherwise the run is headless or Agent SDK (see the Runtime dependency precheck in [triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage)). This is the same signal, read the same way, that [preferred-tooling.md](preferred-tooling.md) and [validate-mode.md](validate-mode.md#headless) use for their own pauses. Do not invent a second detection.
 
 | `policy` reported by the lint | Headless init does |
 |---|---|
@@ -235,7 +235,7 @@ Detect the session kind with the signal the skill already defines — `TaskCreat
 | `local-only` | Re-run step 5.4a only (idempotent: it appends nothing when the root file already carries the rule). Leave the policy file as it is |
 | `tracked-md` | **Change nothing.** Log the detected policy and move on |
 
-That last row is the one to get right. Overwriting a recorded `tracked-md` would reverse a decision the user made out loud, and adding `.epic/` to the root `.gitignore` of a repository that already tracks artifacts manufactures the exact kpranois contradiction — tracked files under an ignoring `.gitignore` — in a run nobody was watching. R3.4's conservative default is for a workspace that has said nothing; it is not a licence to overrule one that has.
+That last row is the one to get right. Overwriting a recorded `tracked-md` would reverse a decision the user made out loud, and adding `.epic/` to the root `.gitignore` of a repository that already tracks artifacts manufactures the contradiction — tracked files under an ignoring `.gitignore` — in a run nobody was watching. The conservative default is for a workspace that has said nothing; it is not a licence to overrule one that has.
 
 Emit the outcome as a logged note, never a pause:
 
@@ -247,7 +247,7 @@ interactive session to choose versioned artifacts instead.
 
 ### Agent memory hygiene
 
-Claude Code writes the Epic auditor's and analyst's project memory into `.claude/agent-memory/epic-*/` **inside the user's repository** — their agent definitions declare `memory: project` — and a persona simulation (September 2026) found those notes sitting untracked and unignored in a beginner's repo. The directory is outside `.epic/`, so neither policy branch above touches it; this step does, under both.
+Claude Code writes the Epic auditor's and analyst's project memory into `.claude/agent-memory/epic-*/` **inside the user's repository** — their agent definitions declare `memory: project` — where, unless something ignores them, those notes sit untracked and unignored. The directory is outside `.epic/`, so neither policy branch above touches it; this step does, under both.
 
 WHEN `git check-ignore -q .claude/agent-memory/` fails — nothing ignores it yet — offer, default **yes**, to append one line to the root `.gitignore`:
 
@@ -255,7 +255,7 @@ WHEN `git check-ignore -q .claude/agent-memory/` fails — nothing ignores it ye
 .claude/agent-memory/
 ```
 
-Appending is not the destructive edit of step 5.3b, which is why the default flips: nothing the user wrote is removed. It is still a question, because the root `.gitignore` is theirs. Already ignored → say nothing. Not a git repository → skip and say so. Headless → never edit; log the recommendation and proceed (R3.4).
+Appending is not the destructive edit of step 5.3b, which is why the default flips: nothing the user wrote is removed. It is still a question, because the root `.gitignore` is theirs. Already ignored → say nothing. Not a git repository → skip and say so. Headless → never edit; log the recommendation and proceed.
 
 ### After init — making a `tracked-md` declaration real
 

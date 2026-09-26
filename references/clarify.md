@@ -1,6 +1,6 @@
 # Clarify — the question rounds
 
-Loaded when a Create run asks questions (Standard and Full always; Fast when the request is ambiguous). Instant never loads it: it asks nothing. Moved out of [SKILL.md](../skills/epic/SKILL.md) so a run that does not need it does not carry it.
+Loaded when a Create run asks questions (Standard and Full always; Fast when the request is ambiguous). Instant never loads it: it asks nothing. It lives outside [SKILL.md](../skills/epic/SKILL.md) so a run that does not need it does not carry it.
 
 ## Clarify Protocol
 
@@ -64,11 +64,7 @@ the plain register, and both get the context and the example.
   numbered-list fallback) counts one; the orientation round counts one
   whatever its size; every phase gate and every question asked during Run
   counts one, against the same budget: **`layperson` — Fast 3, Standard 9,
-  Full 12; `developer` — Fast 4, Standard 10, Full 14.** Measured on the
-  format's own trial (September 2026, a Standard-shaped request):
-  orientation, four, four with the gate — nine. Before any budget existed:
-  1 out-of-reach question in Fast and 5–8 in Standard, for one beginner and
-  one request. When the budget is spent, decide by the constitution's
+  Full 12; `developer` — Fast 4, Standard 10, Full 14.** When the budget is spent, decide by the constitution's
   `## Defaults` and the
   [plain register](plain-register.md#decisions-the-requester-is-not-asked)
   table, write each decision as an assumption in story.md (Fast: in the run
@@ -108,5 +104,5 @@ context:     "Affects R2.3 (token TTL) and downstream session handling"
 ### Fallback (headless or AskUserQuestion unavailable)
 
 When the tool is not callable (some `-p` modes, restricted permission scopes),
-revert to the legacy assertion style — present a single message with a numbered
+fall back to the assertion style — present a single message with a numbered
 list of `"I understand X will work as Y. Confirm?"` items.

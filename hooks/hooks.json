@@ -27,16 +27,6 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-archive-guard.sh\""
           }
         ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "if": "Bash(git commit *)",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-defer-commit.sh\""
-          }
-        ]
       }
     ],
     "PreCompact": [

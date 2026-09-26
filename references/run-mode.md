@@ -26,7 +26,7 @@ Parse flags from `$ARGUMENTS` after the run command:
 
 | Flag | Behavior |
 |---|---|
-| (default) | Standard and Full: gate after every task group. **Fast runs as `--auto`**: it stops on a validation or test failure and on a doubt the constitution defaults do not cover, and nowhere else — a Fast story is small enough to see whole at the end, and its per-group gate was one round of the question budget spent on "go on" |
+| (default) | Standard and Full: gate after every task group. **Fast runs as `--auto`**: it stops on a validation or test failure and on a doubt the constitution defaults do not cover, and nowhere else — a Fast story is small enough to see whole at the end, and a per-group gate would spend one round of the question budget on "go on" |
 | `--auto` | Only stop on a failure or an uncovered doubt — the Fast default, made explicit for Standard and Full |
 | `--step` | Gate after every task group in a Fast run — the one way to ask a Fast story for its stops back |
 | `--batch=N` | Gate every N task groups |
@@ -133,20 +133,14 @@ For an **inline-routed** sub-task under the run-time ordering above (Fast, spike
 
 **When to take it — and why it is rarely the answer.** The three tests are the ones the detection in [run-parallel.md](run-parallel.md) already runs, at sub-task granularity: two or more pending sub-tasks route Closed spec, their dependencies are satisfied, and they touch no common file. One closed-spec sub-task alone stays inline. The same maximum of five applies.
 
-**But a fork must first beat inline, and at this plugin's unit size it usually does not.** Ten trivial independent sub-tasks, same machine, same model:
-
-| Route | Wall clock | Cost |
-|---|---|---|
-| inline, one after another | **10.9 s** | **$0.071** |
-| ten forks in one message | 20.7 s | $0.319 |
-| ten `general-purpose` sub-agents | 21.2 s | $0.470 |
+**But a fork must first beat inline, and at this plugin's unit size it usually does not.** Every spawn adds a fixed cost in wall clock and in money before any work starts, and inline pays no such cost.
 
 Spawn overhead dominates when the unit is small, and a sub-task here is small by construction — one Executor pass with a `Validation:` command that proves it alone. **Take the Fork Route only when each sub-task is large enough for overlap to repay the spawn**, and record the reason. A plan whose sub-tasks each finish in under a minute is a plan to run inline.
 
 **Two environment gates, and neither does what its name suggests.**
 
 - `CLAUDE_CODE_FORK_SUBAGENT=1` enables the fork agent type. It is off by default in non-interactive mode (`-p`) and in the Agent SDK, so a run that does not set it gets `Agent type 'fork' not found` and must fall back to inline, in order, without comment.
-- `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` is **not a fork setting and is required on every run**, fork or no fork. Under `-p`, sub-agents are backgrounded **by default with fork mode off**: without the variable, spawns report `is_backgrounded: true` whether or not fork mode is on. A backgrounded sub-agent's result arrives only as a completion notification in a later turn — exactly the failure story 026 fixed — and it reaches the Analyst, the Validator and the Auditor as much as any fork. With the variable set, spawns report `is_backgrounded: false`: it **does** restore the foreground, in fork mode and out of it.
+- `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` is **not a fork setting and is required on every run**, fork or no fork. Under `-p`, sub-agents are backgrounded **by default with fork mode off**: without the variable, spawns report `is_backgrounded: true` whether or not fork mode is on. A backgrounded sub-agent's result arrives only as a completion notification in a later turn, and that holds for the Analyst, the Validator and the Auditor as much as for any fork. With the variable set, spawns report `is_backgrounded: false`: it **does** restore the foreground, in fork mode and out of it.
 
 **Worktrees are still the isolation.** Forks writing different files at once are as capable of colliding as Executors are; the group runs under the same worktree discipline as Parallel Execution, and boxes are closed only in the main tree, sequentially, after each merge.
 
@@ -197,11 +191,11 @@ The Executor's step-6 report ends with a machine-liftable **closing block** (def
 
 **A `failed` outcome makes no close call.** It routes through step 6's FAIL path — report to the user, ask how to proceed — and the box stays `[ ]` with nothing written anywhere. The enum's third arm is consumed here, by *not* closing.
 
-**Group headers close themselves.** When a close leaves its task group with no open `[ ]` children, the script closes the group header `[x]` in the **same write** (R1.7) — so a header normally needs no call of its own, and closing the last child of a group is one invocation, not two. Closing a header directly is refused while a `[ ]` child remains: an `[x]` there would claim work still owed. `--tilde` is the one way to close such a header, because a `[~]` says on its own line why the group is closed without the work. Never close a header by hand to tidy up after a batch.
+**Group headers close themselves.** When a close leaves its task group with no open `[ ]` children, the script closes the group header `[x]` in the **same write** — so a header normally needs no call of its own, and closing the last child of a group is one invocation, not two. Closing a header directly is refused while a `[ ]` child remains: an `[x]` there would claim work still owed. `--tilde` is the one way to close such a header, because a `[~]` says on its own line why the group is closed without the work. Never close a header by hand to tidy up after a batch.
 
 #### What comes back
 
-**One JSON object on stdout**, every diagnostic on stderr. Measured, closing `1.1` of the dry run below:
+**One JSON object on stdout**, every diagnostic on stderr. For example, closing `1.1` of the dry run below returns:
 
 ```json
 {"story":"042-legacy-import","task":"1.1","box":"x","qualifier":null,
@@ -246,7 +240,7 @@ A refusal names its own reason in `reason`, and each arm is a statement about th
 
 ### Status Transitions
 
-The story's `status:` frontmatter field is **engine-written, never hand-edited**. Run mode owns two of the six values — `in-progress` and `done` — and writes them right after a box in tasks.md is marked. The other four belong elsewhere and Run mode never writes them: `draft` to CREATE, `validated` to VALIDATE, `superseded` to the supersede operation, `archived` to the archive operation. `in-progress` has one further writer, and only for one edge: REFINE mode, when a refinement reopens a story (R1.8) — the table below is the single definition both modes apply. See [SKILL.md](lifecycle-status.md#lifecycle-status-status) for the full field spec.
+The story's `status:` frontmatter field is **engine-written, never hand-edited**. Run mode owns two of the six values — `in-progress` and `done` — and writes them right after a box in tasks.md is marked. The other four belong elsewhere and Run mode never writes them: `draft` to CREATE, `validated` to VALIDATE, `superseded` to the supersede operation, `archived` to the archive operation. `in-progress` has one further writer, and only for one edge: REFINE mode, when a refinement reopens a story — the table below is the single definition both modes apply. See [SKILL.md](lifecycle-status.md#lifecycle-status-status) for the full field spec.
 
 **When the check runs:** after **every** marking in tasks.md — each sub-task marking, whichever path executed the sub-task (Trivial inline or Executor, step 7 above), and the end-of-Run quality-gate settlement, which is usually the marking that closes the last box.
 
@@ -257,7 +251,7 @@ Census the boxes **as they now stand** — `open`, `closed` and `deferred` are d
 | # | After the census | Then |
 |---|---|---|
 | 1 | no `[ ]` remains **and** no `[~] (deferred: …)` remains | write `done` (nothing to do if the field already reads `done`) |
-| 2 | rule 1 did not fire, at least one `[ ]` remains, and `status:` reads **`done` or `validated`** | write `in-progress` — the story was **reopened** (R1.7) |
+| 2 | rule 1 did not fire, at least one `[ ]` remains, and `status:` reads **`done` or `validated`** | write `in-progress` — the story was **reopened** |
 | 3 | rules 1–2 did not fire, and `status:` is **absent or `draft`** | write `in-progress` |
 | 4 | none fired | write nothing |
 
@@ -269,7 +263,7 @@ Rule 1 is the canonical **`done`**: "every box is `[x]` or terminal `[~]`" and "
 
 **Writing the transition.** The five rules below are what the write must satisfy, **whoever performs it**. Run mode performs none of them by hand — `close-subtask.sh` does, inside the close — while REFINE and VALIDATE cite this list as the single definition and perform the `Edit` themselves:
 
-1. **`Edit` the frontmatter line — never `Write` the file.** The PostToolUse hook in `hooks/hooks.json` matches **`Write` only**: a `Write` under `.epic/**` re-runs `validate-story.sh`. Transitions written with `Write` would fire a full validation pass after every marking — a validation storm on an advisory metadata update. An `Edit` of the single `status:` line does not trigger the hook. `close-subtask.sh` satisfies the same requirement from the other side: it replaces that one line through a temp file renamed into place, and a Bash write fires **no** PostToolUse hook at all — which is why the script runs `validate-story.sh` once itself, after the marking and the stamp, and reports the verdict in the JSON's `validate` field rather than leaving it to a hook that no longer fires.
+1. **`Edit` the frontmatter line — never `Write` the file.** The PostToolUse hook in `hooks/hooks.json` matches **`Write` only**: a `Write` under `.epic/**` re-runs `validate-story.sh`. Transitions written with `Write` would fire a full validation pass after every marking — a validation storm on an advisory metadata update. An `Edit` of the single `status:` line does not trigger the hook. `close-subtask.sh` satisfies the same requirement from the other side: it replaces that one line through a temp file renamed into place, and a Bash write fires **no** PostToolUse hook at all — which is why the script runs `validate-story.sh` once itself, after the marking and the stamp, and reports the verdict in the JSON's `validate` field.
 2. **The same value in every artifact of the story that carries frontmatter** — `story.md`, `design.md`, `tasks.md`, whichever exist (a Fast story has only tasks.md). One story, one lifecycle state: artifacts declaring different values raise a validation warning naming them. An artifact with no frontmatter is skipped — there is no line to edit, and its silence is never counted as divergence.
 3. **Legacy story with no `status:` field — the `Edit` adds it.** Most existing stories predate the field; absence is legal, silent, and never an error. Insert `status: <value>` as a new line inside the frontmatter block, before the closing `---`, in each artifact that has one.
 4. **Add only the state this run observed.** The value added is what the engine just saw: a marking that leaves work open is `in-progress`; a marking that satisfies rule 1 is `done`; a census that finds open work on a story reading `done` or `validated` is `in-progress` again. Never back-date `draft` onto a story the engine never saw created, and never write an intermediate value the run did not observe — a legacy story whose first marking also completes it goes straight from no field to `done`, in one write. The field is worth having only because it is evidence; a fabricated prior state is exactly the lie it exists to prevent.
@@ -306,7 +300,7 @@ tasks.md at the start                       status: in all three artifacts
    {"box":"x","census":{"total":7,"open":4,"closed":3,"deferred":0},
     "status_written":null,"validate":{"errors":0,"warnings":0,"status":"pass"}}
    closed went 1 -> 3 in ONE call: `- [x] 1` closed in the same write as its
-   last open child (R1.7), so no second call names the header.
+   last open child, so no second call names the header.
    4 open -> rule 1 no. status: in-progress -> rules 2 and 3 no. RULE 4:
    nothing written, which is what status_written null reports.
 
@@ -366,7 +360,7 @@ And the reopen edge, on the story left at `done` by step 5:
    report "status is ahead of the checkboxes".
 ```
 
-Metadata lines and the `Objective`, `Validation`, `Requirements` and `Commit` fields are elided from all three listings: they carry no checkbox and never enter the census. The JSON objects are elided too, to their load-bearing fields — every call also returns `story`, `task` and `reason`. Every value shown was measured on this fixture, not projected from the rules.
+Metadata lines and the `Objective`, `Validation`, `Requirements` and `Commit` fields are elided from all three listings: they carry no checkbox and never enter the census. The JSON objects are elided too, to their load-bearing fields — every call also returns `story`, `task` and `reason`.
 
 ### The Commit Field
 
@@ -376,11 +370,11 @@ Metadata lines and the `Objective`, `Validation`, `Requirements` and `Commit` fi
 
 Always executed by the main agent (not a sub-agent). Git operations require the main worktree context, so in a parallel batch the commit runs **after** the merge and never inside a worktree (see Parallel Execution).
 
-**Stage by name, never `git add -A` or `git add .`.** The commit stages the files the sub-tasks named and nothing else. A blanket add sweeps in whatever the run happened to leave beside them — measured 2026-09-19, that is how `.epic/` itself reached the index in a session where the `epic-gitignore.sh` SessionStart hook had not run, which is every Agent SDK session and every `-p` invocation. The hook is a convenience, not a guarantee, and a rule that only holds when a hook fired is not a rule. Staging by name also keeps the generated artifacts, the runtime data file and the compiled binary out of the commit without depending on a `.gitignore` anyone remembered to write.
+**Stage by name, never `git add -A` or `git add .`.** The commit stages the files the sub-tasks named and nothing else. A blanket add sweeps in whatever the run happened to leave beside them — `.epic/` included, whenever no ignore rule covers it. An ignore rule written by a session hook is absent from every session where that hook did not run, and a rule that only holds when a hook fired is not a rule. Staging by name also keeps the generated artifacts, the runtime data file and the compiled binary out of the commit without depending on a `.gitignore` anyone remembered to write.
 
 **When `.epic/` is untracked and no ignore rule covers it, leave it that way and say so in one line.** Do not add an ignore rule on the story's behalf: whether the artifacts belong in git is the workspace's policy to declare, and `scripts/epic-gitpolicy.sh` is what reports a workspace contradicting itself. Silently committing them decides that policy by accident.
 
-**The message is the pre-authored one, verbatim (R3.4).** The `Commit:` message was written at plan time and carries the story's `type(NNN):` anchor — the one `validate-story.sh` lints for and `story-git-status.sh` counts back as `anchored_commits`. Rewording it at commit time spends that anchor, and the story's own commits stop being findable. The Executor never runs `git commit`: it reports, in its closing block, the pre-authored message it validated against, and the orchestrator is what executes it.
+**The message is the pre-authored one, verbatim.** The `Commit:` message was written at plan time and carries the story's `type(NNN):` anchor — the one `validate-story.sh` lints for and `story-git-status.sh` counts back as `anchored_commits`. Rewording it at commit time spends that anchor, and the story's own commits stop being findable. The Executor never runs `git commit`: it reports, in its closing block, the pre-authored message it validated against, and the orchestrator is what executes it.
 
 ### Deferred Red for E2E sub-tasks
 
@@ -433,7 +427,7 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 >
 > ## Pre-Authored Test
 >
-> [INCLUDED ONLY when this sub-task has a pre-authored failing test. Path to the materialized test file plus its contents. This is a **read-only input** — you implement against it to make it pass; you do NOT author, replace, or weaken it. If this section is absent, this is a test-after sub-task: author tests yourself in step 5 as before.]
+> [INCLUDED ONLY when this sub-task has a pre-authored failing test. Path to the materialized test file plus its contents. This is a **read-only input** — you implement against it to make it pass; you do NOT author, replace, or weaken it. If this section is absent, this is a test-after sub-task: author tests yourself in step 5.]
 >
 > ## Available MCPs
 >
@@ -452,8 +446,8 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 
 ### Executor Rules
 
-- The Executor does NOT commit code. Commits are handled by the orchestrator from each group's `Commit:` field — post-merge, in the main tree, with the pre-authored message verbatim (R3.4). A parallel Executor sits in a worktree, where a commit would land on a branch nobody has merged yet
-- The Executor does NOT mark tasks — not `[x]`, and not `[~]` either: `close-tilde` is something its closing block *reports*, never something it writes. The orchestrator does the marking, after verifying the report — and it does it through `close-subtask.sh`, the one sanctioned writer of the checkbox grammar (see Closing a Box). This is not a matter of trust: a box marked anywhere else is a box written outside the only writer that takes the census, stamps the status and validates the story in the same transaction — and, inside a worktree, written into a copy of tasks.md that the merge would then have to reconcile (R3.3)
+- The Executor does NOT commit code. Commits are handled by the orchestrator from each group's `Commit:` field — post-merge, in the main tree, with the pre-authored message verbatim. A parallel Executor sits in a worktree, where a commit would land on a branch nobody has merged yet
+- The Executor does NOT mark tasks — not `[x]`, and not `[~]` either: `close-tilde` is something its closing block *reports*, never something it writes. The orchestrator does the marking, after verifying the report — and it does it through `close-subtask.sh`, the one sanctioned writer of the checkbox grammar (see Closing a Box). This is not a matter of trust: a box marked anywhere else is a box written outside the only writer that takes the census, stamps the status and validates the story in the same transaction — and, inside a worktree, written into a copy of tasks.md that the merge would then have to reconcile
 - The Executor does NOT skip steps. If Context Gathering finds nothing useful, the step still executes and reports "no actionable findings."
 - If a step fails (validation, tests), the Executor STOPS and reports. It does not attempt fixes autonomously.
 - The Executor receives only the relevant sections of story.md and design.md, not the full files, to keep context focused.
@@ -532,20 +526,20 @@ Two or more pending tasks whose dependencies are all satisfied may run at once, 
 - **Parallel when proven, sequential otherwise** — a group that passed the three detection checks (see [run-parallel.md](run-parallel.md)) runs in parallel without asking; everything not proven independent runs in order, respecting dependencies. `--serial` forces order for the whole run
 - **Stop on failure** — if validation or tests fail, stop and report. Do not continue to next task.
 - **No step skipping** — every step in the Executor protocol is mandatory. Context Gathering is not optional when a Context field exists. Validation commands must be executed and their output reported. This is the fundamental rule of Run Mode.
-- **Run-time questions count against the story's question budget** ([SKILL.md](clarify.md#clarify-protocol)). A decision with a default in the constitution's `## Defaults` block or in the [plain register](plain-register.md#decisions-the-requester-is-not-asked) table is taken and mentioned, never asked — the measured run asked a beginner how to commit on `master`, with three branch options
-- **For a `layperson` requester** ([plain-register.md](plain-register.md)): run and show — never ask them to run a command; a stop per group is promised only when `--step` was passed — under the Fast default the run goes to the end and shows the result once, and a doubt the defaults do not cover stops it like a failure would — and when it is promised, it is one group per turn; visible text per turn stays under ~1,500 characters, the rest goes to files. **A build turn writes nothing to the chat between tool calls**: the step-by-step is collected as it happens and written into `run-report.md` once at the end of the turn — one `Write`, never an `Edit` per step (Fast already writes that report) — and the turn's only visible text is its closing three lines — what to type, what it does, and one choice that was made for them. Measured three times: the interstitial notes were what carried "Red confirmado" into the chat, and what pushed the build turn to 1,420–1,766 characters
+- **Run-time questions count against the story's question budget** ([SKILL.md](clarify.md#clarify-protocol)). A decision with a default in the constitution's `## Defaults` block or in the [plain register](plain-register.md#decisions-the-requester-is-not-asked) table is taken and mentioned, never asked
+- **For a `layperson` requester** ([plain-register.md](plain-register.md)): run and show — never ask them to run a command; a stop per group is promised only when `--step` was passed — under the Fast default the run goes to the end and shows the result once, and a doubt the defaults do not cover stops it like a failure would — and when it is promised, it is one group per turn; visible text per turn stays under ~1,500 characters, the rest goes to files. **A build turn writes nothing to the chat between tool calls**: the step-by-step is collected as it happens and written into `run-report.md` once at the end of the turn — one `Write`, never an `Edit` per step (Fast already writes that report) — and the turn's only visible text is its closing three lines — what to type, what it does, and one choice that was made for them. Notes written between tool calls are where jargon leaks into the chat, and what pushes a build turn over its character ceiling
 - **User gates** — controlled by execution flags (default: gate after every task group)
 - **Context is fresh** — each Executor reads files directly. The orchestrator passes only metadata (paths, deviations, discoveries) between tasks.
 - **Commit granularity** — follow the Commit fields defined in tasks. Never commit in the middle of a task group.
 - **Completion** — a story is **complete** when **no `[ ]` remains**: it is **`done`** when every box is `[x]` or terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), and **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`. `done-except-external` is computed at read time, never written to a file. Progress reads `closed/total (+D deferred)`. See [tasks.md](tasks.md#completion)
 - **Marking** — every box this mode closes is closed by `close-subtask.sh`, one invocation per box; the orchestrator never edits a checkbox, and never re-reads tasks.md for a census the call already returned. See Closing a Box
-- **Lifecycle status** — Run mode writes `status: in-progress` when a census finds the field absent or `draft`, or finds an open `[ ]` on a story reading `done` or `validated` (the reopen edge, R1.7), and `status: done` when a marking leaves no `[ ]` and no deferred `[~]`. **Run mode writes none of it by hand**: the same `close-subtask.sh` invocation that closed the box takes the census, applies the table, stamps every artifact that carries frontmatter — the same value in each, the field added on a legacy story with the state this run observed and never a back-dated one — and reports what it wrote in `status_written`. A failed write is reported and the run continues. See Status Transitions
+- **Lifecycle status** — Run mode writes `status: in-progress` when a census finds the field absent or `draft`, or finds an open `[ ]` on a story reading `done` or `validated` (the reopen edge), and `status: done` when a marking leaves no `[ ]` and no deferred `[~]`. **Run mode writes none of it by hand**: the same `close-subtask.sh` invocation that closed the box takes the census, applies the table, stamps every artifact that carries frontmatter — the same value in each, the field added on a legacy story with the state this run observed and never a back-dated one — and reports what it wrote in `status_written`. A failed write is reported and the run continues. See Status Transitions
 - **Quality gates check** — after all tasks complete (or after the last requested task), run through quality gates and report status. Settling a gate box is a marking like any other: it is closed with `close-subtask.sh <story> gate:<text prefix>` and carries its own status transition, since it is usually the marking that closes the story's last box
 - **Validator integration** — after all requested tasks complete, optionally spawn the Validator sub-agent for verification. Ask: "All tasks completed. Run Validator to verify? (y/n)"
 - **Spike promote offer** — when a run **sets** a `scale: spike` story's `## Verdict` to `promote`, offer to create the follow-up story, pre-filled with the spike's `conclusion:`. It is offered **at that moment, not at end of run**, and so lands ahead of the Archive offer — which is the order that works, since a promote whose follow-up was never created is not archivable yet. **The offer is defined once**, in [list-mode.md](list-mode.md#spike-lifecycle) — its gate, the ask-first rule, what is recorded on acceptance and the repeat after an interrupted run all live there, and Run mode reuses them unchanged. A spike's deliverable is the answer, and `promote` is the answer "this needs a story": the offer is how that answer becomes one, instead of a note nobody acts on
 - **Archive offer** — when the run's last close came back with **`status_written.to == "done"`** (rule 1 of Status Transitions, written by that invocation), offer `Archive story NNN? [y/n]`; on `[y]` run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/archive-story.sh" <story-dir>` and surface its JSON verdict in full — `blocked` and `refused` included, verbatim, since a refusal nobody sees is the failure this offer exists to end. In a **headless** session do not pause: log the suggestion and proceed. **The offer is defined once**, in [validate-mode.md](validate-mode.md#archive-offer) — gate, prompt text, the deferred-items variant, verdict surfacing and the headless branch all live there, and Run mode reuses them unchanged
 - **Index refresh** — regenerate the managed index block at the end of a completed run: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic-index.sh"`. Defined once, in [validate-mode.md](validate-mode.md#index-refresh); a non-zero exit warns and never gates the run
-- **The recorded line** — the end-of-run report opens with the line the execution plan opened with — scale, requester level, engineering level with its multiple, plan size in Task List boxes — and adds the wall clock and the boxes closed beside it ([engineering-level.md](engineering-level.md#where-it-is-recorded)). It is what the persona harness compares against the control; a report without it cannot be measured
+- **The recorded line** — the end-of-run report opens with the line the execution plan opened with — scale, requester level, engineering level with its multiple, plan size in Task List boxes — and adds the wall clock and the boxes closed beside it ([engineering-level.md](engineering-level.md#where-it-is-recorded)). It lets the run's actual size and wall clock be compared against the engineering level's expected multiple; a report without it cannot be measured
 
 ### End of Run — Validator, archive, index
 
@@ -557,7 +551,7 @@ A completed run finishes with these three steps, in this order:
 
 **One memory write precedes the three, when memory is available and the register is not empty.** Write the deviation register as one page at `epic/deviations/NNN-<slug>.md`: an H1 `# Deviations of story NNN — <title>` and then the register's entries — deviations and discoveries — as they stand in `.draft/deviations.yaml`, with no secret carried over. One page per story at a stable path, so a re-run of the story rewrites it instead of adding a second. An empty register writes nothing; unavailable memory calls nothing ([mcp-integration.md](mcp-integration.md#memory-mcp)).
 
-**The trigger is the transition, not the census.** Run mode offers the archive only when *this run* wrote `done` — rule 1 of Status Transitions — and it reads that from the closing call's **`status_written.to == "done"`**. Same trigger as before, new source. A run that ends with the story still `in-progress`, or that changed no status at all, makes no offer: the offer marks the moment a story became finished, and a story that was already `done` before the run started did not become finished here. **Never re-derive the trigger from the census.** `census.open == 0` with `census.deferred == 0` is equally true of the story that arrived already `done`, and on that story `status_written` comes back `null` — the field is null on every close that wrote no transition, which is exactly the distinction the offer needs and the only one the census cannot make.
+**The trigger is the transition, not the census.** Run mode offers the archive only when *this run* wrote `done` — rule 1 of Status Transitions — and it reads that from the closing call's **`status_written.to == "done"`**. A run that ends with the story still `in-progress`, or that changed no status at all, makes no offer: the offer marks the moment a story became finished, and a story that was already `done` before the run started did not become finished here. **Never re-derive the trigger from the census.** `census.open == 0` with `census.deferred == 0` is equally true of the story that arrived already `done`, and on that story `status_written` comes back `null` — the field is null on every close that wrote no transition, which is exactly the distinction the offer needs and the only one the census cannot make.
 
 **`done-except-external` never reaches this offer.** Rule 1 writes `done` only when no `[ ]` **and** no deferred `[~]` remains, so a story whose computed condition is `done-except-external` stays `in-progress`, every one of its closes returns `status_written: null`, and it is never offered the archive by Run mode — the deferred-items variant of the prompt is unreachable from here **by construction**, not by omission. It is reachable from VALIDATE, where such a story can pass and take the `in-progress → validated` edge documented in [validate-mode.md](validate-mode.md#status-transition-validated). The asymmetry is deliberate: the offer follows the transition, and only one of the two modes can transition a story that still owes work to the outside world.
 

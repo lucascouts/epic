@@ -13,7 +13,7 @@ When multiple pending tasks share the same dependency set and all dependencies a
 1. Build the dependency graph from the `Dependencies` field on parent tasks, **and from the sibling sub-tasks inside each pending parent**. A sub-task depends on a sibling only when it names one (`Task 2.1`) or when its ToDo consumes something the sibling creates — a file, a symbol, a migration. Otherwise the siblings are independent
 2. Identify parallel group: items where all deps are **satisfied** ([tasks.md](tasks.md#dependency-satisfaction) — `[x]` or terminal `[~]`; a dep closed as `[~] (deferred: …)` is **not**) and no item in the group depends on another item in the same group
 3. Verify no file conflicts: items that modify the same files are NOT parallelized. At sub-task granularity this is the usual disqualifier — siblings edit one file far more often than sibling *tasks* do, and `tasks.md` rule 9 already forbids splitting a task across the same file, which makes the check cheap to run and usually decisive
-4. **State the group in the execution plan and go** — "Tasks N, M, P are independent: they depend only on satisfied tasks and touch no common file, so they run in parallel." No question is asked. A group that passed steps 1–3 is proven independent, and asking cost more than it protected: one round of the question budget per run, and every run where nobody said yes — the measured story ran its nine executors in series with the detection looking one layer too high and this gate defaulting to no. `--serial` declines, for the whole run
+4. **State the group in the execution plan and go** — "Tasks N, M, P are independent: they depend only on satisfied tasks and touch no common file, so they run in parallel." No question is asked. A group that passed steps 1–3 is proven independent, and asking costs more than it protects: one round of the question budget on every run, and a serial run whenever nobody says yes. `--serial` declines, for the whole run
 
 ### Execution
 
@@ -28,8 +28,8 @@ For each parallel group, unless `--serial` was passed:
 
 ### Rules
 
-- **Boxes are closed only in the main tree, sequentially, after each merge — never inside a worktree copy of tasks.md (R3.3).** A worktree branches from HEAD with its own copy of the file, so a box closed there is closed in a copy the merge then has to reconcile, and two Executors closing at once are two rewrites of one file. Serialising the closes behind the merges — which are already sequential — also makes each returned `census` a census of the file everyone else will read
-- A group's `Commit:` field is ALWAYS executed sequentially (post-merge), by the main agent, using the pre-authored message verbatim (R3.4)
+- **Boxes are closed only in the main tree, sequentially, after each merge — never inside a worktree copy of tasks.md.** A worktree branches from HEAD with its own copy of the file, so a box closed there is closed in a copy the merge then has to reconcile, and two Executors closing at once are two rewrites of one file. Serialising the closes behind the merges — which are already sequential — also makes each returned `census` a census of the file everyone else will read
+- A group's `Commit:` field is ALWAYS executed sequentially (post-merge), by the main agent, using the pre-authored message verbatim
 - `--serial` runs every group in order with no worktree created — the one way to decline parallel execution, and it applies to the whole run
 - Maximum parallel Executors: 5 (to avoid resource exhaustion)
 - Each parallel Executor gets the full story context (story.md, design.md relevant sections)

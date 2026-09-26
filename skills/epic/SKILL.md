@@ -54,10 +54,10 @@ Epic exists solely to **create, structure, and manage epics and their stories** 
 | "Review this code / PR / branch" | No story artifact to anchor to | Use `/review`, `/security-review`, or `/code-review` |
 | "Security review of …" | Same | `/security-review` |
 | "Refactor X" (no existing story) | Skips design-fidelity contract | Create a Fast/Standard story first, then `run` it |
-| "Analyze / explain this codebase" | Epic artifacts are the only valid analysis container here | `/gsd-explore`, `/gsd-map-codebase`, or plain chat |
+| "Analyze / explain this codebase" | Epic artifacts are the only valid analysis container here | Plain chat, or `/review` for a change |
 | "Write this script / change this file" (no approved sub-task) | Implementation only happens inside Executor for an approved sub-task | Create a story (often Fast) then run its tasks |
-| "Debug this incident / failing test" | Debug flow is out-of-scope | `/gsd-debug` |
-| "Architecture advice for existing code" | No design.md to validate against | `/tab` or `/gsd-explore` |
+| "Debug this incident / failing test" | Debug flow is out-of-scope | Plain chat |
+| "Architecture advice for existing code" | No design.md to validate against | Plain chat, or `/code-review` for a change |
 
 The refusal is hard. Do not partially engage, do not propose an Epic-wrapped version unless the user rewrites the request as story/task work. See [`../../PURPOSE.md`](../../PURPOSE.md) for the full boundary.
 
@@ -81,6 +81,13 @@ The refusal is hard. Do not partially engage, do not propose an Epic-wrapped ver
 
 ### Git state
 !`git rev-parse --short HEAD 2>/dev/null && git diff --stat HEAD 2>/dev/null | tail -1 || echo "(not a git repo)"`
+
+## Plugin options
+
+The user's plugin settings, substituted by Claude Code when this skill loads. Only a saved value is substituted: a value that still reads `${user_config.…}` was never saved, so use the default in brackets.
+
+- `aiMemory`: `${user_config.aiMemory}` [`auto`] — `off` skips every ai-memory call ([mcp-integration.md](../../references/mcp-integration.md#memory-mcp))
+- `defaultScale`: `${user_config.defaultScale}` [`standard`] — the scale proposed when triage cannot settle one
 
 ## Concepts
 
@@ -209,7 +216,7 @@ When a command references `NNN`:
 
 **What it does not remove.** The three pins are the whole difference. Triage still runs, the plan is still written, and every box still carries a `Validation:` that proves it alone.
 
-**What it does cost, said plainly.** `instant` does not only drop ceremony — **it drops protections the person using the program would have had**, and it drops them without asking. Measured across three runs on 2026-09-19, two requesters and two languages, the shortcut decided alone to: leave out an operation the same requester had asked for when asked; make an unreadable answer cost a point where the un-shortcut run re-asked the question for free; delete a record without confirming; and ship an interface in a language the requester had chosen differently when consulted. In one run it produced **no README at all** — less documentation than the same request answered with no Epic in the session.
+**What it does cost, said plainly.** `instant` does not only drop ceremony — **it drops protections the person using the program would have had**, and it drops them without asking. Left alone, the shortcut can: leave out an operation the requester would have asked for; make an unreadable answer cost a point instead of re-asking the question for free; delete a record without confirming; pick an interface language the requester would have chosen differently; and ship **no README at all** — less documentation than the same request answered with no Epic in the session.
 
 That is a fair bargain for something disposable, and it is not a bug. It stops being fair the moment it is silent. So:
 
@@ -269,7 +276,7 @@ That is a fair bargain for something disposable, and it is not a bug. It stops b
   [Lifecycle Status](#lifecycle-status-status) for the full field spec.
 - Refine writes `status:` for exactly **one** transition: the reopen edge. A
   refinement that leaves an open `[ ]` on a story reading `done` or `validated`
-  writes `in-progress` (R1.7, R1.8) — see
+  writes `in-progress` — see
   [Status Census](../../references/refine-mode.md#status-census). It writes no
   other value: a refinement that does not reopen the story leaves the field
   exactly as it was, including absent.
@@ -297,12 +304,12 @@ The `status:` field, its six values and who writes each: [lifecycle-status.md](.
 
 ## Language
 
-**Artifacts are always written in English.** Claude models perform best processing English-language technical content. This ensures optimal quality when artifacts are consumed later for implementation. There is no override for this rule.
+**Everything the Epic writes under `.epic/` is written in English — stories, design, tasks, backlog, reports and every other document.** This is not an option and no setting changes it: these files are read later by sub-agents, and Claude models perform best on English technical content. The project itself may carry comments and domain terms in other languages; that is the project's choice, and the Epic neither rewrites nor flags them.
 
 - **Spec artifacts** (story.md, design.md, tasks.md): always English
 - **EARS keywords**: always English and CAPS (SHALL, WHEN, WHILE, IF, WHERE)
 - **Communication with the user**: always in the user's language (detected from their prompt) — **every line they can see, including a note between two tool calls and the closing message**. A status line is communication: "Now closing the final checks" in the middle of a Portuguese conversation is the same defect as an English menu.
-- **Code identifiers**: always English (function names, variables, etc.)
+- **Code identifiers the Epic introduces**: English (function names, variables, etc.)
 - **What the requester's own users read**: the program's interface — menu, prompts, error messages — and the documentation of how to use it (its README). **This is the one thing the English rule does not cover**, and it is not the Epic's to decide: it belongs to whoever will read it.
 
 **The interface language is asked, not assumed.** A request written in a language other than English carries no instruction about the program's own text, and the English rule above is about artifacts — reading it as a rule about the interface ships a menu the requester cannot read, decided by a rule that was never about them. So:
