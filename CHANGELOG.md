@@ -11,6 +11,51 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-09-26
+
+The plugin now follows the Claude Code documentation and uses the platform's own features before its own machinery. Development history is gone from every shipped file.
+
+**Minimum Claude Code:** unchanged. The eval suite needs `claude plugin eval` (v2.1.269+) to run; the plugin itself does not.
+
+### Added
+
+- `bin/epic-*` wrappers for every script a reference runs, called by bare name from the Bash PATH.
+- A SubagentStop guard keeps the Validator and the Auditor running until they have written their report file.
+- A PreToolUse guard stops the Executor from running `git commit` or editing `tasks.md`.
+- A headless run (no `AskUserQuestion`) answers its own gates with the recommended option, records each as an assumption, and runs the mode to its end.
+- Plugin options reach the skill through `${user_config.*}`, with each default written beside it for an option never saved.
+- An eval suite for `claude plugin eval`: 30 trigger cases and 6 end-to-end cases, run in an isolated home.
+- A provenance lint over skills, agents, references, scripts and tests.
+
+### Changed
+
+- `SKILL.md` stays under the post-compaction budget, with the standing rules (Language, Validation, Gotchas) first; Instant and Output Rules moved to their own references.
+- "Can someone answer?" is decided by whether `AskUserQuestion` is available; the Task tools are optional progress display.
+- Sub-agents are awaited whether they run in the foreground or the background; spawn prompts carry only inputs and defer to each agent's definition.
+- Parallel Executors run with `isolation: "worktree"`, after a check that `worktree.baseRef` is `head`.
+- The stale-story check runs in `/epic:epic stories` instead of a background monitor.
+- MCP availability is read from the tool list; no probe call is made.
+- One SessionStart(compact) hook renders the active story from disk after a compaction, under the 10,000-character hook limit.
+- `init` recommends the built-in `/init` for `CLAUDE.md` and offers `permissions.deny` rules for protected files.
+- Story artifacts under `.epic/` are always English; this is not configurable.
+- The engineering level is asked when the request does not settle it; `tool` is taken only when nobody can answer.
+- List annotations are neutral values rendered in the requester's language.
+- CI recipes load the plugin with `--plugin-dir`, select `system/init` by type, and bound each run with `--max-budget-usd`.
+- `story-telemetry.sh` reads sub-agent transcripts; the README points to OpenTelemetry, `/usage` and the `-p` JSON result first.
+
+### Removed
+
+- Teams mode, its hooks and the `teams` subcommand. Agent teams are a native, interactive-only feature.
+- The `artifactLanguage`, `enableStaleMonitor` and `staleCheckIntervalSeconds` options.
+- The commit-defer, PermissionDenied, CwdChanged, FileChanged, PostToolUseFailure, PreCompact and UserPromptSubmit hooks.
+- `run-evals.sh` and `trigger-detect.sh`.
+
+### Fixed
+
+- The PostToolUse validator's errors now reach Claude as hook context.
+- The orphan-draft notice after `/clear` is shown, with one removal line per draft instead of a glob.
+- The `!` project-state lines resolve from the project root and tell "no commits yet" from "not a git repo".
+
 ## [0.9.0] — 2026-09-24
 
 One through-line: **the plugin now carries only what the run in front of it
@@ -1357,7 +1402,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/lucascouts/epic/releases/tag/v0.10.0
 [0.9.0]: https://github.com/lucascouts/epic/releases/tag/v0.9.0
 [0.8.0]: https://github.com/lucascouts/epic/releases/tag/v0.8.0
 [0.7.0]: https://github.com/lucascouts/epic/releases/tag/v0.7.0
