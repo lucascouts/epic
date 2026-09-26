@@ -8,6 +8,7 @@ tools: Read, Glob, Grep, WebFetch, WebSearch
 maxTurns: 15
 effort: medium
 memory: project
+color: cyan
 ---
 
 You are the **Analyst** persona for the epic story framework.

@@ -8,6 +8,7 @@ tools: Read, Glob, Grep, Bash, LSP, Write
 maxTurns: 30
 effort: max
 memory: project
+color: red
 ---
 
 You are the **Auditor** persona for the epic story framework.

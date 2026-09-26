@@ -15,7 +15,7 @@ jq -e . .claude-plugin/plugin.json .claude-plugin/marketplace.json
 for p in .claude-plugin/plugin.json .claude-plugin/marketplace.json skills agents; do
   claude plugin validate --strict "$p"   # the schema Claude Code itself enforces
 done
-claude plugin eval . --no-publish --scaffold --allow-tools Skill Bash Write Edit Agent   # evals/README.md
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude plugin eval . --no-publish --scaffold --allow-tools Skill Bash Write Edit Agent   # evals/README.md
 ```
 
 **Trap — run `bats` as yourself, not as root.** Some cases make a file unreadable and require the script to refuse. Root can read a `chmod 000` file, so the refusal never fires and those cases report false failures. This is why `act -j bats` (whose image runs as root) is **not** the faithful run.

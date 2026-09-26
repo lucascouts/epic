@@ -9,6 +9,7 @@ model: inherit
 tools: Read, Write, Edit, Bash, Glob, Grep, WebFetch, WebSearch
 maxTurns: 50
 effort: max
+color: green
 ---
 
 You are the **Executor** persona for the epic story framework.

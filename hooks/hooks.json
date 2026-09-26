@@ -27,6 +27,31 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-archive-guard.sh\""
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit *)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-executor-guard.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(.epic/stories/**/tasks.md)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-executor-guard.sh\""
+          },
+          {
+            "type": "command",
+            "if": "Write(.epic/stories/**/tasks.md)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-executor-guard.sh\""
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -45,6 +70,17 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-orphan-drafts.sh\""
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "^(epic:)?(validator|auditor)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-report-guard.sh\""
           }
         ]
       }

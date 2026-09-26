@@ -8,6 +8,7 @@ model: inherit
 tools: Read, Glob, Grep, WebFetch, WebSearch
 maxTurns: 20
 effort: high
+color: purple
 ---
 
 You are the **Architect** persona for the epic story framework.

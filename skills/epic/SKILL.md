@@ -31,6 +31,10 @@ allowed-tools:
   - TodoWrite
   - Agent
   - AskUserQuestion
+  - mcp__ai-memory__memory_status
+  - mcp__ai-memory__memory_recent
+  - mcp__ai-memory__memory_query
+  - mcp__ai-memory__memory_write_page
 ---
 
 # Epic
@@ -61,7 +65,7 @@ The refusal is hard. Do not partially engage, do not propose an Epic-wrapped ver
 
 - **Spec artifacts** (story.md, design.md, tasks.md): always English
 - **EARS keywords**: always English and CAPS (SHALL, WHEN, WHILE, IF, WHERE)
-- **Communication with the user**: always in the user's language (detected from their prompt) — **every line they can see, including a note between two tool calls and the closing message**. A status line is communication: "Now closing the final checks" in the middle of a Portuguese conversation is the same defect as an English menu.
+- **Communication with the user**: always in the user's language — the `language` setting when the user has set one, otherwise the language of their prompt — **every line they can see, including a note between two tool calls and the closing message**. A status line is communication: "Now closing the final checks" in the middle of a Portuguese conversation is the same defect as an English menu.
 - **Code identifiers the Epic introduces**: English (function names, variables, etc.)
 - **What the requester's own users read**: the program's interface — menu, prompts, error messages — and the documentation of how to use it (its README). **This is the one thing the English rule does not cover**, and it is not the Epic's to decide: it belongs to whoever will read it.
 
@@ -109,6 +113,8 @@ Its JSON `mapping` field gives the requirement → sub-tasks relation directly �
 ## Runtime dependency precheck (MANDATORY before Standard/Full triage)
 
 **Before Standard or Full triage, run the precheck in [triage.md](../../references/triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage).**
+
+**Headless — `AskUserQuestion` is not callable, so nobody can answer:** take every gate and question with its recommended option, record each as an assumption, and run the mode to its end; stop only on a failure.
 
 ## Project State
 

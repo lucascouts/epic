@@ -26,6 +26,7 @@ Each phase: generate artifact > **write to disk** > notify user > gate (approve 
 - If the user rejects a phase, offer cascade rollback (see below)
 - If the user edits the file directly, read the updated version before proceeding to the next phase
 - If the user aborts, delete the entire story directory
+- In a headless run nobody reviews: the gate is taken as approved and the next phase starts ([triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage))
 
 **For a `layperson` requester the gate is one line, not a file review** — what will be built, in their words, and two answers: go on, or change something ([plain-register.md](plain-register.md#gates-are-one-line)). The artifact is written exactly as for anyone else; what changes is what they are asked to read. A layperson cannot evaluate a technical document, so their approval of one tells you nothing. Every gate counts against the story's question budget ([clarify.md](clarify.md#clarify-protocol)).
 

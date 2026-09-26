@@ -17,10 +17,11 @@ evals/
 
 ## Run
 
-Always pass `--no-publish`: without it the HTML report is published to claude.ai.
+Always pass `--no-publish`: without it the HTML report is published to claude.ai. Export `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` first: each run is a single headless turn, and a sub-agent left in the background ends it before the story is written.
 
 ```bash
 # Everything, both arms (with the plugin, and a no-plugin baseline)
+export CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1
 claude plugin eval . --no-publish --scaffold --allow-tools Skill Bash Write Edit Agent
 
 # Only the trigger cases, one run each, no baseline

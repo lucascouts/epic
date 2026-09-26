@@ -2,7 +2,7 @@
 
 Design-level view of the Epic plugin for contributors and integrators. The [README](README.md) covers *what* Epic is and how to install it; this document covers *how the pieces fit together* and *why*.
 
-- Last verified against: **v0.9.0** (`.claude-plugin/plugin.json`)
+- Last verified against: **v0.10.0** (`.claude-plugin/plugin.json`)
 - If you only want to add a new story mode or tweak an agent prompt, jump to [Extension points](#extension-points).
 
 ---
@@ -189,6 +189,8 @@ All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — 
 |---|---|---|---|---|
 | `PostToolUse` | `Write(.epic/**)` | `hook-validate.sh` | Auto-run `validate-story.sh` on every story-artifact write | 2.1.85 |
 | `PreToolUse` | `Edit(.epic/archive/**)` · `Write(.epic/archive/**)` | `hook-archive-guard.sh` | Block mutations to archived stories | 2.1.85 |
+| `PreToolUse` | `Bash(git commit *)` · `Edit`/`Write` of `.epic/stories/**/tasks.md` | `hook-executor-guard.sh` | Inside the Executor (`agent_type`), deny `git commit` and edits to `tasks.md` | 2.1.85 |
+| `SubagentStop` | `epic:validator` · `epic:auditor` | `hook-report-guard.sh` | Keep the agent running until it has written its report file | 2.1.69 |
 | `SessionStart` | `compact` | `hook-session-restore.sh` | After a compaction, render the active story's state from disk into context | 2.1.105 |
 | `SessionStart` | `clear` | `hook-orphan-drafts.sh` | After `/clear`, list drafts untouched for 30+ days, one removal line each; deletes nothing | 2.1.85 |
 

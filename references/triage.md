@@ -22,6 +22,8 @@ Standard and Full modes ask questions, so they need to know whether anyone can a
 
 1. **Detect session kind — one signal, used everywhere:** `AskUserQuestion` is callable (listed among the tools, directly or as a deferred tool) → **interactive**: someone can answer. Otherwise → **headless** (`-p`, Agent SDK, or a run with no permission host). An explicit `--auto` or CI route counts as headless whatever the tools say. The Task tools are **not** a signal: Claude Code offers them only on some models, in interactive and headless sessions alike.
 
+**A headless run answers its own gates.** When nobody can answer, the triage gate, every clarify round and every phase gate is taken with its recommended option — or the documented default where there is none — and the run continues to the end of the mode. Each answer taken this way is recorded where the artifact records assumptions (a story Constraint, or `.draft/meta.yaml`), and the closing message lists them. A headless run stops only where an interactive run would stop on a failure: a validation error, a failing test, a refusal.
+
 2. **Task tools are optional.** When present, mirror the run in them; when absent, do nothing and report nothing — progress lives in `tasks.md`. A user who wants the checklist can start Claude Code with `CLAUDE_CODE_ENABLE_TODO_TOOLS=1`.
 
 3. **Notify the user** before starting Triage, using this exact format:

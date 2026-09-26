@@ -110,4 +110,6 @@ options:
 
 When the tool is not callable (some `-p` modes, restricted permission scopes),
 fall back to the assertion style — present a single message with a numbered
-list of `"I understand X will work as Y. Confirm?"` items.
+list of `"I understand X will work as Y. Confirm?"` items. In a headless run
+nobody will confirm: state the items as the assumptions taken and continue
+([triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage)).

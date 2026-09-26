@@ -69,3 +69,9 @@ setup() {
   run grep -n '^paths:' "$SKILL"
   [ "$status" -eq 1 ]
 }
+
+@test "a headless run answers its own gates instead of waiting for a reply nobody will send" {
+  grep -q 'Headless — `AskUserQuestion` is not callable' "$SKILL"
+  grep -q 'A headless run answers its own gates' "$ROOT/references/triage.md"
+  grep -q 'In a headless run nobody reviews' "$ROOT/references/phase-gates.md"
+}

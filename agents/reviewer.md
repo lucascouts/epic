@@ -8,6 +8,8 @@ model: inherit
 tools: Read, Glob, Grep
 maxTurns: 20
 effort: high
+color: yellow
+omitClaudeMd: true
 ---
 
 You are the **Reviewer** persona for the epic story framework.

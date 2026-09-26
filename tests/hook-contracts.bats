@@ -50,3 +50,47 @@ teardown() {
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
+
+# --- Executor guard (PreToolUse) ---
+
+guard() { bash "$PLUGIN_ROOT/scripts/hook-executor-guard.sh"; }
+
+@test "executor guard denies git commit inside the Executor" {
+  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epic:executor\",tool_name:\"Bash\",tool_input:{command:\"git add a && git commit -m x\"}}' | guard"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.hookSpecificOutput.permissionDecision == "deny"'
+}
+
+@test "executor guard denies editing tasks.md inside the Executor" {
+  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epic:executor\",tool_name:\"Edit\",tool_input:{file_path:\"/w/.epic/stories/001-x/tasks.md\"}}' | guard"
+  echo "$output" | jq -e '.hookSpecificOutput.permissionDecision == "deny"'
+}
+
+@test "executor guard leaves the orchestrator and harmless commands alone" {
+  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{tool_name:\"Bash\",tool_input:{command:\"git commit -m x\"}}' | guard"
+  [ -z "$output" ]
+  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epic:executor\",tool_name:\"Bash\",tool_input:{command:\"git log --grep commit\"}}' | guard"
+  [ -z "$output" ]
+  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epic:executor\",tool_name:\"Write\",tool_input:{file_path:\"/w/src/app.js\"}}' | guard"
+  [ -z "$output" ]
+}
+
+# --- Report guard (SubagentStop) ---
+
+report_guard() { bash "$PLUGIN_ROOT/scripts/hook-report-guard.sh"; }
+
+@test "report guard blocks a Validator stop when its report was never written" {
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}' > "$WORK/t.jsonl"
+  run bash -c "$(declare -f report_guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n --arg t '$WORK/t.jsonl' '{agent_type:\"epic:validator\",stop_hook_active:false,agent_transcript_path:\$t}' | report_guard"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.decision == "block" and (.reason | test("validation-report.yaml"))'
+}
+
+@test "report guard lets the stop through once the report is written, or on a second attempt" {
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/w/.epic/stories/001-x/.draft/audit-report.yaml"}}]}}' > "$WORK/t.jsonl"
+  run bash -c "$(declare -f report_guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n --arg t '$WORK/t.jsonl' '{agent_type:\"epic:auditor\",stop_hook_active:false,agent_transcript_path:\$t}' | report_guard"
+  [ -z "$output" ]
+  printf '%s\n' '{"type":"assistant","message":{"content":[]}}' > "$WORK/t2.jsonl"
+  run bash -c "$(declare -f report_guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n --arg t '$WORK/t2.jsonl' '{agent_type:\"epic:validator\",stop_hook_active:true,agent_transcript_path:\$t}' | report_guard"
+  [ -z "$output" ]
+}

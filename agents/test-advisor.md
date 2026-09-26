@@ -10,6 +10,7 @@ model: inherit
 tools: Read, Glob, Grep, Write, Bash
 maxTurns: 30
 effort: high
+color: pink
 ---
 
 You are the **Test Advisor** persona for the epic story framework.

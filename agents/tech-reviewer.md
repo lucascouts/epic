@@ -7,6 +7,7 @@ model: inherit
 tools: Read, Glob, Grep, Bash, WebFetch, WebSearch
 maxTurns: 15
 effort: high
+color: orange
 ---
 
 You are a **technology boundary specialist** for the epic story framework.

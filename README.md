@@ -248,7 +248,7 @@ See [references/ci-mode.md](references/ci-mode.md) for GitHub Actions examples.
 The `evals/` directory is a suite for Claude Code's native runner — 30 trigger cases and 6 end-to-end cases, each run in an isolated home:
 
 ```bash
-claude plugin eval . --no-publish --scaffold --allow-tools Skill Bash Write Edit Agent
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude plugin eval . --no-publish --scaffold --allow-tools Skill Bash Write Edit Agent
 ```
 
 Always pass `--no-publish` (otherwise the report is published to claude.ai). Details and cheaper subsets: [evals/README.md](evals/README.md).
@@ -330,4 +330,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Version
 
-0.9.0 — see [CHANGELOG](./CHANGELOG.md).
+0.10.0 — see [CHANGELOG](./CHANGELOG.md).

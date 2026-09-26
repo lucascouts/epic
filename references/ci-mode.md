@@ -1,6 +1,6 @@
 # CI/Headless Mode
 
-Use these patterns when running Epic plugin operations programmatically with `claude -p` or the Agent SDK. Every recipe that invokes `/epic:epic` must load the plugin: pass `--plugin-dir "$EPIC_PLUGIN_ROOT"` (a checkout of this repo), or install the plugin first. Do not add `--bare`: it skips plugins, skills, subagents and hooks, and it ignores OAuth logins.
+Use these patterns when running Epic plugin operations programmatically with `claude -p` or the Agent SDK. Every recipe that invokes `/epic:epic` must load the plugin: pass `--plugin-dir "$EPIC_PLUGIN_ROOT"` (a checkout of this repo), or install the plugin first. Do not add `--bare`: it skips plugins, skills, subagents and hooks, and it ignores OAuth logins. Export `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` for every unattended run: without it a sub-agent can run in the background, and a one-turn run ends while the orchestrator waits for it.
 
 ## Contents
 
@@ -40,28 +40,31 @@ That object carries `story`, `scale` and `status` and **omits every measurement 
 ## Generate Stories Programmatically
 
 ```bash
-claude -p "/epic:epic Add retry logic to the payment gateway" \
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic Add retry logic to the payment gateway" \
   --plugin-dir "$EPIC_PLUGIN_ROOT" \
   --allowedTools "Read,Write,Glob,Grep,Bash,Agent" \
-  --output-format json
+  --output-format json \
+  --max-budget-usd 5 --no-session-persistence
 ```
 
 ## Validate Implementation Against Story
 
 ```bash
-claude -p "/epic:epic stories validate 001" \
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic stories validate 001" \
   --plugin-dir "$EPIC_PLUGIN_ROOT" \
   --allowedTools "Read,Glob,Grep,Bash,Agent" \
-  --output-format json
+  --output-format json \
+  --max-budget-usd 5 --no-session-persistence
 ```
 
 ## List Stories
 
 ```bash
-claude -p "/epic:epic stories" \
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic stories" \
   --plugin-dir "$EPIC_PLUGIN_ROOT" \
   --allowedTools "Read,Glob,Grep,Bash" \
-  --output-format text
+  --output-format text \
+  --max-budget-usd 1 --no-session-persistence
 ```
 
 ## GitHub Actions Example
@@ -87,7 +90,7 @@ the `structured_output` field, sibling to the usual `result` and metadata.
 Example: extract a validation summary for a story:
 
 ```bash
-claude -p "/epic:epic stories validate 001" \
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic stories validate 001" \
   --plugin-dir "$EPIC_PLUGIN_ROOT" --allowedTools "Read,Glob,Grep,Bash,Agent" \
   --output-format json \
   --json-schema '{
@@ -164,6 +167,7 @@ above for an end-to-end CI pipeline.
 
 ## Notes
 
+- Bound every unattended run: `--max-budget-usd` stops it at a cost ceiling, and `--no-session-persistence` leaves no session file behind on the runner
 - Never use `--bare` with `/epic:epic`: it skips the plugin and every skill, subagent and hook it ships
 - When the plugin comes from a marketplace instead of `--plugin-dir`, set `CLAUDE_CODE_SYNC_PLUGIN_INSTALL=1` so it is installed before the first turn
 - Stories are always in English (no locale variation in artifacts)
