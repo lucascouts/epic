@@ -74,7 +74,7 @@ Run `/reload-plugins` after updating plugin files.
 | Conditional hooks (`if:` field in `hooks/hooks.json`) | **2.1.85** | `if:` ignored — hooks fire on every matched call (noisy but functional) |
 | Skill `effort` field | **2.1.85** | Field ignored — inherits session effort |
 | Skill description cap raised to 1,536 chars | **2.1.105** | Older sessions truncate at 250 chars (some Epic descriptions get cut) |
-| `PreCompact` + `SessionStart(compact)` hooks (context recovery) | **2.1.105** | No automatic snapshot/restore around compactions; drafts still work |
+| `SessionStart(compact)` hook (context recovery) | **2.1.105** | No automatic restore after compactions; drafts still work |
 | Plugin `bin/` executables on PATH | **2.1.91** | `epic-validate`/`epic-xref`/`epic-archive` not exposed; call scripts directly |
 | Output style `keep-coding-instructions: true` | **2.1.94** | Activating `/output-style epic` may override skill directives |
 | `disableSkillShellExecution` setting honored | **2.1.91** | Inline `!` shell blocks always execute (not blockable by managed policy) |
@@ -112,7 +112,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 | Command | Purpose |
 |---|---|
 | `/epic:epic` | Create story from free-text description (triage + clarify + phases) |
-| `/epic:epic init` | Set up `.epic/constitution.md`, `CLAUDE.md`, sub-agents; ask the [versioning policy](#versioning-policy-for-epic) question |
+| `/epic:epic init` | Set up `.epic/constitution.md`, offer deny rules for files Claude must not edit, ask the [versioning policy](#versioning-policy-for-epic) question (for `CLAUDE.md`, use the built-in `/init`) |
 | `/epic:epic stories` | List all stories (summary) |
 | `/epic:epic stories full` | List all stories with tasks |
 | `/epic:epic stories NNN` | Show one story in detail |
@@ -215,7 +215,9 @@ When the plugin is active, the scripts are also on PATH as `epic-validate`, `epi
 
 ### What a story actually cost
 
-`scripts/story-telemetry.sh` reads a session transcript and reports what was spent — **in tokens and wall clock, never in money**. It writes no files and makes no network call.
+Prefer Claude Code's own numbers. `/usage` shows the session's spend; a `claude -p --output-format json` run returns `modelUsage` and `total_cost_usd`; and OpenTelemetry splits tokens by main agent and sub-agent (`claude_code.token.usage`, attribute `query_source`) — start Claude Code with `CLAUDE_CODE_ENABLE_TELEMETRY=1 OTEL_METRICS_EXPORTER=console OTEL_LOG_TOOL_DETAILS=1` and filter on `plugin.name=epic`.
+
+For a session recorded without telemetry, `scripts/story-telemetry.sh` reads the transcript (and the sub-agent transcripts beside it) and reports what was spent — **in tokens and wall clock, never in money**. It writes no files and makes no network call. The transcript format is internal to Claude Code, so treat this as a fallback.
 
 ```bash
 bash "$EPIC_PLUGIN_ROOT/scripts/story-telemetry.sh"                      # this project's latest session

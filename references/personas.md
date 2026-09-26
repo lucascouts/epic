@@ -37,7 +37,7 @@ The **main agent** (this skill) orchestrates: generates artifacts (story.md, des
 
 During triage, detect and health-check available MCPs. Load [mcp-integration.md](mcp-integration.md) for the full health-check procedure and category mapping.
 
-Key rule: Never suggest an MCP without a successful health-check first. For Fast mode: skip MCP detection.
+Key rule: Never suggest an MCP the health check did not find connected — a check of the tool list, never a probe call. For Fast mode: skip MCP detection.
 
 ### Preferred Tooling
 

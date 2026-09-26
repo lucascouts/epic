@@ -264,11 +264,11 @@ load_roster() {
   refute_grep '010-mixed'
 }
 
-@test "R4.1: hook-precompact renders the census the other consumers parse" {
+@test "R4.1: hook-session-restore renders the census the other consumers parse" {
   cd "$WORK/proj"
-  run bash "$PLUGIN_ROOT/scripts/hook-precompact.sh"
+  run bash -c "bash '$PLUGIN_ROOT/scripts/hook-session-restore.sh' > '$WORK/snapshot.md'"
   [ "$status" -eq 0 ]
-  run grep '^- Tasks:' "$MIXED/.draft/compact-snapshot.md"
+  run grep '^- Tasks:' "$WORK/snapshot.md"
   # Same shared truth as the header: total 5, closed 3, deferred 1.
   [ "$output" = "- Tasks: 3/5 completed (+1 deferred)" ]
 }
@@ -301,19 +301,19 @@ load_roster() {
   # The renderer reports 4 closed of 5, with the one deferred box counted apart
   # rather than folded into either number.
   cd "$WORK/proj"
-  run bash "$PLUGIN_ROOT/scripts/hook-precompact.sh"
+  run bash -c "bash '$PLUGIN_ROOT/scripts/hook-session-restore.sh' > '$WORK/snapshot.md'"
   [ "$status" -eq 0 ]
-  run grep '^- Tasks:' "$MIXED/.draft/compact-snapshot.md"
+  run grep '^- Tasks:' "$WORK/snapshot.md"
   [ "$output" = "- Tasks: 4/5 completed (+1 deferred)" ]
 
   # And nothing is pending: no "Next pending" line is emitted.
-  run grep -c '^- Next pending:' "$MIXED/.draft/compact-snapshot.md"
+  run grep -c '^- Next pending:' "$WORK/snapshot.md"
   [ "$output" = "0" ]
 }
 
-@test "R4.1: the malformed-but-qualified shape — validate-story and hook-precompact agree on it" {
+@test "R4.1: the malformed-but-qualified shape — validate-story and hook-session-restore agree on it" {
   # `- [~]waived: …` with no space after the box. validate-story read it as a
-  # closed box while hook-precompact's grep pipeline counted it as neither
+  # closed box while hook-session-restore's grep pipeline counted it as neither
   # closed nor deferred (found by the second validate-mode pass, fixed in 6.5).
   # Replacing the terminal [~] of the mixed fixture with this shape must not
   # move the census: same 5 boxes, same 3 closed, same 1 deferred.
@@ -325,9 +325,9 @@ load_roster() {
   refute_grep 'has no qualifier'
 
   cd "$WORK/proj"
-  run bash "$PLUGIN_ROOT/scripts/hook-precompact.sh"
+  run bash -c "bash '$PLUGIN_ROOT/scripts/hook-session-restore.sh' > '$WORK/snapshot.md'"
   [ "$status" -eq 0 ]
-  run grep '^- Tasks:' "$MIXED/.draft/compact-snapshot.md"
+  run grep '^- Tasks:' "$WORK/snapshot.md"
   [ "$output" = "- Tasks: 3/5 completed (+1 deferred)" ]
 }
 
@@ -405,7 +405,7 @@ load_roster() {
 }
 
 @test "R2.2/R2.4: epic-index.sh — the census the index renders folds the terminal [~] into done" {
-  # epic-index RENDERS FOR A HUMAN and reuses hook-precompact's split verbatim:
+  # epic-index RENDERS FOR A HUMAN and reuses hook-session-restore's split verbatim:
   # a terminal [~] closes the box, `deferred:` is reported apart. It emits no
   # `open` field at all, so the shared open count is recovered as
   # total − done − deferred — that arithmetic is the agreement, and it is

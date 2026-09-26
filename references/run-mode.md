@@ -236,7 +236,7 @@ A refusal names its own reason in `reason`, and each arm is a statement about th
 
 **On a resumed run, "already closed" is benign confirmation, not a failure.** A run interrupted after a close and before its report is replayed over boxes that already carry their mark: read that refusal as *this one is already done*, log it, and move to the next box. Do not "repair" it by editing the file. The script stays strict on purpose — outside a resume, a second close is a real disagreement about what happened, and a silent one is what the refusal exists to prevent.
 
-**Close one story at a time.** The compaction snapshot (`hook-precompact.sh`) takes the **most-recently-modified story** under `.epic/stories/` as the active one, so interleaving closes across two stories mid-run points it at whichever story was written last. The script itself only ever touches the story it was invoked for — the hazard is in the ordering, not in the write — so finish one story's closes before starting another's.
+**Close one story at a time.** The post-compaction restore (`hook-session-restore.sh`) takes the **most-recently-modified story** under `.epic/stories/` as the active one, so interleaving closes across two stories mid-run points it at whichever story was written last. The script itself only ever touches the story it was invoked for — the hazard is in the ordering, not in the write — so finish one story's closes before starting another's.
 
 ### Status Transitions
 

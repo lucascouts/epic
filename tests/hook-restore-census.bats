@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
-# Story 004, sub-task 5.3 — census regression pin for hook-precompact.sh (R3.5).
+# Story 004, sub-task 5.3 — census regression pin for hook-session-restore.sh (R3.5).
 #
-# hook-precompact.sh holds the FIFTH copy of the checkbox regex, and it is the
+# hook-session-restore.sh holds the FIFTH copy of the checkbox regex, and it is the
 # only script that actually *renders* progress: its snapshot is injected into
 # the model's context after a compaction. A drifted copy here does not fail a
 # build — it quietly feeds the model a wrong progress number, which is exactly
@@ -27,9 +27,9 @@ teardown() {
 run_census() {
   cat > "$STORY_DIR/tasks.md"
   cd "$WORK/proj"
-  run bash "$PLUGIN_ROOT/scripts/hook-precompact.sh"
+  run bash -c "bash '$PLUGIN_ROOT/scripts/hook-session-restore.sh' > '$WORK/snapshot.md'"
   [ "$status" -eq 0 ]
-  run grep '^- Tasks:' "$STORY_DIR/.draft/compact-snapshot.md"
+  run grep '^- Tasks:' "$WORK/snapshot.md"
   [ "$status" -eq 0 ]
 }
 
@@ -123,14 +123,14 @@ EOF
   # ONLY through that falsehood — the honest fixture is one box closed of
   # three. What R5.1 pins is that the census is a pure function of the boxes
   # on disk, and that is unchanged: this is the same arithmetic on a corrected
-  # input, not a different rule. `hook-precompact.sh` is untouched.
+  # input, not a different rule. `hook-session-restore.sh` is untouched.
   [ "$output" = "- Tasks: 1/3 completed" ]
 }
 
 @test "no .epic directory: the hook exits 0 and writes nothing" {
   mkdir -p "$WORK/bare"
   cd "$WORK/bare"
-  run bash "$PLUGIN_ROOT/scripts/hook-precompact.sh"
+  run bash "$PLUGIN_ROOT/scripts/hook-session-restore.sh"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }

@@ -18,9 +18,9 @@ After an Executor completes a sub-task whose tech_profile includes 2+ distinct t
 ## Focus Areas
 
 **For template engines** (Tera, Jinja2, Handlebars, EJS, Blade, Thymeleaf, HEEx, ERB, etc.):
-- Every variable referenced in the template is provided by the handler in ALL rendering paths
-- When the same template is rendered by multiple handlers, verify EACH handler provides all required variables
-- The template engine's behavior with missing or empty variables is handled correctly
+- Every variable referenced in the template (in interpolation, conditionals, loops, assignments) is provided by the handler in ALL rendering paths
+- When the same template is rendered by multiple handlers (e.g., GET empty form vs POST with validation errors), verify EACH handler provides all required variables
+- The template engine's behavior with missing or empty variables is handled correctly for the engine's mode (strict vs lenient)
 
 **For SQL/database:**
 - All queries use parameterized placeholders — no string interpolation

@@ -1266,7 +1266,7 @@ fi
 #
 # The GRAMMAR — these four regexes — is shared VERBATIM with the parse_verdict
 # of archive-story.sh AND of epic-index.sh, exactly as the checkbox census above
-# shares its grammar with epic-index.sh and hook-precompact.sh. THREE full
+# shares its grammar with epic-index.sh and hook-session-restore.sh. THREE full
 # consumers now, plus a PARTIAL fourth — monitor-stale.sh's verdict_status,
 # which copies the first three regexes verbatim and deliberately omits
 # `promoted-to` (staleness keys on the status alone). If 007 ever amends the

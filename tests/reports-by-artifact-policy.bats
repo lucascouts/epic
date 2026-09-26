@@ -1169,36 +1169,14 @@ agents_granting() { # $1 = tool name
   fi
 }
 
-@test "3.1: run-mode Tech Reviewer prompt template mirrors the measurement rule" {
-  # R3.4: the duplicated template in references/run-mode.md moves in the same
-  # story as the agent definition.
-  #
-  # THE SECTION SAYS `measurement` THREE TIMES and only one of them is the
-  # rule: the heading "Measurement, Not Argument", step 3's "per Measurement
-  # above", and the grant itself. Measured — deleting the grant's whole
-  # paragraph from the template left this case GREEN, answered by the other
-  # two, so the mirror it exists to keep could go missing silently. The phrase
-  # `for measurement only` occurs once in the section, which is what makes
-  # this assertion load-bearing.
-  #
-  # The end pattern is `^##` WITHOUT the trailing space on purpose, unlike the
-  # `^## ` used elsewhere: it stops at the next heading of any depth, which
-  # here is `### Orchestrator Handling of Tech Review`. `^## ` would run past
-  # that subsection to `## Context Passing Between Tasks` and let prose the
-  # template does not own answer for it. The blockquote markers make no
-  # difference — `> ## Protocol` starts with `>`, so no inner heading of the
-  # quoted prompt closes the section early.
+@test "3.1: the Tech Reviewer prompt template carries inputs only and defers to the agent definition" {
+  # The agent definition is the Tech Reviewer's system prompt. A second copy of
+  # its protocol in the spawn prompt costs every spawn twice and drifts; the
+  # measurement rule is pinned on the agent definition by the cases above.
   sec="$(md_section "$TECH_REVIEW" '^### Tech Reviewer Prompt Template' '^##')"
-  # `flat` reads a file, so a captured section is flattened inline.
-  flatsec="$(printf '%s\n' "$sec" | tr '\n' ' ')"
-  printf '%s\n' "$flatsec" | command grep -qiE '(^|[^A-Za-z])for measurement only'
-
-  # Same guard as the agent definition's case, for the same measured reason:
-  # "is not for measurement only" keeps the phrase and reverses the rule.
-  if printf '%s\n' "$flatsec" \
-    | command grep -qiE '(never|not|no)[^A-Za-z]{1,3}((be|longer|more|just|merely|simply|solely)[^A-Za-z]{1,3})?for measurement only'
-  then
-    echo "the template mirrors the restriction phrase, negated — the mirror states the opposite rule"
+  printf '%s\n' "$sec" | command grep -q 'Follow your agent definition'
+  if printf '%s\n' "$sec" | command grep -qE '## Protocol|Measurement, Not Argument|for measurement only'; then
+    echo "the template restates the agent's protocol"
     return 1
   fi
 }

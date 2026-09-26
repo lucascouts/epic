@@ -175,3 +175,18 @@ msg() {
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.unique_messages == 0 and .started == null' > /dev/null
 }
+
+@test "sub-agent transcripts in <session>/subagents/ are counted as subagent tokens" {
+  # Claude Code writes each sub-agent's transcript to its own file beside the
+  # session's; the session transcript itself carries none of those events.
+  d=$(mktemp -d)
+  mkdir -p "$d/s1/subagents"
+  printf '%s\n' '{"type":"assistant","timestamp":"2026-01-01T00:00:00Z","isSidechain":false,"message":{"id":"m1","model":"x","usage":{"input_tokens":10,"output_tokens":1}}}' > "$d/s1.jsonl"
+  printf '%s\n' '{"type":"assistant","timestamp":"2026-01-01T00:00:05Z","isSidechain":true,"message":{"id":"m2","model":"x","usage":{"input_tokens":7,"output_tokens":2}}}' > "$d/s1/subagents/agent-a.jsonl"
+  run bash "$BATS_TEST_DIRNAME/../scripts/story-telemetry.sh" --transcript "$d/s1.jsonl"
+  rm -rf "$d"
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq '.main.input')" = "10" ]
+  [ "$(echo "$output" | jq '.subagent.input')" = "7" ]
+  [ "$(echo "$output" | jq '.subagent_split_verified')" = "true" ]
+}

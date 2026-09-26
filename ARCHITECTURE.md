@@ -145,7 +145,7 @@ Artifacts are the stable interface between phases and between agents. Agents pas
     ├── meta.yaml         # phase + project-hash + analyst cache
     ├── authored-tests/   # failing test files authored in Phase 3 (test-first)
     ├── red-evidence.yaml # Red-phase verification record per pre-authored test
-    └── *.md.wip          # checkpoint markers inside long artifacts
+    └── *.md.wip          # section-progress markers inside long artifacts
 ```
 
 ### Frontmatter contract
@@ -189,8 +189,7 @@ All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — 
 |---|---|---|---|---|
 | `PostToolUse` | `Write(.epic/**)` | `hook-validate.sh` | Auto-run `validate-story.sh` on every story-artifact write | 2.1.85 |
 | `PreToolUse` | `Edit(.epic/archive/**)` · `Write(.epic/archive/**)` | `hook-archive-guard.sh` | Block mutations to archived stories | 2.1.85 |
-| `PreCompact` | — | `hook-precompact.sh` | Snapshot active-story state before autocompaction | 2.1.105 |
-| `SessionStart` | `compact` | `hook-session-restore.sh` | Restore state after a compaction rewake | 2.1.105 |
+| `SessionStart` | `compact` | `hook-session-restore.sh` | After a compaction, render the active story's state from disk into context | 2.1.105 |
 | `SessionStart` | `clear` | `hook-orphan-drafts.sh` | After `/clear`, list drafts untouched for 30+ days, one removal line each; deletes nothing | 2.1.85 |
 
 Degradation on older CC versions is documented in [README.md#minimum-claude-code-version-per-component](README.md#minimum-claude-code-version-per-component).
@@ -340,7 +339,7 @@ Epic deliberately does not do these things. Adding them would conflict with the 
 
 - [README.md](README.md) — installation, feature list, version-compatibility matrix
 - [`skills/epic/SKILL.md`](skills/epic/SKILL.md) — the orchestrator, command routing, phase execution
-- [`references/phase-gates.md`](references/phase-gates.md) — gate protocol, cascade rollback, checkpoint recovery
+- [`references/phase-gates.md`](references/phase-gates.md) — gate protocol, cascade rollback, section progress
 - [`references/ci-mode.md`](references/ci-mode.md) — headless invocation, deferred commits
 - [`references/mcp-integration.md`](references/mcp-integration.md) — MCP health-check procedure
 - [`references/constitution.md`](references/constitution.md) — project-level constraints on stories

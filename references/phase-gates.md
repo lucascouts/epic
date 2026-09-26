@@ -51,17 +51,17 @@ When a user rejects Phase N, determine the cause:
 
 3. Apply delta only after user approval, then regenerate the current phase.
 
-## Checkpoint Recovery
+## Section Progress
 
-During phase generation, save incremental progress to prevent data loss on interruption.
+During phase generation, save incremental progress so a **new** session can tell which sections are done. An interruption inside the same conversation needs none of this: `claude --continue` (or `--resume`) reopens it with the partial artifact already on disk. This ledger is not Claude Code's `/checkpoint` (an alias of `/rewind`).
 
-### Checkpoint File Format
+### Progress File Format
 
 Before generating each major section of an artifact, write a `.wip` file:
 
 ```yaml
 # .epic/stories/NNN-name/.draft/story.md.wip
-checkpoint: 3
+progress: 3
 sections_completed:
   - frontmatter
   - introduction
@@ -72,10 +72,10 @@ sections_pending:
   - remaining-sections
 ```
 
-The partial artifact is written to disk incrementally. A checkpoint marker is inserted:
+The partial artifact is written to disk incrementally. A progress marker is inserted:
 
 ```markdown
-<!-- CHECKPOINT:3 — resume from here -->
+<!-- PROGRESS:3 — resume from here -->
 ```
 
 ### Resume Procedure
@@ -84,7 +84,7 @@ On detecting a `.wip` file:
 
 1. Read the `.wip` to determine progress
 2. Present: "Found incomplete Phase N (M/T sections written: [list]). Resume from [next section], or restart Phase N?"
-3. If resume: read the partial artifact, continue generating from the checkpoint marker
+3. If resume: read the partial artifact, continue generating from the progress marker
 4. If restart: delete the `.wip` and partial artifact, regenerate from scratch
 
 ### Rules
@@ -109,26 +109,17 @@ For Standard mode, Phase 1 + Phase 3 references are loaded.
 
 On format doubts, load the relevant example from `assets/examples/`.
 
-Additionally, if `CLAUDE.md`, `AGENTS.md`, or `.epic/constitution.md` were found during Context Discovery, their relevant sections are loaded as constraints.
+Additionally, if `.epic/constitution.md` is present, its relevant sections are loaded as constraints (the project's `CLAUDE.md` is already in context).
 
 ## Architect Sub-agent (Full mode, before Phase 2)
 
 Before generating design.md, spawn the **Architect** sub-agent (`run_in_background: false`, result awaited), to research the codebase:
 
-> "Research this project's codebase to provide design context.
+> "Provide design context for this story. Follow your agent definition: the Codebase analysis block is the Analyst's scan of this same tree — do not scan again; answer integration points against the written requirements, and the implementation gotchas.
 >
 > Story requirements: [path to story.md]
 > Codebase analysis: [Analyst output from Context Discovery — or "none: no existing code was detected at triage"]
-> Available MCPs: [list of approved MCPs]
->
-> The Codebase analysis block above is the Analyst's scan of this same tree, made from the same request. The architectural pattern, the framework, the conventions, the dependencies and their current docs are in it already — **do not scan for them again.** Spend your turns on the two things it could not produce, because it ran before the requirements were written:
->
-> 1. **Integration points, against the written requirements** — the specific files, functions, signatures and contracts this feature has to meet, and which of them it must not break. Start from the Analyst's list; do not rebuild it
-> 2. **Implementation gotchas:** For each architectural pattern or library usage this story needs, research known pitfalls, common misconfiguration, or non-obvious setup steps. Format these as concrete warnings: 'GOTCHA: [pattern/library] — [what goes wrong] — [correct approach]'. These will be propagated to task ToDo fields to prevent implementation errors.
->
-> If the Codebase analysis block is absent, or contradicts what you find, say so in one line and read only what it takes to settle it.
->
-> Return a concise design context (max 40 lines) that the main agent should consider when writing design.md."
+> Available MCPs: [list of approved MCPs]"
 
 The Architect output is injected as context when generating design.md. Skipped for Fast and Standard modes.
 
@@ -240,26 +231,14 @@ Keep it lightweight — 1-2 test entries max per sub-task.
 
 After **all phases are written**, spawn the **Reviewer** sub-agent (`subagent_type: reviewer`, `run_in_background: false`, result awaited, defined in `agents/reviewer.md`) for cross-artifact validation:
 
-> "Review these story artifacts for completeness, consistency, and gaps.
+> "Review these story artifacts as a set. Follow your agent definition.
 >
 > Files to read:
 > - [path to story.md]
 > - [path to design.md]
-> - [path to tasks.md]
->
-> Check:
-> 1. Every requirement in story.md has at least one task in tasks.md
-> 2. Every entity in story.md has a data model in design.md
-> 3. Every route/endpoint in design.md maps to a handler in tasks.md
-> 4. Error paths in story.md are addressed in design.md error handling
-> 5. No task references a requirement that doesn't exist
-> 6. No design component exists without a corresponding task
-> 7. Interface contract consistency: for every data boundary between components in design.md, verify that the producer's output structure contains every field the consumer references. Flag any field referenced by a consumer that is not produced by the corresponding producer task.
-> 8. Error propagation in tasks: for every sub-task ToDo that calls a function/method returning an error or failure state, verify the ToDo explicitly mentions error handling. Flag any store/service/repository call in a ToDo that silently discards the result.
-> 9. Unused wiring detection: for every public function/class/component defined in the implementation that was specified in design.md, verify it is called or referenced in the application's composition root or in a downstream consumer. Classify orphans as: (a) premature implementation, (b) wiring gap, (c) over-specification.
->
-> Return a list of issues found, or 'No issues found' if clean.
-> Be specific: cite requirement numbers, task numbers, and component names."
+> - [path to tasks.md]"
+
+The nine cross-artifact checks and the output format live in [reviewer.md](../agents/reviewer.md).
 
 - If the Reviewer finds issues, present them to the user and offer to fix
 - If clean, proceed to Traceability Check

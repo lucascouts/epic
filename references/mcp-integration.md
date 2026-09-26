@@ -26,22 +26,16 @@ When multiple research MCPs are detected, pick the first one from this ordered l
 
 ## Health check procedure
 
-Before suggesting any MCP during triage, verify it is actually reachable.
+Before suggesting any MCP during triage, check that it is connected — without calling it. Claude Code already reports this: a connected server's tools are in your tool list (directly or as deferred tools), and a server that failed to connect is named in a failure notice with its error.
 
-1. For each candidate MCP, attempt a minimal call:
-   - `context7`: `resolve-library-id("react")` or equivalent trivial lookup
-   - `brave-search`: `brave_web_search("test")`
-   - `exa`: a trivial search query
-   - `tavily`: a trivial search query
-   - `firecrawl`: a trivial extract on a stable URL
-   - `perplexity`: **do not health-check by default** (costs money). Only call when the user has explicitly opted in.
-2. If the call **succeeds**: mark MCP as available. Proceed to priority selection.
-3. If the call **fails**: do NOT suggest it. Drop to the next candidate in the priority list for the same category.
+1. A candidate is **available** when its tools are in the tool list and no failure notice names it. Make no probe call: a probe spends a metered query, may raise a permission prompt, and teaches nothing the tool list does not.
+2. If it is **not available**: do NOT suggest it. Drop to the next candidate in the priority list for the same category.
+3. A server can be connected and still fail on its first real call (an expired key, an exhausted quota). Treat that failure like an absent server: fall back as below, and do not retry it for the rest of the story.
 4. Categories:
    - **Docs**: `context7`
-   - **Web search / research**: `brave-search` → `exa` → `tavily` → `firecrawl` → `perplexity` (gated)
+   - **Web search / research**: `brave-search` → `exa` → `tavily` → `firecrawl` → `perplexity` (never the default: it is premium; suggest it only when the user has opted in)
 
-Present only verified MCPs to the user.
+Present only available MCPs to the user.
 
 ## No MCP available
 
@@ -68,7 +62,7 @@ Its LLM work — the consolidation that turns raw observations into pages, the l
 
 - **Health check:** one call to `memory_status`. It is local and free, so — unlike the research checks — it runs in **every scale, Fast and spike included**. A success marks memory as available for the whole story; a failure, or a tool that is not there at all, marks it unavailable, silently.
 - **Opt-out:** `aiMemory` set to `off` (its value is in SKILL.md's *Plugin options*) skips the check and every memory read or write below.
-- **Scope is the server's rule, not ours.** A session-aware client omits `workspace` and `project` for the current repository. A static client must pass both on every project-scoped call, read from the nearest `.ai-memory.toml` that declares them. When neither applies — no session identity and no declaring `.ai-memory.toml` — treat memory as **unavailable**: never guess the two names from a directory name, and never rely on the server's last active project.
+- **Scope is the server's rule, not ours.** Follow the ai-memory server's own scope instructions, which reach you whenever it is connected. When scope cannot be resolved, treat memory as **unavailable**.
 - Record the outcome once, in the triage proposal's `**Memory:**` line, and reuse it for the whole story — the same reuse rule the research MCPs follow.
 
 ### Where memory is read and written
@@ -93,7 +87,7 @@ Its LLM work — the consolidation that turns raw observations into pages, the l
 ## Rules
 
 - Only suggest MCPs relevant to the current mode (don't list all installed MCPs unconditionally).
-- Always health-check before suggesting — never recommend an untested MCP.
+- Always health-check before suggesting — never recommend an MCP that is not connected.
 - Research-capable sub-agents (analyst, architect, executor, tech-reviewer) carry native `WebFetch`/`WebSearch` as a guaranteed fallback; a sub-agent calls a research/docs MCP only when its own tool grant includes it. The verified MCP list is passed in the sub-agent prompt as a preference — MCP-based research is most reliable from the orchestrator, which has full tool access.
 - For **Fast mode**: skip MCP detection entirely — the overhead outweighs the gain for 1–2 file changes. The one exception is the memory check (see Memory MCP): a single local call, so Fast runs it too.
 - For **Standard/Full mode**: run the health-check once during triage and reuse the result for the whole story.

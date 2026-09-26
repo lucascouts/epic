@@ -12,7 +12,7 @@ For Fast: ask 1-2 inline questions only if needed.
 Before entering any phase, load the corresponding reference files:
 
 - Before writing any phase artifact: load [self-review-checklist.md](self-review-checklist.md)
-- For Phase Gates, Checkpoint Recovery, Cascade Rollback, sub-agents: load [phase-gates.md](phase-gates.md)
+- For Phase Gates, Section Progress, Cascade Rollback, sub-agents: load [phase-gates.md](phase-gates.md)
 - For reference files per phase (ears-notation, requirements, design-guide, etc.): see table in phase-gates.md
 - On format doubts, load the relevant example from `assets/examples/`
 - For a `layperson` requester, every phase gate takes the one-line shape in [plain-register.md](plain-register.md#gates-are-one-line) and counts against the question budget

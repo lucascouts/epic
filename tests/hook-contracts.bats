@@ -13,22 +13,24 @@ teardown() {
   rm -rf "$WORK"
 }
 
-@test "compact restore stays under the 10,000-character hook cap and names the file" {
-  head -c 15000 /dev/zero | tr '\0' 'x' | fold -w 100 > "$WORK/.epic/stories/001-old/.draft/compact-snapshot.md"
+@test "compact restore renders progress first and stays under the 10,000-character cap" {
+  printf -- '---\nstory: old\n---\n## Task List\n- [x] 1 - Done\n- [ ] 2 - Next\n' > "$WORK/.epic/stories/001-old/tasks.md"
+  head -c 15000 /dev/zero | tr '\0' 'x' | fold -w 100 > "$WORK/.epic/stories/001-old/.draft/meta.yaml"
   cd "$WORK"
   run bash "$PLUGIN_ROOT/scripts/hook-session-restore.sh"
   [ "$status" -eq 0 ]
   [ "${#output}" -lt 10000 ]
-  [[ "$output" == *"truncated"*"001-old/.draft/compact-snapshot.md"* ]]
+  [[ "$output" == *"- Tasks: 1/2 completed"*"Truncated"*".epic/stories/001-old"* ]]
 }
 
-@test "compact restore prints a small snapshot whole" {
-  printf 'Story: 001-old\n- Tasks: 1/3\n' > "$WORK/.epic/stories/001-old/.draft/compact-snapshot.md"
+@test "compact restore prints a small state whole and writes nothing to disk" {
+  printf -- '---\nstory: old\n---\n## Task List\n- [ ] 1 - Next\n' > "$WORK/.epic/stories/001-old/tasks.md"
   cd "$WORK"
   run bash "$PLUGIN_ROOT/scripts/hook-session-restore.sh"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"- Tasks: 1/3"* ]]
-  [[ "$output" != *"truncated"* ]]
+  [[ "$output" == *"- Tasks: 0/1 completed"* ]]
+  [[ "$output" != *"Truncated"* ]]
+  [ ! -e "$WORK/.epic/stories/001-old/.draft/compact-snapshot.md" ]
 }
 
 @test "orphan drafts: one rm line per old draft, the live draft untouched and unnamed" {

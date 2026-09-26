@@ -5,7 +5,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 ## Procedure
 
 1. **Scan project** — detect language, framework, dependencies, existing config files
-2. **Check existing files** — report which of `CLAUDE.md`, `.claude/agents/`, `.epic/constitution.md` already exist
+2. **Check existing files** — report whether `.epic/constitution.md` exists, and whether the project has a `CLAUDE.md`. Init writes no `CLAUDE.md`: when there is none, recommend the built-in `/init`, which scans the repository and writes one
 2a. **Check memory** — one `memory_status` call ([mcp-integration.md](mcp-integration.md#memory-mcp)). WHEN `ai-memory` answers and the nearest `.ai-memory.toml`, if any, has no `ignore_paths` entry covering `.epic/**`, add one line to the final report: `ai-memory detected — add ignore_paths = [".epic/**"] to .ai-memory.toml so its hooks do not capture the artifacts Epic versions`. Informative, never gating; a non-interactive run prints the same line and asks nothing
 3. **Interactive questionnaire** — ask questions in a single numbered block:
 
@@ -14,14 +14,8 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
    - Hard constraints? (e.g., "no ORMs", "integration tests hit real DB")
    - Commit style? (auto-detect from git log if available)
 
-   **For `CLAUDE.md` (if not exists):**
-   - Project description? (one line)
-   - Key conventions to enforce?
-   - Files/patterns Claude should never modify?
-
-   **For `.claude/agents/` (if not exists):**
-   - Create custom sub-agents? Common templates:
-     [1] Code reviewer [2] Test writer [3] None (default)
+   **Protected files:**
+   - Files or patterns Claude should never modify? When the user names any, offer to add one `Edit(<pattern>)` rule per pattern to `permissions.deny` in `.claude/settings.json` — a rule Claude Code enforces, where a line in `CLAUDE.md` is only advice. Write it only on the user's yes.
 
    **Defaults — decisions the requester is never asked** (written into `.epic/constitution.md` as a `## Defaults` block; triage, Clarify and Run read it, and the [plain register](plain-register.md#decisions-the-requester-is-not-asked) relies on it):
    - Data files the program creates? [1] gitignored (default) [2] versioned

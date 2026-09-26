@@ -403,7 +403,7 @@ story_scale() {
 }
 
 # census_tasks <tasks.md> — the checkbox census, in the ONE grammar shared with
-# validate-story.sh / cross-reference.sh / hook-precompact.sh:
+# validate-story.sh / cross-reference.sh / hook-session-restore.sh:
 #   - [ ] open   - [x] closed   - [~] closed WITHOUT doing the work.
 # Counters are plain integers incremented in the loop, never ${#assoc[@]} on a
 # possibly-empty associative array (that trips set -u on bash 5.3).
@@ -415,7 +415,7 @@ story_scale() {
 # That is deliberately NOT validate-story.sh's aggregation (which folds a
 # qualified [~] into `closed`), because the manifest entry reports
 # tasks_total/tasks_closed/tasks_deferred as three disjoint numbers. One
-# grammar, per-consumer aggregation — the same split hook-precompact.sh makes.
+# grammar, per-consumer aggregation — the same split hook-session-restore.sh makes.
 # The [~] qualifier tokens (`deferred:` vs terminal `waived:|n-a:|superseded-by:`)
 # are NOT read here — nothing in preflight consumes them. They are parsed once,
 # at step 5, by collect_deferred_items, which needs the reason text.

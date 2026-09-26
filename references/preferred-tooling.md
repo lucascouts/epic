@@ -29,7 +29,7 @@ When a story involves E2E testing and more than one E2E tool is available, pick 
 
 Run during triage, in **all modes including Fast**, to resolve which tools are available. Each tier has its own mechanism.
 
-1. **MCP tools** (`playwright`, `chrome-devtools`, `browser-use`, `stagehand`): verify availability via a minimal health-check call — the same pattern as the research-MCP health-check in [mcp-integration.md](mcp-integration.md). If the call succeeds, mark the tool available; if it fails, mark it absent.
+1. **MCP tools** (`playwright`, `chrome-devtools`, `browser-use`, `stagehand`): available when its tools are in the tool list and no connection-failure notice names the server — the same rule as the research MCPs in [mcp-integration.md](mcp-integration.md#health-check-procedure); make no probe call. Otherwise mark it absent.
 2. **Library/CLI tools** (`puppeteer`, `selenium`): inspect the dependency manifest **first** (`package.json` and its lockfiles, `requirements.txt`, `pyproject.toml`, etc.). Run a version-probe CLI command (`npx <tool> --version` or the equivalent) **only when the manifest is inconclusive** — never probe unconditionally. Detection must stay passive: read the manifest before running any command.
 3. **Skill** (`frontend-design`): check for its presence in the session's available-skills list. Present means available; absent from the list means not available.
 4. **When a mechanism cannot run, mark the tool `undetermined`** — never assume it is installed. A mechanism cannot run WHERE there is no dependency manifest present for a library/CLI tool, or WHERE the session's available-skills list is unavailable for `frontend-design`. Mark the affected tool `undetermined` rather than installed, and proceed.

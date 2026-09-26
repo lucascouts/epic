@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 # Read-only token and wall-clock telemetry for a Claude Code session transcript.
 #
+# Prefer the native sources: OpenTelemetry (`claude_code.token.usage`, split by
+# `query_source` main/subagent), `/usage`, or the `-p --output-format json`
+# result (`modelUsage`, `total_cost_usd`). This script is the fallback for a
+# session recorded without telemetry, and it reads the transcript, whose entry
+# format is internal to Claude Code and can change on any release.
+#
 # Usage: story-telemetry.sh [--transcript <path>] [--since <ts>] [--until <ts>]
 #                           [--project-dir <dir>] [--help]
 #   --transcript  a session transcript JSONL. Default: the most recently
 #                 modified transcript for --project-dir under
-#                 ~/.claude/projects/<slug>/ (or $CLAUDE_PROJECTS_DIR)
+#                 ${CLAUDE_CONFIG_DIR:-~/.claude}/projects/<slug>/. Sub-agent
+#                 transcripts in <session>/subagents/ are read with it
 #   --since       ISO-8601 instant; events strictly before it are excluded
 #   --until       ISO-8601 instant; events strictly after it are excluded
 #   --project-dir the project whose transcripts to search (default: cwd)
@@ -103,7 +110,7 @@ if [[ -z "$TRANSCRIPT" ]]; then
   [[ -d "$PROJECT_DIR" ]] || die "not a directory: $PROJECT_DIR"
   abs=$(cd "$PROJECT_DIR" && pwd)
   slug=$(printf '%s' "$abs" | sed 's/[^a-zA-Z0-9]/-/g')
-  root="${CLAUDE_PROJECTS_DIR:-$HOME/.claude/projects}/$slug"
+  root="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/$slug"
   [[ -d "$root" ]] || die "no transcript directory for $abs (looked in $root)"
   # Most recently modified .jsonl, portable: no GNU find -printf, no ls parsing.
   newest=""
@@ -178,6 +185,6 @@ jq -R -s \
     subagent: ([ $messages[] | select(.sidechain)       | .usage ] | sums),
     subagent_split_verified: ([ $messages[] | .sidechain ] | any)
   }
-  ' "$TRANSCRIPT"
+  ' < <(cat "$TRANSCRIPT"; [[ -d "${TRANSCRIPT%.jsonl}" ]] && find "${TRANSCRIPT%.jsonl}" -path '*subagents*' -type f -name '*.jsonl' -exec cat {} + 2>/dev/null; true)
 
 exit 0

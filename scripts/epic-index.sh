@@ -362,13 +362,13 @@ front_value() {
 # WITHOUT the work being done — qualified on the same line by one of
 # deferred: / waived: / n-a: / superseded-by:.
 #
-# The GRAMMAR is shared verbatim with validate-story.sh and hook-precompact.sh.
+# The GRAMMAR is shared verbatim with validate-story.sh and hook-session-restore.sh.
 # The AGGREGATION is per-consumer, and this script is the third consumer:
 #   * validate-story.sh folds every qualified [~] into `closed` (it only needs
 #     "is anything still open?");
 #   * archive-story.sh partitions closed/deferred/open for the manifest (three
 #     disjoint numbers a reader must be able to add up);
-#   * this index RENDERS FOR A HUMAN, exactly like hook-precompact.sh — so it
+#   * this index RENDERS FOR A HUMAN, exactly like hook-session-restore.sh — so it
 #     reuses that script's split verbatim: terminal qualifiers close the box,
 #     `deferred:` is reported apart (that work is settled in the plan but still
 #     owed by an external actor), `deferred:` wins when a line carries both,
@@ -429,7 +429,7 @@ census() {
 #
 # The GRAMMAR — these four regexes — is shared VERBATIM with the parse_verdict
 # of archive-story.sh AND of validate-story.sh, exactly as the checkbox census
-# above shares its grammar with validate-story.sh and hook-precompact.sh. THREE
+# above shares its grammar with validate-story.sh and hook-session-restore.sh. THREE
 # full consumers, plus a PARTIAL fourth — monitor-stale.sh's verdict_status,
 # which copies the first three regexes verbatim and deliberately omits
 # `promoted-to` (staleness keys on the status alone). If 007 ever amends the

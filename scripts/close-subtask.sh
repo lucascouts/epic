@@ -1464,7 +1464,7 @@ BOX="$MARK_CHAR"
 # `deferred:` wins on a line carrying both, which is the precedence the grammar
 # gives it (references/tasks.md: "the work is still owed by someone"), and an
 # UNQUALIFIED `[~]` — the grammar error validate-story.sh reports — counts in
-# the total and closes nothing. That aggregation is hook-precompact.sh's and
+# the total and closes nothing. That aggregation is hook-session-restore.sh's and
 # epic-index.sh:386-417's verbatim, which is what makes this script's report and
 # the index a reader sees side by side incapable of disagreeing about one story.
 #
