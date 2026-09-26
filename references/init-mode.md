@@ -227,7 +227,7 @@ local-only
 
 **A headless run applies local-only, prompts for nothing, and never starts tracking.**
 
-Detect the session kind with the signal the skill already defines — `TaskCreate` present in the function schema list means an interactive session, otherwise the run is headless or Agent SDK (see the Runtime dependency precheck in [triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage)). This is the same signal, read the same way, that [preferred-tooling.md](preferred-tooling.md) and [validate-mode.md](validate-mode.md#headless) use for their own pauses. Do not invent a second detection.
+Detect the session kind with the signal the skill already defines — `AskUserQuestion` callable means an interactive session, otherwise the run is headless or Agent SDK (see the Runtime dependency precheck in [triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage)). This is the same signal, read the same way, that [preferred-tooling.md](preferred-tooling.md) and [validate-mode.md](validate-mode.md#headless) use for their own pauses. Do not invent a second detection.
 
 | `policy` reported by the lint | Headless init does |
 |---|---|

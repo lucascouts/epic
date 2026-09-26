@@ -19,7 +19,7 @@ setup() {
 @test "SKILL.md states each option's default, because an unsaved value is not substituted" {
   # Claude Code substitutes only a SAVED value; with none saved the literal
   # placeholder reaches the model, so the default must be written beside it.
-  for key in aiMemory defaultScale; do
+  for key in aiMemory defaultScale staleThresholdDays spikeStaleThresholdDays; do
     default=$(jq -r --arg k "$key" '.userConfig[$k].default' "$ROOT/.claude-plugin/plugin.json")
     grep -qF "\${user_config.$key}\` [\`$default\`]" "$SKILL"
   done

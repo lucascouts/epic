@@ -28,7 +28,6 @@ CHECKBOX_CONSUMERS=(
   close-subtask.sh
   cross-reference.sh
   epic-index.sh
-  hook-post-tool-failure.sh
   hook-precompact.sh
   hook-task-completed.sh
   migrate-story.sh
@@ -65,7 +64,7 @@ detect_checkbox_consumers() {
   #
   #   \[([ x~])\]        the canonical capture (validate-story.sh, and most)
   #   \[[ x~]\]          no capture group (cross-reference.sh)
-  #   \[([x~])\]         closed states only (hook-post-tool-failure.sh)
+  #   \[([x~])\]         closed states only
   #   \[ \]              open box only (monitor-stale.sh) — it asks "is work
   #                      still owed here?", the DELIBERATE EXCEPTION documented
   #                      in that script. Widen this predicate, never the script.

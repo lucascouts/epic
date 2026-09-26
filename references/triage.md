@@ -4,35 +4,29 @@ Loaded by Create and by Instant before anything is written. Instant reads it wit
 
 ## Runtime dependency precheck (MANDATORY before Standard/Full triage)
 
-Standard and Full modes depend on two interactive tools that may not be loaded in every environment. The skill MUST verify both are callable **before** entering the Triage Protocol and MUST notify the user explicitly when either is missing — do not degrade silently.
+Standard and Full modes ask questions, so they need to know whether anyone can answer. The skill MUST settle that **before** entering the Triage Protocol and MUST tell the user when questions will fall back to prose — do not degrade silently.
 
 | Tool | Required by | Fallback if missing |
 |---|---|---|
-| `AskUserQuestion` | Clarify Protocol (multi-choice rounds) | Numbered-list confirmation prose |
-| `TaskCreate` / `TaskList` / `TaskUpdate` (interactive sessions) **or** `TodoWrite` (headless/Agent SDK) | Task tracking during Clarify / Run modes | Plain-text bullet list in chat |
+| `AskUserQuestion` | Clarify Protocol (multi-choice rounds); the signal that someone can answer | Numbered-list confirmation prose; the run is treated as headless |
+| Task tools (`TaskCreate` / `TaskList` / `TaskUpdate`, or `TodoWrite`) | Optional progress display during Clarify / Run | None needed — `tasks.md` is the progress record |
 
 ### Procedure
 
-1. **Detect session kind:**
-   - If the function schema list exposes `TaskCreate` → interactive session. Use `TaskCreate` / `TaskList` / `TaskUpdate`.
-   - Else if `TodoWrite` is exposed → headless or Agent SDK. Use `TodoWrite`.
-   - Else → neither is available.
+1. **Detect session kind — one signal, used everywhere:** `AskUserQuestion` is callable (listed among the tools, directly or as a deferred tool) → **interactive**: someone can answer. Otherwise → **headless** (`-p`, Agent SDK, or a run with no permission host). An explicit `--auto` or CI route counts as headless whatever the tools say. The Task tools are **not** a signal: Claude Code offers them only on some models, in interactive and headless sessions alike.
 
-2. **Verify `AskUserQuestion`:**
-   - If the function schema list exposes `AskUserQuestion` → proceed.
-   - Else → missing.
+2. **Task tools are optional.** When present, mirror the run in them; when absent, do nothing and report nothing — progress lives in `tasks.md`. A user who wants the checklist can start Claude Code with `CLAUDE_CODE_ENABLE_TODO_TOOLS=1`.
 
-3. **Notify the user explicitly** before starting Triage, using this exact format:
+3. **Notify the user** before starting Triage, using this exact format:
 
    ```
    Runtime dependency check:
-   - Task tracking: [TaskCreate | TodoWrite | MISSING — will use plain-text bullet fallback; progress not persisted]
-   - AskUserQuestion: [available | NOT LOADED — Clarify will use numbered-list fallback; may affect UX quality]
+   - AskUserQuestion: [available | NOT LOADED — Clarify will use numbered-list fallback and the run is treated as headless]
    ```
 
 4. **For Fast mode:** skip this precheck entirely. Fast mode does not use Clarify rounds or multi-phase task tracking.
 
-5. Never omit the notification when a tool is missing. Silent degradation is a bug — the user must know that UX is reduced so they can abort and restart in a richer environment if desired.
+5. Never omit the notification when `AskUserQuestion` is missing. Silent degradation is a bug — the user must know that UX is reduced so they can abort and restart in a richer environment if desired.
 
 ## Adaptive Modes
 
@@ -93,7 +87,7 @@ requester:
 7a. **Detect memory** — `ai-memory`, per the Memory MCP section of [mcp-integration.md](mcp-integration.md#memory-mcp). One local `memory_status` call, in **all modes including Fast**; skipped only when `aiMemory` is `off` (SKILL.md *Plugin options*). WHEN available, gather Prior Knowledge before the Analyst runs — [context-discovery.md](context-discovery.md#prior-knowledge). WHEN unavailable, say so in the proposal's `**Memory:**` line and change nothing else.
 7b. **Detect preferred tooling** — load [preferred-tooling.md](preferred-tooling.md). Runs in **all modes, including Fast** (unlike step 7, which Fast skips). Detect every favorite and optional E2E tool plus the `frontend-design` aid, then resolve the selection:
    - WHEN a favorite is available, select it (`playwright` by default; `chrome-devtools` when the task is Chrome-specific). For a frontend story with `frontend-design` available, designate it the preferred implementation aid.
-   - WHEN no favorite is available, recommend installing one and **pause** for the user's `[y/n]` decision. The pause reuses the Runtime dependency precheck's interactive/headless signal — `TaskCreate` present = interactive session, so pause; in a **headless** session do not pause, emit a logged note instead and proceed. WHEN the user proceeds without installing, select the best installed optional tool that fits the task context (per [preferred-tooling.md](preferred-tooling.md)).
+   - WHEN no favorite is available, recommend installing one and **pause** for the user's `[y/n]` decision. The pause reuses the Runtime dependency precheck's interactive/headless signal — `AskUserQuestion` available = interactive session, so pause; in a **headless** session do not pause, emit a logged note instead and proceed. WHEN the user proceeds without installing, select the best installed optional tool that fits the task context (per [preferred-tooling.md](preferred-tooling.md)).
    - WHEN no favorite and no fitting optional tool exist, record `none — no E2E tooling available` in design.md's `## Tooling Decisions` block AND as a story Constraint.
 
    The recommendation/pause happens at triage **only**. The resolved decision is written to design.md's `## Tooling Decisions` block and the relevant E2E/frontend sub-tasks are annotated in tasks.md — the Executor and Test Advisor consume that decision without re-detecting.

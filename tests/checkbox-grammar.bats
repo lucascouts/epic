@@ -258,23 +258,15 @@ load_roster() {
   # Mixed fixture has one [ ] box: an old story IS stale.
   touch -d '30 days ago' "$MIXED/tasks.md"
   cd "$WORK/proj"
-  run timeout 2 env \
-    CLAUDE_PLUGIN_OPTION_ENABLESTALEMONITOR=true \
-    CLAUDE_PLUGIN_OPTION_STALETHRESHOLDDAYS=7 \
-    CLAUDE_PLUGIN_OPTION_STALECHECKINTERVALSECONDS=10 \
-    bash "$PLUGIN_ROOT/scripts/monitor-stale.sh"
-  [ "$status" -eq 124 ]
+  run timeout 5 bash "$PLUGIN_ROOT/scripts/monitor-stale.sh" --story-days 7
+  [ "$status" -eq 0 ]
   echo "$output" | grep -q '010-mixed'
 
   # Close the last [ ]: only [x] + [~] remain — no pending work, not stale.
   sed -i 's/^- \[ \] 1.5/- [x] 1.5/' "$MIXED/tasks.md"
   touch -d '30 days ago' "$MIXED/tasks.md"
-  run timeout 2 env \
-    CLAUDE_PLUGIN_OPTION_ENABLESTALEMONITOR=true \
-    CLAUDE_PLUGIN_OPTION_STALETHRESHOLDDAYS=7 \
-    CLAUDE_PLUGIN_OPTION_STALECHECKINTERVALSECONDS=10 \
-    bash "$PLUGIN_ROOT/scripts/monitor-stale.sh"
-  [ "$status" -eq 124 ]
+  run timeout 5 bash "$PLUGIN_ROOT/scripts/monitor-stale.sh" --story-days 7
+  [ "$status" -eq 0 ]
   refute_grep '010-mixed'
 }
 
@@ -285,42 +277,6 @@ load_roster() {
   run grep '^- Tasks:' "$MIXED/.draft/compact-snapshot.md"
   # Same shared truth as the header: total 5, closed 3, deferred 1.
   [ "$output" = "- Tasks: 3/5 completed (+1 deferred)" ]
-}
-
-@test "R4.1: hook-post-tool-failure counts terminal [~] as closed — the reminder still fires" {
-  # The sixth consumer, and the quietest one: its guard needs one closed box and
-  # one open [ ]. Here the finished work was all closed WITHOUT execution — no
-  # [x] anywhere — which the binary guard read as "not mid-run", swallowing the
-  # executor Step-4 reminder on a Bash failure.
-  sed -i 's/^- \[x\] 1.1 - First done/- [~] 1.1 - First done (n-a: covered by construction)/' "$MIXED/tasks.md"
-  sed -i 's/^- \[x\] 1.2 - Second done/- [~] 1.2 - Second done (superseded-by: 011)/' "$MIXED/tasks.md"
-  cd "$WORK/proj"
-  run bash "$PLUGIN_ROOT/scripts/hook-post-tool-failure.sh" <<< '{"tool_name":"Bash"}'
-  [ "$status" -eq 0 ]
-  echo "$output" | grep -q 'Per executor Step 4 protocol'
-  echo "$output" | grep -qF '010-mixed'
-  # And it still points at the next OPEN box, never at a [~] one.
-  echo "$output" | grep -qF '1.5 - Still open'
-}
-
-@test "R4.1: hook-post-tool-failure — a deferred box does not close, so nothing is mid-run" {
-  # Every box now open or deferred: this run has produced nothing, so there is
-  # no Step-4 protocol to remind anyone about. Same reading as the closed count.
-  sed -i 's/^- \[x\] 1.1 - First done/- [ ] 1.1 - First done/' "$MIXED/tasks.md"
-  sed -i 's/^- \[x\] 1.2 - Second done/- [ ] 1.2 - Second done/' "$MIXED/tasks.md"
-  sed -i 's/(waived: tool absent)/(deferred: waiting on the vendor)/' "$MIXED/tasks.md"
-  cd "$WORK/proj"
-  run bash "$PLUGIN_ROOT/scripts/hook-post-tool-failure.sh" <<< '{"tool_name":"Bash"}'
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]
-}
-
-@test "R5.1: hook-post-tool-failure — the binary [x] + [ ] story behaves exactly as before" {
-  cd "$WORK/proj"
-  run bash "$PLUGIN_ROOT/scripts/hook-post-tool-failure.sh" <<< '{"tool_name":"Bash"}'
-  [ "$status" -eq 0 ]
-  echo "$output" | grep -q 'Per executor Step 4 protocol'
-  echo "$output" | grep -qF '1.5 - Still open'
 }
 
 @test "R3.3/R3.4: only-deferred fixture — no work is open, and the deferred box is not hidden" {

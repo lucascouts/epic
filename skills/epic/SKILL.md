@@ -31,8 +31,6 @@ allowed-tools:
   - TodoWrite
   - Agent
   - AskUserQuestion
-  - EnterWorktree
-  - ExitWorktree
 paths:
   - ".epic/**"
   - "tasks.md"
@@ -64,7 +62,7 @@ The refusal is hard. Do not partially engage, do not propose an Epic-wrapped ver
 ## Prerequisites
 
 - `bash`, `git`, and `jq` available on `PATH`
-- Claude Code **v2.1.105+** (for conditional hooks `if:`, skill `effort`/`paths:`, description caps, background monitors, `EnterWorktree.path`). Core planning features work on v2.1.85+ but with degraded ergonomics.
+- Claude Code **v2.1.105+** (for conditional hooks `if:`, skill `effort`/`paths:`, description caps). Core planning features work on v2.1.85+ but with degraded ergonomics.
 - Optional MCP servers for research. See [mcp-integration.md](../../references/mcp-integration.md) for the full priority order and cost policy. Default search MCP is `brave-search`; `perplexity` is **never** the default (premium/high-cost).
 
 ## Runtime dependency precheck (MANDATORY before Standard/Full triage)
@@ -88,6 +86,8 @@ The user's plugin settings, substituted by Claude Code when this skill loads. On
 
 - `aiMemory`: `${user_config.aiMemory}` [`auto`] — `off` skips every ai-memory call ([mcp-integration.md](../../references/mcp-integration.md#memory-mcp))
 - `defaultScale`: `${user_config.defaultScale}` [`standard`] — the scale proposed when triage cannot settle one
+- `staleThresholdDays`: `${user_config.staleThresholdDays}` [`7`] — the story list flags pending work untouched this long
+- `spikeStaleThresholdDays`: `${user_config.spikeStaleThresholdDays}` [`14`] — the story list flags an open spike Verdict untouched this long
 
 ## Concepts
 
@@ -320,17 +320,7 @@ The `status:` field, its six values and who writes each: [lifecycle-status.md](.
 
 ## Validation
 
-Validation runs automatically via PostToolUse hook when any story artifact is written to `.epic/stories/`. Manual validation is also available:
-
-> **Architectural note.** Hooks live in `hooks/hooks.json` (plugin scope), not
-> in this skill's frontmatter, by design. They must fire when the user edits
-> `.epic/` files outside an active `/epic:epic` session — e.g. through a plain
-> `Edit` call, an external editor, or a different skill. All hooks use `if:`
-> filters scoped to `.epic/**` paths or specific tool arguments, so cost is
-> negligible when no Epic story exists. Skill-frontmatter hooks would only
-> apply during `/epic:epic` execution — none of the current hooks fit that
-> profile.
-
+Validation runs automatically via a PostToolUse hook when a story artifact under `.epic/stories/` is written with the Write tool; its errors come back to you as hook context. Manual validation is also available:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/validate-story.sh" <story-directory>

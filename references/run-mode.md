@@ -140,7 +140,7 @@ Spawn overhead dominates when the unit is small, and a sub-task here is small by
 **Two environment gates, and neither does what its name suggests.**
 
 - `CLAUDE_CODE_FORK_SUBAGENT=1` enables the fork agent type. It is off by default in non-interactive mode (`-p`) and in the Agent SDK, so a run that does not set it gets `Agent type 'fork' not found` and must fall back to inline, in order, without comment.
-- `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` is **not a fork setting and is required on every run**, fork or no fork. Under `-p`, sub-agents are backgrounded **by default with fork mode off**: without the variable, spawns report `is_backgrounded: true` whether or not fork mode is on. A backgrounded sub-agent's result arrives only as a completion notification in a later turn, and that holds for the Analyst, the Validator and the Auditor as much as for any fork. With the variable set, spawns report `is_backgrounded: false`: it **does** restore the foreground, in fork mode and out of it.
+- `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` is **not a fork setting**; it is an optional user setting, fork or no fork, and it must be set before Claude Code starts — a plugin cannot set it. Under `-p`, sub-agents are backgrounded **by default with fork mode off**: without the variable, spawns report `is_backgrounded: true` whether or not fork mode is on. A backgrounded sub-agent's result arrives only as a completion notification in a later turn, and that holds for the Analyst, the Validator and the Auditor as much as for any fork. With the variable set, spawns report `is_backgrounded: false`: it **does** restore the foreground, in fork mode and out of it. Without it, the waiting rule in [personas.md](personas.md#personas) applies.
 
 **Worktrees are still the isolation.** Forks writing different files at once are as capable of colliding as Executors are; the group runs under the same worktree discipline as Parallel Execution, and boxes are closed only in the main tree, sequentially, after each merge.
 
@@ -149,7 +149,7 @@ Spawn overhead dominates when the unit is small, and a sub-task here is small by
 Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent section. The orchestrator:
 
 1. Builds the Executor prompt with task fields + story context + design interfaces + tech profile
-2. Spawns the Executor in the foreground — `run_in_background: false`; with `isolation: "worktree"` for parallel tasks, a parallel group being several foreground calls in one message, joined before the next step ([SKILL.md](personas.md#personas))
+2. Spawns the Executor — `run_in_background: false`, result awaited; with `isolation: "worktree"` for parallel tasks, a parallel group being several Agent calls in one message, every one awaited before the next step ([SKILL.md](personas.md#personas))
 3. Waits for the Executor to complete
 4. Reads the Executor's structured report
 5. If PASS: check for tech boundaries → spawn Tech Reviewers if needed
@@ -236,7 +236,7 @@ A refusal names its own reason in `reason`, and each arm is a statement about th
 
 **On a resumed run, "already closed" is benign confirmation, not a failure.** A run interrupted after a close and before its report is replayed over boxes that already carry their mark: read that refusal as *this one is already done*, log it, and move to the next box. Do not "repair" it by editing the file. The script stays strict on purpose — outside a resume, a second close is a real disagreement about what happened, and a silent one is what the refusal exists to prevent.
 
-**Close one story at a time.** `hook-task-completed.sh` picks the **most-recently-modified `tasks.md`** under `.epic/stories/` as the active story, so interleaving closes across two stories mid-run points that hook at whichever story was written last, and its validation then lands on a story nobody was working on. The script itself only ever touches the story it was invoked for — the hazard is in the ordering, not in the write — so finish one story's closes before starting another's.
+**Close one story at a time.** The compaction snapshot (`hook-precompact.sh`) and the teams completion hook take the **most-recently-modified story** under `.epic/stories/` as the active one, so interleaving closes across two stories mid-run points them at whichever story was written last. The script itself only ever touches the story it was invoked for — the hazard is in the ordering, not in the write — so finish one story's closes before starting another's.
 
 ### Status Transitions
 
@@ -557,10 +557,7 @@ A completed run finishes with these three steps, in this order:
 
 ## Progress Tracking
 
-During execution, maintain a TodoWrite task list mirroring the tasks being executed. Update in real-time:
-- `pending` → tasks not yet started
-- `in_progress` → currently executing sub-task (show Executor status)
-- `completed` → sub-task passed validation + tech review **and its box has been closed**. Completing a TodoWrite item fires `hook-task-completed.sh`, which validates the *most-recently-modified* story — so completing it right after that story's own close is what points the hook at the right story (see Closing a Box)
+`tasks.md` is the progress record, and `close-subtask.sh` validates the story on every close. **When the Task tools are present** (`TaskCreate`/`TaskUpdate`, or `TodoWrite`), mirror the run in them for the user to watch — pending, in progress (with the Executor's status), completed once the sub-task passed validation and tech review **and its box is closed**. When they are absent, do nothing: they are offered only on some models, and nothing depends on them.
 
 ## Agent Teams Mode (Experimental, opt-in)
 

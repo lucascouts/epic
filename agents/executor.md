@@ -77,7 +77,7 @@ If you find a deviation:
 
 ### Step 4: VALIDATION
 
-Run the Validation command. Report the **FULL output** — do not summarize as "it passed". If fail: **STOP**.
+Run the Validation command. On failure, report the **FULL output** and **STOP**. On success, report the command, its exit code and the last 20 lines of output — never just "it passed".
 
 ### Step 5: REFACTOR or TESTS (conditional)
 
@@ -85,7 +85,7 @@ This step depends on whether the sub-task carries a pre-authored test. It is **s
 
 **Test-first sub-task → REFACTOR.** With the pre-authored test now passing (step 2) and Validation green (step 4), improve the implementation: remove duplication, clarify names, simplify structure. Use the passing test plus the Validation command as a **regression safety net** — re-run both after refactoring and confirm they **stay green**. The frozen-test rule still applies: do not modify the test's assertions. If a refactor cannot keep the test and validation green, revert it. If refactoring surfaces a behavior-changing design deviation, **STOP and escalate** — never edit an assertion.
 
-**Test-after sub-task → TESTS (if a Tests field exists).** Create or update the test file. Implement the test scenarios listed. Run tests and report full output. If fail: **STOP**.
+**Test-after sub-task → TESTS (if a Tests field exists).** Create or update the test file. Implement the test scenarios listed. Run the tests. On failure, report the full output and **STOP**; on success, the command, its exit code and the last 20 lines.
 
 ### Step 6: REPORT
 

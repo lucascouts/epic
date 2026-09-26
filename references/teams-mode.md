@@ -2,7 +2,7 @@
 
 This reference documents Epic's integration with Claude Code's experimental [agent-teams](https://code.claude.com/docs/en/agent-teams) feature. Agent teams let the Run phase spawn multiple Claude Code instances that work in parallel, each in its own context window, coordinated through a shared task list.
 
-> **Experimental.** Enabling agent-teams opts into a Claude Code feature flag that may change behaviour across upgrades. Epic falls back to the sequential / `EnterWorktree` execution if the flag is inactive.
+> **Experimental.** Enabling agent-teams opts into a Claude Code feature flag that may change behaviour across upgrades. Epic falls back to sequential or worktree-isolated execution if the flag is inactive.
 
 ## When to use
 
@@ -87,7 +87,7 @@ After all teammates mark their tasks complete, the lead synthesises a Run report
 When the flag is **inactive** or when the story does not meet the "2+ independent tracks" signal, Run mode runs without teams:
 
 - Sequential execution for small stories.
-- `EnterWorktree` parallel execution for larger stories.
+- Worktree-isolated parallel execution (`isolation: "worktree"`) for larger stories.
 
 Enabling the flag **never** makes non-team behaviour go away. It only adds teams as an option when the structure fits.
 
@@ -174,14 +174,14 @@ Offer Agent Teams as an alternative execution strategy when **all** hold:
 3. Each group has 3+ sub-tasks (amortises the team spawn/cleanup overhead).
 4. No group depends on another group's output mid-Run.
 
-If the conditions do not hold, use the `EnterWorktree` path (Parallel Execution section above). Do **not** ask the user to pick a strategy when teams cannot realistically help — the question is a distraction.
+If the conditions do not hold, use the worktree path (Parallel Execution section above). Do **not** ask the user to pick a strategy when teams cannot realistically help — the question is a distraction.
 
 ### Strategy prompt (only when conditions hold)
 
 > "This story has N independent task groups and agent-teams is enabled.
 > Two execution strategies available:
 >
-> 1. **Worktrees (default)** — parallel `EnterWorktree` per group, sub-agents via the Agent tool
+> 1. **Worktrees (default)** — one `isolation: "worktree"` Executor per task, sub-agents via the Agent tool
 > 2. **Agent Teams (experimental)** — dedicated teammates per group with shared task list and direct messaging. Higher token cost, but teammates can coordinate and challenge each other.
 >
 > Choose strategy?"

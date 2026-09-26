@@ -137,8 +137,8 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 
 1. Resolve story directory from NNN
 2. Read tasks.md and take the checkbox census. A story is **complete** when **no `[ ]` remains**: it is **`done`** when every box is `[x]` or terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), and **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`. `done-except-external` is computed at read time, never written to a file. Only `[x]` sub-tasks have an implementation to validate — see [tasks.md](tasks.md#completion)
-3. Delete the stale `.draft/validation-report.yaml`, then spawn the Validator sub-agent in the foreground (`run_in_background: false`) — it runs each task's validation command and tests, and writes that file as its last step. Take the verdict from the file
-4. If `.draft/validation-report.yaml` reads `verdict: pass`, delete the stale `.draft/audit-report.yaml`, then spawn the Auditor sub-agent in the foreground (`run_in_background: false`) — compares code against story + design, reviews the deviation register — and take its verdict from that file the same way. On `verdict: fail` the Auditor is not spawned. When memory is available, the spawn prompt carries prior structural findings recalled with one `memory_query` — `audit OR scope-creep OR false-positive OR recurring`, `limit: 10` — as things to verify ([mcp-integration.md](mcp-integration.md#memory-mcp))
+3. Delete the stale `.draft/validation-report.yaml`, then spawn the Validator sub-agent (`run_in_background: false`) and wait for its completion — it runs each task's validation command and tests, and writes that file as its last step. Take the verdict from the file
+4. If `.draft/validation-report.yaml` reads `verdict: pass`, delete the stale `.draft/audit-report.yaml`, then spawn the Auditor sub-agent (`run_in_background: false`) and wait for its completion — compares code against story + design, reviews the deviation register — and take its verdict from that file the same way. On `verdict: fail` the Auditor is not spawned. When memory is available, the spawn prompt carries prior structural findings recalled with one `memory_query` — `audit OR scope-creep OR false-positive OR recurring`, `limit: 10` — as things to verify ([mcp-integration.md](mcp-integration.md#memory-mcp))
 5. Present the combined results to the user, composed from the two files: the Validator's `results[]` and `gates[]`, the Auditor's `gaps[]`, `unmet_gates[]`, `deviations_reviewed[]`, `scope_creep[]`, `missing_red[]` and `findings[]`
 6. If gaps found, offer to create new tasks to address them
 7. Apply the status transition for this verdict — see Status Transition (`validated`)
@@ -166,7 +166,7 @@ Apply the first row that matches, once the agent returns:
 | # | The report file | Then |
 |---|---|---|
 | 1 | Present and parses | read `verdict` and carry on — the ordinary case |
-| 2 | Absent, empty, truncated, or not parseable as YAML | **one** `SendMessage` to the **same agent** and **never a second**, asking it to write its report file now |
+| 2 | Absent, empty, truncated, or not parseable as YAML | **one** `SendMessage` to the **same agent** and **never a second**, asking it to write its report file now, then wait for that agent's completion notification before reading the file again |
 | 3 | Still absent or still unparseable after that one request | **the run is failed** — report it in those terms and stop |
 
 **One request and never a second, to the agent that already did the work**, because it still holds the context that produced the verdict: re-emitting the file costs a message rather than a validation suite.

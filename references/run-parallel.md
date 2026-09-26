@@ -17,13 +17,14 @@ When multiple pending tasks share the same dependency set and all dependencies a
 
 ### Execution
 
+**Preflight — the worktree base.** A subagent worktree branches from the repository's default branch on the remote unless the `worktree.baseRef` setting is `"head"`. A parallel group runs after its dependencies were closed and committed locally, usually on a branch nobody has pushed, so a worktree from the remote would miss that work. Before the first group: when `git remote` lists a remote and no settings file (`~/.claude/settings.json`, `.claude/settings.json`, `.claude/settings.local.json`) sets `worktree.baseRef` to `"head"`, ask the user to add `{"worktree": {"baseRef": "head"}}` to the project settings — or, headless or declined, run the whole story `--serial`. A worktree also holds only tracked files: whatever a group's Executors need (materialized tests included) must be committed, or listed in `.worktreeinclude`, before the spawn.
+
 For each parallel group, unless `--serial` was passed:
-1. **Create an isolated worktree per task** using the native `EnterWorktree` tool (Claude Code v2.1.105+). Each worktree branches from the current HEAD into `.epic/worktrees/<story>-<task>/` so parallel Executors cannot collide on the same files.
-   - **Fallback (< v2.1.105):** spawn each Executor with `isolation: "worktree"` (Agent tool option) or manually create worktrees via `Bash + git worktree add`.
+1. **Spawn each Executor with `isolation: "worktree"`** on its Agent call — several Agent calls in one message. Claude Code gives each its own temporary worktree, so parallel Executors cannot collide on the same files, and the orchestrator stays in the main checkout for the merges and the closes.
 2. Each Executor follows the full 6-step protocol in its isolated worktree — and closes **no** box there: tasks.md is never edited inside a worktree
 3. Wait for all Executors to complete
 4. Run Tech Reviews for each Executor's output (can be parallel)
-5. If ALL pass: merge worktrees **sequentially**, and after each merge close that task's boxes **in the main tree** — one `close-subtask.sh` call per box, in task order, from the merged Executor's closing block (see Closing a Box). When every worktree has been merged and closed, execute the group's `Commit:` field. Call `ExitWorktree` on each worktree after merging to clean up.
+5. If ALL pass: merge worktrees **sequentially**, and after each merge close that task's boxes **in the main tree** — one `close-subtask.sh` call per box, in task order, from the merged Executor's closing block (see Closing a Box). When every worktree has been merged and closed, execute the group's `Commit:` field. Then remove each merged worktree with `git worktree remove` (run `git worktree unlock` first if git refuses); a worktree whose Executor changed nothing is removed by Claude Code on its own.
 6. If ANY fail: report failures, ask user how to proceed (retry failed tasks, skip, or abort). Worktrees of failed executors are preserved for inspection until the user decides. A failed Executor's boxes are **not** closed — `outcome: failed` makes no close call, here as anywhere else
 
 ### Rules
@@ -34,4 +35,4 @@ For each parallel group, unless `--serial` was passed:
 - Maximum parallel Executors: 5 (to avoid resource exhaustion)
 - Each parallel Executor gets the full story context (story.md, design.md relevant sections)
 - Deviation register is merged after parallel execution completes (before commit)
-- `EnterWorktree` integrates with Claude Code checkpointing — `ExitWorktree` is cancellable and safe to call on already-exited worktrees
+- Parallel Executor edits are not covered by `/rewind`: a subagent's changes are recovered only through git

@@ -63,7 +63,6 @@ The plugin surface maps to Claude Code's extension points:
 | `skills/epic/` | Skill | The `/epic:epic` entry point. Parses `$ARGUMENTS`, routes to modes, orchestrates agents, writes artifacts. |
 | `agents/` | Sub-agents | 8 specialized personas with bounded tool access and dedicated context windows. |
 | `hooks/hooks.json` | Hooks | 9 hook events, each `if:`-filtered to `.epic/**` paths or tool-arg patterns. |
-| `monitors/monitors.json` | Monitors | Opt-in stale-story watcher (requires CC 2.1.105+). |
 | `output-styles/epic.md` | Output style | Optional structured presentation mode. |
 | `bin/` | PATH executables | `epic-validate`, `epic-xref`, `epic-archive` — thin wrappers over `scripts/`. |
 | `scripts/` | — | Bash implementations behind hooks, bin, and CI. |
@@ -184,7 +183,7 @@ All files in a story share the same `version`. It's an integer, not semver; bump
 
 ## Hook matrix
 
-All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — so they fire on `.epic/**` edits even outside a `/epic:epic` session (external editor, another skill, plain `Edit`). Each uses an `if:` filter or matcher to stay cheap when Epic is idle.
+All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — so they fire on Claude's `.epic/**` writes even outside a `/epic:epic` session (another skill, a plain `Write`). A skill-frontmatter hook would start only once the skill is invoked, and then stay active for the rest of the session. Tool hooks never see edits made in an external editor. Each uses an `if:` filter or matcher to stay cheap when Epic is idle.
 
 | Event | Matcher / if-filter | Script | Purpose | Min CC |
 |---|---|---|---|---|
@@ -192,12 +191,8 @@ All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — 
 | `PreToolUse` | `Edit(.epic/archive/**)` · `Write(.epic/archive/**)` | `hook-archive-guard.sh` | Block mutations to archived stories | 2.1.85 |
 | `PreCompact` | — | `hook-precompact.sh` | Snapshot active-story state before autocompaction | 2.1.105 |
 | `SessionStart` | `compact` | `hook-session-restore.sh` | Restore state after a compaction rewake | 2.1.105 |
-| `SessionEnd` | `clear` | `hook-session-end-cleanup.sh` | Clean transient drafts on explicit clear | 2.1.85 |
+| `SessionStart` | `clear` | `hook-orphan-drafts.sh` | After `/clear`, list drafts untouched for 30+ days, one removal line each; deletes nothing | 2.1.85 |
 | `TaskCompleted` | — (asyncRewake) | `hook-task-completed.sh` | Run `validate-story.sh` on the active story when a TodoWrite item completes — it **writes nothing**: tasks.md markers are written only by `scripts/close-subtask.sh` | 2.1.85 |
-| `PostToolUseFailure` | `Bash` | `hook-post-tool-failure.sh` | Capture failing validation context into the story's notes | 2.1.85 |
-| `CwdChanged` | — | `hook-cwd-changed.sh` | Detect project switch; reset story cache | 2.1.85 |
-| `FileChanged` | `constitution.md` | `hook-file-changed.sh` | Re-evaluate constitution constraints when it changes | 2.1.85 |
-| `PermissionDenied` | `mcp__.*` | inline `{"retry": true}` | Retry MCP calls after a permission prompt | 2.1.89 |
 
 Degradation on older CC versions is documented in [README.md#minimum-claude-code-version-per-component](README.md#minimum-claude-code-version-per-component).
 

@@ -139,20 +139,20 @@ The arms below **document what [`scripts/epic-index.sh`](../scripts/epic-index.s
 
 `(missing)` is also the interrupted-promote case — the Verdict written, the follow-up story never created (see the offer below). Absent renders the same em dash a story with no `status:` gets: inventing `open` would state a verdict nobody wrote.
 
-**Stale open spikes.** A Verdict left `open` is the failure mode this scale exists to prevent, so it expires: **14 days** since the last change to `tasks.md`. **That number is [`scripts/monitor-stale.sh`](../scripts/monitor-stale.sh)'s and so is the measurement** — it owns the threshold (`SPIKE_THRESHOLD_DAYS`, user option `spikeStaleThresholdDays`) and the mtime read. Ask it; never `stat` a file here and never restate the deadline as arithmetic, or the day someone tunes the option this listing keeps quoting 14.
+**Stale stories and spikes.** A Verdict left `open` is the failure mode the spike scale exists to prevent, so it expires; pending `[ ]` work left untouched is flagged too. **The thresholds and the measurement are [`scripts/monitor-stale.sh`](../scripts/monitor-stale.sh)'s** — pass it the two values from SKILL.md's *Plugin options* (`staleThresholdDays`, `spikeStaleThresholdDays`; the script falls back to 7 and 14 on anything non-numeric). Ask it; never `stat` a file here and never restate a deadline as arithmetic.
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/monitor-stale.sh" --once
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/monitor-stale.sh" --story-days <staleThresholdDays> --spike-days <spikeStaleThresholdDays>
 ```
 
-One pass over every story, **one invocation for the whole listing** — unlike the per-story git evaluation below, there is no cost rule to apply. `--once` deliberately ignores `enableStaleMonitor`: that option governs the *background watcher*, the thing that speaks unasked, while the story list shows this flag whether or not anyone opted into being notified.
+One pass over every story, **one invocation for the whole listing** — unlike the per-story git evaluation below, there is no cost rule to apply.
 
 | The script writes | This mode renders |
 |---|---|
 | `Epic spike '031-probe-cache' has an open Verdict untouched for 15 days — promote or close.` | ` · spike open 15 days — promote or close` on that story's row |
-| `Epic story '…' has pending tasks untouched for N days.` | nothing — the generic nag belongs to the background watcher |
+| `Epic story '…' has pending tasks untouched for N days.` | ` · stale N days` on that story's row |
 
-The **decision** is the script's; only the shortening is this mode's, like the `·` separators and the column layout. A terminal Verdict never produces a line whatever its boxes say, and an `open` spike inside the deadline produces none either — silence here means "not stale", and it is the only thing that does.
+The **decision** is the script's; only the shortening is this mode's, like the `·` separators and the column layout. A terminal Verdict never produces a line whatever its boxes say, and a story inside its deadline produces none either — silence here means "not stale", and it is the only thing that does.
 
 **Promote hands off to CREATE.** When a spike's Verdict becomes `promote` in an interactive session — set during a run, or found here as a `promote` row whose target is absent or `(missing)` — **offer** to create the follow-up story, pre-filled with the spike's `conclusion:` as the seed of its problem statement. The conclusion is what the spike learned, and re-typing it into CREATE is how the finding gets quietly rewritten. On acceptance, run CREATE and then write `promoted-to: NNN` back into the spike's Verdict, with the number CREATE actually assigned.
 

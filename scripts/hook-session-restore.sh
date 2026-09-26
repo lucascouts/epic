@@ -5,6 +5,11 @@
 #
 # Looks for the active story's .draft/compact-snapshot.md (produced by
 # hook-precompact.sh). If missing, exit 0 silently — nothing to restore.
+#
+# Claude Code shows a hook's context in full only up to 10,000 characters;
+# past that Claude gets a short preview. The snapshot puts progress and the
+# next pending item first, so the output is cut at MAX_CHARS and points to the
+# file for the rest.
 
 set -euo pipefail
 
@@ -24,9 +29,15 @@ while IFS= read -r f; do
 done < <(find "$STORIES_ROOT" -mindepth 3 -maxdepth 3 -path '*/.draft/compact-snapshot.md' 2>/dev/null)
 [ -n "${SNAPSHOT:-}" ] && [ -f "$SNAPSHOT" ] || exit 0
 
-cat "$SNAPSHOT"
+MAX_CHARS=8000
+BODY=$(cat "$SNAPSHOT")
+if [ "${#BODY}" -gt "$MAX_CHARS" ]; then
+  printf '%s\n\n(Snapshot truncated at %s characters; the full text is in %s.)\n' "${BODY:0:$MAX_CHARS}" "$MAX_CHARS" "$SNAPSHOT"
+else
+  printf '%s\n' "$BODY"
+fi
 echo
 echo "---"
-echo "_Restored by Epic after context compaction. Delete_ \`${SNAPSHOT}\` _once the work continues._"
+echo "_Restored by Epic after context compaction from \`${SNAPSHOT}\`._"
 
 exit 0

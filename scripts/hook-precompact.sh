@@ -59,8 +59,8 @@ HEAD_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "(not a git repo)")
     # (see its census comment, sub-task 6.5).
     #
     # One census loop with token-anchored qualifiers, the same shape used by
-    # validate-story.sh and hook-post-tool-failure.sh. It replaced a
-    # `grep | grep -cv` pipeline (sub-task 6.5): that pipeline was a second,
+    # validate-story.sh. It replaced a
+    # `grep | grep -cv` pipeline: that pipeline was a second,
     # independent implementation of one rule, and the two already disagreed —
     # on `- [~]waived: …` (no space after the box) validate-story counted a
     # closed box while this script counted neither, so the snapshot under-

@@ -206,7 +206,7 @@ run_case() {
     cd "$workdir" && \
     claude -p "$prompt" \
       --plugin-dir "$ROOT" \
-      --allowedTools "Read,Write,Glob,Grep,Bash,Agent,Skill,EnterWorktree,ExitWorktree,TodoWrite" \
+      --allowedTools "Read,Write,Glob,Grep,Bash,Agent,Skill" \
       --output-format json \
       </dev/null 2>&1
   ); then

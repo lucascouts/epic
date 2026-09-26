@@ -61,9 +61,10 @@ Run `/reload-plugins` after updating plugin files.
 
 ### Prerequisites
 
-- **Claude Code v2.1.105+** — required for the full capability surface. Epic works on v2.1.85+ with degraded ergonomics (no compact recovery; hooks fire on every Write/Edit regardless of path; no plugin monitors).
+- **Claude Code v2.1.105+** — required for the full capability surface. Epic works on v2.1.85+ with degraded ergonomics (no compact recovery; hooks fire on every Write/Edit regardless of path).
 - `bash`, `git`, `jq` available on PATH
 - **Optional MCPs** for deeper context and research: `perplexity`, `brave-search`, `context7`. Epic health-checks each MCP before suggesting it; missing MCPs degrade gracefully.
+- **Optional — keep sub-agents in the foreground:** in interactive sessions Claude Code runs sub-agents in the background by default, and Epic then waits for each one's completion notification. To run them in the foreground instead, start Claude Code with `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` (or put it in your settings `env`). Side effect: no background Bash commands and no Ctrl+B.
 - **Optional tooling for development**: `shellcheck` and `bats` for running the script test suite locally (`bats tests/`).
 
 #### Minimum Claude Code version per component
@@ -73,12 +74,9 @@ Run `/reload-plugins` after updating plugin files.
 | Conditional hooks (`if:` field in `hooks/hooks.json`) | **2.1.85** | `if:` ignored — hooks fire on every matched call (noisy but functional) |
 | Skill `effort` field | **2.1.85** | Field ignored — inherits session effort |
 | Skill description cap raised to 1,536 chars | **2.1.105** | Older sessions truncate at 250 chars (some Epic descriptions get cut) |
-| `EnterWorktree.path` (switch into existing worktree) | **2.1.105** | Tool only creates new worktrees |
 | `PreCompact` + `SessionStart(compact)` hooks (context recovery) | **2.1.105** | No automatic snapshot/restore around compactions; drafts still work |
-| Plugin monitors (`monitors/monitors.json`, `when:` field) | **2.1.105** | Monitor never starts; stale-story detection unavailable |
 | Plugin `bin/` executables on PATH | **2.1.91** | `epic-validate`/`epic-xref`/`epic-archive` not exposed; call scripts directly |
 | Output style `keep-coding-instructions: true` | **2.1.94** | Activating `/output-style epic` may override skill directives |
-| `PermissionDenied` hook with `{retry: true}` | **2.1.89** | MCP retry-on-deny disabled; user sees raw permission errors |
 | Agent-teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) | **2.1.32** | Teams proposal silently skipped; falls back to sequential/worktree execution |
 | `disableSkillShellExecution` setting honored | **2.1.91** | Inline `!` shell blocks always execute (not blockable by managed policy) |
 
@@ -161,11 +159,10 @@ epic/
 ├── skills/epic/SKILL.md         # main skill (/epic:epic)
 ├── agents/                      # 8 specialized sub-agents
 ├── hooks/hooks.json             # 7 hook events, all if:-filtered or matcher-scoped
-├── monitors/monitors.json       # opt-in background watcher (stale stories)
 ├── output-styles/epic.md        # optional structured output style
 ├── bin/                         # PATH-exposed wrappers (epic-validate, epic-xref, epic-archive)
 ├── references/                  # mode-specific operational guides
-├── scripts/                     # bash validators + hook scripts + monitor + eval runner
+├── scripts/                     # bash validators + hook scripts + stale check + eval runner
 ├── assets/examples/             # reference outputs for each scale
 ├── evals/                       # trigger queries + test cases
 ├── tests/                       # bats unit tests for scripts
@@ -268,30 +265,20 @@ Configurable via the install wizard or directly through settings. Each option is
 |---|---|---|
 | `defaultScale` | `standard` | Fallback mode when triage cannot determine complexity |
 | `aiMemory` | `auto` | `auto` uses the ai-memory MCP server when it answers; `off` never calls it |
-| `enableStaleMonitor` | `false` | Enable the background watcher for stories with no progress past the staleness threshold |
-| `staleThresholdDays` | `7` | Days of inactivity before a story with pending tasks is flagged (only when stale monitor is enabled) |
+| `staleThresholdDays` | `7` | Days of inactivity before the story list flags a story with pending tasks |
 | `spikeStaleThresholdDays` | `14` | Days of inactivity before a spike whose Verdict is still `open` is flagged — measured by its Verdict, not its checkboxes |
-| `staleCheckIntervalSeconds` | `3600` | Poll cadence for the stale watcher in seconds (only when stale monitor is enabled) |
 
 ---
 
-## Background Monitors (optional)
+## Stale stories
 
-When `enableStaleMonitor=true`, a background script (`monitors/monitors.json` → `scripts/monitor-stale.sh`) starts on the first `/epic:epic` invocation and periodically reports stories with pending tasks untouched for more than 7 days, plus spikes whose `## Verdict` is still `open` after 14 days. Stdout lines surface as notifications to the main agent.
-
-The same script also answers synchronously — `monitor-stale.sh --once` runs a single pass and exits — which is how the story list flags stale spikes. That path ignores `enableStaleMonitor` on purpose: the option governs the background watcher, not a question the list asks while you are looking at it.
-
-Constraints:
-
-- Requires Claude Code **v2.1.105+**
-- Only runs in interactive sessions — skipped on Bedrock, Vertex AI, Microsoft Foundry, and when `DISABLE_TELEMETRY` or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` are active
-- Opt-in by design: without the user option set, the script exits immediately
+The story list (`/epic:epic stories`) flags stories with pending tasks untouched for more than `staleThresholdDays` (7 by default) and spikes whose `## Verdict` is still `open` after `spikeStaleThresholdDays` (14 by default). It is a single pass run while you look at the list — nothing polls in the background.
 
 ---
 
 ## Agent Teams (experimental, opt-in)
 
-Epic integrates with Claude Code's experimental [agent-teams](https://code.claude.com/docs/en/agent-teams) feature for the Run phase. When enabled, stories with 2+ independent tracks can spawn a dedicated teammate per track, each using Epic's existing `executor` agent definition in its own context window — an alternative to the default sequential / `EnterWorktree` execution.
+Epic integrates with Claude Code's experimental [agent-teams](https://code.claude.com/docs/en/agent-teams) feature for the Run phase. When enabled, stories with 2+ independent tracks can spawn a dedicated teammate per track, each using Epic's existing `executor` agent definition in its own context window — an alternative to the default sequential or worktree-isolated execution.
 
 ```
 /epic:epic stories teams status     # inspect state
@@ -330,10 +317,6 @@ The skill still functions — pass the missing context explicitly in the prompt:
 ```
 
 See the [setting reference](https://code.claude.com/docs/en/settings#settings-files) for managed-settings deployment.
-
-### Why Epic does not use `CronCreate` / scheduled tasks
-
-[Scheduled tasks](https://code.claude.com/docs/en/scheduled-tasks) (`CronCreate`, `/loop`) are session-scoped, expire after 7 days, and consume the 50-task session budget. For the stale-story use case Epic uses a [plugin monitor](https://code.claude.com/docs/en/plugins-reference#monitors) instead — it persists for the entire session without polling from the model, and its opt-in userConfig keeps it silent for users who don't want it. For cross-session scheduling (e.g. nightly validation in CI), see the CI example in [`references/ci-mode.md`](references/ci-mode.md) or use [Routines](https://code.claude.com/docs/en/routines).
 
 ---
 

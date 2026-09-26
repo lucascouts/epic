@@ -113,7 +113,7 @@ Additionally, if `CLAUDE.md`, `AGENTS.md`, or `.epic/constitution.md` were found
 
 ## Architect Sub-agent (Full mode, before Phase 2)
 
-Before generating design.md, spawn the **Architect** sub-agent, in the foreground (`run_in_background: false`), to research the codebase:
+Before generating design.md, spawn the **Architect** sub-agent (`run_in_background: false`, result awaited), to research the codebase:
 
 > "Research this project's codebase to provide design context.
 >
@@ -140,7 +140,7 @@ The Architect output is injected as context when generating design.md. Skipped f
 
 **Only at engineering level `project` or `product`** ([engineering-level.md](engineering-level.md)). An `experiment` or `tool` story, whatever its scale, takes the Lite checklist below and writes its tests at run time — no Test Advisor is spawned, and no `.draft/authored-tests/` or `red-evidence.yaml` exists for it. Authoring every test before any code costs more wall clock than an `experiment` or `tool` story is worth.
 
-After the main agent generates the task list structure (with Objective, ToDo, Validation, Requirements — but **without Tests fields**), spawn the **Test Advisor** sub-agent (`subagent_type: test-advisor`, defined in `agents/test-advisor.md`) — in the foreground, `run_in_background: false`: Phase 3 cannot complete without its Red evidence, and a turn ended to wait for it is a turn the requester spends waiting ([SKILL.md](personas.md#personas)) — to define testing requirements per sub-task **and author one test file per Unit/Integration/E2E sub-task** (Unit/Integration are Red-verified in Phase 3; E2E defers Red to Run mode):
+After the main agent generates the task list structure (with Objective, ToDo, Validation, Requirements — but **without Tests fields**), spawn the **Test Advisor** sub-agent (`subagent_type: test-advisor`, defined in `agents/test-advisor.md`) — `run_in_background: false`, result awaited: Phase 3 cannot complete without its Red evidence, and a turn ended to wait for it is a turn the requester spends waiting ([SKILL.md](personas.md#personas)) — to define testing requirements per sub-task **and author one test file per Unit/Integration/E2E sub-task** (Unit/Integration are Red-verified in Phase 3; E2E defers Red to Run mode):
 
 > "Analyze these tasks, define which sub-tasks need tests, and author the test files (Unit/Integration as failing tests, E2E with Red deferred to Run mode).
 >
@@ -238,7 +238,7 @@ Keep it lightweight — 1-2 test entries max per sub-task.
 
 ## Reviewer Sub-agent (Full mode only)
 
-After **all phases are written**, spawn the **Reviewer** sub-agent, in the foreground (`subagent_type: reviewer`, `run_in_background: false`, defined in `agents/reviewer.md`) for cross-artifact validation:
+After **all phases are written**, spawn the **Reviewer** sub-agent (`subagent_type: reviewer`, `run_in_background: false`, result awaited, defined in `agents/reviewer.md`) for cross-artifact validation:
 
 > "Review these story artifacts for completeness, consistency, and gaps.
 >

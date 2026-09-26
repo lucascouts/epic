@@ -32,14 +32,9 @@ refute_grep() {
   fi
 }
 
-# One invocation of the monitor loop: enabled, 7-day threshold, killed by
-# timeout after the first find_stale pass (exit 124 expected).
+# One pass of the stale check with a 7-day story threshold.
 run_monitor_once() {
-  run timeout 2 env \
-    CLAUDE_PLUGIN_OPTION_ENABLESTALEMONITOR=true \
-    CLAUDE_PLUGIN_OPTION_STALETHRESHOLDDAYS=7 \
-    CLAUDE_PLUGIN_OPTION_STALECHECKINTERVALSECONDS=10 \
-    bash "$PLUGIN_ROOT/scripts/monitor-stale.sh"
+  run timeout 5 bash "$PLUGIN_ROOT/scripts/monitor-stale.sh" --story-days 7
 }
 
 @test "hook validates a story whose task headings are [~] (phase-3 detection includes ~)" {
@@ -81,7 +76,7 @@ EOF
   touch -d '30 days ago' "$STORY/tasks.md"
   cd "$WORK/proj"
   run_monitor_once
-  [ "$status" -eq 124 ]
+  [ "$status" -eq 0 ]
   refute_grep '001-teste'
 }
 
@@ -97,7 +92,7 @@ EOF
   touch -d '30 days ago' "$STORY/tasks.md"
   cd "$WORK/proj"
   run_monitor_once
-  [ "$status" -eq 124 ]
+  [ "$status" -eq 0 ]
   echo "$output" | grep -q '001-teste'
   echo "$output" | grep -q 'pending tasks'
 }
