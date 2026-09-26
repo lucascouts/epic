@@ -1,6 +1,6 @@
 {
   "name": "epic",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Scale-adaptive story framework for features and bugfixes: structured requirements (EARS), design, task breakdown, and execution with specialized sub-agents for analysis, architecture, implementation, validation, and audit.",
   "author": {
     "name": "Lucas CS",
@@ -27,28 +27,16 @@
       "description": "Default scale when triage cannot determine one (fast | standard | full | spike)",
       "default": "standard"
     },
-    "artifactLanguage": {
-      "type": "string",
-      "title": "Artifact language",
-      "description": "Override artifact language. Claude performs best in English; change only if your organisation mandates another language for written artifacts.",
-      "default": "en"
-    },
     "aiMemory": {
       "type": "string",
       "title": "ai-memory integration",
       "description": "auto (default): detect the ai-memory MCP server with one local call at triage and, when it answers, recall prior knowledge at triage, prior deviations at run and prior audit findings at validate, and write deviation and audit pages. off: never call it. A server that is not there behaves like off, silently.",
       "default": "auto"
     },
-    "enableStaleMonitor": {
-      "type": "boolean",
-      "title": "Enable stale-story monitor",
-      "description": "Enable the background watcher that surfaces stories with no progress past the staleness threshold.",
-      "default": false
-    },
     "staleThresholdDays": {
       "type": "number",
       "title": "Stale threshold (days)",
-      "description": "Days of inactivity before a story with pending tasks is flagged as stale. Only effective when enableStaleMonitor is true.",
+      "description": "Days of inactivity before the story list flags a story with pending tasks as stale.",
       "default": 7
     },
     "spikeStaleThresholdDays": {
@@ -56,12 +44,6 @@
       "title": "Spike stale threshold (days)",
       "description": "Days of inactivity before a spike whose Verdict is still open is flagged as stale. Separate from staleThresholdDays: a spike is measured by its Verdict, not by its checkboxes.",
       "default": 14
-    },
-    "staleCheckIntervalSeconds": {
-      "type": "number",
-      "title": "Stale check interval (seconds)",
-      "description": "How often the stale watcher polls, in seconds. Lower values surface alerts faster; higher values reduce overhead. Only effective when enableStaleMonitor is true.",
-      "default": 3600
     }
   }
 }

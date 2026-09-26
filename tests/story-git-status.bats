@@ -1,8 +1,7 @@
 #!/usr/bin/env bats
-# Unit tests for scripts/story-git-status.sh (story 006 — git-aware lifecycle).
-# Authored by the Test Advisor BEFORE implementation (TDD Red phase).
+# Unit tests for scripts/story-git-status.sh (git-aware lifecycle).
 #
-# Contract under test (design.md, component 1):
+# Contract under test:
 #   story-git-status.sh <NNN|story-dir>  →  JSON on stdout:
 #     {story, main_branch, integrated: true|false|null,
 #      evidence: [{kind: branch-merged|message-ref, detail}], checked_at}
@@ -60,10 +59,10 @@ run_status() {
 }
 
 # =====================================================================
-# Task 1.1 — main-branch resolution and JSON skeleton (R1.4, R1.5)
+# Main-branch resolution and JSON skeleton
 # =====================================================================
 
-@test "1.1 remote HEAD default wins over local main (R1.5)" {
+@test "remote HEAD default wins over local main" {
   make_repo "$WORK/r" trunk
   git -C "$WORK/r" branch main          # decoy: remote default must win
   set_origin_head "$WORK/r" trunk
@@ -72,28 +71,28 @@ run_status() {
   echo "$output" | jq -e '.main_branch == "trunk"'
 }
 
-@test "1.1 falls back to local main when no origin/HEAD (R1.5)" {
+@test "falls back to local main when no origin/HEAD" {
   make_repo "$WORK/r" main
   run_status "$WORK/r"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.main_branch == "main"'
 }
 
-@test "1.1 falls back to master when no origin/HEAD and no main (R1.5)" {
+@test "falls back to master when no origin/HEAD and no main" {
   make_repo "$WORK/r" master
   run_status "$WORK/r"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.main_branch == "master"'
 }
 
-@test "1.1 no resolvable main: integrated null, main_branch null, exit 0 (R1.5)" {
+@test "no resolvable main: integrated null, main_branch null, exit 0" {
   make_repo "$WORK/r" trunk             # no origin/HEAD, no main, no master
   run_status "$WORK/r"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.integrated == null and .main_branch == null'
 }
 
-@test "1.1 both main and master without origin/HEAD: prefer main, flag ambiguity" {
+@test "both main and master without origin/HEAD: prefer main, flag ambiguity" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" branch master
   run_status "$WORK/r"
@@ -101,21 +100,21 @@ run_status() {
   echo "$output" | jq -e '.main_branch == "main" and .main_branch_ambiguous == true'
 }
 
-@test "1.1 not a git repository: exit 2 so callers degrade silently (R1.4)" {
+@test "not a git repository: exit 2 so callers degrade silently" {
   mkdir -p "$WORK/plain/.epic/stories/006-widget-flow"
   cd "$WORK/plain"
   run bash "$SCRIPT" .epic/stories/006-widget-flow
   [ "$status" -eq 2 ]
 }
 
-@test "1.1 story not found: exit 2" {
+@test "story not found: exit 2" {
   make_repo "$WORK/r" main
   cd "$WORK/r"
   run bash "$SCRIPT" .epic/stories/999-does-not-exist
   [ "$status" -eq 2 ]
 }
 
-@test "1.1 contract JSON is valid and complete on the computable path" {
+@test "contract JSON is valid and complete on the computable path" {
   make_repo "$WORK/r" main
   run_status "$WORK/r"
   [ "$status" -eq 0 ]
@@ -126,11 +125,10 @@ run_status() {
 }
 
 # =====================================================================
-# Task 1.2 — evidence rules: branch-merged and message-ref
-# (R1.1, R1.2, R1.3, R1.6)
+# Evidence rules: branch-merged and message-ref
 # =====================================================================
 
-@test "1.2 merged feat/NNN-* branch: integrated true with branch-merged evidence (R1.1)" {
+@test "merged feat/NNN-* branch: integrated true with branch-merged evidence" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" branch feat/006-widget-flow   # tip == main tip → fully merged
   run_status "$WORK/r"
@@ -139,7 +137,7 @@ run_status() {
   echo "$output" | jq -e '.evidence | map(.kind) | index("branch-merged") != null'
 }
 
-@test "1.2 unmerged story branch is not integration evidence (R1.1)" {
+@test "unmerged story branch is not integration evidence" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" checkout -q -b feat/006-widget-flow
   commit_msg "$WORK/r" "wip: widget work in progress"   # ahead of main, no 006 token
@@ -149,7 +147,7 @@ run_status() {
   echo "$output" | jq -e '.integrated == false'
 }
 
-@test "1.2 conventional type(NNN): subject on main: message-ref evidence (R1.2)" {
+@test "conventional type(NNN): subject on main: message-ref evidence" {
   make_repo "$WORK/r" main
   commit_msg "$WORK/r" "feat(006): add the widget flow"
   run_status "$WORK/r"
@@ -158,7 +156,7 @@ run_status() {
   echo "$output" | jq -e '.evidence | map(.kind) | index("message-ref") != null'
 }
 
-@test "1.2 NNN-slug token in a subject on main: message-ref evidence (R1.2)" {
+@test "NNN-slug token in a subject on main: message-ref evidence" {
   make_repo "$WORK/r" main
   commit_msg "$WORK/r" "merge story 006-widget-flow into main"
   run_status "$WORK/r"
@@ -166,7 +164,7 @@ run_status() {
   echo "$output" | jq -e '.integrated == true'
 }
 
-@test "1.2 unpadded delimited form fix(6): matches story 006" {
+@test "unpadded delimited form fix(6): matches story 006" {
   make_repo "$WORK/r" main
   commit_msg "$WORK/r" "fix(6): correct widget rounding"
   run_status "$WORK/r"
@@ -174,7 +172,7 @@ run_status() {
   echo "$output" | jq -e '.integrated == true'
 }
 
-@test "1.2 bare undelimited number is NEVER evidence (R1.3)" {
+@test "bare undelimited number is NEVER evidence" {
   make_repo "$WORK/r" main
   commit_msg "$WORK/r" "discussed 006 during standup"   # bare padded token
   commit_msg "$WORK/r" "bump build to 1006"             # substring, no boundary
@@ -185,7 +183,7 @@ run_status() {
   echo "$output" | jq -e '.evidence == []'
 }
 
-@test "1.2 history rewrite is reflected live: deleted branch flips to false (R1.6)" {
+@test "history rewrite is reflected live: deleted branch flips to false" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" branch feat/006-widget-flow
   cd "$WORK/r"
@@ -198,7 +196,7 @@ run_status() {
   echo "$output" | jq -e '.integrated == false'
 }
 
-@test "1.2 evaluation writes no state files into the worktree (R1.6, no-storage rule)" {
+@test "evaluation writes no state files into the worktree (no-storage rule)" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" branch feat/006-widget-flow
   before=$(cd "$WORK/r" && find . -path ./.git -prune -o -type f -print | sort)
@@ -216,17 +214,17 @@ run_status() {
 }
 
 # =====================================================================
-# Task 4.1 — full C0/C1 escaping in json_escape (R1.7)
+# Full C0/C1 escaping in json_escape
 # =====================================================================
 # A control character is legal in a commit message and RFC 8259 forbids it raw
-# inside a JSON string, so a single one in a matching subject used to make the
-# whole document unparseable while the script still exited 0. Both cases assert
+# inside a JSON string, so a single unescaped one in a matching subject would
+# make the whole document unparseable while the script still exits 0. Both cases assert
 # the pair that matters: the document PARSES, and the escaped detail DECODES
 # back to the original bytes (escaping must not be lossy).
 # --cleanup=verbatim is required: git's default whitespace cleanup is otherwise
 # free to strip or rewrite the very byte under test.
 
-@test "4.1 raw form feed in a matching subject stays parseable JSON (R1.7)" {
+@test "raw form feed in a matching subject stays parseable JSON" {
   make_repo "$WORK/r" main
   subject=$(printf 'feat(006): weird\x0cchar')
   git -C "$WORK/r" commit --allow-empty -q --cleanup=verbatim -m "$subject" 2>/dev/null
@@ -237,7 +235,7 @@ run_status() {
   [ "$decoded" = "$subject" ]
 }
 
-@test "4.1 raw ESC in a matching subject stays parseable JSON (R1.7)" {
+@test "raw ESC in a matching subject stays parseable JSON" {
   make_repo "$WORK/r" main
   subject=$(printf 'feat(006): esc\x1b[31mred')
   git -C "$WORK/r" commit --allow-empty -q --cleanup=verbatim -m "$subject" 2>/dev/null
@@ -249,7 +247,7 @@ run_status() {
 }
 
 # =====================================================================
-# Task 5.1 — evidence uniqueness (R1.8)
+# Evidence uniqueness
 # =====================================================================
 # The duplicate these cases pin is not one rule firing twice:
 # feat/006-widget-flow matches the anchored ^feat/0*006- pattern while
@@ -261,7 +259,7 @@ branch_merged_count() {
   echo "$output" | jq '[.evidence[] | select(.kind == "branch-merged")] | length'
 }
 
-@test "5.1 one branch under both a local and a remote-tracking ref is one entry (R1.8)" {
+@test "one branch under both a local and a remote-tracking ref is one entry" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" remote add origin https://example.invalid/widget.git
   git -C "$WORK/r" branch feat/006-widget-flow
@@ -274,7 +272,7 @@ branch_merged_count() {
   echo "$output" | jq -e '[.evidence[] | select(.kind == "branch-merged")][0].detail == "feat/006-widget-flow"'
 }
 
-@test "5.1 two genuinely distinct merged branches still yield two entries (R1.8)" {
+@test "two genuinely distinct merged branches still yield two entries" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" branch feat/006-widget-flow
   git -C "$WORK/r" branch feat/006-widget-flow-followup
@@ -283,7 +281,7 @@ branch_merged_count() {
   [ "$(branch_merged_count)" -eq 2 ]
 }
 
-@test "5.1 the remote list comes from git, not a hardcoded origin (R1.8)" {
+@test "the remote list comes from git, not a hardcoded origin" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" remote add upstream https://example.invalid/widget.git
   git -C "$WORK/r" branch feat/006-widget-flow
@@ -293,7 +291,7 @@ branch_merged_count() {
   [ "$(branch_merged_count)" -eq 1 ]
 }
 
-@test "5.1 a local branch literally named origin/... is not stripped without that remote (R1.8)" {
+@test "a local branch literally named origin/... is not stripped without that remote" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" branch feat/006-widget-flow
   git -C "$WORK/r" branch origin/feat/006-widget-flow   # no remote named origin
@@ -303,15 +301,14 @@ branch_merged_count() {
 }
 
 # =====================================================================
-# Task 6.1/6.2 — the two predicates R1.8 actually rests on
+# The two predicates evidence uniqueness rests on
 # =====================================================================
-# Authored from the amended R1.8 text BEFORE the fix, and confirmed Red:
-# "one merged branch ... a single evidence entry, and the reported detail
-# SHALL name a ref that is itself merged into the main branch".
-# Task 5.1's case 4 covered only the benign half of its own rule (a name
-# collision with NO such remote); these cover the hostile halves.
+# One merged branch yields a single evidence entry, and the reported detail
+# names a ref that is itself merged into the main branch. The name-collision
+# case with NO such remote (above) covers the benign half; these cover the
+# hostile halves.
 
-@test "6.1 a local branch named origin/... IS kept when that remote exists (R1.8)" {
+@test "a local branch named origin/... IS kept when that remote exists" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" remote add origin https://example.invalid/widget.git
   git -C "$WORK/r" branch feat/006-widget-flow
@@ -322,7 +319,7 @@ branch_merged_count() {
   [ "$(branch_merged_count)" -eq 2 ]
 }
 
-@test "6.1 the same branch name on two remotes at different tips stays two (R1.8)" {
+@test "the same branch name on two remotes at different tips stays two" {
   make_repo "$WORK/r" main
   commit_msg "$WORK/r" "chore: a second commit so two distinct merged tips exist"
   git -C "$WORK/r" remote add origin https://example.invalid/widget.git
@@ -335,7 +332,7 @@ branch_merged_count() {
   [ "$(branch_merged_count)" -eq 2 ]
 }
 
-@test "6.2 an unmerged local branch is never named as branch-merged evidence (R1.8)" {
+@test "an unmerged local branch is never named as branch-merged evidence" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" remote add origin https://example.invalid/widget.git
   git -C "$WORK/r" update-ref refs/remotes/origin/feat/006-widget-flow HEAD
@@ -351,18 +348,18 @@ branch_merged_count() {
 }
 
 # =====================================================================
-# Task 7.2 — the same-branch predicate (R1.9)
+# The same-branch predicate
 # =====================================================================
-# R1.8 and R1.9 are converses: R1.8 forbids reporting one branch twice, R1.9
-# forbids reporting two branches once. Authored from R1.9's text BEFORE the
-# fix, hostile case first (agents/test-advisor.md, Hostile-half rule).
+# Evidence uniqueness and branch identity are converses: the first forbids
+# reporting one branch twice, the second forbids reporting two branches once.
+# Hostile case first (agents/test-advisor.md, Hostile-half rule).
 # A shared NAME is not a shared branch. Collapsing requires the
 # remote-tracking ref to be that branch's mirror — its configured upstream OR
 # the same commit — and NEITHER disjunct is the rule on its own: same-object
 # alone splits a local branch legitimately ahead of its upstream (case 2),
 # name alone swallows a second remote sitting at a different tip (case 1).
 
-@test "7.2 a second remote at a different tip is its own entry (R1.9)" {
+@test "a second remote at a different tip is its own entry" {
   make_repo "$WORK/r" main
   commit_msg "$WORK/r" "chore: a second commit so two distinct merged tips exist"
   git -C "$WORK/r" remote add origin https://example.invalid/widget.git
@@ -379,7 +376,7 @@ branch_merged_count() {
     '[.evidence[] | select(.kind == "branch-merged").detail] | sort == ["feat/006-widget-flow", "fork/feat/006-widget-flow"]'
 }
 
-@test "7.2 a local branch ahead of its own upstream stays one entry (R1.8)" {
+@test "a local branch ahead of its own upstream stays one entry" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" remote add origin https://example.invalid/widget.git
   git -C "$WORK/r" update-ref refs/remotes/origin/feat/006-widget-flow HEAD   # the pushed tip
@@ -392,14 +389,14 @@ branch_merged_count() {
   run_status "$WORK/r"
   [ "$status" -eq 0 ]
   # The converse of case 1: the two objects DIFFER, so a same-object-only
-  # predicate would split one branch into two and re-break R1.8. The upstream
+  # predicate would split one branch into two entries. The upstream
   # link is what says they are one branch.
   [ "$(branch_merged_count)" -eq 1 ]
   echo "$output" | jq -e '[.evidence[] | select(.kind == "branch-merged")][0].detail == "feat/006-widget-flow"'
 }
 
 # =====================================================================
-# Task 7.3 — distinguishable details (R1.10)
+# Distinguishable details
 # =====================================================================
 # Identity is computed from the FULL refname; the detail is then rendered as
 # the SHORT name, which throws that distinction away again. A guarantee the
@@ -408,7 +405,7 @@ branch_merged_count() {
 # — then the converse: disambiguation fires ON COLLISION ONLY, so a lone
 # identity keeps the plain short name every other case already asserts.
 
-@test "7.3 two identities that share a short name get distinguishable details (R1.10)" {
+@test "two identities that share a short name get distinguishable details" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" remote add origin https://example.invalid/widget.git
   git -C "$WORK/r" branch origin/feat/006-widget-flow            # a real LOCAL branch, literally named that
@@ -424,7 +421,7 @@ branch_merged_count() {
     '[.evidence[] | select(.kind == "branch-merged").detail] | sort == ["heads/origin/feat/006-widget-flow", "remotes/origin/feat/006-widget-flow"]'
 }
 
-@test "7.3 a lone identity keeps its plain short name (R1.10)" {
+@test "a lone identity keeps its plain short name" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" remote add origin https://example.invalid/widget.git
   git -C "$WORK/r" branch origin/feat/006-widget-flow            # same spelling, but nothing to collide with
@@ -432,12 +429,12 @@ branch_merged_count() {
   [ "$status" -eq 0 ]
   [ "$(branch_merged_count)" -eq 1 ]
   # Not "heads/origin/...": disambiguating unconditionally would rewrite the
-  # detail of every ordinary case and move assertions this fix must not touch.
+  # detail of every ordinary case.
   echo "$output" | jq -e '[.evidence[] | select(.kind == "branch-merged")][0].detail == "origin/feat/006-widget-flow"'
 }
 
 # =====================================================================
-# Task 8.2 — the resolved main name is a function of the ref alone (R1.5, R1.12)
+# The resolved main name is a function of the ref alone
 # =====================================================================
 # `git symbolic-ref --short` renders the AMBIGUITY-AWARE spelling: the answer
 # depends on which OTHER refs happen to exist. Add one decoy ref that also
@@ -446,8 +443,8 @@ branch_merged_count() {
 # a string the fixed `${x#origin/}` strip cannot touch, so the reported
 # main_branch becomes "remotes/origin/main" and the revision every evidence
 # query runs against silently moves from the LOCAL main to the remote-tracking
-# ref. That second effect is why this is the only defect in five reviews that
-# changes `integrated`: an unpushed integration merge lives on local main and
+# ref. That second effect changes `integrated`: an unpushed integration merge
+# lives on local main and
 # vanishes from the query. Hostile half first (agents/test-advisor.md), and
 # the decoy is authored in BOTH of its reachable spellings — a branch and a
 # tag — because the trigger is "another ref claims the name", not "another
@@ -469,7 +466,7 @@ make_decoyed_repo() {
   git -C "$dir" merge -q --no-ff -m "chore: integrate the branch" feat/006-widget-flow
 }
 
-@test "8.2 a decoy BRANCH named origin/<default> changes neither the name nor integrated (R1.5, R1.12)" {
+@test "a decoy BRANCH named origin/<default> changes neither the name nor integrated" {
   make_decoyed_repo "$WORK/r"
   git -C "$WORK/r" branch origin/main        # refs/heads/origin/main — the decoy
   run_status "$WORK/r"
@@ -478,11 +475,11 @@ make_decoyed_repo() {
   # ref cannot move it.
   echo "$output" | jq -e '.main_branch == "main"'
   # And because the name is right, the revision is right: the merge that only
-  # ever landed on LOCAL main still counts (R1.11).
+  # ever landed on LOCAL main still counts.
   echo "$output" | jq -e '.integrated == true'
 }
 
-@test "8.2 a decoy TAG named origin/<default> changes neither the name nor integrated (R1.5, R1.12)" {
+@test "a decoy TAG named origin/<default> changes neither the name nor integrated" {
   make_decoyed_repo "$WORK/r"
   git -C "$WORK/r" tag origin/main           # refs/tags/origin/main — same claim, other namespace
   run_status "$WORK/r"
@@ -492,20 +489,19 @@ make_decoyed_repo() {
 }
 
 # =====================================================================
-# Task 8.3 — uniqueness over the RENDERED set, not the short names (R1.10)
+# Uniqueness over the RENDERED set, not the short names
 # =====================================================================
-# 7.3 asked the right question of the wrong set. Its fix compares SHORT names,
-# and escalates a colliding pair to the qualified spelling — but that spelling
-# is a string the fix itself invented, and nothing asked what could collide
-# with IT. A third branch whose PLAIN short name already reads
+# Comparing SHORT names and escalating a colliding pair to the qualified
+# spelling is not enough on its own: that spelling is itself a string that can
+# collide with another branch. A third branch whose PLAIN short name already reads
 # "remotes/origin/feat/006-widget-flow" is byte-identical to what the colliding
 # pair escalates to, and it had no collision of its own to escalate. The
-# guarantee holds at two and breaks at three: R1.10 constrains the details a
+# guarantee holds at two and breaks at three: uniqueness constrains the details a
 # consumer reads, so the predicate belongs on the rendered set.
 # This is the derived-value half of the hostile-half rule
 # (agents/test-advisor.md) — hostile case first, converse second.
 
-@test "8.3 three branches colliding pairwise get three distinct details (R1.10)" {
+@test "three branches colliding pairwise get three distinct details" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" remote add origin https://example.invalid/widget.git
   # Three genuinely different branches. Their short names are, in order:
@@ -525,7 +521,7 @@ make_decoyed_repo() {
     '[.evidence[] | select(.kind == "branch-merged").detail] | (unique | length) == length'
 }
 
-@test "8.3 three branches with distinct short names all keep them (R1.10)" {
+@test "three branches with distinct short names all keep them" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" remote add origin https://example.invalid/widget.git
   git -C "$WORK/r" branch feat/006-widget-flow
@@ -543,7 +539,7 @@ make_decoyed_repo() {
 }
 
 # =====================================================================
-# Task 8.4 — an ambiguous remote split does not collapse (R1.9, R1.13)
+# An ambiguous remote split does not collapse
 # =====================================================================
 # Deciding WHICH remote a refs/remotes/… ref belongs to is not "the first path
 # segment": git accepts a remote name containing a slash. With remotes "a" and
@@ -570,7 +566,7 @@ add_nested_remotes() {
 EOF
 }
 
-@test "8.4 an ambiguous remote split keeps both branches (R1.9, R1.13)" {
+@test "an ambiguous remote split keeps both branches" {
   make_repo "$WORK/r" main
   add_nested_remotes "$WORK/r"
   # Branch feat/006-widget-flow of remote "a/b" …
@@ -587,7 +583,7 @@ EOF
     '[.evidence[] | select(.kind == "branch-merged").detail] | sort == ["a/b/feat/006-widget-flow", "b/feat/006-widget-flow"]'
 }
 
-@test "8.4 an unambiguous split still collapses its pair (R1.8)" {
+@test "an unambiguous split still collapses its pair" {
   make_repo "$WORK/r" main
   add_nested_remotes "$WORK/r"
   # Same nested-remote config, but only ONE of the two names prefixes this
@@ -598,32 +594,30 @@ EOF
   run_status "$WORK/r"
   [ "$status" -eq 0 ]
   # The converse guard: refusing whenever more than one remote is CONFIGURED —
-  # rather than whenever more than one is a PREFIX — would split this pair and
-  # re-break R1.8.
+  # rather than whenever more than one is a PREFIX — would split this pair into
+  # two entries.
   [ "$(branch_merged_count)" -eq 1 ]
   echo "$output" | jq -e '[.evidence[] | select(.kind == "branch-merged")][0].detail == "c/feat/006-widget-flow"'
 }
 
 # =====================================================================
-# Task 8.6 — a name that resolves over a revision that does not (R1.5)
+# A name that resolves over a revision that does not
 # =====================================================================
 # `integrated: false` is a POSITIVE claim: a main branch resolved, evidence was
-# sought, none was found. `null` is the absence of a claim. The two gates that
-# decide this branch on different variables — evidence is sought when MAIN_REF
-# is non-empty, but the true/false-vs-null choice is made on MAIN_BRANCH — and
-# 8.2 made MAIN_REF a full refname at every assignment without ever asking
-# whether that refname RESOLVES. `git symbolic-ref` reads its stored target
-# without requiring the target to exist (measured: rc 0 either way, with and
-# without --short, so this predates 8.2), so a pruned origin/main leaves the
-# name knowable and the revision empty. Both queries then fail into their own
-# guards and the empty evidence list is emitted as a finding.
-# references/validate-mode.md:138 states the rule this breaks verbatim, in the
+# sought, none was found. `null` is the absence of a claim. The two gates
+# decide this on different variables — evidence is sought when MAIN_REF is
+# non-empty, but the true/false-vs-null choice is made on MAIN_BRANCH — and
+# MAIN_REF is a full refname that may not RESOLVE. `git symbolic-ref` reads its
+# stored target without requiring the target to exist (rc 0 either way, with
+# and without --short), so a pruned origin/main leaves the name knowable and
+# the revision empty. Without a gate, both queries fail into their own guards
+# and the empty evidence list is emitted as a finding.
+# references/validate-mode.md states the rule this breaks verbatim, in the
 # paragraph that opens `Exit 2 from the detector`:
 # "Not computable" must never dress up as a finding
-# This is 8.1's derived-value question asked of 8.2's own output — hostile half
-# first, then the converse that keeps honest negatives honest.
+# Hostile half first, then the converse that keeps honest negatives honest.
 
-@test "8.6 a dangling origin/HEAD is not computable, not a negative (R1.5)" {
+@test "a dangling origin/HEAD is not computable, not a negative" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" remote add origin https://example.invalid/widget.git
   set_origin_head "$WORK/r" main
@@ -637,7 +631,7 @@ EOF
   echo "$output" | jq -e '.integrated == null'
 }
 
-@test "8.6 a resolvable main with no evidence is still a negative (R1.5)" {
+@test "a resolvable main with no evidence is still a negative" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" remote add origin https://example.invalid/widget.git
   set_origin_head "$WORK/r" main
@@ -652,7 +646,7 @@ EOF
 
 # When the branch exists ONLY as a remote-tracking ref, deduping must not
 # invent a local branch that was never there — the detail keeps the ref name.
-@test "5.1 a remote-only merged branch keeps its ref name in the detail (R1.8)" {
+@test "a remote-only merged branch keeps its ref name in the detail" {
   make_repo "$WORK/r" main
   git -C "$WORK/r" remote add origin https://example.invalid/widget.git
   git -C "$WORK/r" update-ref refs/remotes/origin/feat/006-widget-flow HEAD

@@ -1,22 +1,15 @@
 #!/usr/bin/env bats
 # Unit tests for scripts/supersede-story.sh — the mechanical half of the
-# supersede operation (story 006, design.md component 3, amended at v8).
+# supersede operation.
 #
-# WHY THIS FILE EXISTS. Through design v7 supersede was specified as an
-# orchestrator flow with no script, and `.draft/deviations.yaml` entry 5 waived
-# this very test level for exactly that reason: there was no entry point a case
-# could drive. That waiver was sound given the design and is retired at v8,
-# because the design changed. The discriminator 9.1 established is not
-# "orchestrator flow versus script" but **does the step write destructively to
-# artifacts** — supersede writes a banner, closes sub-tasks and flips two
-# frontmatter keys, so its mechanical half belongs behind a script for the same
-# reason archive's does.
+# WHY THIS FILE EXISTS. Supersede writes destructively to artifacts — a banner,
+# closed sub-tasks, two frontmatter keys — so its mechanical half lives behind a
+# script, for the same reason archive's does, and is unit-tested here.
 #
 # THE STANDARD THESE CASES ARE HELD TO. Not "a case exists that references the
-# criterion" — this story passed four consecutive validates on that reading
-# while the code violated a criterion. Every R3 criterion here must have a case
-# that FAILS WHEN ITS BEHAVIOUR IS REMOVED, demonstrated by removal rather than
-# asserted. The hostile half of each rule is written first.
+# rule": every rule here must have a case that FAILS WHEN ITS BEHAVIOUR IS
+# REMOVED, demonstrated by removal rather than asserted. The hostile half of
+# each rule is written first.
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -71,12 +64,12 @@ banner_count() {
   grep -c '⛔ SUPERSEDED' "$PROJ/.epic/stories/$1/story.md" || true
 }
 
-# --- R3.4: the refusal matrix, all four arms --------------------------------
+# --- The refusal matrix, all four arms ---------------------------------------
 # Every arm is a hostile half: the operation must REFUSE and write nothing.
 # "Writes nothing" is asserted separately from "refuses", because a refusal
 # that has already touched the story is the failure this matrix exists to stop.
 
-@test "R3.4 row 1: a story cannot supersede itself" {
+@test "refusal matrix row 1: a story cannot supersede itself" {
   mk_story 006-widget-flow
   mk_tasks 006-widget-flow <<'T'
 - [ ] 1 - Group
@@ -89,7 +82,7 @@ T
   [ "$(banner_count 006-widget-flow)" -eq 0 ]
 }
 
-@test "R3.4 row 2: the replacement story must already exist" {
+@test "refusal matrix row 2: the replacement story must already exist" {
   mk_story 006-widget-flow
   mk_tasks 006-widget-flow <<'T'
 - [ ] 1 - Group
@@ -102,7 +95,7 @@ T
   [ "$(banner_count 006-widget-flow)" -eq 0 ]
 }
 
-@test "R3.4 row 3: an archived story is immutable history" {
+@test "refusal matrix row 3: an archived story is immutable history" {
   mk_story 006-widget-flow archived
   mk_story 012-successor
   mk_tasks 006-widget-flow <<'T'
@@ -116,9 +109,8 @@ T
   [ "$(banner_count 006-widget-flow)" -eq 0 ]
 }
 
-@test "R3.4 row 4 / R3.5: a COMPLETE prior supersede refuses and does not duplicate the banner" {
-  # The pair that collided at design v3 and was merged into one row: this arm
-  # and the interrupted arm below must give DIFFERENT answers to what is
+@test "refusal matrix row 4: a COMPLETE prior supersede refuses and does not duplicate the banner" {
+  # This arm and the interrupted arm below must give DIFFERENT answers to what is
   # superficially the same finding (a banner is present).
   mk_story 006-widget-flow
   mk_story 012-successor
@@ -134,13 +126,13 @@ T
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused"' > /dev/null
   echo "$output" | jq -e '.reason | test("already carries the supersede banner")' > /dev/null
-  # R3.5's unconditional half: written at most once, EVER.
+  # The unconditional half: written at most once, EVER.
   [ "$(banner_count 006-widget-flow)" -eq 1 ]
 }
 
-# --- R3.5: the interrupted arm, and the state this command cannot produce ----
+# --- The interrupted arm, and the state this command cannot produce ---------
 
-@test "R3.5: an INTERRUPTED prior run is completed, without a second banner" {
+@test "recovery: an INTERRUPTED prior run is completed, without a second banner" {
   mk_story 006-widget-flow
   mk_story 012-successor
   mk_tasks 006-widget-flow <<'T'
@@ -160,7 +152,7 @@ T
   sed -i 's/^  - \[~\] 1\.\(.\) - \(.*\) (superseded-by: 012)$/  - [ ] 1.\1 - \2/' "$d/tasks.md"
   [ "$(grep -c '^  - \[ \]' "$d/tasks.md")" -eq 2 ]
 
-  # Completion is now AUTHORIZED, not assumed (R3.5). The unauthorized arm is
+  # Completion is AUTHORIZED, not assumed. The unauthorized arm is
   # the case below this one; here the caller has already said yes.
   run_supersede 006 --by 012 --rationale "recovery" --complete-interrupted
   [ "$status" -eq 0 ]
@@ -173,9 +165,8 @@ T
   grep -q '^status: superseded$' "$d/story.md"
 }
 
-@test "R3.5 hostile: an INTERRUPTED run is OFFERED completion, and writes nothing until authorized" {
-  # The hostile half of the case above, authored against the requirement rather
-  # than against the code (7.1). R3.5 says the system SHALL *offer* to complete;
+@test "recovery hostile: an INTERRUPTED run is OFFERED completion, and writes nothing until authorized" {
+  # The hostile half of the case above. Completion is OFFERED, never assumed;
   # an offer that completes anyway is not an offer, so the discriminating
   # assertion is not the exit code — it is that the artifacts are BYTE-IDENTICAL
   # across the unauthorized run. Delete the authorization guard and this reddens
@@ -211,10 +202,9 @@ T
   [ "$(grep -c '^  - \[ \]' "$d/tasks.md")" -eq 2 ]
 }
 
-@test "R3.5 third element: the authorization flag can never create a banner or unlock a refusal" {
-  # 8.1's question asked of the value THIS fix introduced. --complete-interrupted
-  # is a new authorization, and a new authorization is only safe if it unlocks
-  # exactly one thing. Two ways it could over-reach, both asserted here.
+@test "recovery: the authorization flag can never create a banner or unlock a refusal" {
+  # --complete-interrupted is an authorization, and an authorization is only
+  # safe if it unlocks exactly one thing. Two ways it could over-reach, both asserted here.
   mk_story 006-widget-flow
   mk_story 012-successor
   mk_tasks 006-widget-flow <<'T'
@@ -237,11 +227,9 @@ T
   [ "$(banner_count 006-widget-flow)" -eq 1 ]
 }
 
-@test "R3.5: a status write over open scope is refused, not offered completion" {
-  # The recovery table's third row. 8.5 removed an overlap here and left a gap
-  # in its place, and with step 2's guard still negative an unclassified state
-  # fell through to a SECOND banner — which R3.5 forbids unconditionally. This
-  # case is what stops that returning.
+@test "recovery: a status write over open scope is refused, not offered completion" {
+  # The recovery table's third row: a status written over open scope must be
+  # refused, never fall through to a SECOND banner, which is never allowed.
   mk_story 006-widget-flow
   mk_story 012-successor
   mk_tasks 006-widget-flow <<'T'
@@ -266,14 +254,11 @@ T
   [ "$(banner_count 006-widget-flow)" -eq 1 ]
 }
 
-@test "R3.5: the recovery classification is exhaustive over every banner-bearing state" {
-  # Disjointness alone is half a table — that is the lesson b317d1d recorded.
-  # Every cell of status x open-box must reach a VERDICT; none may fall through
-  # to a second banner. Driven through the script rather than read off the doc.
-  # R3.5's authorization is a SECOND AXIS, added when the offer was implemented,
-  # so exhaustiveness is now over status x open-box x authorized. A table that
-  # was exhaustive before a new input was added is not exhaustive after it —
-  # that is 8.1's question asked of this fix's own derived value.
+@test "recovery: the classification is exhaustive over every banner-bearing state" {
+  # Disjointness alone is half a table. Every cell of status x open-box x
+  # authorized must reach a VERDICT; none may fall through to a second banner.
+  # Driven through the script rather than read off the doc. Adding an input to
+  # the table requires re-checking exhaustiveness over it.
   mk_story 012-successor
   local st box d n auth
   local -a authflag
@@ -311,8 +296,8 @@ T
       echo "$output" | jq -e '.status | test("^(refused|completed|superseded|recovery-offer)$")' > /dev/null
       n=$(banner_count 006-widget-flow)
       [ "$n" -eq 1 ] || { echo "state st=$st box=$box auth=$auth produced $n banners"; false; }
-      # An unauthorized run never reaches `completed`: that is the arm R3.5
-      # turns into an offer, and it is the only cell the axis can move.
+      # An unauthorized run never reaches `completed`: that is the arm the
+      # offer replaces, and it is the only cell the axis can move.
       if [ "$auth" = unauthorized ]; then
         echo "$output" | jq -e '.status != "completed"' > /dev/null
       fi
@@ -321,9 +306,9 @@ T
   done
 }
 
-# --- R3.1 / R3.2 / R3.3: what a successful run writes ------------------------
+# --- What a successful run writes -------------------------------------------
 
-@test "R3.1: the banner is prepended and the status set in EVERY artifact" {
+@test "the banner is is prepended and the status set in EVERY artifact" {
   mk_story 006-widget-flow
   mk_story 012-successor
   mk_tasks 006-widget-flow <<'T'
@@ -338,8 +323,7 @@ T
   # Prepended: the banner is the FIRST line after the frontmatter's closing
   # delimiter, and above everything else. Derived, not hard-coded — the op adds
   # a frontmatter key, so any literal line number here is wrong the moment the
-  # write it is testing succeeds. (This assertion did hard-code 9 in its first
-  # draft and was the reason 9.2's first Executor stopped at step 4.)
+  # write it is testing succeeds.
   local fm_end banner_at
   fm_end=$(grep -n '^---$' "$d/story.md" | sed -n '2p' | cut -d: -f1)
   banner_at=$(grep -n '⛔ SUPERSEDED' "$d/story.md" | cut -d: -f1)
@@ -352,7 +336,7 @@ T
   echo "$output" | jq -e '.artifacts_flipped | length == 3' > /dev/null
 }
 
-@test "R3.2: the banner carries the date, the target, the rationale, and one row per OPEN sub-task" {
+@test "the banner carries the date, the target, the rationale, and one row per OPEN sub-task" {
   mk_story 006-widget-flow
   mk_story 012-successor
   mk_tasks 006-widget-flow <<'T'
@@ -376,14 +360,13 @@ T
   #
   # The literal `task ` prefix is the spec's, not a preference: the template's
   # placeholder reads `<task N.N — title>` and supersede-mode.md's walkthrough
-  # renders `| task 2.1 — Map legacy fields …`. This assertion omitted it in
-  # its first draft, which pushed the implementation off the spec.
+  # renders `| task 2.1 — Map legacy fields …`.
   grep -q '^> | task 1.2 ' "$d/story.md"
   grep -q '^> | task 1.3 ' "$d/story.md"
   # `if … then return 1; fi` rather than `! grep`: bash exempts a `!`-inverted
   # command from errexit, so anywhere but an @test's LAST statement the negation
-  # is inert — green whatever story.md says. Both of these were measured inert.
-  # Canonical statement of the rule: tests/reports-by-artifact-policy.bats:49-67.
+  # is inert — green whatever story.md says.
+  # Canonical statement of the rule: the negated-assertion paragraph at the top of tests/reports-by-artifact-policy.bats.
   if grep -q '^> | task 1.1 ' "$d/story.md"; then
     return 1
   fi
@@ -393,7 +376,7 @@ T
   echo "$output" | jq -e '.remap_rows == 2' > /dev/null
 }
 
-@test "R3.3: every open sub-task closes as superseded-by, and no closed one is touched" {
+@test "every open sub-task closes as superseded-by, and no closed one is touched" {
   mk_story 006-widget-flow
   mk_story 012-successor
   mk_tasks 006-widget-flow <<'T'
@@ -413,9 +396,8 @@ T
   # both stays owed, because `deferred:` wins the census.
   grep -q '^  - \[~\] 1\.3 - parked (superseded-by: 012)$' "$d/tasks.md"
   # `if … then return 1; fi` rather than `! grep`, here and at the open-box
-  # assertion below: a `!`-inverted command is exempt from errexit, so neither
-  # negation was in the last statement of this @test and neither could report a
-  # defect. Canonical: tests/reports-by-artifact-policy.bats:49-67.
+  # assertion below: a `!`-inverted command is exempt from errexit, and neither
+  # negation is this @test's last statement. Canonical: the negated-assertion paragraph at the top of tests/reports-by-artifact-policy.bats.
   if grep -q 'deferred:' "$d/tasks.md"; then
     return 1
   fi
@@ -427,7 +409,7 @@ T
   echo "$output" | jq -e '.closed_subtasks == 2' > /dev/null
 }
 
-@test "R3.2/R3.3: a story with nothing open supersedes with no rows and no closures" {
+@test "a story with nothing open supersedes with no rows and no closures" {
   # The converse guard. A rule that generates rows unconditionally, or closes
   # boxes unconditionally, passes every case above and fails this one.
   mk_story 006-widget-flow
@@ -445,15 +427,14 @@ T
   [ "$(banner_count 006-widget-flow)" -eq 1 ]
 }
 
-@test "R3.7 write half: recovery leaves ONE companion key, never two" {
-  # 8.1's derived-value question asked of the recovery path. `flip_all` runs
-  # over every artifact, and on recovery one of them may ALREADY carry
+@test "recovery leaves leaves ONE companion key, never two" {
+  # `flip_all` runs over every artifact, and on recovery one of them may ALREADY carry
   # `superseded-by:` from the interrupted run. The de-dup guard drops the old
   # key and re-emits it beside `status:`; without it the artifact ends up with
-  # two. Measured: guard removed, story.md carries 2.
+  # two.
   #
   # The damage is silent, which is why it needs a case. `epic-index.sh`'s
-  # `front_value` reads the FIRST match, so R3.7's rendering still looks right
+  # `front_value` reads the FIRST match, so the index rendering still looks right
   # while the artifact it read is malformed — nothing downstream complains and
   # nothing upstream notices.
   mk_story 006-widget-flow
@@ -522,8 +503,8 @@ T
 }
 
 @test "contract: a rationale containing a double quote keeps the JSON parseable" {
-  # Same defect class as 4.1's control-character finding on the detector: a
-  # user-supplied string reaches an emitted document.
+  # A user-supplied string reaches an emitted document, so quotes and
+  # backslashes in it must not break the JSON.
   mk_story 006-widget-flow
   mk_story 012-successor
   mk_tasks 006-widget-flow <<'T'

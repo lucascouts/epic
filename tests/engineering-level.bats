@@ -1,8 +1,7 @@
 #!/usr/bin/env bats
-# The engineering level — the doc contract (0.7.0, implemented inline on the
-# branch, no story). How long the thing must last decides how much the story
-# pays for: the catalog tier, whether Phase 3 authors the tests or the run
-# does, and the plan's box ceiling.
+# The engineering level — the doc contract. How long the thing must last
+# decides how much the story pays for: the catalog tier, and whether Phase 3
+# authors the tests or the run does.
 #
 # The surface is agent-executed prose, so every case pins a BLOCK found by a
 # structural anchor and asserts a keyword inside it, case-insensitively. No
@@ -19,9 +18,8 @@
 #   E3  the Personas table gates the Test Advisor on project/product
 #   E4  Phase Execution's ceiling paragraph makes the three offers
 #   E5  the meta.yaml example and the frontmatter block carry engineering:
-#   E6  tasks.md's Authoring Ceiling is per level, counts the Task List, keeps
-#       60 for no level, and the old single-ceiling sentence is gone; the
-#       Tests Field is authored only at project/product
+#   E6  tasks.md's Authoring Ceiling bounds bytes and the unit, never the
+#       count; the Tests Field is authored only at project/product
 #   E7  phase-gates.md spawns the Test Advisor only at project/product and
 #       widens the Lite checklist to experiment/tool
 #   E8  run-mode.md: materialization and its converse guard exempt the two
@@ -66,18 +64,16 @@ hasF() { # hasF <label> <block> <fixed string>
   [ -f "$f" ]
   levels=$(section "$f" '^## The four levels' '^## ')
   [ -n "$levels" ]
-    # The four questions are the owner's own wording (2026-09-18). "A month from
-  # now, will you open this again?" was rejected as unclear — it never says WHAT
-  # would be opened — and replaced by the intent cascade. The words below are
-  # the distinguishing half of each question, not decoration.
+  # The words below are the distinguishing half of each level's question, not
+  # decoration.
   for w in '`experiment`' '`tool`' '`project`' '`product`' "try it out" "breaks" "besides you" "product or a service"; do
     has "E1 level" "$levels" "$w"
   done
   for m in "1×" "2–3×" "4–6×" "8×+"; do hasF "E1 multiple" "$levels" "$m"; done
   hasF "E1 5× rule" "$levels" "5×"
-  has "E1 recalibrated" "$levels" "recalibrated"
   read_=$(section "$f" '^## How the level is read' '^## ')
-  has "E1 tool when unsettled" "$read_" "does not settle it"
+  has "E1 asked when unsettled" "$read_" "does not settle it"
+  has "E1 tool fallback" "$read_" "only when nobody can answer"
   has "E1 price line" "$read_" "one line"
   has "E1 orientation" "$read_" "orientation"
   has "E1 never a choice of level" "$read_" "which level is this"
@@ -90,8 +86,8 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E1 advisor" "$pays" "Test Advisor"
   has "E1 run time" "$pays" "run time"
   has "E1 catalog" "$pays" "quality-catalog"
-  # 0.7.1: the level no longer carries a plan ceiling — the row is gone and its
-  # absence is pinned, since a table row is exactly what grows back by accident.
+  # The level carries no plan ceiling; the row's absence is pinned, since a
+  # table row is exactly what grows back by accident.
   if echo "$pays" | grep -q 'Plan ceiling'; then
     echo "E1: the per-level plan ceiling row is back in What each level pays for" >&2
     return 1
@@ -101,13 +97,14 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E1 never the scale" "$never" "scale"
 }
 
-@test "E2: triage reads the engineering level from the request, takes tool when unsettled, and the proposal carries an Engineering line" {
+@test "E2: triage reads the engineering level from the request, asks when unsettled (tool only when nobody can answer), and the proposal carries an Engineering line" {
   block=$(section "$ROOT/references/triage.md" '^## Triage Protocol' '^### Complexity')
   [ -n "$block" ]
   has "E2 level" "$block" "engineering level"
   has "E2 reference" "$block" "engineering-level"
   for l in experiment tool project product; do has "E2 $l" "$block" "\`$l\`"; done
-  has "E2 default" "$block" "when the request does not settle it"
+  has "E2 default" "$block" "ask when the request does not settle it"
+  has "E2 fallback" "$block" "only when nobody can answer"
   has "E2 price" "$block" "multiple"
   has "E2 never the scale" "$block" "never changes the scale and never changes the requester level"
   grep -q '^> - \*\*Engineering:\*\*' "$ROOT/references/triage.md"
@@ -138,7 +135,7 @@ hasF() { # hasF <label> <block> <fixed string>
   draft=$(section "$ROOT/references/phase-execution.md" '^### Draft Saving' '^### Resume')
   [ -n "$draft" ]
   has "E5 meta" "$draft" "engineering:"
-  out=$(section "$ROOT/skills/epic/SKILL.md" '^## Output Rules' '^### Lifecycle')
+  out=$(cat "$ROOT/references/output-rules.md")
   [ -n "$out" ]
   hasF "E5 frontmatter" "$out" "engineering: experiment | tool | project | product"
   am=$(section "$ROOT/references/triage.md" '^## Adaptive Modes' '^## Workflow Variants')
@@ -174,7 +171,6 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E7 project" "$ta" "project"
   has "E7 product" "$ta" "product"
   has "E7 reference" "$ta" "engineering-level"
-  has "E7 measured" "$ta" "25 minutes"
   has "E7 foreground kept" "$ta" "run_in_background: false"
   lite=$(section "$f" '^### Test Advisor Lite' '^## ')
   [ -n "$lite" ]
@@ -267,13 +263,11 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E12 self-review" "$(cat "$ROOT/references/self-review-checklist.md")" "Sized by the unit"
 }
 
-# --- Security floor and the `instant` shortcut (2026-09-19) ------------------
+# --- Security floor and the `instant` shortcut ------------------------------
 #
 # The floor exists because a level decides how much ENGINEERING a story buys,
-# never how much SAFETY. Measured provenance for the runtime item: eleven runs
-# of one beginner's request (15-17 Sep 2026) every one of which accepted the
-# Node it found — 20, out of support since April 2026 — and none of which
-# declared a version. The level was not the reason; nothing was checking.
+# never how much SAFETY. With nothing checking the runtime, a run accepts
+# whatever version it finds, even one out of support, and declares none.
 
 @test "E13: the security floor is named once, in quality-catalog.md, with its three items" {
   f="$ROOT/references/quality-catalog.md"
@@ -282,7 +276,7 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E13 runtime" "$floor" "runtime"
   has "E13 secrets"  "$floor" "gitleaks"
   has "E13 sca"      "$floor" "osv-scanner"
-  # The owner's rule for the runtime item: LTS by preference, the current
+  # The runtime item: LTS by preference, the current
   # widely-used stable when the LTS is the one carrying the vulnerability.
   has "E13 lts"      "$floor" "LTS"
   has "E13 clean"    "$floor" "vulnerab"
@@ -294,9 +288,8 @@ hasF() { # hasF <label> <block> <fixed string>
   [ -n "$bound" ]
   line=$(sed -n "${bound}p" "$f")
   has "E13b experiment floor" "$line" "security floor"
-  # The pre-0.7.1 wording said experiment activated nothing at all.
   if printf '%s' "$line" | grep -qF 'activates nothing'; then
-    echo "E13b: the level bound still says experiment activates nothing" >&2
+    echo "E13b: the level bound says experiment activates nothing" >&2
     return 1
   fi
 }
@@ -307,8 +300,7 @@ hasF() { # hasF <label> <block> <fixed string>
 }
 
 @test "E14: instant is a shortcut with three pins, never a fourth scale" {
-  f="$ROOT/skills/epic/SKILL.md"
-  sec=$(section "$f" '^## Instant' '^## ')
+  sec=$(cat "$ROOT/references/instant-mode.md")
   [ -n "$sec" ]
   hasF "E14 scale pin"  "$sec" '`fast`'
   hasF "E14 level pin"  "$sec" '`experiment`'
@@ -324,19 +316,13 @@ hasF() { # hasF <label> <block> <fixed string>
   grep -q '| \*\*Instant\*\* |' "$f"
 }
 
-# --- The six corrections measured out of the 2026-09-19 relay series ---------
+# --- Proposal, floor, instant, report and commit rules -----------------------
 #
-# Six runs, two requesters, two languages, one human answering every question.
-# Each case below pins a defect the series exposed, and each names the number
-# that justifies the rule so a later reader can argue with the evidence rather
-# than the taste.
+# Each case below pins one rule.
 
 @test "E15: the scale is proposed beside the level — the requester sees the bigger price" {
   read_=$(section "$ROOT/references/engineering-level.md" '^## How the level is read' '^## ')
   has "E15 scale in proposal" "$read_" "scale"
-  # 10.9x vs 4.3x, same requester, same request, same level: the scale moved
-  # the bill further than the level did.
-  has "E15 measured" "$read_" "10.9"
 }
 
 @test "E15b: rising above the fast floor owes a written reason" {
@@ -360,8 +346,8 @@ hasF() { # hasF <label> <block> <fixed string>
   read_=$(section "$ROOT/references/engineering-level.md" '^## How the level is read' '^## ')
   has "E16 rule" "$read_" "ever marked recommended"
   has "E16 both registers" "$read_" "any register"
-  # The developer branch adopts the layperson form, changing only vocabulary.
-  has "E16 direction" "$read_" "layperson form is the correct one"
+  # Every register uses the same unmarked form, changing only vocabulary.
+  has "E16 direction" "$read_" "Every register asks it as its own question"
 }
 
 @test "E17: no dependencies is a verdict, not a failure" {
@@ -369,7 +355,7 @@ hasF() { # hasF <label> <block> <fixed string>
   has "E17 verdict" "$floor" "verdict, not a failure"
   # osv-scanner exits 128 on a zero-dependency project: an error where the
   # honest answer is "nothing to report".
-  has "E17 measured" "$floor" "128"
+  has "E17 exit code" "$floor" "128"
   has "E17 never failed" "$floor" "never failed for having nothing to scan"
 }
 
@@ -380,7 +366,7 @@ hasF() { # hasF <label> <block> <fixed string>
 }
 
 @test "E19: instant declares what it drops, and the report carries it" {
-  sec=$(section "$ROOT/skills/epic/SKILL.md" '^## Instant' '^## ')
+  sec=$(cat "$ROOT/references/instant-mode.md")
   has "E19 cost" "$sec" "drops protections"
   has "E19 report" "$sec" "reduces protection or documentation"
   has "E19 not only plan" "$sec" "not only in the plan"
@@ -389,8 +375,6 @@ hasF() { # hasF <label> <block> <fixed string>
 @test "E20: the report never states the multiple the run achieved" {
   rec=$(section "$ROOT/references/engineering-level.md" '^## Where it is recorded' '^## ')
   has "E20 rule" "$rec" "never states the multiple"
-  # Reported ~5-6x where the executed control put it at 11x.
-  has "E20 measured" "$rec" "11"
 }
 
 @test "E21: the commit stages by name — never a blanket add" {

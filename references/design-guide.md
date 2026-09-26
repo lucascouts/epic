@@ -2,6 +2,16 @@
 
 Covers both the **process** (when to use design-first, depth options) and the **output template** (sections to include in design.md).
 
+## Contents
+
+- [When to Use Design-First Workflow](#when-to-use-design-first-workflow)
+- [Design Depth](#design-depth)
+- [Key Principle](#key-principle)
+- [Design Document Template](#design-document-template)
+- [Template Guidelines](#template-guidelines)
+- [Gotchas](#gotchas)
+- [Tips for Design-First Workflow](#tips-for-design-first-workflow)
+
 ## When to Use Design-First Workflow
 
 - **Infrastructure/tooling:** monorepo setup, CI/CD, database configuration

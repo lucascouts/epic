@@ -2,7 +2,7 @@
 # Unit tests for scripts/cross-reference.sh. Covers:
 #   - Help and invalid-input exit codes
 #   - Model B (group header `### Rn.` + leaf criteria `Rn.m`): a heading must
-#     NOT be reported as an orphan requirement (the traceability fix)
+#     NOT be reported as an orphan requirement
 #   - Model A (flat one-level `### Rn` requirements): backward compatibility
 #   - Orphan and phantom detection at the requirement-leaf level
 
@@ -170,7 +170,7 @@ EOF
   echo "$output" | grep -qF '"R1.1": ["1.1","2.1"]'
 }
 
-# --- Wave-0 regressions: coverage must derive from the structural parse ---
+# --- Coverage must derive from the structural parse ---
 
 @test "prose-only reference is NOT traced (false-clean regression)" {
   cat > "$STORY/story.md" <<'STORY'
@@ -222,7 +222,7 @@ TASKS
   echo "$output" | grep -q '"parseable_tasks": 1'
 }
 
-# --- Quality coverage (story 024) ---
+# --- Quality coverage ---
 
 @test "quality: a fully cited legend reports no orphans and exits 0" {
   cat > "$STORY/story.md" <<'EOS'

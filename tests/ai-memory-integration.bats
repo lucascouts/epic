@@ -20,8 +20,8 @@
 #       verify, and writes audit pages at a stable path
 #   M7  plugin.json exposes aiMemory, default auto
 #   M8  init-mode.md recommends ignore_paths
-#   M9  no agent definition gained a memory tool — the orchestrator is the only
-#       writer, and the agents' own memory directories are untouched
+#   M9  no agent definition names a memory tool — the orchestrator is the only
+#       writer, and the agents' own memory directories are left alone
 #
 # Note on awk patterns: passed as strings, so no backslash escapes; literal
 # punctuation goes in a bracket class.

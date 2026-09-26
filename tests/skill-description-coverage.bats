@@ -1,28 +1,23 @@
 #!/usr/bin/env bats
-# Cascade↔description coverage for skills/epic/SKILL.md
-# (story 021 — close-the-eval-deferrals).
-# Authored by the Test Advisor BEFORE the fix (TDD Red phase).
+# Cascade↔description coverage for skills/epic/SKILL.md.
 #
-# Contract under test (design.md, Fix Approach 3; R3.1-R3.3):
+# Contract under test:
 #   Every routing mode present in the cascade is announced by the skill's
 #   `description`. The cascade decides where a request goes AFTER the skill is
 #   chosen; the description decides WHETHER it is chosen. A mode present only in
 #   the cascade is unreachable by the phrasing it introduced.
 #
-# WHY THIS FILE EXISTS. Stories 013 and 015 added `--batch` and `migrate` to the
-# cascade and to argument-hint, and not to the description. Measured on the
-# description in isolation: `batch` 0, `migrate` 0, `epic` 1 — and that single
-# `epic` sits inside "even without saying 'epic' or 'story' explicitly", a
-# negation. Both modes fire 0 out of 3 in the trigger evals. Nothing in the tree
-# compared the two lists, so nothing went red for eighteen months of commits.
+# WHY THIS FILE EXISTS. A mode added to the cascade and to argument-hint but not
+# to the description is unreachable by the phrasing it introduced, and nothing
+# else compares the two lists, so the gap never turns red.
 #
 # IT FAILS ON BOTH SIDES, deliberately. A term declared here and missing from
 # the description fails; a cascade arm with no entry in the table fails too. A
-# table checking only the first half goes stale exactly the way the description
-# did — silently, and in the direction nobody is looking.
+# table checking only the first half goes stale silently, in the direction
+# nobody is looking.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so this draft copy can run before
-# materialization into tests/.
+# EPIC_PLUGIN_ROOT overrides root resolution so the suite can run against a
+# plugin tree other than its parent directory.
 
 bats_require_minimum_version 1.5.0
 
@@ -39,11 +34,11 @@ teardown() { rm -rf "$WORK"; }
 # Add a mode to the cascade, add its row here; the roster case below names the
 # arm you forgot.
 declare_table() {
-  # Arms are declared LITERALLY, not by keyword. A keyword table looked tidier
-  # and was broken: the token `stories` matched every arm beginning with it, so
-  # a newly added `stories teleport NNN` was silently "accounted for" and the
-  # roster case could never go red. The mutant below caught that — which is what
-  # mutants are for. Literal arms cost one line each and cannot drift.
+  # Arms are declared LITERALLY, not by keyword: a keyword such as `stories`
+  # would match every arm beginning with it, so a newly added
+  # `stories teleport NNN` would be silently "accounted for" and the roster case
+  # could never go red — the second mutant below proves it can. Literal arms
+  # cost one line each and cannot drift.
   cat <<'TABLE'
 init|init
 instant <description>|instant
@@ -57,7 +52,6 @@ stories validate NNN|validate
 stories refine NNN|refine
 stories archive NNN[-MMM]|--done|archive
 stories supersede NNN --by MMM|supersede
-stories teams {status|enable|disable}|teams
 stories NNN run all [--auto|--batch=N|--gate=commit|--serial]|run
 stories NNN run N|run
 stories NNN run N.N|run
@@ -97,32 +91,32 @@ undeclared_arms() {
   done < <(cascade_arms "${1:-$SKILL}")
 }
 
-# THE CASE THIS FILE EXISTS FOR. Red today.
-@test "3.2: every declared mode term appears in the description" {
+# THE CASE THIS FILE EXISTS FOR.
+@test "every declared mode term appears in the description" {
   run missing_terms
   [ -z "$output" ] || printf 'description is missing the vocabulary of: %s\n' "$output" >&2
   [ -z "$output" ]
 }
 
-# The other side of the divergence: a cascade arm nobody declared. Green today,
-# and the case below proves it is capable of going red.
-@test "3.2: every cascade arm is accounted for by a row in the declared table" {
+# The other side of the divergence: a cascade arm nobody declared. The second
+# mutant below proves this case is capable of going red.
+@test "every cascade arm is accounted for by a row in the declared table" {
   run undeclared_arms
   [ -z "$output" ] || printf 'cascade arm with no row in the table: %s\n' "$output" >&2
   [ -z "$output" ]
 }
 
-@test "3.2: a mode term is not counted when it appears only inside a negation" {
-  # `epic` is present today ONLY as "even without saying 'epic' or 'story'
-  # explicitly" — an instruction to fire WITHOUT the word, which is the opposite
-  # of announcing the mode. The description must also state it affirmatively.
+@test "a mode term is not counted when it appears only inside a negation" {
+  # "even without saying 'epic' or 'story' explicitly" is an instruction to fire
+  # WITHOUT the word, which is the opposite of announcing the mode, so the
+  # description must also state it affirmatively.
   run bash -c "awk '/^description: >/{f=1;next} f&&/^[a-z-]+:/{exit} f' '$SKILL' | grep -ci 'create an epic\|an epic for' || true"
   [ "$output" -ge 1 ]
 }
 
 # MUTANT 1 — the term side can fail. Same predicate, a description with one
 # declared term removed.
-@test "3.2: MUTANT — a description missing a declared term is named by the same predicate" {
+@test "MUTANT — a description missing a declared term is named by the same predicate" {
   local fake="$WORK/skills/epic/SKILL.md"; mkdir -p "$(dirname "$fake")"
   cp "$SKILL" "$fake"
   # strip the word "validate" from the description block only
@@ -133,7 +127,7 @@ undeclared_arms() {
 
 # MUTANT 2 — the arm side can fail. Same predicate, a cascade with an arm the
 # table does not declare.
-@test "3.2: MUTANT — an undeclared cascade arm is named by the same predicate" {
+@test "MUTANT — an undeclared cascade arm is named by the same predicate" {
   local fake="$WORK/skills/epic/SKILL.md"; mkdir -p "$(dirname "$fake")"
   sed 's|^"init"$|"init"\n"stories teleport NNN"|' "$SKILL" > "$fake"
   run undeclared_arms "$fake"

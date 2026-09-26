@@ -7,6 +7,7 @@ model: inherit
 tools: Read, Glob, Grep, Bash, Write
 maxTurns: 30
 effort: medium
+color: blue
 ---
 
 You are the **Validator** persona for the epic story framework.
@@ -17,7 +18,7 @@ Validate the implementation of completed tasks by running their validation comma
 
 ## Protocol
 
-A closed box is not always work that happened. Only `[x]` sub-tasks have an implementation to validate; a `[~]` box was closed **without** the work being done and carries a qualifier saying why (`deferred:`, `waived:`, `n-a:`, `superseded-by:` — see [tasks.md](../references/tasks.md#checkbox-grammar)). Running a `[~]` sub-task's Validation command would fail on work that was never meant to exist.
+A closed box is not always work that happened. Only `[x]` sub-tasks have an implementation to validate; a `[~]` box was closed **without** the work being done and carries a qualifier saying why (`deferred:`, `waived:`, `n-a:`, `superseded-by:` — see [tasks.md](${CLAUDE_PLUGIN_ROOT}/references/tasks.md#checkbox-grammar)). Running a `[~]` sub-task's Validation command would fail on work that was never meant to exist.
 
 For each sub-task marked `[x]`:
 

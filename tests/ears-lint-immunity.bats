@@ -1,21 +1,19 @@
 #!/usr/bin/env bats
-# Story 014, Task 1.2 — the immunity set for the EARS form checks, proven
-# by golden diff, plus the TaskCompleted hook contract.
-# Contract (R1.4, R4.1, R4.2 + R1.6's blocking consequence):
+# The immunity set for the EARS form checks, proven by golden diff, plus the
+# error/warning split of the checks.
+# Contract:
 #   - fast (hostile: leftover story.md carrying an UNLABELED criterion), spike,
 #     bugfix-behavior and no-scale-declared legacy fixtures keep validator
-#     output BYTE-IDENTICAL to the pre-change goldens below (R4.1) — new
-#     strings only, no new count keys, is subsumed by byte-identity (R4.2).
-#   - The new R1.1 error blocks task completion through hook-task-completed.sh
-#     (exit 2); the new warnings never block (exit 0).
+#     output BYTE-IDENTICAL to the goldens below — no new strings and no new
+#     count keys, which byte-identity subsumes.
+#   - The unlabeled-criterion check is an ERROR (validator exit 1); the
+#     warnings never fail validation (exit 0).
 #
-# Goldens captured from the PRE-CHANGE validator (2026-08-16, story 014
-# Phase 3), each run as `validate-story.sh story` from the fixture's parent so
-# the "story" field is deterministic. Any drift — an added string, a reordered
-# key — is a regression against R4.1.
+# Each golden is the output of `validate-story.sh story` run from the
+# fixture's parent, so the "story" field is deterministic. Any drift — an added
+# string, a reordered key — is a regression.
 #
-# Cases whose names carry `PIN` pass against the pre-change scripts and must
-# stay green; the hook-blocks case is the Red one.
+# Cases whose names carry `PIN` guard behaviour that must stay unchanged.
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -28,13 +26,13 @@ teardown() {
   rm -rf "$WORK"
 }
 
-# --- R1.4 + R4.1: fast, with a hostile leftover story.md ---
+# --- fast, with a hostile leftover story.md ---
 # The leftover story.md carries an unlabeled criterion under an Acceptance
-# Criteria heading — the exact shape R1.1 errors on at standard scale. The
-# resolved scale is fast, so the checks must not run at all: same three
-# warnings as today, zero errors, byte for byte.
+# Criteria heading — the exact shape the unlabeled-criterion check errors on at
+# standard scale. The resolved scale is fast, so the checks must not run at
+# all: the golden's three warnings, zero errors, byte for byte.
 
-@test "1.2: PIN fast scale — unlabeled criterion in a leftover story.md changes nothing (golden)" {
+@test "PIN fast scale — unlabeled criterion in a leftover story.md changes nothing (golden)" {
   cat > "$STORY/tasks.md" <<'EOF'
 ---
 story: fast-immunity
@@ -90,9 +88,9 @@ EOF
   diff <(printf '%s\n' "$GOLDEN") <(printf '%s\n' "$output")
 }
 
-# --- R1.4 + R4.1: conforming open spike, tasks-only ---
+# --- conforming open spike, tasks-only ---
 
-@test "1.2: PIN spike scale — validator output is byte-identical (golden)" {
+@test "PIN spike scale — validator output is byte-identical (golden)" {
   cat > "$STORY/tasks.md" <<'EOF'
 ---
 story: probe-cache-strategy
@@ -135,9 +133,9 @@ EOF
   diff <(printf '%s\n' "$GOLDEN") <(printf '%s\n' "$output")
 }
 
-# --- R1.5 + R4.1: bugfix behavior section, unlabeled SHALL CONTINUE TO items ---
+# --- bugfix behavior section, unlabeled SHALL CONTINUE TO items ---
 
-@test "1.2: PIN bugfix — unlabeled SHALL CONTINUE TO behavior items change nothing (golden)" {
+@test "PIN bugfix — unlabeled SHALL CONTINUE TO behavior items change nothing (golden)" {
   cat > "$STORY/story.md" <<'EOF'
 ---
 story: bugfix-immunity
@@ -196,12 +194,12 @@ EOF
   diff <(printf '%s\n' "$GOLDEN") <(printf '%s\n' "$output")
 }
 
-# --- R4.1: legacy story with no scale declared, conforming EARS ---
-# The legacy corpus keeps its requirements chain (scale "" resolves to
+# --- legacy story with no scale declared, conforming EARS ---
+# A legacy story keeps its requirements chain (scale "" resolves to
 # chain-carrying), so the checks DO run here — and stay silent, because the
 # criteria conform. Byte-identity is the proof the silence costs nothing.
 
-@test "1.2: PIN no-scale legacy — conforming criteria keep output byte-identical (golden)" {
+@test "PIN no-scale legacy — conforming criteria keep output byte-identical (golden)" {
   cat > "$STORY/story.md" <<'EOF'
 ---
 story: legacy-no-scale
@@ -254,10 +252,7 @@ EOF
   diff <(printf '%s\n' "$GOLDEN") <(printf '%s\n' "$output")
 }
 
-# --- R1.6's teeth: the TaskCompleted hook ---
-# The hook blocks (exit 2) only when the validator reports ERRORS. The new
-# R1.1 unlabeled-criterion error must therefore block; the new R1.2/R1.3
-# warnings must never block.
+# --- Errors fail validation, warnings never do ---
 
 write_hook_project() { # $1 = Acceptance Criteria block for the story
   mkdir -p "$WORK/proj/.epic/stories/001-hook"
@@ -295,19 +290,16 @@ created: 2026-08-16
 EOF
 }
 
-@test "1.2: the unlabeled-criterion error blocks task completion (hook exit 2)" {
+@test "the unlabeled-criterion error fails validation (exit 1)" {
   write_hook_project '- R1.1: WHEN x THE SYSTEM SHALL y.
 - WHEN the user saves THE SYSTEM SHALL persist the draft.'
-  cd "$WORK/proj"
-  run env CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$PLUGIN_ROOT/scripts/hook-task-completed.sh"
-  [ "$status" -eq 2 ]
-  echo "$output" | grep -q 'failed validation'
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$WORK/proj/.epic/stories/001-hook"
+  [ "$status" -eq 1 ]
 }
 
-@test "1.2: PIN the compound and trigger-less warnings never block (hook exit 0)" {
+@test "PIN the compound and trigger-less warnings never fail validation (exit 0)" {
   write_hook_project '- R1.1: WHEN the form is submitted THE SYSTEM SHALL validate the fields and SHALL persist the record.
 - R1.2: The exporter SHALL write the report to disk.'
-  cd "$WORK/proj"
-  run env CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$PLUGIN_ROOT/scripts/hook-task-completed.sh"
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$WORK/proj/.epic/stories/001-hook"
   [ "$status" -eq 0 ]
 }

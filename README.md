@@ -61,9 +61,10 @@ Run `/reload-plugins` after updating plugin files.
 
 ### Prerequisites
 
-- **Claude Code v2.1.105+** — required for the full capability surface. Epic works on v2.1.85+ with degraded ergonomics (no compact recovery; hooks fire on every Write/Edit regardless of path; no plugin monitors).
+- **Claude Code v2.1.105+** — required for the full capability surface. Epic works on v2.1.85+ with degraded ergonomics (no compact recovery; hooks fire on every Write/Edit regardless of path).
 - `bash`, `git`, `jq` available on PATH
 - **Optional MCPs** for deeper context and research: `perplexity`, `brave-search`, `context7`. Epic health-checks each MCP before suggesting it; missing MCPs degrade gracefully.
+- **Optional — keep sub-agents in the foreground:** in interactive sessions Claude Code runs sub-agents in the background by default, and Epic then waits for each one's completion notification. To run them in the foreground instead, start Claude Code with `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` (or put it in your settings `env`). Side effect: no background Bash commands and no Ctrl+B.
 - **Optional tooling for development**: `shellcheck` and `bats` for running the script test suite locally (`bats tests/`).
 
 #### Minimum Claude Code version per component
@@ -73,15 +74,9 @@ Run `/reload-plugins` after updating plugin files.
 | Conditional hooks (`if:` field in `hooks/hooks.json`) | **2.1.85** | `if:` ignored — hooks fire on every matched call (noisy but functional) |
 | Skill `effort` field | **2.1.85** | Field ignored — inherits session effort |
 | Skill description cap raised to 1,536 chars | **2.1.105** | Older sessions truncate at 250 chars (some Epic descriptions get cut) |
-| `EnterWorktree.path` (switch into existing worktree) | **2.1.105** | Tool only creates new worktrees |
-| `PreCompact` + `SessionStart(compact)` hooks (context recovery) | **2.1.105** | No automatic snapshot/restore around compactions; drafts still work |
-| Plugin monitors (`monitors/monitors.json`, `when:` field) | **2.1.105** | Monitor never starts; stale-story detection unavailable |
+| `SessionStart(compact)` hook (context recovery) | **2.1.105** | No automatic restore after compactions; drafts still work |
 | Plugin `bin/` executables on PATH | **2.1.91** | `epic-validate`/`epic-xref`/`epic-archive` not exposed; call scripts directly |
 | Output style `keep-coding-instructions: true` | **2.1.94** | Activating `/output-style epic` may override skill directives |
-| `PermissionDenied` hook with `{retry: true}` | **2.1.89** | MCP retry-on-deny disabled; user sees raw permission errors |
-| `PreToolUse` `permissionDecision: "defer"` (headless commit gating) | **2.1.89** | `hook-defer-commit.sh` is a no-op in CI |
-| Agent-teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) | **2.1.32** | Teams proposal silently skipped; falls back to sequential/worktree execution |
-| `--bare` flag for headless invocation | **2.1.81** | Use plain `claude -p`; expect slower startup and reduced reproducibility |
 | `disableSkillShellExecution` setting honored | **2.1.91** | Inline `!` shell blocks always execute (not blockable by managed policy) |
 
 ---
@@ -117,7 +112,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 | Command | Purpose |
 |---|---|
 | `/epic:epic` | Create story from free-text description (triage + clarify + phases) |
-| `/epic:epic init` | Set up `.epic/constitution.md`, `CLAUDE.md`, sub-agents; ask the [versioning policy](#versioning-policy-for-epic) question |
+| `/epic:epic init` | Set up `.epic/constitution.md`, offer deny rules for files Claude must not edit, ask the [versioning policy](#versioning-policy-for-epic) question (for `CLAUDE.md`, use the built-in `/init`) |
 | `/epic:epic stories` | List all stories (summary) |
 | `/epic:epic stories full` | List all stories with tasks |
 | `/epic:epic stories NNN` | Show one story in detail |
@@ -131,7 +126,6 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 | `/epic:epic stories refine NNN` | Delta refinement (versioned) |
 | `/epic:epic stories supersede NNN --by MMM` | Replace story NNN with MMM via `references/supersede-mode.md` — supersede banner, per-task remap, `superseded` status in every artifact, archive offer |
 | `/epic:epic stories archive NNN[-MMM]\|--done` | Archive completed stories via `scripts/archive-story.sh` — guarded move, pruned evidence, derived manifest entry |
-| `/epic:epic stories teams {status\|enable\|disable}` | Manage the experimental agent-teams flag (opt-in, per-project) |
 
 ---
 
@@ -163,13 +157,12 @@ epic/
 ├── skills/epic/SKILL.md         # main skill (/epic:epic)
 ├── agents/                      # 8 specialized sub-agents
 ├── hooks/hooks.json             # 7 hook events, all if:-filtered or matcher-scoped
-├── monitors/monitors.json       # opt-in background watcher (stale stories)
 ├── output-styles/epic.md        # optional structured output style
 ├── bin/                         # PATH-exposed wrappers (epic-validate, epic-xref, epic-archive)
 ├── references/                  # mode-specific operational guides
-├── scripts/                     # bash validators + hook scripts + monitor + eval runner
+├── scripts/                     # bash validators + hook scripts + stale check + eval runner
 ├── assets/examples/             # reference outputs for each scale
-├── evals/                       # trigger queries + test cases
+├── evals/                       # native eval suite (claude plugin eval)
 ├── tests/                       # bats unit tests for scripts
 └── .github/workflows/           # shell-ci (shellcheck + bats + example validation)
 ```
@@ -185,9 +178,9 @@ epic/
 | **Versioned artifacts** (recommended) | `.epic/.gitignore` with `.draft/`, `*.wip` and `node_modules/`; offers to remove a root-`.gitignore` rule that ignores `.epic/` — quoting the line, never silently | `tracked-md` |
 | **Local-only** | `.epic/` appended to the root `.gitignore` | `local-only` |
 
-Versioned tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `archive/manifest.yaml`. **`.draft/` is never versioned under either policy** — it is scratch space: run logs, authored tests, phase snapshots, `*.wip`, and the story's evidence files (`deviations.yaml`, `red-evidence.yaml`, the validation and audit reports) — the last by decision: their durable forms are the archive's summary and, where `ai-memory` is detected, the pages the orchestrator writes.
+Versioned tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `archive/manifest.yaml`. **`.draft/` is never versioned under either policy** — it is scratch space: run logs, authored tests, phase snapshots, `*.wip`, and the story's evidence files (`deviations.yaml`, `red-evidence.yaml`, the validation and audit reports) — the last because their durable forms are the archive's summary and, where `ai-memory` is detected, the pages the orchestrator writes.
 
-**Why it is a question and not a default.** In a 26-project corpus, having no declared policy is what destroyed lifecycle history: a track→untrack transition **wiped 54 stories** in one project, a squash left **9 zombie duplicates** split across `stories/` and `archive/` in another, one project had **47 `.epic` files committed through a `.gitignore` that said they were never committed**, and another **flip-flopped its policy five times**. The three projects with the most auditable lifecycle had all deliberately broken the older "never commit `.epic`" doctrine and converged on the same model — version the `.md` artifacts, ignore `.draft/`. That is why versioned is *recommended*; it is still *asked*, because every failure above came from a policy nobody said out loud.
+**Why it is a question and not a default.** Without a declared policy, lifecycle history gets lost: a track→untrack transition deletes stories from history, a squash leaves duplicates split across `stories/` and `archive/`, and a `.gitignore` stops matching what is actually committed. Versioning the `.md` artifacts and ignoring `.draft/` gives the most auditable lifecycle, so versioned is *recommended*; it is still *asked*, because each of those failures comes from a policy nobody said out loud.
 
 **Non-interactive runs get local-only, without prompting.** A headless or Agent SDK `init` applies the conservative status quo and never starts committing `.epic` behind your back. It also never overrides a policy already recorded: a workspace that declares `tracked-md` is left exactly as it is.
 
@@ -222,11 +215,13 @@ When the plugin is active, the scripts are also on PATH as `epic-validate`, `epi
 
 ### What a story actually cost
 
-`scripts/story-telemetry.sh` reads a session transcript and reports what was spent — **in tokens and wall clock, never in money**. It writes no files and makes no network call.
+Prefer Claude Code's own numbers. `/usage` shows the session's spend; a `claude -p --output-format json` run returns `modelUsage` and `total_cost_usd`; and OpenTelemetry splits tokens by main agent and sub-agent (`claude_code.token.usage`, attribute `query_source`) — start Claude Code with `CLAUDE_CODE_ENABLE_TELEMETRY=1 OTEL_METRICS_EXPORTER=console OTEL_LOG_TOOL_DETAILS=1` and filter on `plugin.name=epic`.
+
+For a session recorded without telemetry, `scripts/story-telemetry.sh` reads the transcript (and the sub-agent transcripts beside it) and reports what was spent — **in tokens and wall clock, never in money**. It writes no files and makes no network call. The transcript format is internal to Claude Code, so treat this as a fallback.
 
 ```bash
 bash "$EPIC_PLUGIN_ROOT/scripts/story-telemetry.sh"                      # this project's latest session
-bash "$EPIC_PLUGIN_ROOT/scripts/story-telemetry.sh" --since 2026-09-16T18:00:00Z   # one phase, by window
+bash "$EPIC_PLUGIN_ROOT/scripts/story-telemetry.sh" --since 2026-01-01T18:00:00Z   # one phase, by window
 ```
 
 One JSON object on stdout: tokens split `main` / `subagent` (input, cache creation, cache read, output), models seen, wall clock, and `events` beside `unique_messages`.
@@ -234,79 +229,48 @@ One JSON object on stdout: tokens split `main` / `subagent` (input, cache creati
 Three things it deliberately does **not** do, each for a stated reason:
 
 - **No dollars.** The transcript carries usage and no price. A price table shipped inside a plugin ages into a confident wrong answer; the reader knows the current prices.
-- **No silent summing.** The transcript repeats a message's usage on every content block — measured at **462 events for 190 messages**, a 2.4x inflation — so usage is summed per distinct `message.id`, and both counts are emitted so you can see that it happened.
+- **No silent summing.** The transcript repeats a message's usage on every content block — so usage is summed per distinct `message.id`, and both counts are emitted so you can see that it happened.
 - **No claim it cannot back.** `subagent_split_verified` is `false` until the run actually saw a sidechain event, so a zeroed `subagent` block reads as *none seen*, never as *confirmed none*.
 
 Generate stories programmatically with the Agent SDK:
 
 ```bash
 claude -p "/epic:epic Add retry logic to the payment gateway" \
+  --plugin-dir /path/to/epic \
   --allowedTools "Read,Write,Glob,Grep,Bash,Agent" \
-  --bare --output-format json
+  --output-format json
 ```
 
 See [references/ci-mode.md](references/ci-mode.md) for GitHub Actions examples.
 
-### Gated commits in headless mode
-
-Epic ships a `PreToolUse` hook that detects `git commit` invocations. In interactive sessions it is a no-op (normal permission flow applies). When `CI=true` or `CLAUDE_CODE_HEADLESS=true` is set, the hook returns `permissionDecision: "defer"` — pausing the session at the commit and letting an Agent SDK wrapper (GitHub Action, Slack approval bot, etc.) collect a decision before resuming with `-p --resume`. See [`scripts/hook-defer-commit.sh`](scripts/hook-defer-commit.sh) and the [Deferred tool execution docs](https://code.claude.com/docs/en/hooks-guide).
-
 ### Running the eval suite
 
-The `evals/` directory ships 6 test cases and 24 trigger queries. The runner invokes `claude -p` against a fresh working directory per case and validates artifacts:
+The `evals/` directory is a suite for Claude Code's native runner — 30 trigger cases and 6 end-to-end cases, each run in an isolated home:
 
 ```bash
-bash scripts/run-evals.sh                # full suite
-bash scripts/run-evals.sh --cases        # artifact generation only
-bash scripts/run-evals.sh --triggers     # SKILL description sensitivity only
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude plugin eval . --no-publish --scaffold --allow-tools Skill Bash Write Edit Agent
 ```
 
-Requires `claude`, `jq`, and network access for MCP health-checks.
+Always pass `--no-publish` (otherwise the report is published to claude.ai). Details and cheaper subsets: [evals/README.md](evals/README.md).
 
 ---
 
 ## Plugin Options
 
-Configurable via the install wizard or directly through settings. Each option is non-sensitive and injected into scripts as `CLAUDE_PLUGIN_OPTION_<KEY>`.
+Configurable via the install wizard or directly through settings. Each option is non-sensitive. `aiMemory` and `defaultScale` reach the skill through `${user_config.KEY}`; hook processes receive every option as `CLAUDE_PLUGIN_OPTION_<KEY>`.
 
 | Option | Default | Purpose |
 |---|---|---|
 | `defaultScale` | `standard` | Fallback mode when triage cannot determine complexity |
-| `artifactLanguage` | `en` | Override only if your organisation mandates non-English artifacts |
-| `enableStaleMonitor` | `false` | Enable the background watcher for stories with no progress past the staleness threshold |
-| `staleThresholdDays` | `7` | Days of inactivity before a story with pending tasks is flagged (only when stale monitor is enabled) |
+| `aiMemory` | `auto` | `auto` uses the ai-memory MCP server when it answers; `off` never calls it |
+| `staleThresholdDays` | `7` | Days of inactivity before the story list flags a story with pending tasks |
 | `spikeStaleThresholdDays` | `14` | Days of inactivity before a spike whose Verdict is still `open` is flagged — measured by its Verdict, not its checkboxes |
-| `staleCheckIntervalSeconds` | `3600` | Poll cadence for the stale watcher in seconds (only when stale monitor is enabled) |
 
 ---
 
-## Background Monitors (optional)
+## Stale stories
 
-When `enableStaleMonitor=true`, a background script (`monitors/monitors.json` → `scripts/monitor-stale.sh`) starts on the first `/epic:epic` invocation and periodically reports stories with pending tasks untouched for more than 7 days, plus spikes whose `## Verdict` is still `open` after 14 days. Stdout lines surface as notifications to the main agent.
-
-The same script also answers synchronously — `monitor-stale.sh --once` runs a single pass and exits — which is how the story list flags stale spikes. That path ignores `enableStaleMonitor` on purpose: the option governs the background watcher, not a question the list asks while you are looking at it.
-
-Constraints:
-
-- Requires Claude Code **v2.1.105+**
-- Only runs in interactive sessions — skipped on Bedrock, Vertex AI, Microsoft Foundry, and when `DISABLE_TELEMETRY` or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` are active
-- Opt-in by design: without the user option set, the script exits immediately
-
----
-
-## Agent Teams (experimental, opt-in)
-
-Epic integrates with Claude Code's experimental [agent-teams](https://code.claude.com/docs/en/agent-teams) feature for the Run phase. When enabled, stories with 2+ independent tracks can spawn a dedicated teammate per track, each using Epic's existing `executor` agent definition in its own context window — an alternative to the default sequential / `EnterWorktree` execution.
-
-```
-/epic:epic stories teams status     # inspect state
-/epic:epic stories teams enable     # opt in (restart required)
-/epic:epic stories teams disable    # opt out
-```
-
-The flag is written to `.claude/settings.local.json` in the project, which Claude Code auto-gitignores. Nothing global is changed. When the flag is off, Run mode behaviour is identical to 1.3.0.
-
-During Triage of a **Full mode** story, if the request decomposes into independent tracks, the plugin will offer to enable agent-teams with a `[y] / [n] / [never]` prompt. Never activates silently. See [references/teams-mode.md](references/teams-mode.md) for the full reference and [agent-teams limitations](https://code.claude.com/docs/en/agent-teams#limitations).
+The story list (`/epic:epic stories`) flags stories with pending tasks untouched for more than `staleThresholdDays` (7 by default) and spikes whose `## Verdict` is still `open` after `spikeStaleThresholdDays` (14 by default). It is a single pass run while you look at the list — nothing polls in the background.
 
 ---
 
@@ -335,10 +299,6 @@ The skill still functions — pass the missing context explicitly in the prompt:
 ```
 
 See the [setting reference](https://code.claude.com/docs/en/settings#settings-files) for managed-settings deployment.
-
-### Why Epic does not use `CronCreate` / scheduled tasks
-
-[Scheduled tasks](https://code.claude.com/docs/en/scheduled-tasks) (`CronCreate`, `/loop`) are session-scoped, expire after 7 days, and consume the 50-task session budget. For the stale-story use case Epic uses a [plugin monitor](https://code.claude.com/docs/en/plugins-reference#monitors) instead — it persists for the entire session without polling from the model, and its opt-in userConfig keeps it silent for users who don't want it. For cross-session scheduling (e.g. nightly validation in CI), see the CI example in [`references/ci-mode.md`](references/ci-mode.md) or use [Routines](https://code.claude.com/docs/en/routines).
 
 ---
 
@@ -370,4 +330,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Version
 
-0.9.0 — see [CHANGELOG](./CHANGELOG.md).
+0.10.0 — see [CHANGELOG](./CHANGELOG.md).

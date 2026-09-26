@@ -1,8 +1,7 @@
 #!/usr/bin/env bats
-# Unit tests for scripts/next-story-number.sh (story 013 — quick-create).
-# Authored by the Test Advisor BEFORE implementation (TDD Red phase).
+# Unit tests for scripts/next-story-number.sh.
 #
-# Contract under test (design.md component 3, R2.1-R2.4):
+# Contract under test:
 #   next-story-number.sh [--reserve N], run from a project root containing
 #   .epic/stories/ and .epic/archive/  →  ONE JSON object on stdout:
 #     {next, reserved: [], collisions: []}
@@ -22,14 +21,14 @@
 # THE COLLISION CASE injects a concurrent creator through a PATH shim around
 # `mkdir`: the first time the allocator creates a NNN-* placeholder, a foreign
 # NNN-taken directory with the SAME number is dropped first — exactly the
-# scan→mkdir race window R2.2 closes. ASSUMPTION, stated for the implementer:
+# scan→mkdir race window the post-creation re-scan closes. ASSUMPTION:
 # placeholder creation must go through the `mkdir` command resolved via PATH
 # (plain `mkdir`, not an absolute /bin/mkdir). If the implementation creates
 # directories any other way, adapt the fixture's interception point — never
 # the assertions.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so the draft copy under
-# .draft/authored-tests/tests/ can run before materialization into tests/.
+# EPIC_PLUGIN_ROOT overrides root resolution so the suite can run against a
+# plugin tree other than its parent directory.
 
 bats_require_minimum_version 1.5.0
 
@@ -49,7 +48,7 @@ run_alloc() {
   ( cd "$WORK" && bash "$SCRIPT" "$@" )
 }
 
-@test "1.1: empty project allocates 001 and stdout is exactly one JSON object" {
+@test "empty project allocates 001 and stdout is exactly one JSON object" {
   run --separate-stderr run_alloc
   [ "$status" -eq 0 ]
   echo "$output" | jq -e -s 'length == 1 and (.[0] | type == "object")'
@@ -57,8 +56,8 @@ run_alloc() {
   [ "$(echo "$output" | jq -c '.reserved')" = "[]" ]
 }
 
-@test "1.1: next is the max across stories AND archive (archived max wins)" {
-  # the 0.3.1 skill's stories-only scan is the known bug shape: an archived
+@test "next is the max across stories AND archive (archived max wins)" {
+  # a stories-only scan is the bug shape: an archived
   # story holding the true max must not let a number be recycled
   mkdir "$WORK/.epic/stories/003-live-story"
   mkdir "$WORK/.epic/archive/007-archived-story"
@@ -67,7 +66,7 @@ run_alloc() {
   [ "$(echo "$output" | jq -r '.next')" = "008" ]
 }
 
-@test "1.1: next stays zero-padded across the width boundary (009 -> 010)" {
+@test "next stays zero-padded across the width boundary (009 -> 010)" {
   mkdir "$WORK/.epic/stories/009-nine"
   run --separate-stderr run_alloc
   [ "$status" -eq 0 ]
@@ -75,7 +74,7 @@ run_alloc() {
   echo "$output" | jq -e '.next | test("^[0-9]{3}$")'
 }
 
-@test "1.1: a plain call reserves nothing on disk" {
+@test "a plain call reserves nothing on disk" {
   mkdir "$WORK/.epic/stories/004-existing"
   run run_alloc
   [ "$status" -eq 0 ]
@@ -83,7 +82,7 @@ run_alloc() {
   [ "$(ls "$WORK/.epic/archive" | wc -l)" -eq 0 ]
 }
 
-@test "1.1: --reserve 3 returns consecutive zero-padded numbers and the dirs ARE the reservation" {
+@test "--reserve 3 returns consecutive zero-padded numbers and the dirs ARE the reservation" {
   mkdir "$WORK/.epic/stories/004-existing"
   run --separate-stderr run_alloc --reserve 3
   [ "$status" -eq 0 ]
@@ -99,15 +98,15 @@ run_alloc() {
   [ "$(echo "$output" | jq -r '.next')" = "008" ]
 }
 
-@test "1.1: 999 cap — a plain call past the cap refuses with exit 1 naming it" {
+@test "999 cap — a plain call past the cap refuses with exit 1 naming it" {
   mkdir "$WORK/.epic/stories/999-last"
   run run_alloc
   [ "$status" -eq 1 ]
   [[ "$output" == *999* ]]
 }
 
-@test "1.1: 999 cap — a --reserve that would cross the cap refuses whole, reserving nothing" {
-  # allocate-N-exactly-once (R2.1) means all-or-nothing: a refusal must not
+@test "999 cap — a --reserve that would cross the cap refuses whole, reserving nothing" {
+  # allocate-N-exactly-once means all-or-nothing: a refusal must not
   # leave a partial reservation behind
   mkdir "$WORK/.epic/stories/998-penultimate"
   run run_alloc --reserve 2
@@ -116,7 +115,7 @@ run_alloc() {
   [ "$(ls "$WORK/.epic/stories" | wc -l)" -eq 1 ]
 }
 
-@test "1.1: concurrent creator between scan and mkdir — tail re-slotted, collision recorded, foreign dir untouched" {
+@test "concurrent creator between scan and mkdir — tail re-slotted, collision recorded, foreign dir untouched" {
   mkdir "$WORK/.epic/stories/004-existing"
 
   # PATH shim: the first NNN-* placeholder mkdir also drops a foreign dir

@@ -1,11 +1,10 @@
 #!/usr/bin/env bats
-# Story 004, sub-tasks 2.3 and 5.3/5.4 — cross-regression harness (R4.1, R5.1,
-# R3.3, R3.4); seventh consumer added by story 016, sub-task 1.2; the roster
-# moved out to tests/lib/checkbox-consumers.sh in story 017, sub-task 1.3.
+# Cross-regression harness for the checkbox grammar; the consumer roster lives
+# in tests/lib/checkbox-consumers.sh.
 # ONE mixed fixture ([x] / [ ] / [~] terminal / [~] deferred) is passed through
 # the checkbox consumers, asserting they agree on which boxes exist and which
 # work is open. This pins the duplicated regex so one drifted copy cannot
-# silently reopen the false-clean/false-orphan class fixed in e890d02.
+# silently reopen the false-clean/false-orphan class.
 #
 # WHICH SCRIPTS THOSE ARE IS DECLARED AS DATA, NOT LISTED HERE.
 # tests/lib/checkbox-consumers.sh carries the roster — CHECKBOX_CONSUMERS — and
@@ -15,7 +14,7 @@
 # without restating who they are: one list, in one place, that can fail.
 #
 # THE ROSTER HOLDS A WRITER, NOT ONLY READERS. close-subtask.sh WRITES the
-# grammar — the one sanctioned writer (story 010) — and every other consumer
+# grammar — the one sanctioned writer — and every other consumer
 # only reads it. That puts it further inside the roster, not outside it: a
 # reader that drifts mis-counts a file someone else wrote, while a writer that
 # drifts produces the file every reader then mis-counts. It is compared here
@@ -23,28 +22,17 @@
 # the boxes as they now stand — the same statement the readers make directly in
 # their output.
 #
-# Three enumerations of that list have now been wrong: the design said "6 regex
-# places across 4 scripts", sub-task 5.3 raised it to 5 and still missed
-# hook-post-tool-failure.sh, which the second validate-mode pass found (task
-# 6.4). The lesson is the harness itself — a prose list of consumers cannot
-# fail, and this file can. If a seventh appears, it belongs here. One did:
-# story 010 copied these regexes into close-subtask.sh and left the roster at
-# six, so the count was stale a fourth time — this time in the very file whose
-# job is to make it fail. The rule is unchanged; an eighth belongs here too.
-#
-# THAT HISTORY IS KEPT DELIBERATELY, as the argument for the derivation rather
-# than as a claim anyone still has to maintain: story 017 found the enumeration
-# wrong a fifth time and moved the roster into the library named above, where
-# the set is derived from scripts/ instead of counted by hand.
+# A hand-maintained list of consumers goes stale without failing, so the roster
+# is derived from scripts/ instead of counted by hand, and every script that
+# reads or writes the checkbox grammar must be compared by a case here.
 #
 # Mixed fixture totals (the shared truth every consumer must agree on):
 #   total = 5 boxes · closed = 3 ([x] 1.1, 1.2 + terminal [~] 1.3)
 #   deferred = 1 ([~] 1.4) · open = 1 ([ ] 1.5)
 #
-# Plus the legacy compat contract (R5.1): a story with no status: and no [~]
-# produces BYTE-IDENTICAL validate-story and cross-reference JSON vs the
-# golden output recorded from the pre-change scripts (2026-08-02, branch
-# fix/epic-traceability).
+# Plus the legacy compat contract: a story with no status: and no [~] produces
+# BYTE-IDENTICAL validate-story and cross-reference JSON vs the recorded golden
+# output.
 
 bats_require_minimum_version 1.5.0
 
@@ -124,38 +112,25 @@ EOF
 }
 
 # Byte-stability is a contract about this fixture's OUTPUT, not a freeze on its
-# input. Story 006 group 10 made a group header that contradicts its own
-# sub-tasks a validation error, and this fixture carried that exact shape:
-# `- [x] 1 - Group` over an open `1.2`. The header is now `- [ ]`, which is the
-# true statement — the alternative, closing `1.2`, would fabricate completion to
-# satisfy the checker, which is the inversion of what the rule is for. Both
-# R5.1 goldens below were verified BYTE-IDENTICAL across the change: neither
-# validate-story.sh nor cross-reference.sh emits a box-state count, so the
-# rendered output never depended on which of the three boxes was open.
+# input. The group header is `- [ ]` because a header must agree with its open
+# sub-task `1.2` — closing `1.2` instead would fabricate completion to satisfy
+# the checker. Neither validate-story.sh nor cross-reference.sh emits a
+# box-state count, so the goldens below do not depend on which box is open.
 #
-# STORY 008 EXTENDED THE CROSS-REFERENCE OBJECT, and the golden was updated with
-# the new key rather than the key being suppressed to keep the bytes. The report
-# now carries `scale`, emitted on BOTH of its paths — the measured report below,
-# and the `{story, scale, status: "no-requirements-chain"}` object that a scale
-# owing no requirements chain gets instead of a measurement (design.md §5, R3.4).
-# It reads `standard` here because this fixture declares `scale: standard` in
-# both artifacts; a fixture declaring none anywhere would read a bare `null`.
-# THE EXTENSION IS PURELY ADDITIVE, and that is what makes it compatible with
-# R5.1's intent instead of a breach of it: every pre-existing key keeps its
-# position and its value byte for byte, so nothing reading `coverage`, `mapping`
-# or `status` moves. The positive reason the key is on both paths is that after
-# story 008 the RESOLVED scale is observable nowhere else in the system — every
-# other test of the resolution has to infer it from a downstream error message.
+# The cross-reference report carries `scale` on BOTH of its paths — the measured
+# report below, and the `{story, scale, status: "no-requirements-chain"}` object
+# that a scale owing no requirements chain gets instead of a measurement —
+# because the RESOLVED scale is observable nowhere else in the system. It reads
+# `standard` here because this fixture declares `scale: standard` in both
+# artifacts; a fixture declaring none anywhere would read a bare `null`. The key
+# is purely additive: every other key keeps its position and its value byte for
+# byte, so nothing reading `coverage`, `mapping` or `status` moves.
 #
-# AND THE PART WORTH THE PARAGRAPH. Story 008's design measured "the key set is
-# asserted nowhere" against tests/cross-reference.bats alone. That was true of
-# that suite and FALSE of the repository: THIS golden pins the whole object by
-# equality, it is the fifth pin the survey missed, and it was found only when the
-# sub-task's own full-suite run reddened here — one case, in a suite named after
-# checkboxes rather than after the script whose output it freezes. The next
-# person extending this object should sweep for full-object goldens
-# (`[ "$output" = "$expected" ]` over a heredoc) across EVERY suite, not only the
-# one named after the script.
+# This golden pins the whole cross-reference object by equality, in a suite
+# named after checkboxes rather than after the script. Whoever extends that
+# object must sweep every suite for full-object goldens
+# (`[ "$output" = "$expected" ]` over a heredoc), not only the suite named after
+# the script.
 write_legacy_fixture() { # writes $WORK/legacy/story — MUST stay byte-stable
   mkdir -p "$WORK/legacy/story"
   cat > "$WORK/legacy/story/story.md" <<'EOF'
@@ -200,7 +175,7 @@ created: 2026-01-10
 EOF
 }
 
-# snapshot_fixture / assert_fixture_untouched — R2.4. The shared fixture is read
+# snapshot_fixture / assert_fixture_untouched. The shared fixture is read
 # by every case in this file; a comparison that writes to it would make the
 # suite order-dependent, which is the one failure a cross-regression harness
 # cannot afford. Snapshot before the run, diff after.
@@ -216,9 +191,7 @@ assert_fixture_untouched() {
   fi
 }
 
-# load_roster — the declared roster (story 017 sub-task 1.1), used by the
-# closing case. MERGE NOTE: if tests/checkbox-grammar.bats ends up defining
-# this helper elsewhere, keep one copy.
+# load_roster — sources the declared consumer roster, used by the closing case.
 load_roster() {
   local lib="$PLUGIN_ROOT/tests/lib/checkbox-consumers.sh"
   if [ ! -f "$lib" ]; then
@@ -229,14 +202,14 @@ load_roster() {
   source "$lib"
 }
 
-@test "R4.1: validate-story accepts the mixed fixture with zero errors" {
+@test "validate-story accepts the mixed fixture with zero errors" {
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$MIXED"
   [ "$status" -eq 0 ]
   echo "$output" | grep -q '"errors": 0'
   refute_grep 'no parseable checkbox tasks'
 }
 
-@test "R4.1: cross-reference sees all 5 boxes and traces all 5 requirements" {
+@test "cross-reference sees all 5 boxes and traces all 5 requirements" {
   run bash "$PLUGIN_ROOT/scripts/cross-reference.sh" "$MIXED"
   [ "$status" -eq 0 ]
   echo "$output" | grep -q '"status": "clean"'
@@ -248,90 +221,40 @@ load_roster() {
   echo "$output" | grep -qF '"R1.4": ["1.4"]'
 }
 
-@test "R4.1: hook-task-completed recognizes the mixed story and passes it" {
-  cd "$WORK/proj"
-  run env CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$PLUGIN_ROOT/scripts/hook-task-completed.sh"
-  [ "$status" -eq 0 ]
-}
-
-@test "R4.1: monitor-stale agrees — open [ ] pending, deferred/terminal [~] not pending" {
+@test "monitor-stale agrees — open [ ] pending, deferred/terminal [~] not pending" {
   # Mixed fixture has one [ ] box: an old story IS stale.
   touch -d '30 days ago' "$MIXED/tasks.md"
   cd "$WORK/proj"
-  run timeout 2 env \
-    CLAUDE_PLUGIN_OPTION_ENABLESTALEMONITOR=true \
-    CLAUDE_PLUGIN_OPTION_STALETHRESHOLDDAYS=7 \
-    CLAUDE_PLUGIN_OPTION_STALECHECKINTERVALSECONDS=10 \
-    bash "$PLUGIN_ROOT/scripts/monitor-stale.sh"
-  [ "$status" -eq 124 ]
+  run timeout 5 bash "$PLUGIN_ROOT/scripts/monitor-stale.sh" --story-days 7
+  [ "$status" -eq 0 ]
   echo "$output" | grep -q '010-mixed'
 
   # Close the last [ ]: only [x] + [~] remain — no pending work, not stale.
   sed -i 's/^- \[ \] 1.5/- [x] 1.5/' "$MIXED/tasks.md"
   touch -d '30 days ago' "$MIXED/tasks.md"
-  run timeout 2 env \
-    CLAUDE_PLUGIN_OPTION_ENABLESTALEMONITOR=true \
-    CLAUDE_PLUGIN_OPTION_STALETHRESHOLDDAYS=7 \
-    CLAUDE_PLUGIN_OPTION_STALECHECKINTERVALSECONDS=10 \
-    bash "$PLUGIN_ROOT/scripts/monitor-stale.sh"
-  [ "$status" -eq 124 ]
+  run timeout 5 bash "$PLUGIN_ROOT/scripts/monitor-stale.sh" --story-days 7
+  [ "$status" -eq 0 ]
   refute_grep '010-mixed'
 }
 
-@test "R4.1: hook-precompact renders the census the other consumers parse" {
+@test "hook-session-restore renders the census the other consumers parse" {
   cd "$WORK/proj"
-  run bash "$PLUGIN_ROOT/scripts/hook-precompact.sh"
+  run bash -c "bash '$PLUGIN_ROOT/scripts/hook-session-restore.sh' > '$WORK/snapshot.md'"
   [ "$status" -eq 0 ]
-  run grep '^- Tasks:' "$MIXED/.draft/compact-snapshot.md"
+  run grep '^- Tasks:' "$WORK/snapshot.md"
   # Same shared truth as the header: total 5, closed 3, deferred 1.
   [ "$output" = "- Tasks: 3/5 completed (+1 deferred)" ]
 }
 
-@test "R4.1: hook-post-tool-failure counts terminal [~] as closed — the reminder still fires" {
-  # The sixth consumer, and the quietest one: its guard needs one closed box and
-  # one open [ ]. Here the finished work was all closed WITHOUT execution — no
-  # [x] anywhere — which the binary guard read as "not mid-run", swallowing the
-  # executor Step-4 reminder on a Bash failure.
-  sed -i 's/^- \[x\] 1.1 - First done/- [~] 1.1 - First done (n-a: covered by construction)/' "$MIXED/tasks.md"
-  sed -i 's/^- \[x\] 1.2 - Second done/- [~] 1.2 - Second done (superseded-by: 011)/' "$MIXED/tasks.md"
-  cd "$WORK/proj"
-  run bash "$PLUGIN_ROOT/scripts/hook-post-tool-failure.sh" <<< '{"tool_name":"Bash"}'
-  [ "$status" -eq 0 ]
-  echo "$output" | grep -q 'Per executor Step 4 protocol'
-  echo "$output" | grep -qF '010-mixed'
-  # And it still points at the next OPEN box, never at a [~] one.
-  echo "$output" | grep -qF '1.5 - Still open'
-}
-
-@test "R4.1: hook-post-tool-failure — a deferred box does not close, so nothing is mid-run" {
-  # Every box now open or deferred: this run has produced nothing, so there is
-  # no Step-4 protocol to remind anyone about. Same reading as the closed count.
-  sed -i 's/^- \[x\] 1.1 - First done/- [ ] 1.1 - First done/' "$MIXED/tasks.md"
-  sed -i 's/^- \[x\] 1.2 - Second done/- [ ] 1.2 - Second done/' "$MIXED/tasks.md"
-  sed -i 's/(waived: tool absent)/(deferred: waiting on the vendor)/' "$MIXED/tasks.md"
-  cd "$WORK/proj"
-  run bash "$PLUGIN_ROOT/scripts/hook-post-tool-failure.sh" <<< '{"tool_name":"Bash"}'
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]
-}
-
-@test "R5.1: hook-post-tool-failure — the binary [x] + [ ] story behaves exactly as before" {
-  cd "$WORK/proj"
-  run bash "$PLUGIN_ROOT/scripts/hook-post-tool-failure.sh" <<< '{"tool_name":"Bash"}'
-  [ "$status" -eq 0 ]
-  echo "$output" | grep -q 'Per executor Step 4 protocol'
-  echo "$output" | grep -qF '1.5 - Still open'
-}
-
-@test "R3.3/R3.4: only-deferred fixture — no work is open, and the deferred box is not hidden" {
-  # The scenario task 3.2 claimed was covered and was not. Close the last [ ]:
+@test "only-deferred fixture — no work is open, and the deferred box is not hidden" {
+  # Close the last [ ]:
   # what remains is [x] + terminal [~] + one deferred [~]. By the single
   # completion definition nothing is pending, and the story's computed
   # condition is done-except-external (1 deferred).
   sed -i 's/^- \[ \] 1.5/- [x] 1.5/' "$MIXED/tasks.md"
 
   # A persisted `validated` here must NOT trip the ahead-of-checkboxes warning
-  # (R2.3 counts `[ ]` only) — this is what lets a done-except-external story
+  # (that warning counts `[ ]` only) — this is what lets a done-except-external story
   # go in-progress -> validated, skipping done.
   sed -i 's/^created: 2026-08-02$/created: 2026-08-02\nstatus: validated/' \
     "$MIXED/tasks.md" "$MIXED/story.md"
@@ -351,21 +274,19 @@ load_roster() {
   # The renderer reports 4 closed of 5, with the one deferred box counted apart
   # rather than folded into either number.
   cd "$WORK/proj"
-  run bash "$PLUGIN_ROOT/scripts/hook-precompact.sh"
+  run bash -c "bash '$PLUGIN_ROOT/scripts/hook-session-restore.sh' > '$WORK/snapshot.md'"
   [ "$status" -eq 0 ]
-  run grep '^- Tasks:' "$MIXED/.draft/compact-snapshot.md"
+  run grep '^- Tasks:' "$WORK/snapshot.md"
   [ "$output" = "- Tasks: 4/5 completed (+1 deferred)" ]
 
   # And nothing is pending: no "Next pending" line is emitted.
-  run grep -c '^- Next pending:' "$MIXED/.draft/compact-snapshot.md"
+  run grep -c '^- Next pending:' "$WORK/snapshot.md"
   [ "$output" = "0" ]
 }
 
-@test "R4.1: the malformed-but-qualified shape — validate-story and hook-precompact agree on it" {
-  # `- [~]waived: …` with no space after the box. validate-story read it as a
-  # closed box while hook-precompact's grep pipeline counted it as neither
-  # closed nor deferred (found by the second validate-mode pass, fixed in 6.5).
-  # Replacing the terminal [~] of the mixed fixture with this shape must not
+@test "the malformed-but-qualified shape — validate-story and hook-session-restore agree on it" {
+  # `- [~]waived: …` with no space after the box must be read identically by
+  # validate-story and hook-session-restore. Replacing the terminal [~] of the mixed fixture with this shape must not
   # move the census: same 5 boxes, same 3 closed, same 1 deferred.
   sed -i 's/^- \[~\] 1.3 - Waived gate (waived: tool absent)/- [~]waived: tool absent/' "$MIXED/tasks.md"
 
@@ -375,13 +296,13 @@ load_roster() {
   refute_grep 'has no qualifier'
 
   cd "$WORK/proj"
-  run bash "$PLUGIN_ROOT/scripts/hook-precompact.sh"
+  run bash -c "bash '$PLUGIN_ROOT/scripts/hook-session-restore.sh' > '$WORK/snapshot.md'"
   [ "$status" -eq 0 ]
-  run grep '^- Tasks:' "$MIXED/.draft/compact-snapshot.md"
+  run grep '^- Tasks:' "$WORK/snapshot.md"
   [ "$output" = "- Tasks: 3/5 completed (+1 deferred)" ]
 }
 
-@test "R4.1: close-subtask — the seventh consumer, and the only one that WRITES" {
+@test "close-subtask — the one consumer that WRITES the grammar" {
   # A WRITER IS COMPARED THROUGH ITS `census` OBJECT. That object is the
   # script's own reading of the grammar — it re-reads tasks.md after marking it
   # — so it is the comparable surface every reader above hands over directly in
@@ -392,7 +313,7 @@ load_roster() {
   # read, and this is the one consumer that would write to it. The copy keeps
   # the proj/.epic/stories/010-mixed shape so the script resolves the story
   # exactly as a real caller's does.
-  COPY=$(mktemp -d "$WORK/seventh.XXXXXX")
+  COPY=$(mktemp -d "$WORK/close.XXXXXX")
   mkdir -p "$COPY/proj/.epic/stories"
   cp -r "$MIXED" "$COPY/proj/.epic/stories/010-mixed"
   cd "$COPY/proj"
@@ -411,8 +332,8 @@ load_roster() {
   echo "$output" | jq -e '.census.total == 5 and .census.open == 0 and .census.closed == 4 and .census.deferred == 1'
 }
 
-@test "R2.1/R2.4: archive-story.sh — the same five boxes, partitioned for the manifest" {
-  # THE MAPPING THIS CASE ASSERTS, MEASURED RATHER THAN ASSUMED. archive-story
+@test "archive-story.sh — the same five boxes, partitioned for the manifest" {
+  # THE MAPPING THIS CASE ASSERTS. archive-story
   # reports three DISJOINT numbers a manifest reader must be able to add up, so
   # `closed` is [x] AND ONLY [x], and EVERY [~] — terminal or deferred — is
   # `deferred`. Against the shared truth that is:
@@ -423,7 +344,7 @@ load_roster() {
   # so the two readings differ by exactly one box, in one direction, and their
   # sum is the same 4 settled boxes. Asserting `closed == 3` here would not
   # detect drift — it would demand archive-story change an aggregation it
-  # documents on purpose, which this story puts out of scope.
+  # documents on purpose.
   #
   # The verdict path used is the REFUSAL: one box is still open, so the story
   # is incomplete and nothing is moved — and the census is reported anyway,
@@ -454,8 +375,8 @@ load_roster() {
   assert_fixture_untouched
 }
 
-@test "R2.2/R2.4: epic-index.sh — the census the index renders folds the terminal [~] into done" {
-  # epic-index RENDERS FOR A HUMAN and reuses hook-precompact's split verbatim:
+@test "epic-index.sh — the census the index renders folds the terminal [~] into done" {
+  # epic-index RENDERS FOR A HUMAN and reuses hook-session-restore's split verbatim:
   # a terminal [~] closes the box, `deferred:` is reported apart. It emits no
   # `open` field at all, so the shared open count is recovered as
   # total − done − deferred — that arithmetic is the agreement, and it is
@@ -490,7 +411,7 @@ load_roster() {
   assert_fixture_untouched
 }
 
-@test "R2.3/R2.4: supersede-story.sh — the scope it carries is the open-or-deferred SET" {
+@test "supersede-story.sh — the scope it carries is the open-or-deferred SET" {
   # supersede's reading of the grammar decides WHAT MOVES: every `[ ]` and every
   # `[~] (deferred: …)` is scope still owed and must land in the successor;
   # `[x]` and a TERMINAL `[~]` are settled, and a row for either would claim
@@ -540,7 +461,7 @@ load_roster() {
   assert_fixture_untouched
 }
 
-@test "R5.1: legacy story — validate-story output is byte-identical to the pre-change golden" {
+@test "legacy story — validate-story output is byte-identical to the legacy golden" {
   write_legacy_fixture
   cd "$WORK/legacy"
   expected=$(cat <<'GOLDEN'
@@ -560,15 +481,12 @@ GOLDEN
   [ "$output" = "$expected" ]
 }
 
-# GOLDEN UPDATED ONCE SINCE, DELIBERATELY, and this is the second time. The key
-# set of cross-reference.sh grew `scale` (recorded at that script's emit block)
-# and now `satisfied_by` (story 014, R2.2), which reports a leaf answered by a
-# named non-code artifact instead of dropping it from the orphan list unnamed.
-# Both are contract EXTENSIONS: no existing key changed name, type or value, and
-# a legacy story still emits the empty list. This golden's job is to make such a
-# change deliberate rather than to forbid it — it caught this one, which is the
-# case working.
-@test "R5.1: legacy story — cross-reference output is byte-identical to the pre-change golden" {
+# This golden makes any change to the cross-reference key set deliberate rather
+# than forbidding it. `scale` and `satisfied_by` (a leaf answered by a named
+# non-code artifact, reported instead of dropped from the orphan list unnamed)
+# are contract EXTENSIONS: no existing key changes name, type or value, and a
+# legacy story still emits the empty list.
+@test "legacy story — cross-reference output is byte-identical to the legacy golden" {
   write_legacy_fixture
   cd "$WORK/legacy"
   expected=$(cat <<'GOLDEN'
@@ -593,7 +511,7 @@ GOLDEN
   [ "$output" = "$expected" ]
 }
 
-@test "R2.1/R2.4: migrate-story.sh — the eleventh consumer, and the only one that REWRITES the grammar" {
+@test "migrate-story.sh — the one consumer that REWRITES the grammar" {
   # It reads the same five boxes to decide there is nothing to normalize. Every
   # shape in the shared fixture is already canonical — [x], terminal [~],
   # deferred [~], [ ] — and the group carries a Commit FIELD rather than a
@@ -628,18 +546,16 @@ LEGACY
   grep -qF -- '- Commit: "feat(010): the legacy shape"' "$MIXED/tasks.md"
 }
 
-@test "R1.5/R2.5: every declared consumer is compared by a case in this harness" {
-  # THE LOOP CLOSER. Story 017's derivation reddens when a script under
+@test "every declared consumer is compared by a case in this harness" {
+  # THE LOOP CLOSER. The roster derivation reddens when a script under
   # scripts/ reads the grammar and is not on the roster. This is the other
   # direction: a name ON the roster that no case here compares. Without it,
   # registering a script — one line of data — turns the derivation green while
-  # its copy of the regex stays unmeasured, which is exactly the state the
-  # three consumers pinned above were in.
+  # its copy of the regex stays unmeasured.
   #
   # The check is on @test TITLES, so the convention it enforces is that a
   # comparison case names the consumer it compares. That convention is what
-  # makes this harness readable at all, and it is already true of every case
-  # here.
+  # makes this harness readable at all.
   load_roster
   HARNESS="$PLUGIN_ROOT/tests/checkbox-grammar.bats"
   [ -f "$HARNESS" ]

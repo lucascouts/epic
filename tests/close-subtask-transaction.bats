@@ -1,22 +1,20 @@
 #!/usr/bin/env bats
-# Story 010, sub-tasks 2.1 and 2.2 — marking and status as ONE transaction
-# inside scripts/close-subtask.sh (R2.1, R2.2, R2.3, R2.4, R1.5).
-# Authored by the Test Advisor BEFORE implementation (TDD Red phase).
+# Marking and status as ONE transaction inside scripts/close-subtask.sh.
 #
-# Contract under test (design.md, component 1, status transaction):
+# Contract under test (status transaction):
 #   after the box write the script runs the census, applies run-mode's 4
 #   transition rules, stamps `status:` in every artifact carrying frontmatter,
 #   self-invokes validate-story.sh, and emits ONE JSON object:
 #   {story, task, box, qualifier, census: {total, open, closed, deferred},
 #    status_written: {from, to} | null, validate: {errors, warnings, status}}
-# A validation failure never rolls the marking back (R2.4).
+# A validation failure never rolls the marking back.
 #
 # Census fixtures avoid terminal [~] where counts are asserted, so the
 # assertions pin the completion definition (tasks.md#completion), not one
 # consumer's private aggregation of terminal tildes.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so the draft copy under
-# .draft/authored-tests/tests/ can run before materialization into tests/.
+# EPIC_PLUGIN_ROOT overrides root resolution so a copy of this file outside
+# tests/ can run against the plugin.
 
 bats_require_minimum_version 1.5.0
 
@@ -115,10 +113,10 @@ run_close() {
 }
 
 # =====================================================================
-# Sub-task 2.1 — census + status transition + frontmatter stamping
+# Census + status transition + frontmatter stamping
 # =====================================================================
 
-@test "2.1 closing the last open box flips in-progress→done in every artifact (R2.1, R2.2)" {
+@test "closing the last open box flips in-progress→done in every artifact" {
   body_last_open | write_artifacts in-progress
   run_close 1.3
   [ "$status" -eq 0 ]
@@ -128,7 +126,7 @@ run_close() {
   [ "$(status_line_of "$STORY/design.md")" = done ]
 }
 
-@test "2.1 a deferred-only close never writes done (R2.1)" {
+@test "a deferred-only close never writes done" {
   body_last_open | write_artifacts in-progress
   run_close 1.3 --tilde "deferred: awaiting the live account"
   [ "$status" -eq 0 ]
@@ -138,7 +136,7 @@ run_close() {
   [ "$(status_line_of "$STORY/design.md")" = in-progress ]
 }
 
-@test "2.1 a terminal tilde close of the last box does write done (R2.1)" {
+@test "a terminal tilde close of the last box does write done" {
   body_last_open | write_artifacts in-progress
   run_close 1.3 --tilde "waived: tool absent"
   [ "$status" -eq 0 ]
@@ -146,7 +144,7 @@ run_close() {
   [ "$(status_line_of "$STORY/tasks.md")" = done ]
 }
 
-@test "2.1 first marking of a draft story writes in-progress everywhere (R2.1)" {
+@test "first marking of a draft story writes in-progress everywhere" {
   body_all_open | write_artifacts draft
   run_close 1.1
   [ "$status" -eq 0 ]
@@ -156,7 +154,7 @@ run_close() {
   [ "$(status_line_of "$STORY/design.md")" = in-progress ]
 }
 
-@test "2.1 legacy story with no status field gains status: in-progress (R2.1)" {
+@test "legacy story with no status field gains status: in-progress" {
   body_all_open | write_artifacts ""
   run_close 1.1
   [ "$status" -eq 0 ]
@@ -165,7 +163,7 @@ run_close() {
   [ "$(status_line_of "$STORY/story.md")" = in-progress ]
 }
 
-@test "2.1 a close that leaves open boxes on an in-progress story writes no transition (R2.1)" {
+@test "a close that leaves open boxes on an in-progress story writes no transition" {
   body_all_open | write_artifacts in-progress
   run_close 1.1
   [ "$status" -eq 0 ]
@@ -173,7 +171,7 @@ run_close() {
   [ "$(status_line_of "$STORY/tasks.md")" = in-progress ]
 }
 
-@test "2.1 an open Quality-Gate box blocks done — the census spans the gates (R2.1)" {
+@test "an open Quality-Gate box blocks done — the census spans the gates" {
   { body_last_open; printf -- '- [ ] Schema diff reviewed by the data owner\n'; } |
     write_artifacts in-progress
   run_close 1.3
@@ -182,7 +180,7 @@ run_close() {
   [ "$(status_line_of "$STORY/tasks.md")" = in-progress ]
 }
 
-@test "2.1 the census in the JSON matches the boxes as they now stand (R2.1)" {
+@test "the census in the JSON matches the boxes as they now stand" {
   # 1.1 [x] · 1.2 [ ] (about to close) · 1.3 [~] deferred — no terminal [~],
   # so the counts are consumer-independent: total 3, open 0, closed 2, deferred 1.
   { cat <<'EOF'
@@ -209,10 +207,10 @@ EOF
 }
 
 # =====================================================================
-# Sub-task 2.2 — self-validation + the one JSON report
+# Self-validation + the one JSON report
 # =====================================================================
 
-@test "2.2 one JSON object with the full key set, hostile reason escaped (R1.5)" {
+@test "one JSON object with the full key set, hostile reason escaped" {
   body_all_open | write_artifacts in-progress
   run_close 1.1 --tilde 'deferred: needs "quotes" and a \ tail'
   [ "$status" -eq 0 ]
@@ -222,23 +220,23 @@ EOF
   echo "$output" | jq -e '.qualifier == "deferred"'
 }
 
-@test "2.2 a reason carrying a newline still yields parseable JSON (R1.5)" {
+@test "a reason carrying a newline still yields parseable JSON" {
   body_all_open | write_artifacts in-progress
   run_close 1.1 --tilde $'deferred: first line\nsecond line'
   [ "$status" -eq 0 ]
   echo "$output" | jq empty
 }
 
-@test "2.2 the embedded validate verdict is present and clean on a clean story (R2.3)" {
+@test "the embedded validate verdict is present and clean on a clean story" {
   body_last_open | write_artifacts in-progress
   run_close 1.3
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.validate.errors == 0 and (.validate | has("warnings") and has("status"))'
 }
 
-@test "2.2 a validation error is surfaced and does NOT roll back the marking (R2.4)" {
+@test "a validation error is surfaced and does NOT roll back the marking" {
   # Standard scale with checkbox tasks but zero Requirements: fields — a
-  # calibrated validate-story.sh ERROR ("has N tasks but no 'Requirements:'
+  # validate-story.sh ERROR ("has N tasks but no 'Requirements:'
   # fields"). The close still lands and still exits 0.
   { cat <<'EOF'
 ## Task List
@@ -258,16 +256,14 @@ EOF
 }
 
 # =====================================================================
-# Story 016, sub-task 1.3 — the two transition arms story 010 argued in
-# a comment and pinned with no test
+# Rule 2 (reopen) and rule 1's guard for statuses outside the enum
 #
 # Both arms live in close-subtask.sh's "3c. The four transition rules"
-# block. Both were implemented and reasoned about in prose, and prose
-# cannot fail — so neither could ever report its own regression. These
-# two cases give each arm a failing run to lose.
+# block, and a plain close never exercises either. Prose cannot fail, so
+# each arm gets a case that fails if it regresses.
 # =====================================================================
 
-@test "1.3 rule 2 — a done story with work still owed reopens to in-progress (R2.1)" {
+@test "rule 2 — a done story with work still owed reopens to in-progress" {
   # WHY: a story with an open box still owes work, and a story that owes
   # work is not done. So the marking that finds `done` sitting over a
   # leftover `[ ]` does not merely decline to write — it REOPENS, walking
@@ -289,7 +285,7 @@ EOF
   [ "$(status_line_of "$STORY/design.md")" = in-progress ]
 }
 
-@test "1.3 rule 1 leaves a status outside the enum alone — superseded survives (R2.1)" {
+@test "rule 1 leaves a status outside the enum alone — superseded survives" {
   # WHY: `superseded` and `archived` are terminal, and both legitimately
   # sit over a fully-closed census — validate-story.sh says so in those
   # words ("neither is a state rule 1 would overwrite with `done`") while

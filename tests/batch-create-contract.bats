@@ -1,9 +1,7 @@
 #!/usr/bin/env bats
-# Integration tests for the helper ↔ reference ↔ router contract
-# (story 013 — quick-create, task 4.1).
-# Authored by the Test Advisor BEFORE implementation (TDD Red phase).
+# Integration tests for the helper ↔ reference ↔ router contract.
 #
-# Three-way contract under test (design.md components 1 and 3):
+# Three-way contract under test:
 #   - references/batch-create.md documents the allocator's JSON keys
 #     (`next`, `reserved`, `collisions`) and they round-trip EXACTLY against
 #     a live run of scripts/next-story-number.sh on a fixture tree — every
@@ -11,13 +9,13 @@
 #   - the SKILL Mode Dispatch batch row and references/batch-create.md
 #     cross-resolve, and the reference names the real allocator script
 #   - batch-create.md cites list-mode.md's batch-verdict grammar by anchor
-#     and that anchor exists (single-definition rule, story Constraints)
+#     and that anchor exists (single-definition rule)
 #
 # Fidelity: every scenario reads the real files and executes the real
 # allocator — no stubs, no inline copies of the reference prose.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so the draft copy under
-# .draft/authored-tests/tests/ can run before materialization into tests/.
+# EPIC_PLUGIN_ROOT overrides root resolution so the suite can run against a
+# plugin tree other than its parent directory.
 
 bats_require_minimum_version 1.5.0
 
@@ -42,7 +40,7 @@ slug() {
     | sed -e 's/[^a-z0-9 -]//g' -e 's/ /-/g'
 }
 
-@test "4.1: documented JSON keys round-trip against a live allocator run" {
+@test "documented JSON keys round-trip against a live allocator run" {
   [ -f "$REF" ]
   mkdir "$WORK/.epic/stories/003-fixture"
   out=$( cd "$WORK" && bash "$SCRIPT" --reserve 1 )
@@ -58,7 +56,7 @@ slug() {
   done < <(echo "$out" | jq -r 'keys_unsorted[]')
 }
 
-@test "4.1: SKILL dispatch row, reference and allocator cross-resolve" {
+@test "SKILL dispatch row, reference and allocator cross-resolve" {
   # router -> reference: a Mode Dispatch table row for batch names the file
   command grep -Eq '\|.*[Bb]atch.*\|.*batch-create\.md' "$SKILL"
   [ -f "$REF" ]
@@ -69,7 +67,7 @@ slug() {
   bash -n "$SCRIPT"
 }
 
-@test "4.1: the list-mode grammar anchor cited by batch-create.md exists" {
+@test "the list-mode grammar anchor cited by batch-create.md exists" {
   [ -f "$REF" ]
   anchor=$(command grep -o 'list-mode\.md#[a-z0-9-]*' "$REF" | head -1)
   [ -n "$anchor" ]

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Supersedes story NNN with story MMM — the MECHANICAL half of the supersede
-# operation (references/supersede-mode.md; design.md component 3, amended v8).
+# operation (references/supersede-mode.md).
 #
 # Usage: bash scripts/supersede-story.sh <NNN|story-dir> --by <MMM>
 #        [--rationale <text>] [--remap <N.N=target>]...
@@ -26,14 +26,11 @@
 # first one is FORCING:
 #   1. bats' `run` MERGES stderr into `$output` unless it is told not to
 #      (`--separate-stderr`), so a diagnostic lands in the middle of the object
-#      the caller is parsing. Thirteen of the fifteen cases in
-#      tests/supersede-story.bats pipe that `$output` into jq. One byte on
-#      stderr turns every one of them red — and, more to the point, would turn
-#      any consumer that pipes stdout into jq red the same way. Silence keeps
+#      the caller is parsing, and would turn any consumer that pipes stdout
+#      into jq red the same way. Silence keeps
 #      "one JSON object on stdout" true for every caller, not only the careful
 #      ones.
-#   2. The split design.md component 3 makes: supersede's CONVERSATION belongs
-#      to the orchestrator, which reads `reason` / `index_error` out of the
+#   2. Supersede's CONVERSATION belongs to the orchestrator, which reads `reason` / `index_error` out of the
 #      report and says them in the session's own voice. A second,
 #      differently-worded copy on stderr would be a second author for the same
 #      sentence.
@@ -47,7 +44,7 @@
 #                          guard is positive on purpose: a banner-bearing story
 #                          is handed to the recovery classification first, whose
 #                          rows are disjoint AND exhaustive, so no state can
-#                          fall through to a second banner (R3.5)
+#                          fall through to a second banner
 #   3. close, THEN flip .. every open sub-task closes as `[~] (superseded-by:
 #                          MMM)` first; only then does `status: superseded` plus
 #                          `superseded-by: MMM` land in every artifact. The
@@ -57,7 +54,7 @@
 #   4. index ............. regenerated; a non-zero exit warns in the report and
 #                          never blocks — the index is a RENDERING of the op
 #   5. offer ............. NOT here. The archive offer is conversational and
-#                          stays with the orchestrator (design.md component 3).
+#                          stays with the orchestrator.
 #
 # The `Edit`-not-`Write` constraint of the prose procedure is met by
 # construction: the validate hook's PostToolUse matcher observes Claude's tool
@@ -94,7 +91,7 @@ Flags:
                     Authorize completion of an INTERRUPTED prior run. Without
                     it, such a run is reported as `recovery-offer` and NOTHING
                     is written, so the caller can offer the completion to the
-                    user (R3.5) or decline it by not re-invoking. It has no
+                    user or decline it by not re-invoking. It has no
                     effect on a fresh run or on any refusal — the offer is the
                     one thing it unlocks, and it can never create a banner.
   --help, -h        Show this help
@@ -225,8 +222,7 @@ usage_error() {
 
 # refuse: the matrix said no, a banner-bearing state cannot be honestly
 # completed, or one of step 3's writes failed. WHAT HAS BEEN WRITTEN BY THEN
-# DEPENDS ON WHERE THE REFUSAL IS RAISED — this comment used to claim
-# "nothing, by construction", which two of the call sites below break:
+# DEPENDS ON WHERE THE REFUSAL IS RAISED — it is not "nothing" everywhere:
 #   - Story resolution, step 1 and step 2 leave the story untouched by THIS
 #     run, and each of those refusals says so in its own message. The three
 #     recovery arms do refuse over a banner, but it is a PRIOR run's; and
@@ -235,7 +231,7 @@ usage_error() {
 #   - Step 3's two — the closure rewrite and the status flip — run AFTER the
 #     banner is in place, the flip after the closures, and flip_all can have
 #     flipped some artifacts before failing. That is close-then-flip working
-#     as designed (R3.3): the story is left visibly unfinished, never falsely
+#     as designed: the story is left visibly unfinished, never falsely
 #     complete, and a re-run finishes it. Their messages say so as well.
 # The REPORT is what says which of the two happened, not this comment:
 # emit_report runs on every refusal, and its banner_written, closed_subtasks
@@ -256,16 +252,14 @@ finish() {
 }
 
 # offer_recovery: an interrupted prior run was found and completing it was NOT
-# authorized. R3.5 says the system SHALL *offer* to complete — an offer is a
+# authorized. Completion is OFFERED, never assumed — an offer is a
 # question, so the script's half is to report what remains and write nothing;
 # the `[y/n]` and its headless branch belong to the caller, exactly as the
-# archive offer does (R3.6). Raised at the ONE point where the recovery arms
+# archive offer does. Raised at the ONE point where the recovery arms
 # have already refused everything they refuse and no write has yet happened
 # this run, so the report's banner_written/closed_subtasks/artifacts_flipped are
-# all empty by construction rather than by promise. Exit 1 is deliberate and is
-# what finally makes design.md's Interface sentence true: it defines exit 1 as
-# "refused (matrix) or recovery declined", and until this path existed there
-# was no declined arm anywhere in the script.
+# all empty by construction rather than by promise. Exit 1 is deliberate: it
+# means "refused (matrix) or recovery declined".
 offer_recovery() {
   STATUS="recovery-offer"
   REASON="$1"
@@ -387,7 +381,7 @@ SUBTASK_RE='^([[:space:]]*)- \[([ x~])\][[:space:]]+([0-9]+\.[0-9]+)[[:space:]]+
 DEFERRED_RE='(^|[^[:alnum:]_-])deferred:'
 QUALIFIER_RE='^(.*[^[:space:]])[[:space:]]*\((deferred|waived|n-a|superseded-by):[^)]*\)[[:space:]]*$'
 
-# OPEN scope, and the definition is R3.2's: every `[ ]` and every
+# OPEN scope is every `[ ]` and every
 # `[~] (deferred: …)`. Deferred work is still owed, so it must land somewhere;
 # `[x]` and a TERMINAL `[~]` are settled and a row for either would claim scope
 # moved that never did.
@@ -462,11 +456,9 @@ scan_open_subtasks() {
 REWRITE_EOL=""   # the artifact's own line ending, for the lines an emitter ADDS
 
 rewrite_file() {
-  # ONE NAME PER `local`, and do NOT fold these back into one statement: in
+  # ONE NAME PER `local`, and do NOT fold these into one statement: in
   # bash 5.3 a `local a=1 b=$a` declares BOTH names first, so `$a` expands to
   # the just-declared (still unset) local and the run aborts under `set -u`.
-  # The first version of this script did fold them, and every write path died
-  # on `f: unbound variable`.
   local f="$1"
   local emitter="$2"
   local tmp="$f.epic-supersede.tmp"
@@ -609,7 +601,7 @@ banner_lines() {
 }
 
 # insert_banner <file> — prepend the banner immediately below the frontmatter
-# block, before any other content. The blank line the artifact used to separate
+# block, before any other content. The blank line that separates
 # frontmatter from body is re-created BELOW the banner rather than above it, so
 # the banner is the first thing a reader opening the file sees.
 insert_banner() {
@@ -621,7 +613,7 @@ insert_banner() {
 # banner_present <file> — the guard step 2 reads, and it is DELIBERATELY LOOSE:
 # any `⛔ SUPERSEDED` anywhere in the file counts. A tighter match (the exact
 # heading this script writes) would let a hand-made or older banner slip past
-# and become a second one, and R3.5 forbids a second banner unconditionally —
+# and become a second one, and a second banner is never allowed —
 # the guard is positive ("write only when there is none"), so being generous
 # about what counts as a banner is the fail-closed direction.
 banner_present() {
@@ -630,8 +622,8 @@ banner_present() {
 
 # --- The two observations recovery classifies on ----------------------------
 # Neither asks "is there a banner" — that question is already answered by the
-# time these are called, and answering it twice is what let a *complete* prior
-# run and an *interrupted* one collide at design v3. Completeness is what
+# time these are called, and answering it twice would make a *complete* prior
+# run and an *interrupted* one indistinguishable. Completeness is what
 # separates them, and it is these two axes.
 
 # status_state — n/a | none | some | all, over the artifacts that HAVE
@@ -642,10 +634,9 @@ banner_present() {
 # `n/a` is the fourth value the spec's table does not enumerate, because only
 # the tasks.md banner fallback can reach it: a story where NO artifact carries
 # frontmatter has no status to write, so the axis is not observable — not
-# "nothing written yet". Reporting it as `none` is what a first draft did, and
-# it made every re-run of such a story answer `completed` forever: `none` can
-# never become `all`, so the *Complete* row was unreachable and R3.5's refusal
-# with it. Reporting it as `all` fails the other way, refusing an interrupted
+# "nothing written yet". Reporting it as `none` would make every re-run of
+# such a story answer `completed` forever: `none` can never become `all`, so the
+# *Complete* row and its refusal would be unreachable. Reporting it as `all` fails the other way, refusing an interrupted
 # run as unproducible. The axis is genuinely absent, so it says so, and the two
 # cells below decide on the box axis alone — which is all completeness can mean
 # when there is no status to write.
@@ -680,7 +671,7 @@ open_state() {
 
 # --- Closure (step 3, first half) -------------------------------------------
 # Every open sub-task closes as `[~] (superseded-by: MMM)`, qualifier on the
-# same line per story 004's grammar. On a DEFERRED box the `deferred:` qualifier
+# same line per the checkbox grammar (references/tasks.md#checkbox-grammar). On a DEFERRED box the `deferred:` qualifier
 # is REPLACED, never joined: a line carrying both stays owed, because
 # `deferred:` wins the census — and a story that still owes work is not the
 # terminal, archivable state this step exists to reach.
@@ -725,7 +716,7 @@ close_subtasks() {
 # --- The status pair (step 3, second half) ----------------------------------
 # `status: superseded` plus the machine-readable companion `superseded-by: MMM`,
 # in every artifact that HAS frontmatter. The companion is what epic-index.sh
-# reads to render the supersede target (R3.7), and its reader stops at the
+# reads to render the supersede target, and its reader stops at the
 # closing `---` — so the key has to be inside the block, next to the status it
 # qualifies, not merely somewhere in the file.
 #
@@ -814,7 +805,7 @@ flip_all() {
 
 # --- Index regeneration (step 4) --------------------------------------------
 # NNN renders as `superseded by MMM` because epic-index.sh REGENERATES the whole
-# managed block from disk state (R3.7) — the row is never rewritten in place,
+# managed block from disk state — the row is never rewritten in place,
 # which is what makes it correct by construction.
 #
 # A FAILURE HERE NEVER BLOCKS (references/supersede-mode.md, step 4: "a non-zero
@@ -860,7 +851,7 @@ TARGET=""
 BY_RAW=""
 RATIONALE=""
 RATIONALE_GIVEN=false
-# Recovery is OFFERED, not taken (R3.5). Default false: the safe default is the
+# Recovery is OFFERED, not taken. Default false: the safe default is the
 # one that writes nothing, because the caller can always re-invoke, and a run
 # that completed without being asked cannot be un-completed.
 COMPLETE_AUTHORIZED=false
@@ -991,7 +982,7 @@ unset _artifact
 # The banner lives in story.md. A tasks-only scale (fast, spike) has none, and
 # refusing those outright would make supersede unavailable to exactly the
 # stories most likely to be replaced wholesale — so the banner falls back to
-# tasks.md, which is that scale's front page. Recorded as a deviation.
+# tasks.md, which is that scale's front page.
 if [[ -f "$STORY_PATH/story.md" ]]; then
   BANNER_FILE="$STORY_PATH/story.md"
 else
@@ -999,12 +990,12 @@ else
 fi
 
 # ============================================================================
-# STEP 1 — VERIFY: rows 1-3 of the refusal matrix (R3.4)
+# STEP 1 — VERIFY: rows 1-3 of the refusal matrix
 # ============================================================================
 # Row 4 is NOT checked here, deliberately. Whether a prior supersede FINISHED is
 # the same judgement Interrupted-Run Recovery makes, so it is made once, in step
 # 2 — refusing here on the status alone would strand a run interrupted between
-# its status write and its closures, which is the collision design v3 shipped.
+# its status write and its closures.
 
 # Row 1 — NNN == MMM, asked TWICE because it is two questions. Here,
 # NUMERICALLY: `--by 6` and `--by 006` name story 006 however they are spelled,
@@ -1036,7 +1027,7 @@ fi
 
 BY_ID=$(basename "$BY_PATH")
 # What lands in `superseded-by:` is the NUMBER, because that is what
-# epic-index.sh resolves against and what story 004's qualifier grammar spells.
+# epic-index.sh resolves against and what the checkbox qualifier grammar spells.
 # The operator's own spelling already stands in BY_NUM when they gave a number
 # (`012` stays `012`); a directory name is reduced to the number it carries.
 if [[ ! "$BY_RAW" =~ ^[0-9]+$ ]]; then
@@ -1059,7 +1050,7 @@ if [[ "$STORY_PARENT" == "archive" || "$FM_STATUS" == "archived" ]]; then
 fi
 
 # ============================================================================
-# STEP 2 — BANNER, and the recovery classification that guards it (R3.5)
+# STEP 2 — BANNER, and the recovery classification that guards it
 # ============================================================================
 OP_DATE=$(date +%Y-%m-%d)
 if [[ "$RATIONALE_GIVEN" == true ]]; then
@@ -1085,8 +1076,7 @@ if banner_present "$BANNER_FILE"; then
   # The six cells below are the WHOLE product, written out one by one rather
   # than folded into conditions. Exhaustiveness is not decoration here: step 2
   # writes the banner unless a row stops it, so a state that matched NO row
-  # would fall straight through to a SECOND banner, which R3.5 forbids
-  # unconditionally. A `case` over the product cannot develop that gap silently
+  # would fall straight through to a SECOND banner, which is never allowed. A `case` over the product cannot develop that gap silently
   # — a missing cell is a visible hole in a list of six.
   STATUS_STATE=$(status_state)
   OPEN_STATE=$(open_state)
@@ -1119,20 +1109,20 @@ if banner_present "$BANNER_FILE"; then
 
   case "$RECOVERY" in
     refuse-complete)
-      refuse "story $STORY_ID already carries the supersede banner — re-running would duplicate it (R3.5)"
+      refuse "story $STORY_ID already carries the supersede banner — re-running would duplicate it"
       ;;
     refuse-unproducible)
       refuse "story $STORY_ID carries a supersede banner in a state this command cannot produce (status written with scope still open) — repair the frontmatter by hand, then re-run"
       ;;
     refuse-unclassified)
-      refuse "story $STORY_ID carries a supersede banner in a state this command cannot classify (status=$STATUS_STATE, open sub-tasks=$OPEN_STATE) — refusing rather than risking a second banner (R3.5)"
+      refuse "story $STORY_ID carries a supersede banner in a state this command cannot classify (status=$STATUS_STATE, open sub-tasks=$OPEN_STATE) — refusing rather than risking a second banner"
       ;;
   esac
   # Falling through means the prior run was INCOMPLETE. Recovery never touches
   # the banner — it is written at most once, ever — and redoes only what is
   # missing, in step 3's order.
   #
-  # R3.5 makes that completion an OFFER rather than an assumption, and this is
+  # That completion is an OFFER rather than an assumption, and this is
   # where the offer is raised. Everything above has already refused every state
   # that cannot be honestly finished, so reaching here means "finishable" — not
   # "authorized". Completing rewrites artifacts; only the caller knows whether a
@@ -1147,7 +1137,7 @@ if banner_present "$BANNER_FILE"; then
       n/a:yes) PENDING="its sub-tasks are still open" ;;
       *) PENDING="it stopped between its closures and its status writes" ;;
     esac
-    offer_recovery "story $STORY_ID carries the supersede banner from an INTERRUPTED prior run — $PENDING. Nothing was written by this run. Re-run with --complete-interrupted to finish the remaining steps; the banner is never written a second time (R3.5)"
+    offer_recovery "story $STORY_ID carries the supersede banner from an INTERRUPTED prior run — $PENDING. Nothing was written by this run. Re-run with --complete-interrupted to finish the remaining steps; the banner is never written a second time"
   fi
   BANNER_WRITTEN=false
   FINAL_STATUS="completed"
@@ -1160,7 +1150,7 @@ else
 fi
 
 # ============================================================================
-# STEP 3 — CLOSE, THEN FLIP. The order is the commit-point rule (R3.3)
+# STEP 3 — CLOSE, THEN FLIP. The order is the commit-point rule
 # ============================================================================
 if [[ -f "$STORY_PATH/tasks.md" ]]; then
   close_subtasks "$STORY_PATH/tasks.md" ||
@@ -1171,7 +1161,7 @@ flip_all ||
   refuse "cannot write the status pair into every artifact of '$STORY_PATH' — the closures are in place and the story reads unfinished; a re-run will finish it"
 
 # ============================================================================
-# STEP 4 — INDEX (R3.7). Warns, never blocks.
+# STEP 4 — INDEX. Warns, never blocks.
 # ============================================================================
 regenerate_index
 

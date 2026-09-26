@@ -10,7 +10,7 @@
 #       jq must never receive half a document
 #   T3  usage is summed per DISTINCT message.id. This is the whole reason the
 #       script exists as a script instead of a one-line jq: the transcript
-#       repeats the same usage on every content block, measured at 2.4x
+#       repeats the same usage on every content block
 #   T4  `events` and `unique_messages` are BOTH emitted, so the deduplication
 #       is visible rather than promised
 #   T5  isSidechain splits orchestrator from sub-agent
@@ -100,7 +100,7 @@ msg() {
 @test "T5: a claude -p stream marks a sub-agent by parent_tool_use_id, not isSidechain" {
   # The two stream shapes differ, and reading only isSidechain would attribute
   # every sub-agent token to the orchestrator on exactly the runs where
-  # delegation is what you are measuring. Measured: a `-p` stream carries no
+  # delegation is what you are measuring. A `-p` stream carries no
   # isSidechain field at all, and marks a child with a non-null parent.
   printf '{"type":"assistant","uuid":"p1","timestamp":"2026-09-16T10:00:00.000Z","message":{"id":"mp","model":"claude-opus-5","usage":{"input_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":50}}}\n' >> "$T"
   printf '{"type":"assistant","uuid":"c1","parent_tool_use_id":"toolu_abc","timestamp":"2026-09-16T10:00:01.000Z","message":{"id":"mc","model":"claude-haiku-4-5","usage":{"input_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":3}}}\n' >> "$T"
@@ -174,4 +174,19 @@ msg() {
   run --separate-stderr bash "$SCRIPT" --transcript "$T"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.unique_messages == 0 and .started == null' > /dev/null
+}
+
+@test "sub-agent transcripts in <session>/subagents/ are counted as subagent tokens" {
+  # Claude Code writes each sub-agent's transcript to its own file beside the
+  # session's; the session transcript itself carries none of those events.
+  d=$(mktemp -d)
+  mkdir -p "$d/s1/subagents"
+  printf '%s\n' '{"type":"assistant","timestamp":"2026-01-01T00:00:00Z","isSidechain":false,"message":{"id":"m1","model":"x","usage":{"input_tokens":10,"output_tokens":1}}}' > "$d/s1.jsonl"
+  printf '%s\n' '{"type":"assistant","timestamp":"2026-01-01T00:00:05Z","isSidechain":true,"message":{"id":"m2","model":"x","usage":{"input_tokens":7,"output_tokens":2}}}' > "$d/s1/subagents/agent-a.jsonl"
+  run bash "$BATS_TEST_DIRNAME/../scripts/story-telemetry.sh" --transcript "$d/s1.jsonl"
+  rm -rf "$d"
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq '.main.input')" = "10" ]
+  [ "$(echo "$output" | jq '.subagent.input')" = "7" ]
+  [ "$(echo "$output" | jq '.subagent_split_verified')" = "true" ]
 }

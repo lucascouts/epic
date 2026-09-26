@@ -32,9 +32,9 @@ Triggered by `/epic:epic stories refine NNN`.
 
 ## Red Evidence for Added Sub-tasks
 
-**Standard and Full at engineering level `project` or `product` only** ([engineering-level.md](engineering-level.md)). At `experiment` or `tool` a refine-added sub-task's test is written at run time like every other test of that story, and this section does not apply. Refine is the one mode that can add a sub-task to a story whose Phase 3 has already run. Phase 3 is where the Test Advisor authors a test per `Unit`/`Integration`/`E2E` sub-task, confirms it Red, and records that in `.draft/red-evidence.yaml` ([phase-gates.md](phase-gates.md#test-advisor-sub-agent-standard--full-during-phase-3)). A refinement that adds a task and stops at propagation produces a sub-task that **carries a `Tests:` field and has no authored test and no Red entry** — and nothing downstream notices, because every consumer was written assuming Phase 3 ran for the whole task list.
+**Standard and Full at engineering level `project` or `product` only** ([engineering-level.md](engineering-level.md)). At `experiment` or `tool` a refine-added sub-task's test is written at run time like every other test of that story, and this section does not apply. Refine is the one mode that can add a sub-task to a story whose Phase 3 has already run. Phase 3 is where the Test Advisor authors a test per `Unit`/`Integration`/`E2E` sub-task, confirms it Red, and records that in `.draft/red-evidence.yaml` ([phase-gates.md](phase-gates.md#test-advisor-sub-agent-standard--full-during-phase-3)). A refinement that adds a task and stops at propagation produces a sub-task that **carries a `Tests:` field and has no authored test and no Red entry** — and nothing downstream notices, because every consumer assumes Phase 3 ran for the whole task list.
 
-That assumption is stated as an absolute in two places: [validate-mode.md](validate-mode.md) and [auditor.md](../agents/auditor.md) both say *"every sub-task with a pre-authored test has an entry in `.draft/red-evidence.yaml` with `failed: true`; a missing entry is reported as a finding."* The finding is only ever reported for a sub-task that **has** a pre-authored test. A refine-added sub-task has none, so it is not missing evidence — it is invisible to the check, which is a different and quieter failure.
+The checks that read Red evidence state that assumption as an absolute: [validate-mode.md](validate-mode.md) and [auditor.md](../agents/auditor.md) both say *"every sub-task with a pre-authored test has an entry in `.draft/red-evidence.yaml` with `failed: true`; a missing entry is reported as a finding."* The finding is only ever reported for a sub-task that **has** a pre-authored test. A refine-added sub-task has none, so it is not missing evidence — it is invisible to the check, which is a different and quieter failure.
 
 So, for **each** sub-task the merge adds whose `Tests:` field is not `None`:
 
@@ -44,7 +44,7 @@ So, for **each** sub-task the merge adds whose `Tests:` field is not `None`:
 
 **If the Test Advisor cannot establish Red** — the behaviour already exists, the test cannot be run, the sub-task turns out not to be testable — do not invent an entry and do not silently drop the `Tests:` field. Record the reason in `.draft/deviations.yaml` and surface it with the delta, so the gap is a decision someone made rather than an absence nobody saw.
 
-**Why this is a step and not a gotcha.** It was measured, not anticipated: story 006's sub-task 12.3 was added by a refinement, shipped seven bats cases, and carries no `12.x` entry in its Red register at all. The story's own audit had enumerated "every sub-task carrying a non-`None` `Tests:` field" one group earlier and closed the one gap it found — a dated sweep with nothing to re-run it, which is why the next added sub-task reopened the class in silence.
+**Why this is a step and not a gotcha.** A one-time sweep for sub-tasks carrying a non-`None` `Tests:` field closes the gaps it finds and has nothing to re-run it: every later refinement that adds a sub-task would reopen the class in silence. Only a step that runs on every refinement keeps it closed.
 
 ## Status Census
 
@@ -52,7 +52,7 @@ Refine is the one mode that can **add** open work to a story that already reads 
 
 Exactly one rule may fire here:
 
-- **Rule 2, the reopen edge (R1.7, R1.8)** — the story reads `done` or `validated` and the merge left at least one `[ ]`: write `in-progress` to every artifact that carries frontmatter. Without this write the story would keep claiming it is finished while owing open work — the lie `validate-story.sh` reports as "status is ahead of the checkboxes".
+- **Rule 2, the reopen edge** — the story reads `done` or `validated` and the merge left at least one `[ ]`: write `in-progress` to every artifact that carries frontmatter. Without this write the story would keep claiming it is finished while owing open work — the lie `validate-story.sh` reports as "status is ahead of the checkboxes".
 - **Every other outcome leaves the field exactly as it was.** Refine is a writer of this one transition and of no other value: it never writes `draft`, `done`, `validated`, `superseded` or `archived`. A refinement observes that work was *added*, never that work was *finished* or that execution *started* — those are things only a run can see, and a story with no `status:` at all keeps having none.
 
 The write mechanism is defined once, in [run-mode.md](run-mode.md#status-transitions): `Edit` on the frontmatter line and never `Write`, the same value in every artifact, a failed write reported while the refinement continues. Do not restate it here.

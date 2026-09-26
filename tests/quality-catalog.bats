@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # The quality catalog, the story legend, the Quality: field and the generated
-# gates — the doc contract (story 024).
+# gates — the doc contract.
 #
 # The surface is agent-executed prose, so every case pins a BLOCK found by a
 # structural anchor and asserts a keyword inside it, case-insensitively. No

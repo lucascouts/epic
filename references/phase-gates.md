@@ -1,5 +1,16 @@
 # Phase Gates
 
+
+## Contents
+
+- [Gate Protocol](#gate-protocol)
+- [Cascade Rollback](#cascade-rollback)
+- [Section Progress](#section-progress)
+- [Reference Files Loaded Per Phase](#reference-files-loaded-per-phase)
+- [Architect Sub-agent (Full mode, before Phase 2)](#architect-sub-agent-full-mode-before-phase-2)
+- [Test Advisor Sub-agent (Standard + Full, during Phase 3)](#test-advisor-sub-agent-standard--full-during-phase-3)
+- [Reviewer Sub-agent (Full mode only)](#reviewer-sub-agent-full-mode-only)
+- [Traceability Check](#traceability-check)
 ## Gate Protocol
 
 Each phase: generate artifact > **write to disk** > notify user > gate (approve / request changes / abort).
@@ -15,8 +26,9 @@ Each phase: generate artifact > **write to disk** > notify user > gate (approve 
 - If the user rejects a phase, offer cascade rollback (see below)
 - If the user edits the file directly, read the updated version before proceeding to the next phase
 - If the user aborts, delete the entire story directory
+- In a headless run nobody reviews: the gate is taken as approved and the next phase starts ([triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage))
 
-**For a `layperson` requester the gate is one line, not a file review** — what will be built, in their words, and two answers: go on, or change something ([plain-register.md](plain-register.md#gates-are-one-line)). The artifact is written exactly as for anyone else; what changes is what they are asked to read. Measured: a beginner approved every document she was shown ("Aprovo, pode seguir") without being able to evaluate one. Every gate counts against the story's question budget ([SKILL.md](clarify.md#clarify-protocol)).
+**For a `layperson` requester the gate is one line, not a file review** — what will be built, in their words, and two answers: go on, or change something ([plain-register.md](plain-register.md#gates-are-one-line)). The artifact is written exactly as for anyone else; what changes is what they are asked to read. A layperson cannot evaluate a technical document, so their approval of one tells you nothing. Every gate counts against the story's question budget ([clarify.md](clarify.md#clarify-protocol)).
 
 ## Cascade Rollback
 
@@ -51,17 +63,17 @@ When a user rejects Phase N, determine the cause:
 
 3. Apply delta only after user approval, then regenerate the current phase.
 
-## Checkpoint Recovery
+## Section Progress
 
-During phase generation, save incremental progress to prevent data loss on interruption.
+During phase generation, save incremental progress so a **new** session can tell which sections are done. An interruption inside the same conversation needs none of this: `claude --continue` (or `--resume`) reopens it with the partial artifact already on disk. This ledger is not Claude Code's `/checkpoint` (an alias of `/rewind`).
 
-### Checkpoint File Format
+### Progress File Format
 
 Before generating each major section of an artifact, write a `.wip` file:
 
 ```yaml
 # .epic/stories/NNN-name/.draft/story.md.wip
-checkpoint: 3
+progress: 3
 sections_completed:
   - frontmatter
   - introduction
@@ -72,10 +84,10 @@ sections_pending:
   - remaining-sections
 ```
 
-The partial artifact is written to disk incrementally. A checkpoint marker is inserted:
+The partial artifact is written to disk incrementally. A progress marker is inserted:
 
 ```markdown
-<!-- CHECKPOINT:3 — resume from here -->
+<!-- PROGRESS:3 — resume from here -->
 ```
 
 ### Resume Procedure
@@ -84,7 +96,7 @@ On detecting a `.wip` file:
 
 1. Read the `.wip` to determine progress
 2. Present: "Found incomplete Phase N (M/T sections written: [list]). Resume from [next section], or restart Phase N?"
-3. If resume: read the partial artifact, continue generating from the checkpoint marker
+3. If resume: read the partial artifact, continue generating from the progress marker
 4. If restart: delete the `.wip` and partial artifact, regenerate from scratch
 
 ### Rules
@@ -109,38 +121,29 @@ For Standard mode, Phase 1 + Phase 3 references are loaded.
 
 On format doubts, load the relevant example from `assets/examples/`.
 
-Additionally, if `CLAUDE.md`, `AGENTS.md`, or `.epic/constitution.md` were found during Context Discovery, their relevant sections are loaded as constraints.
+Additionally, if `.epic/constitution.md` is present, its relevant sections are loaded as constraints (the project's `CLAUDE.md` is already in context).
 
 ## Architect Sub-agent (Full mode, before Phase 2)
 
-Before generating design.md, spawn the **Architect** sub-agent, in the foreground (`run_in_background: false`), to research the codebase:
+Before generating design.md, spawn the **Architect** sub-agent (`run_in_background: false`, result awaited), to research the codebase:
 
-> "Research this project's codebase to provide design context.
+> "Provide design context for this story. Follow your agent definition: the Codebase analysis block is the Analyst's scan of this same tree — do not scan again; answer integration points against the written requirements, and the implementation gotchas.
 >
 > Story requirements: [path to story.md]
 > Codebase analysis: [Analyst output from Context Discovery — or "none: no existing code was detected at triage"]
-> Available MCPs: [list of approved MCPs]
->
-> The Codebase analysis block above is the Analyst's scan of this same tree, made from the same request. The architectural pattern, the framework, the conventions, the dependencies and their current docs are in it already — **do not scan for them again.** Spend your turns on the two things it could not produce, because it ran before the requirements were written:
->
-> 1. **Integration points, against the written requirements** — the specific files, functions, signatures and contracts this feature has to meet, and which of them it must not break. Start from the Analyst's list; do not rebuild it
-> 2. **Implementation gotchas:** For each architectural pattern or library usage this story needs, research known pitfalls, common misconfiguration, or non-obvious setup steps. Format these as concrete warnings: 'GOTCHA: [pattern/library] — [what goes wrong] — [correct approach]'. These will be propagated to task ToDo fields to prevent implementation errors.
->
-> If the Codebase analysis block is absent, or contradicts what you find, say so in one line and read only what it takes to settle it.
->
-> Return a concise design context (max 40 lines) that the main agent should consider when writing design.md."
+> Available MCPs: [list of approved MCPs]"
 
 The Architect output is injected as context when generating design.md. Skipped for Fast and Standard modes.
 
-**Why the Architect is not asked to scan.** Read side by side on 2026-09-17, four of the Architect's five original tasks were already answered by the Analyst output this prompt injects verbatim: patterns (Analyst Function 1 step 1), conventions (step 2), library docs (step 4) and integration points, which the Analyst's own output format names. Three of the four had identical inputs — the same tree, the same request — so at `effort: high` from an empty context they were rediscovery and nothing else. The fourth, integration points, is **re-scoped rather than duplicated**: the Analyst answers it against the raw request at triage, the Architect answers it against `story.md`, which did not exist yet. Only the gotcha hunt was ever unique to this persona, and it is the one carrying a propagation rule. The scan was cut and those two answers kept; the empty-repository case, where no Analyst ran at all, is the exception the prompt's last line restores.
+**Why the Architect is not asked to scan.** The Analyst output this prompt injects verbatim already answers patterns (Analyst Function 1 step 1), conventions (step 2), library docs (step 4) and integration points, which the Analyst's own output format names. The first three have identical inputs — the same tree, the same request — so rescanning them at `effort: high` from an empty context is rediscovery and nothing else. Integration points are **re-scoped rather than duplicated**: the Analyst answers them against the raw request at triage, the Architect answers them against `story.md`, which did not exist yet. The gotcha hunt is the one task unique to this persona, and it is the one carrying a propagation rule. So the Architect answers only those two; the empty-repository case, where no Analyst ran at all, is the exception the prompt's last line restores.
 
 **Gotcha propagation rule:** When the Architect identifies implementation gotchas, the main agent MUST incorporate them into the relevant task ToDo fields as concrete implementation notes — not as vague references to patterns. Example: instead of "use base layout pattern", write "parse each page template together with base.html into a separate template set — calling ExecuteTemplate on the page name alone will produce empty output". The gotcha must survive from research → design → task without losing specificity.
 
 ## Test Advisor Sub-agent (Standard + Full, during Phase 3)
 
-**Only at engineering level `project` or `product`** ([engineering-level.md](engineering-level.md)). An `experiment` or `tool` story, whatever its scale, takes the Lite checklist below and writes its tests at run time — no Test Advisor is spawned, and no `.draft/authored-tests/` or `red-evidence.yaml` exists for it. Measured on 2026-09-17: the Advisor authoring 22 tests before any code cost about 25 minutes in each of two tool-shaped developer runs, for plans of 43 and 47 boxes.
+**Only at engineering level `project` or `product`** ([engineering-level.md](engineering-level.md)). An `experiment` or `tool` story, whatever its scale, takes the Lite checklist below and writes its tests at run time — no Test Advisor is spawned, and no `.draft/authored-tests/` or `red-evidence.yaml` exists for it. Authoring every test before any code costs more wall clock than an `experiment` or `tool` story is worth.
 
-After the main agent generates the task list structure (with Objective, ToDo, Validation, Requirements — but **without Tests fields**), spawn the **Test Advisor** sub-agent (`subagent_type: test-advisor`, defined in `agents/test-advisor.md`) — in the foreground, `run_in_background: false`: Phase 3 cannot complete without its Red evidence, and a turn ended to wait for it is a turn the requester spends waiting ([SKILL.md](personas.md#personas)) — to define testing requirements per sub-task **and author one test file per Unit/Integration/E2E sub-task** (Unit/Integration are Red-verified in Phase 3; E2E defers Red to Run mode):
+After the main agent generates the task list structure (with Objective, ToDo, Validation, Requirements — but **without Tests fields**), spawn the **Test Advisor** sub-agent (`subagent_type: test-advisor`, defined in `agents/test-advisor.md`) — `run_in_background: false`, result awaited: Phase 3 cannot complete without its Red evidence, and a turn ended to wait for it is a turn the requester spends waiting ([personas.md](personas.md#personas)) — to define testing requirements per sub-task **and author one test file per Unit/Integration/E2E sub-task** (Unit/Integration are Red-verified in Phase 3; E2E defers Red to Run mode):
 
 > "Analyze these tasks, define which sub-tasks need tests, and author the test files (Unit/Integration as failing tests, E2E with Red deferred to Run mode).
 >
@@ -238,28 +241,16 @@ Keep it lightweight — 1-2 test entries max per sub-task.
 
 ## Reviewer Sub-agent (Full mode only)
 
-After **all phases are written**, spawn the **Reviewer** sub-agent, in the foreground (`subagent_type: reviewer`, `run_in_background: false`, defined in `agents/reviewer.md`) for cross-artifact validation:
+After **all phases are written**, spawn the **Reviewer** sub-agent (`subagent_type: reviewer`, `run_in_background: false`, result awaited, defined in `agents/reviewer.md`) for cross-artifact validation:
 
-> "Review these story artifacts for completeness, consistency, and gaps.
+> "Review these story artifacts as a set. Follow your agent definition.
 >
 > Files to read:
 > - [path to story.md]
 > - [path to design.md]
-> - [path to tasks.md]
->
-> Check:
-> 1. Every requirement in story.md has at least one task in tasks.md
-> 2. Every entity in story.md has a data model in design.md
-> 3. Every route/endpoint in design.md maps to a handler in tasks.md
-> 4. Error paths in story.md are addressed in design.md error handling
-> 5. No task references a requirement that doesn't exist
-> 6. No design component exists without a corresponding task
-> 7. Interface contract consistency: for every data boundary between components in design.md, verify that the producer's output structure contains every field the consumer references. Flag any field referenced by a consumer that is not produced by the corresponding producer task.
-> 8. Error propagation in tasks: for every sub-task ToDo that calls a function/method returning an error or failure state, verify the ToDo explicitly mentions error handling. Flag any store/service/repository call in a ToDo that silently discards the result.
-> 9. Unused wiring detection: for every public function/class/component defined in the implementation that was specified in design.md, verify it is called or referenced in the application's composition root or in a downstream consumer. Classify orphans as: (a) premature implementation, (b) wiring gap, (c) over-specification.
->
-> Return a list of issues found, or 'No issues found' if clean.
-> Be specific: cite requirement numbers, task numbers, and component names."
+> - [path to tasks.md]"
+
+The nine cross-artifact checks and the output format live in [reviewer.md](../agents/reviewer.md).
 
 - If the Reviewer finds issues, present them to the user and offer to fix
 - If clean, proceed to Traceability Check
@@ -270,7 +261,7 @@ After **all phases are written**, spawn the **Reviewer** sub-agent, in the foreg
 After the final phase approval (standard and full scales only), generate a traceability table. **Build it from `cross-reference.sh`, never by hand-counting** — manual tallying is error-prone at scale. Run:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/cross-reference.sh" .epic/stories/NNN-name
+epic-xref .epic/stories/NNN-name
 ```
 
 The JSON output carries everything the table needs: `mapping` is the requirement → sub-tasks relation, `orphan_requirements` lists requirements no task declares, `phantom_references` lists task references with no requirement. Render the table directly from those fields — task numbers come straight from `mapping`:

@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # Fast runs auto by default, the orchestrator's effort is the session's, and
-# the memory recommendation names a permitted provider — the doc contract
-# (story 025).
+# the memory recommendation names a permitted provider — the doc contract.
 #
 # The surface is agent-executed prose, so every case pins a BLOCK found by a
 # structural anchor and asserts a keyword inside it, case-insensitively. No
@@ -16,7 +15,7 @@
 #   D5  README's run table names --step and says Fast is auto
 #   D6  every sub-agent runs in the foreground: the Personas section says so
 #       with run_in_background: false, and the Analyst and Test Advisor spawn
-#       sites repeat it (story 026)
+#       sites repeat it
 #
 # Note on awk patterns: passed as strings, so no backslash escapes; literal
 # punctuation goes in a bracket class.
@@ -59,7 +58,7 @@ has() { # has <label> <block> <keyword>
   front=$(awk 'NR==1 && $0=="---" {f=1; next} f && $0=="---" {exit} f' "$ROOT/skills/epic/SKILL.md")
   [ -n "$front" ]
   if printf '%s\n' "$front" | grep -qE '^effort:'; then
-    echo "D3: the skill frontmatter pins the orchestrator's effort again (story 025 removed effort: max)" >&2
+    echo "D3: the skill frontmatter pins the orchestrator's effort; it must carry no effort: line so the session's effort applies" >&2
     return 1
   fi
 }
@@ -85,7 +84,6 @@ has() { # has <label> <block> <keyword>
   [ -n "$personas" ]
   has "D6 rule" "$personas" "run_in_background: false"
   has "D6 foreground" "$personas" "foreground"
-  has "D6 measured" "$personas" "12 of 12"
   ta=$(section "$ROOT/references/phase-gates.md" '^## Test Advisor Sub-agent' '^### ')
   has "D6 test advisor" "$ta" "run_in_background: false"
   an=$(section "$ROOT/references/context-discovery.md" '^## Codebase Analysis' '^## ')

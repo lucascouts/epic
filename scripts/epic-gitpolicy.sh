@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Contradiction lint for a workspace's .epic git policy (story 007, R4.1/R4.3).
+# Contradiction lint for a workspace's .epic git policy.
 #
 # Usage: epic-gitpolicy.sh          measure the CURRENT DIRECTORY, print JSON
 #        epic-gitpolicy.sh --help
@@ -10,7 +10,7 @@
 #    tracked_md: N, tracked_draft: N,
 #    verdict: consistent|contradiction|partial}
 # and, in a workspace that is not a git repository:
-#   {git: false, policy: …, verdict: "consistent"}                       (R4.3)
+#   {git: false, policy: …, verdict: "consistent"}
 #
 # CONSUMER REQUIREMENT — READ A MEASUREMENT KEY ONLY WHEN `git` IS true.
 # `git`, `policy` and `verdict` are TOTAL: every path emits all three, so they
@@ -21,7 +21,7 @@
 #   [[ "$(jq -r .tracked_md "$j")" -gt 0 ]]
 # does NOT read false there: `-gt` evaluates its operands as arithmetic, bash
 # takes the bare word `null` for a variable name, and under `set -u` the
-# consumer ABORTS with "null: unbound variable" (measured, bash 5.3).
+# consumer ABORTS with "null: unbound variable" (bash 5.3).
 # Gate every measurement read on `git == true`, or equivalently on
 # `verdict != "consistent"` — the non-git object always reports `consistent`,
 # so that gate is what keeps today's consumers safe. It is an invariant of this
@@ -30,14 +30,13 @@
 # Exit codes:
 #   0  every measurement path, including "not a git repository" — a workspace
 #      this cannot measure is not an error, it is a workspace with nothing to
-#      say (R4.3)
+#      say
 #   2  usage error only (an argument this script does not take)
 #
-# WHY IT EXISTS: kpranois committed 47 .epic files THROUGH a .gitignore that
-# said they were never committed; bentoolkit flip-flopped its policy five times
-# and left zombie artifacts behind. Neither workspace was broken in any way git
-# would ever mention — both were merely self-contradictory. This is the one
-# place that says so, in one line, from five measured facts.
+# WHY IT EXISTS: a workspace can commit .epic files THROUGH a .gitignore that
+# says they are never committed, or change its policy and leave artifacts
+# behind. Git never reports either, because both are merely self-contradictory;
+# this is the one place that says so, in one line, from five measured facts.
 #
 # Governing principle: READ-ONLY. This script writes NO files and runs no git
 # command that can mutate anything. Every git call has its non-zero status
@@ -45,7 +44,7 @@
 # substitution where the OUTPUT is the answer (the shell never checks a
 # procsub's status) — so an expected failure never trips `set -e`, and git
 # stderr is silenced so the stdout JSON is the only thing consumers ever see
-# (wave-0 convention, see scripts/story-git-status.sh).
+# (the same convention as scripts/story-git-status.sh).
 #
 # CONSUMERS read this with jq and nothing more: init pre-fills its question from
 # `policy` + `gitignore_ignores_epic` and needs `gitignore_source` to know WHICH
@@ -67,13 +66,13 @@ set -euo pipefail
 # validate-story.sh's lighter \ " \n \r \t variant because a path may hold ANY
 # byte but /, and a single unescaped control byte would make the WHOLE document
 # unparseable while the script still exits 0 — an undefined consumer path,
-# because exit 0 is the contract's promise that the JSON is readable. Measured:
-# a repo under a directory whose name contains a newline yields the source
+# because exit 0 is the contract's promise that the JSON is readable. A repo
+# under a directory whose name contains a newline yields a source such as
 # `we<LF>ird/.gitignore`, which reaches the escaper raw. Copied from
 # scripts/story-git-status.sh; see its comment for the locale argument and the
 # C1 UTF-8 pairing.
 #
-# ONE-LINE DELTA WARNING, carried over with the copy: 8 and 12 MUST stay in the
+# ONE-LINE DELTA WARNING: 8 and 12 MUST stay in the
 # loop list below, because this file keeps only \ " \n \r \t as short forms and
 # has no \b / \f. Copying archive-story.sh's list (which omits them) instead
 # would leave 0x0C unescaped — exactly the bug the table exists to close.
@@ -157,7 +156,7 @@ POLICY_FILE="$EPIC_DIR/.gitpolicy"
 #
 # MEASURED BEFORE THE GIT CHECK, DELIBERATELY. This is one `-f` test and one
 # `read` on a plain file — it needs no repository, and the non-git object below
-# reports it. Moving this back under the git check would strand init, whose
+# reports it. Moving this under the git check would strand init, whose
 # defining workspace is a folder nobody has `git init`-ed yet, and force it to
 # grow a SECOND parser for this file (first line only, CR strip, whitespace
 # trim, two-value enum). One file, one parser.
@@ -174,7 +173,7 @@ if [[ -f "$POLICY_FILE" ]]; then
   esac
 fi
 
-# --- Workspace check (R4.3) -------------------------------------------------
+# --- Workspace check ---------------------------------------------------------
 # Not a git repository → the three fields that are still TRUE here, and NOT the
 # four measurements: with no index and no exclude rules there is no such thing
 # as a tracked file or an ignored path, so `tracked_md: 0` and
@@ -182,15 +181,11 @@ fi
 # as findings. `verdict: consistent` is what keeps the list header silent —
 # "show nothing".
 #
-# `policy` IS emitted, and the two specs disagreed about that: design.md's
-# error-handling note sketches `{policy: …, verdict: consistent}` with
-# `git: false`, while the task ToDo says `{git: false, verdict: "consistent"}`
-# "and nothing else". Resolved in design.md's favour for this one key, because
-# "nothing else" is about the GIT MEASUREMENTS — the counts and the ignore
-# probe, which genuinely were not measured and must not be faked. The declared
-# policy is not a git measurement: it is the plain file read just above, it is
-# equally true with or without a repository, and withholding it is what would
-# force init to parse .epic/.gitpolicy a second time.
+# `policy` IS emitted on the non-git object. Only the git measurements — the
+# counts and the ignore probe — are omitted, because they were not measured and
+# must not be faked. The declared policy is not a git measurement: it is the
+# plain file read just above, it is equally true with or without a repository,
+# and withholding it would force init to parse .epic/.gitpolicy a second time.
 rc=0
 IN_TREE=$(git rev-parse --is-inside-work-tree 2>/dev/null) || rc=$?
 if [[ "$rc" -ne 0 || "$IN_TREE" != "true" ]]; then
@@ -204,13 +199,13 @@ if [[ "$rc" -ne 0 || "$IN_TREE" != "true" ]]; then
 fi
 
 # --- Is .epic ignored, and by what? -----------------------------------------
-# THREE MEASURED FACTS DECIDE THIS CALL'S EXACT SHAPE, and each is easy to undo
-# by accident (git 2.55, reproduced in the kpranois fixture):
+# THREE FACTS DECIDE THIS CALL'S EXACT SHAPE (git 2.55), and each is easy to
+# undo by accident:
 #
 #   1. `--no-index` IS MANDATORY. Without it `git check-ignore` refuses to
 #      report a path the index already knows, so the ONE workspace this lint
 #      exists for — files tracked THROUGH an ignoring .gitignore, `git add -f`
-#      — answers "not ignored" and the contradiction disappears. Measured:
+#      — answers "not ignored" and the contradiction disappears:
 #      `check-ignore .epic` → rc 1, `check-ignore --no-index .epic` → rc 0
 #      naming `.gitignore:1:.epic/`. The flag is the whole point of the probe.
 #
@@ -219,52 +214,49 @@ fi
 #      the bare `.epic` only when the directory exists on disk — git stats the
 #      filesystem to decide. Probing `.epic` would therefore go quiet in the
 #      exact case init cares about: a workspace whose .epic/ has not been
-#      created yet. `.epic/` matches under all three spellings the corpus
-#      shows — `.epic`, `.epic/` and `/.epic/` — present or absent.
+#      created yet. `.epic/` matches under all three common spellings —
+#      `.epic`, `.epic/` and `/.epic/` — present or absent.
 #
 #   3. `-v -z --stdin` IS THE ONLY UNAMBIGUOUS WAY TO READ THE SOURCE, and the
 #      three flags are one decision, not three. `-v` names the rule; its human
 #      format is `<source>:<line>:<pattern>\t<pathname>`, from which `${x%%:*}`
 #      recovers the source only while no source path contains a colon —
-#      measured false for `we:ird/.gitignore`, and a global core.excludesFile
+#      false for a source such as `we:ird/.gitignore`, and a global core.excludesFile
 #      is an absolute path chosen by the user. Worse, plain `-v` C-QUOTES an
 #      unusual name (a newline in a directory name comes back as the literal
 #      text `"we\nird/.gitignore"`, surrounding quotes included), so the parsed
 #      value would be wrong even where the split works. `-z` drops both the
 #      quoting and the ambiguity, replacing every separator with NUL
 #      and drops the quoting: `<source>\0<line>\0<pattern>\0<pathname>\0`, raw
-#      bytes. And `-z` is refused without `--stdin` — measured, verbatim:
-#      "fatal: -z only makes sense with --stdin" — which is why the path is fed
+#      bytes. And git refuses `-z` without `--stdin`
+#      ("fatal: -z only makes sense with --stdin"), which is why the path is fed
 #      in rather than passed as an argument. Do not "simplify" any one of them
 #      away.
 #
 # SCOPE, wider than "the root .gitignore" on purpose: check-ignore answers for
 # every exclude source git consults — the root .gitignore, .git/info/exclude
-# and the user's global core.excludesFile (all three verified to match here).
-# A rule in any of them produces the identical kpranois shape, and asking git
+# and the user's global core.excludesFile.
+# A rule in any of them produces the same contradiction, and asking git
 # rather than parsing text also buys negations, `**` and precedence for free.
 # The boolean is therefore named for what it means: git ignores .epic, whatever
 # said so — and it stays that wide, because that is the predicate the
 # contradiction verdict needs.
 #
 # WHY THE SOURCE IS REPORTED SEPARATELY: the boolean cannot answer the question
-# init has to ask. Its ToDo is "root gitignore has an .epic rule → ask consent
-# to remove it", and a bare `true` does not say WHERE the rule lives. A user
-# whose GLOBAL excludesFile ignores .epic — a large population, since the house
-# rule is "always gitignore .epic" — in a repo whose root .gitignore is
-# innocent reads `true` with no line to remove; the wizard would offer a dead
-# end or edit the wrong file. Measured, and distinguishable at no extra git
-# call: root rule → `.gitignore`, repo-local rule → `.git/info/exclude`,
+# init has to ask. Init asks consent to remove an .epic rule from the root
+# .gitignore, and a bare `true` does not say WHERE the rule lives. A user whose
+# GLOBAL excludesFile ignores .epic, in a repo whose root .gitignore is
+# innocent, reads `true` with no line to remove; the wizard would offer a dead
+# end or edit the wrong file. Distinguishable at no extra git call: root rule → `.gitignore`, repo-local rule → `.git/info/exclude`,
 # nothing → no output at all.
 #
 # READ FROM THE FIRST NUL FIELD, NOT FROM THE EXIT STATUS, and let ONE test
 # decide both keys. `$(…)` is not an option: command substitution DROPS NUL
 # bytes and would splice the four fields into one word, so the answer has to be
-# `read` from a process substitution — which discards the exit status the old
-# `-q` form used. It loses nothing: git prints a record only for a MATCH, so
-# "named a source" ⇔ rc 0. Measured on the shape that looks most like a
-# counter-example — `.epic/` followed by `!.epic/` — git prints nothing and
-# exits 1, the same as no rule at all.
+# `read` from a process substitution, which discards git's exit status. It
+# loses nothing: git prints a record only for a MATCH, so "named a source" ⇔
+# rc 0. On the shape that looks most like a counter-example — `.epic/` followed
+# by `!.epic/` — git prints nothing and exits 1, the same as no rule at all.
 #
 # DO NOT ADD `--non-matching`. It is the one flag that would print a record for
 # a path that is NOT ignored, with every field empty (`::<TAB>.epic/`), and the
@@ -296,9 +288,8 @@ fi
 
 # --- Path classification ----------------------------------------------------
 # TWO PREDICATES, ONE DEFINITION EACH, AND BOTH CALLERS USE THESE — the counting
-# loop below and epic_has_untracked_artifacts. They were written inline twice
-# first; a class widened in one copy and not the other would make the reported
-# counts and the "is anything left to add?" probe disagree about the same file,
+# loop below and epic_has_untracked_artifacts. With inline copies, a class
+# widened in one and not the other would make the reported counts and the "is anything left to add?" probe disagree about the same file,
 # which is a verdict bug with no visible symptom. Predicates, not a function
 # returning the class on stdout: a command substitution would fork once per
 # tracked path, and this runs on every story list.
@@ -380,7 +371,7 @@ epic_has_untracked_artifacts() {
   return 1
 }
 
-# --- Verdict (R4.1) ---------------------------------------------------------
+# --- Verdict -----------------------------------------------------------------
 # ONE ORDERED CHAIN, FIRST MATCH WINS, AND THE ORDER IS THE SPECIFICATION —
 # not an artefact of how the arms happened to be written.
 #
@@ -388,7 +379,7 @@ epic_has_untracked_artifacts() {
 # .draft/ files under an ignoring .gitignore) and it must report the
 # contradiction: over-tracking is a housekeeping mistake the user can fix with
 # one `git rm --cached`, while configuration fighting itself is the state that
-# silently produces the kpranois and bentoolkit corpora. Reordering these arms
+# silently produces self-contradictory repositories. Reordering these arms
 # would keep every current test green and quietly downgrade the one verdict
 # this script was written to produce — do not.
 #
@@ -396,8 +387,8 @@ epic_has_untracked_artifacts() {
 # a header line for every verdict that is not `consistent`.
 VERDICT="consistent"
 if [[ "$GITIGNORE_IGNORES_EPIC" == true && "$TRACKED_ANY" -gt 0 ]]; then
-  # kpranois. The .gitignore says these files are never committed; the index
-  # says 47 of them are. Whichever the user meant, one of the two is a lie, and
+  # The .gitignore says these files are never committed; the index says some
+  # of them are. Whichever the user meant, one of the two is a lie, and
   # nothing in git will ever mention it.
   VERDICT="contradiction"
 elif [[ "$GITIGNORE_IGNORES_EPIC" == true && "$POLICY" == "tracked-md" && "$TRACKED_MD" -eq 0 ]]; then
@@ -406,13 +397,13 @@ elif [[ "$GITIGNORE_IGNORES_EPIC" == true && "$POLICY" == "tracked-md" && "$TRAC
   # arm above already covers the version where something got in anyway.
   VERDICT="contradiction"
 elif [[ "$TRACKED_DRAFT" -gt 0 ]]; then
-  # Over-tracking. .draft/ is scratch space and is in NO policy's tracked set —
-  # "never .draft/" is the story constraint — so this is a mismatch under
+  # Over-tracking. .draft/ is scratch space and is in NO policy's tracked set,
+  # so this is a mismatch under
   # tracked-md, local-only and undeclared alike, and needs no declaration to be
   # wrong. Cheap to say and cheap to fix, so it is worth one line.
   VERDICT="partial"
 elif [[ "$POLICY" == "tracked-md" && "$TRACKED_MD" -eq 0 ]] && epic_has_untracked_artifacts; then
-  # Declared tracking that never happened — the bentoolkit shape: the whole
+  # Declared tracking that never happened: the whole
   # artifact set is sitting untracked while the policy file says otherwise, and
   # nothing is blocking it (the second arm above owns the blocked variant), so
   # one `git add` settles it.
@@ -430,22 +421,20 @@ elif [[ "$POLICY" == "local-only" && "$TRACKED_MD" -gt 0 ]]; then
   # Declared local-only, artifacts committed anyway. Not a contradiction — no
   # exclude rule is being fought, the user may simply have changed their mind
   # and not said so — but the declaration and the repository disagree, which is
-  # precisely the flip-flop that leaves zombies behind.
+  # precisely the kind of policy change that leaves stale artifacts behind.
   VERDICT="partial"
 fi
 # Everything else is `consistent`, and two members of that set are worth naming
 # because they are the common ones and both MUST stay silent:
-#   * undeclared with nothing tracked — the default workspace, and the state of
-#     this plugin's own repository (.epic/ in the root .gitignore, no
-#     .gitpolicy, nothing tracked). A verdict here would fire on every list.
+#   * undeclared with nothing tracked — the default workspace. A verdict here
+#     would fire on every list.
 #   * undeclared with artifacts tracked and no exclude rule fighting them — a
 #     perfectly coherent repository that simply never wrote the policy file
 #     down. `undeclared` is low-signal by design and is surfaced by `stories
 #     full` alone; init is the consumer that acts on it, by asking.
 
 # --- JSON emission ----------------------------------------------------------
-# `git: true` is emitted on this path so the flag the design defines for the
-# non-git case is TOTAL: a consumer testing `[ "$(jq -r .git)" = true ]` and one
+# `git: true` is emitted on this path so the `git` flag is TOTAL: a consumer testing `[ "$(jq -r .git)" = true ]` and one
 # testing `= false` both work, and neither has to tell an absent key (jq prints
 # `null`) from a measured `false`.
 # Booleans and counts are emitted BARE — never quoted — so `jq -r` yields

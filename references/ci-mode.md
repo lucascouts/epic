@@ -1,10 +1,21 @@
 # CI/Headless Mode
 
-Use these patterns when running Epic plugin operations programmatically via the Claude Code Agent SDK.
+Use these patterns when running Epic plugin operations programmatically with `claude -p` or the Agent SDK. Every recipe that invokes `/epic:epic` must load the plugin: pass `--plugin-dir "$EPIC_PLUGIN_ROOT"` (a checkout of this repo), or install the plugin first. Do not add `--bare`: it skips plugins, skills, subagents and hooks, and it ignores OAuth logins. Export `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` for every unattended run: without it a sub-agent can run in the background, and a one-turn run ends while the orchestrator waits for it.
+
+## Contents
+
+- [Validate Stories in CI](#validate-stories-in-ci)
+- [Generate Stories Programmatically](#generate-stories-programmatically)
+- [Validate Implementation Against Story](#validate-implementation-against-story)
+- [List Stories](#list-stories)
+- [GitHub Actions Example](#github-actions-example)
+- [Typed structured output with `--json-schema`](#typed-structured-output-with---json-schema)
+- [Detecting plugin load failures (`system/init` event)](#detecting-plugin-load-failures-systeminit-event)
+- [Notes](#notes)
 
 ## Validate Stories in CI
 
-Run validation as a PR check or CI step. The plugin scripts are bundled at `${CLAUDE_PLUGIN_ROOT}/scripts/` when invoked inside a session; for standalone CI pipelines clone the plugin repo and set `EPIC_PLUGIN_ROOT` to its path:
+Run validation as a PR check or CI step. Inside a session with the plugin enabled, the scripts are on PATH as `epic-validate`, `epic-xref` and the other `epic-*` wrappers; for standalone CI pipelines clone the plugin repo and set `EPIC_PLUGIN_ROOT` to its path:
 
 ```bash
 # Validate structural correctness
@@ -29,28 +40,31 @@ That object carries `story`, `scale` and `status` and **omits every measurement 
 ## Generate Stories Programmatically
 
 ```bash
-claude -p "/epic:epic Add retry logic to the payment gateway" \
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic Add retry logic to the payment gateway" \
+  --plugin-dir "$EPIC_PLUGIN_ROOT" \
   --allowedTools "Read,Write,Glob,Grep,Bash,Agent" \
-  --bare \
-  --output-format json
+  --output-format json \
+  --max-budget-usd 5 --no-session-persistence
 ```
 
 ## Validate Implementation Against Story
 
 ```bash
-claude -p "/epic:epic stories validate 001" \
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic stories validate 001" \
+  --plugin-dir "$EPIC_PLUGIN_ROOT" \
   --allowedTools "Read,Glob,Grep,Bash,Agent" \
-  --bare \
-  --output-format json
+  --output-format json \
+  --max-budget-usd 5 --no-session-persistence
 ```
 
 ## List Stories
 
 ```bash
-claude -p "/epic:epic stories" \
-  --allowedTools "Read,Glob,Grep" \
-  --bare \
-  --output-format text
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic stories" \
+  --plugin-dir "$EPIC_PLUGIN_ROOT" \
+  --allowedTools "Read,Glob,Grep,Bash" \
+  --output-format text \
+  --max-budget-usd 1 --no-session-persistence
 ```
 
 ## GitHub Actions Example
@@ -76,8 +90,8 @@ the `structured_output` field, sibling to the usual `result` and metadata.
 Example: extract a validation summary for a story:
 
 ```bash
-claude -p "/epic:epic stories validate 001" \
-  --bare --allowedTools "Read,Glob,Grep,Bash,Agent" \
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic stories validate 001" \
+  --plugin-dir "$EPIC_PLUGIN_ROOT" --allowedTools "Read,Glob,Grep,Bash,Agent" \
   --output-format json \
   --json-schema '{
     "type": "object",
@@ -99,29 +113,34 @@ claude -p "/epic:epic stories validate 001" \
 Pipe to `jq` for CI gating:
 
 ```bash
-RESULT=$(claude -p "..." --json-schema '{...}' | jq '.structured_output')
+OUT=$(claude -p "..." --plugin-dir "$EPIC_PLUGIN_ROOT" --output-format json --json-schema '{...}')
+# A run that errored, or ended without a structured result, is a failure — not a pass.
+echo "$OUT" | jq -e '(.is_error | not) and (.structured_output != null)' >/dev/null \
+  || { echo "Epic run failed or returned no structured output" >&2; exit 1; }
+RESULT=$(echo "$OUT" | jq '.structured_output')
 STATUS=$(echo "$RESULT" | jq -r '.status')
 [ "$STATUS" = "fail" ] && { echo "$RESULT" | jq '.gaps'; exit 1; }
 ```
 
 ## Detecting plugin load failures (`system/init` event)
 
-When you run `claude -p` with `--output-format stream-json --verbose`, the first
-event of the stream is `system/init`. It contains a `plugins` array (loaded
-successfully) and an optional `plugin_errors` array (load-time failures such as
-unsatisfied dependency versions). Use this to **fail CI when Epic does not load**,
+When you run `claude -p` with `--output-format stream-json --verbose`, the stream
+carries one `system/init` event. It is not always the first line: SessionStart hook
+events (`hook_started`, `hook_response`) come before it, and Epic ships a
+SessionStart hook — so select it by type. It contains a `plugins` array (loaded
+successfully), an optional `plugin_errors` array (load-time failures such as
+unsatisfied dependency versions) and the `slash_commands` the session can run. Use this to **fail CI when Epic does not load**,
 which can happen if the marketplace is unreachable or `plugin.json` becomes invalid:
 
 ```bash
 claude -p "Validate epic stories in this repo" \
-  --bare \
+  --plugin-dir "$EPIC_PLUGIN_ROOT" \
   --output-format stream-json \
   --verbose \
-  --include-partial-messages \
   > stream.jsonl
 
-# First line is system/init. Confirm Epic is in `plugins` and not in `plugin_errors`.
-INIT=$(head -1 stream.jsonl)
+# Select system/init by type; hook events may precede it.
+INIT=$(jq -c 'select(.type == "system" and .subtype == "init")' stream.jsonl | head -1)
 
 if echo "$INIT" | jq -e '.plugin_errors[]? | select(.plugin == "epic")' >/dev/null; then
   echo "Epic plugin failed to load:" >&2
@@ -134,6 +153,11 @@ if ! echo "$INIT" | jq -e '.plugins[]? | select(.name == "epic")' >/dev/null; th
   exit 1
 fi
 
+if ! echo "$INIT" | jq -e '.slash_commands[]? | select(. == "epic:epic")' >/dev/null; then
+  echo "Epic loaded but /epic:epic is not available in this session." >&2
+  exit 1
+fi
+
 echo "Epic loaded successfully."
 ```
 
@@ -143,9 +167,11 @@ above for an end-to-end CI pipeline.
 
 ## Notes
 
-- Use `--bare` for consistent results across machines (skips auto-discovery)
+- Bound every unattended run: `--max-budget-usd` stops it at a cost ceiling, and `--no-session-persistence` leaves no session file behind on the runner
+- Never use `--bare` with `/epic:epic`: it skips the plugin and every skill, subagent and hook it ships
+- When the plugin comes from a marketplace instead of `--plugin-dir`, set `CLAUDE_CODE_SYNC_PLUGIN_INSTALL=1` so it is installed before the first turn
 - Stories are always in English (no locale variation in artifacts)
 - Scripts are standalone bash — no Claude Code dependency for validation
 - For structured output from Claude operations, use `--output-format json`
 - Combine with `--json-schema` for typed structured output (see example above)
-- When invoked inside a Claude session with the Epic plugin enabled, scripts are reachable via `${CLAUDE_PLUGIN_ROOT}/scripts/`
+- Inside a Claude session with the Epic plugin enabled, call the scripts through their `epic-*` wrappers on PATH (`epic-validate`, `epic-xref`, …)

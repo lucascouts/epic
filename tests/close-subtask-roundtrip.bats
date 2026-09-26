@@ -1,19 +1,17 @@
 #!/usr/bin/env bats
-# Story 010, sub-task 5.1 — interface verification: executor closing block →
-# close-subtask.sh args → JSON verdict, driven as ONE flow the way run-mode's
-# new step 7 will drive it (R1.5, R2.1, R3.1).
-# Authored by the Test Advisor BEFORE implementation (TDD Red phase).
+# Interface verification: executor closing block → close-subtask.sh args →
+# JSON verdict, driven as ONE flow the way run-mode's closing step drives it.
 #
 # The executor report's closing block is simulated as the JSON the executor.md
 # contract defines (sub-task id, outcome done | close-tilde + qualifier +
 # reason), the test lifts the script arguments from it exactly as the
-# orchestrator will, and the assertions read ONLY what run-mode step 7 reads:
+# orchestrator does, and the assertions read ONLY what run-mode reads:
 # the returned census, status_written, and embedded validate verdict — no
 # re-read of tasks.md for the census, the file is checked only for the final
 # box states and status stamp.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so the draft copy under
-# .draft/authored-tests/tests/ can run before materialization into tests/.
+# EPIC_PLUGIN_ROOT overrides root resolution so a copy of this file outside
+# tests/ can run against the plugin.
 
 bats_require_minimum_version 1.5.0
 
@@ -31,8 +29,8 @@ teardown() {
   rm -rf "$WORK"
 }
 
-# Calibrated against the pre-change validator: 0 errors, 0 warnings, so the
-# embedded verdict asserted below is the fixture's own truth.
+# The fixture validates with 0 errors and 0 warnings, so the embedded verdict
+# asserted below is the fixture's own truth.
 write_fixture_story() {
   cat > "$STORY/story.md" <<'EOF'
 ---
@@ -82,7 +80,7 @@ status_line_of() {
 }
 
 # close_from_block <closing-block-json>: lift the script arguments from the
-# executor closing block the way run-mode step 7 does, then invoke the script.
+# executor closing block the way run-mode does, then invoke the script.
 close_from_block() {
   local block="$1" task outcome qualifier reason
   task=$(jq -r '.task' <<< "$block")
@@ -98,7 +96,7 @@ close_from_block() {
   fi
 }
 
-@test "5.1 round-trip: one done block + one close-tilde deferred block (R1.5, R2.1, R3.1)" {
+@test "round-trip: one done block + one close-tilde deferred block" {
   # --- closing block 1: the executor finished 1.1 ---
   close_from_block '{"task":"1.1","outcome":"done","commit":"feat(011): ship both slices"}'
   [ "$status" -eq 0 ]
@@ -117,7 +115,7 @@ close_from_block() {
   # A deferred box blocks done — no transition, so no archive offer:
   echo "$output" | jq -e '.status_written == null'
   [ "$(echo "$output" | jq -r '.status_written.to // "none"')" != done ]
-  # The embedded verdict replaces the old Write-hook validation:
+  # The embedded verdict is the validation:
   echo "$output" | jq -e '.validate.errors == 0 and (.validate | has("status"))'
 
   # --- the artifacts agree with everything the JSON claimed ---
@@ -127,15 +125,14 @@ close_from_block() {
   [ "$(status_line_of "$STORY/story.md")" = in-progress ]
 }
 
-@test "5.1 round-trip: both blocks done — the run flips done and the archive-offer trigger fires (R2.1)" {
+@test "round-trip: both blocks done — the run flips done and the archive-offer trigger fires" {
   close_from_block '{"task":"1.1","outcome":"done"}'
   [ "$status" -eq 0 ]
   close_from_block '{"task":"1.2","outcome":"done"}'
   [ "$status" -eq 0 ]
-  # The archive offer keys on status_written.to == "done" — same trigger,
-  # new source. Cited by name, not by line: run-mode.md's "End of Run —
-  # Validator, archive, index" trigger. Story 010 moved it twice while this
-  # file sat here, so a line number would already be pointing elsewhere.
+  # The archive offer keys on status_written.to == "done". Cited by name, not
+  # by line — run-mode.md's "End of Run — Validator, archive, index" trigger —
+  # because line numbers go stale.
   echo "$output" | jq -e '.status_written.from == "in-progress" and .status_written.to == "done"'
   [ "$(echo "$output" | jq -r '.status_written.to')" = done ]
   grep -qE '^[[:space:]]*- \[x\] 1\.2 - Ship the second slice' "$STORY/tasks.md"

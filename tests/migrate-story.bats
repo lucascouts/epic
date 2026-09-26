@@ -1,26 +1,20 @@
 #!/usr/bin/env bats
-# Contract tests for scripts/migrate-story.sh (story 015 — migrate and the
-# Commit field). Authored Red-first by the Test Advisor from the EARS
-# requirements (R1.1-R1.5) and the design.md contract — never from any ToDo.
-# Target location after materialization: tests/migrate-story.bats
+# Contract tests for scripts/migrate-story.sh.
 #
-# Contract under test (design.md, Component 1):
+# Contract under test:
 #   migrate-story.sh <NNN|story-dir> [--apply]
-#   - Dry-run is the DEFAULT (R1.1): ONE JSON object on stdout
+#   - Dry-run is the DEFAULT: ONE JSON object on stdout
 #     {story, applied:false, changed_files, rewrites:{t1_headers,
 #      covers_fields, boxes_added, wrapper_tags, fast_requirements,
 #      commit_subtasks}, validate:null}; unified diff on stderr; nothing
 #     written. stdout stays pure JSON — the house contract.
-#   - --apply (R1.2): atomic rewrite, CRLF preserved, then validate-story.sh
+#   - --apply: atomic rewrite, CRLF preserved, then validate-story.sh
 #     runs and its verdict {errors, warnings, status} is embedded.
-#   - Refusals (R1.3): .epic/archive/** target -> exit 1, reason on stderr,
+#   - Refusals: .epic/archive/** target -> exit 1, reason on stderr,
 #     applied:false JSON intact. Exit 2 = usage.
-#   - Idempotency by grammar (R1.4): second --apply reports zero rewrites and
+#   - Idempotency by grammar: second --apply reports zero rewrites and
 #     produces no diff. Never a marker file.
-#   - version: bumps only in changed artifacts (R1.5).
-#
-# Test names are prefixed with the sub-task number ("1.1:"/"1.2:") so
-# Red/Green evidence is producible per sub-task via `bats --filter '^1\.1:'`.
+#   - version: bumps only in changed artifacts.
 
 bats_require_minimum_version 1.5.0
 
@@ -46,7 +40,7 @@ tree_hash() {
 
 # make_t1_story <dir-name> [parent-dir] — variant-1 (T1/Covers) fixture.
 # The legacy shape lives in tasks.md ONLY; story.md is canonical, so the
-# R1.5 version-bump scoping (changed vs untouched artifact) is observable.
+# version-bump scoping (changed vs untouched artifact) is observable.
 make_t1_story() {
   local dir="${2:-$PROJ/.epic/stories}/$1"
   mkdir -p "$dir"
@@ -100,7 +94,7 @@ EOF
 }
 
 # make_crlf_story <dir-name> — CRLF tasks.md carrying one naked wrapper tag
-# (variant 3), so a rewrite MUST happen and the surviving bytes prove R1.2's
+# (variant 3), so a rewrite MUST happen and the surviving bytes prove
 # line-ending preservation.
 make_crlf_story() {
   local dir="$PROJ/.epic/stories/$1"
@@ -129,9 +123,9 @@ make_crlf_story() {
     > "$dir/tasks.md"
 }
 
-# --- 1.1 Skeleton: dry-run, JSON verdict, refusal arms (R1.1, R1.3) ---
+# --- Skeleton: dry-run, JSON verdict, refusal arms ---
 
-@test "1.1: dry-run stdout is one JSON object — applied:false, validate:null, all six rewrite counters" {
+@test "dry-run stdout is one JSON object — applied:false, validate:null, all six rewrite counters" {
   make_t1_story 090-t1-fixture
   run --separate-stderr bash "$MIGRATE_SH" .epic/stories/090-t1-fixture
   [ "$status" -eq 0 ]
@@ -139,7 +133,7 @@ make_crlf_story() {
   echo "$output" | jq -e '.rewrites | has("t1_headers") and has("covers_fields") and has("boxes_added") and has("wrapper_tags") and has("fast_requirements") and has("commit_subtasks")' > /dev/null
 }
 
-@test "1.1: dry-run detects the variant, writes the unified diff to stderr, and leaves the tree byte-identical" {
+@test "dry-run detects the variant, writes the unified diff to stderr, and leaves the tree byte-identical" {
   make_t1_story 090-t1-fixture
   local before
   before=$(tree_hash "$PROJ")
@@ -151,7 +145,7 @@ make_crlf_story() {
   [ "$(tree_hash "$PROJ")" = "$before" ]
 }
 
-@test "1.1: a story under .epic/archive/ is refused — exit 1, reason on stderr, applied:false JSON intact, nothing written" {
+@test "a story under .epic/archive/ is refused — exit 1, reason on stderr, applied:false JSON intact, nothing written" {
   make_t1_story 090-t1-fixture "$PROJ/.epic/archive"
   local before
   before=$(tree_hash "$PROJ")
@@ -162,14 +156,14 @@ make_crlf_story() {
   [ "$(tree_hash "$PROJ")" = "$before" ]
 }
 
-@test "1.1: no arguments is a usage error — exit 2" {
+@test "no arguments is a usage error — exit 2" {
   run --separate-stderr bash "$MIGRATE_SH"
   [ "$status" -eq 2 ]
 }
 
-# --- 1.2 Apply: embedded validate, idempotency, CRLF, version bump (R1.2, R1.4, R1.5) ---
+# --- Apply: embedded validate, idempotency, CRLF, version bump ---
 
-@test "1.2: --apply rewrites and embeds the validate-story verdict" {
+@test "--apply rewrites and embeds the validate-story verdict" {
   make_t1_story 090-t1-fixture
   run --separate-stderr bash "$MIGRATE_SH" .epic/stories/090-t1-fixture --apply
   [ "$status" -eq 0 ]
@@ -178,7 +172,7 @@ make_crlf_story() {
   run ! grep -q '^## T1' "$PROJ/.epic/stories/090-t1-fixture/tasks.md"
 }
 
-@test "1.2: a second --apply reports zero rewrites and produces no diff — idempotency by grammar" {
+@test "a second --apply reports zero rewrites and produces no diff — idempotency by grammar" {
   make_t1_story 090-t1-fixture
   bash "$MIGRATE_SH" .epic/stories/090-t1-fixture --apply > /dev/null 2>&1
   local mid
@@ -190,7 +184,7 @@ make_crlf_story() {
   [ "$(tree_hash "$PROJ")" = "$mid" ]
 }
 
-@test "1.2: CRLF line endings round-trip through --apply" {
+@test "CRLF line endings round-trip through --apply" {
   make_crlf_story 091-crlf
   bash "$MIGRATE_SH" .epic/stories/091-crlf --apply > /dev/null 2>&1
   local f="$PROJ/.epic/stories/091-crlf/tasks.md"
@@ -199,18 +193,18 @@ make_crlf_story() {
   [ "$(awk '!/\r$/' "$f" | wc -l)" -eq 0 ]
 }
 
-@test "1.2: version: bumps only in the changed artifact — the untouched sibling keeps its version" {
+@test "version: bumps only in the changed artifact — the untouched sibling keeps its version" {
   make_t1_story 090-t1-fixture
   bash "$MIGRATE_SH" .epic/stories/090-t1-fixture --apply > /dev/null 2>&1
   grep -q '^version: 2' "$PROJ/.epic/stories/090-t1-fixture/tasks.md"
   grep -q '^version: 1' "$PROJ/.epic/stories/090-t1-fixture/story.md"
 }
 
-# --- Refine delta (cross-artifact review): refusal arms + exit-0 pin ---
+# --- Refusal arms + exit-0 pin ---
 
 # make_mixture_story <dir-name> — an unparseable mixture: a T1 header and a
 # Covers: field interleaved INSIDE a canonical group, so no detector can
-# classify the lines without guessing ownership. R1.3: migrate never guesses.
+# classify the lines without guessing ownership: migrate never guesses.
 make_mixture_story() {
   local dir="$PROJ/.epic/stories/$1"
   mkdir -p "$dir"
@@ -240,8 +234,8 @@ EOF
 
 # make_badstatus_wrapper_story <dir-name> — a wrapper-tag variant (so a
 # rewrite MUST happen) beside an INDEPENDENT validation error migrate cannot
-# and must not fix: a status value outside the lifecycle enum. Calibrated
-# against the live validator: `status: bogus` reports 2 errors today.
+# and must not fix: a status value outside the lifecycle enum
+# (`status: bogus`).
 make_badstatus_wrapper_story() {
   local dir="$PROJ/.epic/stories/$1"
   mkdir -p "$dir"
@@ -289,7 +283,7 @@ status: bogus
 EOF
 }
 
-@test "1.1: an unparseable mixture is refused — exit 1, offending lines named, applied:false JSON, tree byte-identical" {
+@test "an unparseable mixture is refused — exit 1, offending lines named, applied:false JSON, tree byte-identical" {
   make_mixture_story 092-mixture
   local before
   before=$(tree_hash "$PROJ")
@@ -301,14 +295,14 @@ EOF
   [ "$(tree_hash "$PROJ")" = "$before" ]
 }
 
-@test "1.1: an unknown story number is refused — exit 1, reason on stderr" {
+@test "an unknown story number is refused — exit 1, reason on stderr" {
   run --separate-stderr bash "$MIGRATE_SH" 999
   [ "$status" -eq 1 ]
   [ -n "$stderr" ]
   [[ "$stderr" == *999* ]]
 }
 
-@test "1.1: an unreadable file refuses before any partial diff is emitted" {
+@test "an unreadable file refuses before any partial diff is emitted" {
   if [ "$EUID" -eq 0 ]; then
     skip "root reads through chmod 000"
   fi
@@ -321,7 +315,7 @@ EOF
   [[ "$stderr" != *'@@'* ]]
 }
 
-@test "1.2: a failing embedded validate keeps exit 0 — the verdict is the channel, never the exit code" {
+@test "a failing embedded validate keeps exit 0 — the verdict is the channel, never the exit code" {
   make_badstatus_wrapper_story 094-badstatus
   run --separate-stderr bash "$MIGRATE_SH" .epic/stories/094-badstatus --apply
   [ "$status" -eq 0 ]

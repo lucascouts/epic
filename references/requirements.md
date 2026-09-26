@@ -75,8 +75,8 @@ created: <date>
 2b. **A criterion whose deliverable is not code says so.** Some criteria are answered by an artifact rather than by a task: a regression guard, a feasibility verdict, a decision record. Append the sanctioned suffix and both orphan readers — `cross-reference.sh` and `validate-story.sh --cross-ref` — treat the criterion as satisfied instead of untraced:
 
    ```
-   - R1.2: THE SYSTEM SHALL keep the CRLF round-trip guarded (satisfied-by: tests/close-subtask-roundtrip.bats)
-   - R3.4: THE SYSTEM SHALL record the feasibility verdict for the native runner (satisfied-by: design.md#tooling-decisions)
+   - R1.2: THE SYSTEM SHALL keep the CSV export round-trip guarded (satisfied-by: tests/export-roundtrip.test.ts)
+   - R3.4: THE SYSTEM SHALL record the feasibility verdict for the queue backend (satisfied-by: design.md#tooling-decisions)
    ```
 
    The artifact must be named: `(satisfied-by: )` with nothing after the colon is a validation warning, because the class legalizes a deliverable, not a way to silence the check. The suffix binds to the criterion it closes, so a criterion wrapped over several lines can carry it at the end.

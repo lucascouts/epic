@@ -1,26 +1,22 @@
 #!/usr/bin/env bats
-# Commit-field tests for story 015 — variant 5 of migrate-story.sh (2.3) and
-# the consumer sweep's executable surface (3.2: validate-story nudge, run-mode
-# ordering prose). Authored Red-first by the Test Advisor from the EARS
-# requirements (R2.5, R3.2, R4.1, R4.3) and the design.md contract — never
-# from any ToDo.
-# Target location after materialization: tests/commit-field.bats
+# Commit-field tests: variant 5 of migrate-story.sh and the consumers'
+# executable surface (validate-story nudge, run-mode ordering prose).
 #
 # Contract under test:
-#   R2.5 — a Commit checkbox sub-task (open OR closed) converts to the
-#     group-level `- Commit: "..."` field, message verbatim; the numbering gap
-#     stays — numbers are provenance and are never reassigned; a closed box's
-#     state is dropped (the field has no box).
-#   R3.2 — validation accepts the field form as the commit point and warns
-#     that a checkbox Commit sub-task is the legacy shape migrate converts.
-#   R4.1 — run-mode orders the group tail: close boxes -> status census (may
-#     write done) -> execute the group's Commit: field -> archive offer; the
+#   - a Commit checkbox sub-task (open OR closed) converts to the group-level
+#     `- Commit: "..."` field, message verbatim; the numbering gap stays —
+#     numbers are provenance and are never reassigned; a closed box's state is
+#     dropped (the field has no box).
+#   - validation accepts the field form as the commit point and warns that a
+#     checkbox Commit sub-task is the legacy shape migrate converts.
+#   - run-mode orders the group tail: close boxes -> status census (may write
+#     done) -> execute the group's Commit: field -> archive offer; the
 #     `--gate=commit` row gates at field execution, not at sub-tasks.
-#   R4.3 — the reference states that dependency satisfaction reads the boxes
-#     that exist (no Commit box, no commit wait).
+#   - the reference states that dependency satisfaction reads the boxes that
+#     exist (no Commit box, no commit wait).
 #
-# The 3.2 doc-contract cases match FLATTENED text where the claim may span
-# source lines. One case is a PIN: it passes today and must stay green.
+# The doc-contract cases match FLATTENED text where the claim may span source
+# lines. One case is a PIN: it guards behaviour that must not change.
 
 bats_require_minimum_version 1.5.0
 
@@ -145,9 +141,9 @@ status: in-progress
 EOF
 }
 
-# --- 2.3 Variant 5: Commit sub-task -> group field, gap preserved (R2.5) ---
+# --- Variant 5: Commit sub-task -> group field, gap preserved ---
 
-@test "2.3: a Commit sub-task becomes one group-level Commit field with the message verbatim" {
+@test "a Commit sub-task becomes one group-level Commit field with the message verbatim" {
   make_commit_subtask_story 090-legacy
   bash "$MIGRATE_SH" .epic/stories/090-legacy --apply > /dev/null 2>&1
   local f="$PROJ/.epic/stories/090-legacy/tasks.md"
@@ -159,14 +155,14 @@ EOF
   [ -n "$fieldline" ] && [ -n "$group2" ] && [ "$fieldline" -lt "$group2" ]
 }
 
-@test "2.3: a closed Commit box's state is dropped — no Commit-titled box of any state remains" {
+@test "a closed Commit box's state is dropped — no Commit-titled box of any state remains" {
   make_commit_subtask_story 090-legacy
   bash "$MIGRATE_SH" .epic/stories/090-legacy --apply > /dev/null 2>&1
   local f="$PROJ/.epic/stories/090-legacy/tasks.md"
   run ! grep -qE '^[[:space:]]*- \[[x~ ]\][[:space:]]+[0-9]+\.[0-9]+[[:space:]]+-[[:space:]]+Commit' "$f"
 }
 
-@test "2.3: the numbering gap is preserved and nothing is renumbered" {
+@test "the numbering gap is preserved and nothing is renumbered" {
   make_commit_subtask_story 090-legacy
   bash "$MIGRATE_SH" .epic/stories/090-legacy --apply > /dev/null 2>&1
   local f="$PROJ/.epic/stories/090-legacy/tasks.md"
@@ -178,7 +174,7 @@ EOF
   grep -qF -- '- [ ] 2.1 - Use part two' "$f"
 }
 
-@test "2.3: the 'Task 1.2' dependency pointer still resolves after conversion" {
+@test "the 'Task 1.2' dependency pointer still resolves after conversion" {
   make_commit_subtask_story 090-legacy
   bash "$MIGRATE_SH" .epic/stories/090-legacy --apply > /dev/null 2>&1
   local f="$PROJ/.epic/stories/090-legacy/tasks.md"
@@ -186,28 +182,27 @@ EOF
   grep -qF -- '- [ ] 1.2 - Make part two' "$f"
 }
 
-# --- 3.2 validate-story nudge + run-mode ordering (R3.2, R4.1, R4.3) ---
+# --- validate-story nudge + run-mode ordering ---
 
-@test "3.2: PIN a field-only tasks.md raises no commit warning and no legacy nudge" {
+@test "PIN a field-only tasks.md raises no commit warning and no legacy nudge" {
   make_field_form_story 091-field
   run --separate-stderr bash "$VALIDATE_SH" .epic/stories/091-field
   echo "$output" | jq -e '[.warning_details[] | select(test("No Commit"))] | length == 0' > /dev/null
   echo "$output" | jq -e '[.warning_details[] | select(test("legacy"; "i"))] | length == 0' > /dev/null
 }
 
-@test "3.2: a checkbox Commit sub-task raises the warning-level nudge naming the legacy shape and migrate" {
+@test "a checkbox Commit sub-task raises the warning-level nudge naming the legacy shape and migrate" {
   make_commit_subtask_story 090-legacy
   run --separate-stderr bash "$VALIDATE_SH" .epic/stories/090-legacy
   echo "$output" | jq -e '[.warning_details[] | select(test("legacy"; "i") and test("migrate"; "i"))] | length > 0' > /dev/null
 }
 
-@test "3.2: a sub-task that merely mentions a commit does not raise the legacy nudge" {
+@test "a sub-task that merely mentions a commit does not raise the legacy nudge" {
   # The nudge names migrate-story.sh and tells the reader to run it, so it may
   # only count what that tool actually converts: a box titled exactly
-  # `N.M - Commit`. A sub-task whose TITLE mentions the word is ordinary work —
-  # story 015's own `2.3 - Variant 5: Commit sub-task -> group field` is one —
-  # and counting it produced a warning that survived doing what it asked:
-  # migrate reported `commit_subtasks: 0` and the identical nudge came back.
+  # `N.M - Commit`. A sub-task whose TITLE mentions the word is ordinary work,
+  # and counting it would raise a warning that survives doing what it asks:
+  # migrate reports `commit_subtasks: 0` and the identical nudge comes back.
   make_field_form_story 092-mentions
   cat >> "$PROJ/.epic/stories/092-mentions/tasks.md" <<'EOF'
 
@@ -228,18 +223,18 @@ EOF
   echo "$output" | jq -e '.rewrites.commit_subtasks == 0' > /dev/null
 }
 
-@test "3.2: run-mode states the group-tail ordering — close boxes, census, Commit field, archive offer" {
+@test "run-mode states the group-tail ordering — close boxes, census, Commit field, archive offer" {
   run bash -c "tr '\n' ' ' < '$REFS/run-mode.md' | grep -Eq 'close (the )?boxes.*(status )?census.*Commit:.*archive'"
   [ "$status" -eq 0 ]
 }
 
-@test "3.2: the --gate=commit row no longer gates at Commit sub-tasks" {
+@test "the --gate=commit row gates at the Commit field, not at Commit sub-tasks" {
   # backtick-free pattern: the bats preprocessor mangles \` inside test bodies
   run grep -E -- '--gate=commit.*Gate' "$REFS/run-mode.md"
   [ "$status" -eq 0 ]
   [[ "$output" != *sub-task* ]]
 }
 
-@test "3.2: the references state that dependency satisfaction reads the boxes that exist" {
+@test "the references state that dependency satisfaction reads the boxes that exist" {
   grep -qiE 'boxes that exist' "$REFS/tasks.md" "$REFS/run-mode.md"
 }

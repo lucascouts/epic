@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 # Read-only token and wall-clock telemetry for a Claude Code session transcript.
 #
+# Prefer the native sources: OpenTelemetry (`claude_code.token.usage`, split by
+# `query_source` main/subagent), `/usage`, or the `-p --output-format json`
+# result (`modelUsage`, `total_cost_usd`). This script is the fallback for a
+# session recorded without telemetry, and it reads the transcript, whose entry
+# format is internal to Claude Code and can change on any release.
+#
 # Usage: story-telemetry.sh [--transcript <path>] [--since <ts>] [--until <ts>]
 #                           [--project-dir <dir>] [--help]
 #   --transcript  a session transcript JSONL. Default: the most recently
 #                 modified transcript for --project-dir under
-#                 ~/.claude/projects/<slug>/ (or $CLAUDE_PROJECTS_DIR)
+#                 ${CLAUDE_CONFIG_DIR:-~/.claude}/projects/<slug>/. Sub-agent
+#                 transcripts in <session>/subagents/ are read with it
 #   --since       ISO-8601 instant; events strictly before it are excluded
 #   --until       ISO-8601 instant; events strictly after it are excluded
 #   --project-dir the project whose transcripts to search (default: cwd)
@@ -29,19 +36,17 @@
 # actually spent in tokens, which does not age.
 #
 # WHY DEDUPLICATION IS NOT OPTIONAL. The transcript writes one event per
-# content block and REPEATS the same `message.usage` on each. Measured on a
-# real session: 438 assistant events carrying 179 distinct `message.id`s —
-# summing events instead of messages inflates every figure ~2.4x. So usage is
-# summed per DISTINCT `message.id`, and both counts are emitted side by side so
-# a consumer can see the deduplication happened rather than trust that it did.
+# content block and REPEATS the same `message.usage` on each, so summing events
+# instead of messages inflates every figure by the number of content blocks
+# each message carries. So usage is summed per DISTINCT `message.id`, and both
+# counts are emitted side by side so a consumer can see the deduplication happened rather than trust that it did.
 #
 # TWO STREAM SHAPES MARK A SUB-AGENT DIFFERENTLY, and both are read. An
 # interactive session transcript carries `isSidechain` on every assistant event;
 # a `claude -p` stream has no `isSidechain` at all and marks a child by a
-# non-null `parent_tool_use_id` instead (measured: 135 of 358 assistant events
-# in one `-p` run). Reading only the first would attribute every sub-agent token
-# to the orchestrator, silently, on exactly the runs where delegation is what
-# you are trying to measure.
+# non-null `parent_tool_use_id` instead. Reading only the first would attribute
+# every sub-agent token to the orchestrator, silently, on exactly the runs where
+# delegation is what you are trying to measure.
 #
 # WHY `subagent_split_verified` EXISTS. It is `true` once this run actually saw
 # a child event by either marker, and `false` when it did not — so a zeroed
@@ -103,7 +108,7 @@ if [[ -z "$TRANSCRIPT" ]]; then
   [[ -d "$PROJECT_DIR" ]] || die "not a directory: $PROJECT_DIR"
   abs=$(cd "$PROJECT_DIR" && pwd)
   slug=$(printf '%s' "$abs" | sed 's/[^a-zA-Z0-9]/-/g')
-  root="${CLAUDE_PROJECTS_DIR:-$HOME/.claude/projects}/$slug"
+  root="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/$slug"
   [[ -d "$root" ]] || die "no transcript directory for $abs (looked in $root)"
   # Most recently modified .jsonl, portable: no GNU find -printf, no ls parsing.
   newest=""
@@ -130,7 +135,7 @@ jq -R -s \
   --arg until "$UNTIL" \
   '
   # `fromdateiso8601` refuses fractional seconds and a numeric offset, and a
-  # transcript carries both (`2026-09-16T18:16:06.296Z`). Normalise before
+  # transcript carries both (`2026-01-02T03:04:05.678Z`). Normalise before
   # parsing rather than after failing: a timestamp this script cannot read is a
   # wall clock it would silently report as 0.
   def ts2epoch:
@@ -178,6 +183,6 @@ jq -R -s \
     subagent: ([ $messages[] | select(.sidechain)       | .usage ] | sums),
     subagent_split_verified: ([ $messages[] | .sidechain ] | any)
   }
-  ' "$TRANSCRIPT"
+  ' < <(cat "$TRANSCRIPT"; [[ -d "${TRANSCRIPT%.jsonl}" ]] && find "${TRANSCRIPT%.jsonl}" -path '*subagents*' -type f -name '*.jsonl' -exec cat {} + 2>/dev/null; true)
 
 exit 0

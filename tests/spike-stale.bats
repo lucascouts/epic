@@ -1,29 +1,18 @@
 #!/usr/bin/env bats
-# Story 007, Task 2.3 — spike staleness threshold (R1.5).
-# Contract (design Integration Points): monitor-stale.sh gains a spike
-# threshold (14 days on tasks.md mtime) alongside the existing story
-# threshold. An OPEN spike untouched for >14 days emits a spike-specific
+# Spike staleness threshold.
+# Contract: monitor-stale.sh applies a spike threshold (14 days on tasks.md
+# mtime) alongside the story threshold. An OPEN spike untouched for >14 days emits a spike-specific
 # staleness notice ("promote or close" pressure); 13 days does not; a
 # terminal Verdict never does.
 #
 # Note on surface: the LIST-row rendering of the flag lives in
 # references/list-mode.md (agent-executed doc, not script-testable). This
-# file pins the computable half of R1.5 — the 13d/15d threshold flip —
-# on the script surface design assigns it to.
+# file pins the computable half — the 13d/15d threshold flip — on the
+# script surface.
 #
-# monitor-stale.sh has TWO invocation shapes, and this file covers both with
-# opposite rules about the exit code:
-#   - NO ARGUMENT is the long-running monitor (find + sleep loop, opt-in via
-#     env). Those cases run one iteration by killing it with `timeout` after the
-#     first pass and assert stdout only — 124 there is the killer's verdict, not
-#     the script's, so asserting it would prove nothing about the script.
-#   - `--once` is one synchronous pass that returns on its own. Those cases
-#     (below the sub-task 5.2 divider) DO assert the status, 0 or 2, and that
-#     assertion is the load-bearing half of their "one pass, never the loop"
-#     claim. `timeout` survives there only as a hang guard.
-# This note claimed the exit code was never asserted until sub-task 5.4
-# corrected it; the `--once` cases that made it false arrived two sub-tasks
-# earlier.
+# Every run of monitor-stale.sh is one synchronous pass. The no-argument cases
+# assert stdout only; the argument-driven cases (below the `--once` divider)
+# also assert the status, 0 or 2. `timeout` is only a hang guard.
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -60,8 +49,7 @@ EOF
 
 run_monitor_once() {
   cd "$WORK"
-  export CLAUDE_PLUGIN_OPTION_ENABLESTALEMONITOR=true
-  run timeout 3 bash "$PLUGIN_ROOT/scripts/monitor-stale.sh"
+  run timeout 5 bash "$PLUGIN_ROOT/scripts/monitor-stale.sh"
 }
 
 @test "open spike untouched for 15 days emits a spike staleness notice" {
@@ -95,60 +83,37 @@ run_monitor_once() {
   fi
 }
 
-# --- Sub-task 5.2 — the `--once` entry point ----------------------------
-# Everything above drives the LOOP: no argument, killed by `timeout`, exit code
-# deliberately unasserted because 124 is the killer's verdict, not the script's.
-# The cases below are the OTHER mode and invert that. `--once` is the only
-# invocation the docs hand an agent (references/list-mode.md, README's
-# "Background Monitors" section), it returns on its own, and until now nothing
-# in this repo passed the script any argument at all.
+# --- The `--once` entry point and the other arguments --------------------
+# Everything above runs without arguments and asserts stdout only. The cases
+# below pass arguments, the way the story list does (references/list-mode.md),
+# and also assert the exit status.
 #
-# These characterize behaviour that already shipped, so Red could not come from
-# absent behaviour. Each case was instead proved able to fail by mutating
-# scripts/monitor-stale.sh, watching that one case redden, and reverting —
-# recorded in the story 007 red evidence as `red_via: mutation`.
+# These characterize existing behaviour, so each case's ability to fail is
+# shown by mutating scripts/monitor-stale.sh and watching that case redden.
 
-# Second invocation shape. Deliberately NOT a tweak of run_monitor_once():
-# that helper forces enableStaleMonitor on and is load-bearing for the three
-# assertions above, whereas these cases need the option set both ways and need
-# the script's own exit status. `timeout` survives here only as a HANG GUARD —
-# a `--once` that fell through into `while true` would hang the suite forever
-# instead of failing, and the guard turns that hang into a visible status 124.
-# It is never the expected outcome: every case below asserts a real status.
+# Argument-driven invocations; `timeout` is only a hang guard.
 run_monitor_arg() {
   cd "$WORK"
   run timeout 3 bash "$PLUGIN_ROOT/scripts/monitor-stale.sh" "$@"
 }
 
-@test "--once emits the spike notice and exits 0 without entering the loop" {
-  # Delete this and the entry point references/list-mode.md and README tell
-  # callers to run is covered by nothing. The STATUS assertion is the
-  # load-bearing half: the hang guard kills a looping script only AFTER its
-  # first pass has printed, so a stdout-only check would still pass even if the
-  # script never returned. `0` rather than the guard's `124` IS the "one pass,
-  # then exit — never the loop" half of the contract.
-  # enableStaleMonitor is true here on purpose: it isolates this case to the
-  # mode contract and leaves the gate-bypass claim to the next case.
+@test "--once emits the spike notice and exits 0" {
+  # `--once` is accepted, and every run is one pass that exits 0.
   write_spike_aged "open" "15 days ago"
-  export CLAUDE_PLUGIN_OPTION_ENABLESTALEMONITOR=true
   run_monitor_arg --once
   [ "$status" -eq 0 ]
   echo "$output" | grep -qi 'spike'
 }
 
-@test "--once ignores enableStaleMonitor=false on purpose" {
-  # This is the task 2.3 deviation's own claim, and nothing asserted it before:
-  # `--once` answers whether or not the watcher was ever enabled, because that
-  # option governs the thing that polls unasked while R1.5 asks for the spike
-  # flag in the story list unconditionally. false is the DEFAULT-INSTALL value,
-  # so this is the shape every real caller hits.
-  # Delete this and the opt-in gate can be "simplified" back above the Mode
-  # block — the move monitor-stale.sh's own comment warns against — with the
-  # suite still green, silently leaving R1.5 unmet for everyone who never
-  # opted into being notified in their sleep.
+@test "--spike-days moves the spike deadline; a non-numeric value falls back to 14" {
+  # The list passes the user's spikeStaleThresholdDays by argument, because a
+  # command run through the Bash tool receives no plugin options. An unsaved
+  # option reaches the list as its literal placeholder, which must not break it.
   write_spike_aged "open" "15 days ago"
-  export CLAUDE_PLUGIN_OPTION_ENABLESTALEMONITOR=false
-  run_monitor_arg --once
+  run_monitor_arg --spike-days 20
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  run_monitor_arg --spike-days '${user_config.spikeStaleThresholdDays}'
   [ "$status" -eq 0 ]
   echo "$output" | grep -qi 'spike'
 }

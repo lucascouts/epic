@@ -1,18 +1,17 @@
 #!/usr/bin/env bats
-# Story 012, sub-task 1.1 — the per-agent reasoning-effort policy is DATA the
-# suite reads, not a sentence someone remembers to keep true.
+# The per-agent reasoning-effort policy is DATA the suite reads, not a sentence
+# someone remembers to keep true.
 #
-# WHAT IS PINNED, AND WHY EACH ONE. The Validator drops to `medium`: that is
-# the change this story buys, measured at 44% of all Epic sessions doing
-# majority-mechanical work. The Auditor and the Executor stay at `max` — they
-# are the mitigation the trade-off was priced against, so a silent drop there
+# WHAT IS PINNED, AND WHY EACH ONE. The Validator runs at `medium` because its
+# verification is mechanical. The Auditor and the Executor stay at `max` —
+# they carry the judgment that trade-off relies on, so a silent drop there
 # would remove the safety net while leaving the saving in place. The Analyst is
-# pinned at `medium` because it is the precedent the change cites.
+# pinned at `medium`: its work is discovery — it scans structure, samples
+# representative files and reports what it found.
 #
-# NO CASE HERE ASSERTS HOW MANY AGENTS THERE ARE. A count is the shape that
-# goes stale the first time an agent is added — story 017's lesson, one
-# directory over. The sweep derives the set from `agents/*.md` and checks a
-# property of each member instead, so a ninth agent is caught by its own
+# NO CASE HERE ASSERTS HOW MANY AGENTS THERE ARE. A count goes stale the first
+# time an agent is added. The sweep derives the set from `agents/*.md` and
+# checks a property of each member instead, so a new agent is caught by its own
 # frontmatter rather than by a number nobody updated.
 
 setup() {
@@ -20,7 +19,7 @@ setup() {
   AGENTS="$PLUGIN_ROOT/agents"
 }
 
-@test "1.1: the Validator declares medium — the tier this story buys" {
+@test "the Validator declares medium" {
   run grep -c '^effort: medium' "$AGENTS/validator.md"
   if [ "$output" != "1" ]; then
     echo "agents/validator.md must declare exactly one 'effort: medium' line; grep -c answered '$output'"
@@ -29,7 +28,7 @@ setup() {
   fi
 }
 
-@test "1.1: judgment stays at max — the Auditor and the Executor are the mitigation" {
+@test "judgment stays at max — the Auditor and the Executor declare max" {
   for a in auditor executor; do
     run grep -c '^effort: max' "$AGENTS/$a.md"
     if [ "$output" != "1" ]; then
@@ -40,7 +39,7 @@ setup() {
   done
 }
 
-@test "1.1: the Analyst's medium is the precedent this change cites, and it still stands" {
+@test "the Analyst declares medium" {
   run grep -c '^effort: medium' "$AGENTS/analyst.md"
   if [ "$output" != "1" ]; then
     echo "agents/analyst.md must declare exactly one 'effort: medium' line; grep -c answered '$output'"
@@ -48,7 +47,7 @@ setup() {
   fi
 }
 
-@test "1.1: every agent declares exactly one effort line, and its value is sanctioned" {
+@test "every agent declares exactly one effort line, and its value is sanctioned" {
   shopt -s nullglob
   local offenders=() seen=0 f name count value
 
@@ -81,12 +80,11 @@ setup() {
   fi
 }
 
-# Sub-task 1.2 — the documented table is the DECLARED side and the frontmatters
-# are the DERIVATION, so ARCHITECTURE.md cannot drift from the tree in silence.
-# This case is what makes 1.2's own claim ("the policy test enforces the table")
-# true; without it the doc would say it is guarded and nothing would guard it,
-# which is the defect story 020 spent itself closing one directory over.
-@test "1.2: ARCHITECTURE.md's effort table matches the frontmatters, agent for agent" {
+# The documented table is the DECLARED side and the frontmatters are the
+# DERIVATION, so ARCHITECTURE.md cannot drift from the tree in silence. This
+# case is what makes the doc's claim ("the policy test enforces the table")
+# true; without it the doc would say it is guarded and nothing would guard it.
+@test "ARCHITECTURE.md's effort table matches the frontmatters, agent for agent" {
   local doc="$PLUGIN_ROOT/ARCHITECTURE.md" declared actual
 
   declared=$(awk -F'|' '

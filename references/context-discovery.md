@@ -6,7 +6,8 @@
 2. Check for `.epic/stories/` directory (existing stories)
 3. Check for `.epic/constitution.md`
 4. Check for `docs/` with relevant documentation
-5. Check for `CLAUDE.md`, `AGENTS.md` in project root and parent directories
+
+`CLAUDE.md` (and `AGENTS.md` where the project has no `CLAUDE.md`) are not read here: Claude Code already loads them into this session and into every sub-agent, and reading them again pays for the same text twice.
 
 Include findings assertively in triage. If user mentions files directly, use them without asking.
 
@@ -26,27 +27,16 @@ The hits are injected as a **Prior Knowledge** block in the triage proposal and 
 
 ## Codebase Analysis (standard + full scales)
 
-If existing code is detected, spawn the **Analyst** sub-agent — in the foreground, `run_in_background: false`: the proposal waits for its output ([SKILL.md](personas.md#personas)):
+If existing code is detected, spawn the **Analyst** sub-agent — `run_in_background: false`, and wait for its result: the proposal needs its output ([personas.md](personas.md#personas)):
 
-> "Analyze this project and the user's request to provide context for story creation.
+> "Run Function 1 (Codebase Analysis) of your agent definition for this request.
 >
 > User request: [original request]
 > Context files found: [list]
 > Available MCPs: [list of relevant MCPs approved by user]
-> Prior knowledge (from memory — verify against the code before using any of it): [Prior Knowledge hits, or "none"]
->
-> Tasks:
-> 1. Scan directory structure — detect architectural pattern, framework, key dependencies
-> 2. Sample 3-5 representative files — detect naming conventions, patterns, module organization
-> 3. Look up best practices relevant to the request domain — via a research MCP if one is available to you, otherwise `WebSearch`
-> 4. Fetch current docs for the detected framework/libraries — via a documentation MCP if available to you, otherwise `WebFetch`/`WebSearch`
->
-> Return a concise summary (max 20 lines) covering:
-> - Detected project patterns and conventions
-> - Relevant best practices or patterns from research
-> - Potential integration points with existing code
->
-> Do NOT read every file — be lightweight and fast."
+> Prior knowledge (from memory — verify against the code before using any of it): [Prior Knowledge hits, or "none"]"
+
+The steps, the 20-line summary and its contents (the quality-catalog signals included) live in [analyst.md](../agents/analyst.md).
 
 Results are saved to `.draft/meta.yaml` under `analyst_output` key and passed as context to Phase 2 (design) and the Completeness Checklist.
 
@@ -55,8 +45,6 @@ Results are saved to `.draft/meta.yaml` under `analyst_output` key and passed as
 | File | Applied At |
 |---|---|
 | `.epic/constitution.md` | Before Phase 1 (all scales); its `## Defaults` block again at Clarify and Run, as decisions taken silently |
-| `CLAUDE.md` | Phase 2 (design) + Phase 3 (tasks) |
-| `AGENTS.md` | Phase 2 (design) + Phase 3 (tasks) |
 | Analyst output | Triage + Completeness Checklist + Phase 2 (design) |
 | Prior knowledge (memory, when detected) | Triage + Codebase Analysis — as leads to verify, never as facts |
 
@@ -68,7 +56,7 @@ Results are saved to `.draft/meta.yaml` under `analyst_output` key and passed as
 
 ## Completeness Checklist
 
-For **standard and full scales**, spawn the **Analyst** sub-agent, in the foreground, to generate a context-specific checklist. For **fast and spike scales**, ask 1-2 inline questions only — both are single-author scales, with no sub-agents and no `.draft/meta.yaml` to cache an Analyst's output in, and a probe whose whole point is to be time-boxed is not improved by a 10-question intake.
+For **standard and full scales**, spawn the **Analyst** sub-agent (result awaited) to generate a context-specific checklist. For **fast and spike scales**, ask 1-2 inline questions only — both are single-author scales, with no sub-agents and no `.draft/meta.yaml` to cache an Analyst's output in, and a probe whose whole point is to be time-boxed is not improved by a 10-question intake.
 
 **Analyst sub-agent prompt (uses cached output from Codebase Analysis):**
 
@@ -79,7 +67,7 @@ For **standard and full scales**, spawn the **Analyst** sub-agent, in the foregr
 > [Analyst output from Context Discovery, stored in .draft/meta.yaml]
 >
 > User request: [original request]
-> Context files: [summaries of CLAUDE.md, constitution, etc.]
+> Context files: [summary of .epic/constitution.md, if present]
 > Available MCPs: [list of approved MCPs]
 >
 > Focus exclusively on:

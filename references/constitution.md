@@ -53,7 +53,7 @@ The constitution is an optional governance file at `.epic/constitution.md` that 
 # Constitution
 
 ## Architecture
-- NestJS Modular Nativo — no extra abstraction layers
+- NestJS native modules — no extra abstraction layers
 - Project isolation: each project-* has its own database and Prisma schema
 - CLI-first: everything must be actionable via terminal
 

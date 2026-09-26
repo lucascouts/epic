@@ -34,17 +34,22 @@
           {
             "type": "command",
             "if": "Bash(git commit *)",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-defer-commit.sh\""
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-executor-guard.sh\""
           }
         ]
-      }
-    ],
-    "PreCompact": [
+      },
       {
+        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-precompact.sh\""
+            "if": "Edit(.epic/stories/**/tasks.md)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-executor-guard.sh\""
+          },
+          {
+            "type": "command",
+            "if": "Write(.epic/stories/**/tasks.md)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-executor-guard.sh\""
           }
         ]
       }
@@ -60,85 +65,22 @@
         ]
       },
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-teams-session-start.sh\""
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-teams-prompt-submit.sh\""
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
         "matcher": "clear",
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-session-end-cleanup.sh\""
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-orphan-drafts.sh\""
           }
         ]
       }
     ],
-    "TaskCompleted": [
+    "SubagentStop": [
       {
+        "matcher": "^(epic:)?(validator|auditor)$",
         "hooks": [
           {
             "type": "command",
-            "asyncRewake": true,
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-task-completed.sh\""
-          }
-        ]
-      }
-    ],
-    "PostToolUseFailure": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-post-tool-failure.sh\""
-          }
-        ]
-      }
-    ],
-    "CwdChanged": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-cwd-changed.sh\""
-          }
-        ]
-      }
-    ],
-    "FileChanged": [
-      {
-        "matcher": "constitution.md",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-file-changed.sh\""
-          }
-        ]
-      }
-    ],
-    "PermissionDenied": [
-      {
-        "matcher": "mcp__.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo '{\"retry\": true}'"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-report-guard.sh\""
           }
         ]
       }

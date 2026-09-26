@@ -1,87 +1,43 @@
 #!/usr/bin/env bash
-# Background monitor: detects epic stories with no progress past a staleness
-# threshold. Each stdout line becomes a notification to the main agent.
+# Stale-story check: one pass over .epic/stories, one stdout line per story
+# with no progress past its threshold. The story list runs it
+# (references/list-mode.md); nothing runs it in the background.
 #
 # TWO rules, one measurement (see find_stale):
 #   - every scale but spike — pending `[ ]` work untouched past the story
 #     threshold (7 days by default)
 #   - `scale: spike` — a `## Verdict` still not concluded past the spike
-#     threshold (14 days, story 007 R1.5): a spike's deadline is its answer,
+#     threshold (14 days by default): a spike's deadline is its answer,
 #     not its boxes
 #
-# Lifecycle: started by monitors/monitors.json on the first /epic:epic
-# invocation (when: on-skill-invoke:epic).
-#
-# The Claude Code runtime — not this script — is responsible for skipping
-# plugin monitors on Bedrock/Vertex/Foundry and when DISABLE_TELEMETRY or
-# CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC are set. See plugins-reference#monitors.
-#
-# Opt-in: the user activates the monitor by setting the plugin option
-# `enableStaleMonitor=true` (surfaced via userConfig in plugin.json). When
-# unset, the monitor exits immediately without polling. The option governs the
-# LOOP only — `--once` is a synchronous single pass a command asks for, and it
-# answers whether or not the watcher was ever enabled (see the Mode block).
+# Thresholds come as arguments. Commands Claude runs through the Bash tool do
+# not receive plugin options as environment variables, so the caller passes
+# the values SKILL.md's Plugin options section shows.
 
 set -euo pipefail
 
-USAGE='Usage: monitor-stale.sh [--once]
-  (no argument)  background loop: one pass every staleCheckIntervalSeconds,
-                 and only when the enableStaleMonitor option is true
-  --once         one pass on stdout, then exit 0 — the synchronous read a
-                 command makes (references/list-mode.md), never the loop'
+USAGE='Usage: monitor-stale.sh [--once] [--story-days N] [--spike-days N]
+  one pass on stdout, then exit 0
+  --story-days N  days before pending [ ] work is stale (default 7)
+  --spike-days N  days before an open spike Verdict is stale (default 14)
+  --once          accepted for compatibility; every run is a single pass'
 
-# --- Mode ---------------------------------------------------------------
-# Parsed BEFORE the opt-in gate on purpose. `enableStaleMonitor` governs the
-# BACKGROUND WATCHER — the thing that polls unasked — and nothing else. `--once`
-# is a synchronous read inside a command the user just typed, and R1.5 asks for
-# the spike flag "in the story list" unconditionally; gating it on an option
-# that defaults to false would leave that requirement unmet for every default
-# install. Do NOT "simplify" by moving the gate above this block.
-MODE="monitor"
-if [ "$#" -gt 1 ]; then
-  printf '%s\n' "$USAGE" >&2
-  exit 2
-fi
-if [ "$#" -eq 1 ]; then
+THRESHOLD_DAYS=7
+SPIKE_THRESHOLD_DAYS=14
+while [ "$#" -gt 0 ]; do
   case "$1" in
-    --once) MODE="once" ;;
-    --help | -h)
-      printf '%s\n' "$USAGE"
-      exit 0
-      ;;
-    *)
-      printf '%s\n' "$USAGE" >&2
-      exit 2
-      ;;
+    --once) shift ;;
+    --story-days) [ "$#" -ge 2 ] || { printf '%s\n' "$USAGE" >&2; exit 2; }; THRESHOLD_DAYS="$2"; shift 2 ;;
+    --spike-days) [ "$#" -ge 2 ] || { printf '%s\n' "$USAGE" >&2; exit 2; }; SPIKE_THRESHOLD_DAYS="$2"; shift 2 ;;
+    --help | -h) printf '%s\n' "$USAGE"; exit 0 ;;
+    *) printf '%s\n' "$USAGE" >&2; exit 2 ;;
   esac
-fi
+done
 
-ENABLED="${CLAUDE_PLUGIN_OPTION_ENABLESTALEMONITOR:-false}"
-if [ "$MODE" = "monitor" ] && [ "$ENABLED" != "true" ]; then
-  exit 0
-fi
-
-# All three parameters are configurable via userConfig in plugin.json and
-# injected as environment variables at plugin load:
-#   CLAUDE_PLUGIN_OPTION_STALETHRESHOLDDAYS        — default 7
-#   CLAUDE_PLUGIN_OPTION_SPIKESTALETHRESHOLDDAYS   — default 14
-#   CLAUDE_PLUGIN_OPTION_STALECHECKINTERVALSECONDS — default 3600
-# The defaults below apply when the options are unset (older plugin
-# installs or explicit user override to empty string).
-#
-# THIS IS WHERE THE 14 DAYS LIVES (story 007 R1.5). references/list-mode.md
-# renders the flag and points here for the number; nothing else re-derives it,
-# and no consumer runs its own `stat` — see find_stale. The spike threshold is
-# a SEPARATE knob from the story one so that lengthening the story nag does not
-# silently move a spike's deadline: they measure different things.
-THRESHOLD_DAYS="${CLAUDE_PLUGIN_OPTION_STALETHRESHOLDDAYS:-7}"
-SPIKE_THRESHOLD_DAYS="${CLAUDE_PLUGIN_OPTION_SPIKESTALETHRESHOLDDAYS:-14}"
-POLL_INTERVAL_SECONDS="${CLAUDE_PLUGIN_OPTION_STALECHECKINTERVALSECONDS:-3600}"
-
-# Guard against non-numeric overrides.
+# A non-numeric value (an unsaved option's literal placeholder included)
+# falls back to the default rather than failing the listing.
 [[ "$THRESHOLD_DAYS" =~ ^[0-9]+$ ]] || THRESHOLD_DAYS=7
 [[ "$SPIKE_THRESHOLD_DAYS" =~ ^[0-9]+$ ]] || SPIKE_THRESHOLD_DAYS=14
-[[ "$POLL_INTERVAL_SECONDS" =~ ^[0-9]+$ ]] || POLL_INTERVAL_SECONDS=3600
 
 # --- Spike readers ------------------------------------------------------
 # Both are pure bash: they run for every story on every pass of a background
@@ -129,8 +85,8 @@ declares_spike_scale() {
 #
 # The GRAMMAR — heading_re, verdict_re, status_re — is copied VERBATIM from the
 # parse_verdict shared by scripts/epic-index.sh, scripts/archive-story.sh and
-# scripts/validate-story.sh. FOUR readers of that grammar now, and if 007 ever
-# amends it all four move together. This is the only PARTIAL one: staleness
+# scripts/validate-story.sh. Four readers share that grammar, and if it ever
+# changes all four move together. This is the only PARTIAL one: staleness
 # keys on the status alone, so the fourth regex there (`promoted-to:`) is
 # deliberately absent — a `promote` with no target recorded is still a DECIDED
 # verdict, and nagging "promote or close" at it would state something false;
@@ -168,10 +124,10 @@ find_stale() {
   for tasks_file in .epic/stories/*/tasks.md; do
     [ -f "$tasks_file" ] || continue
 
-    # ONE mtime read, hoisted above both rules (story 007). The THRESHOLD
+    # ONE mtime read, hoisted above both rules. The THRESHOLD
     # differs per scale; the MEASUREMENT must not. A second `stat` down in the
-    # spike branch would be a second dialect of "how old is this story?" — the
-    # exact duplication the story's constraint forbids.
+    # spike branch would be a second dialect of "how old is this story?",
+    # letting the two rules disagree.
     local mtime
     mtime=$(stat -c %Y "$tasks_file" 2>/dev/null || stat -f %m "$tasks_file" 2>/dev/null || echo "$now_epoch")
     local story_name
@@ -179,7 +135,7 @@ find_stale() {
     story_name="${story_name##*/}"
     local days_stale=$(( (now_epoch - mtime) / 86400 ))
 
-    # A spike's deadline is its VERDICT (story 007 R1.5), and this rule
+    # A spike's deadline is its VERDICT, and this rule
     # REPLACES the pending-work rule below rather than adding to it. A spike's
     # boxes are probe steps, not a contract — the same reading archive-story.sh
     # makes when it lets the Verdict alone decide completion — so an open box
@@ -202,12 +158,12 @@ find_stale() {
     fi
 
     # Skip stories with no incomplete tasks. Pending work is `[ ]` and ONLY
-    # `[ ]` (R4.3): a `[~]` box is closed by grammar — the work was waived,
+    # `[ ]`: a `[~]` box is closed by grammar — the work was waived,
     # ruled n-a, superseded, or deferred to an external actor — so a story
     # whose only non-`[x]` boxes are `[~]` is not sitting on pending work and
     # must never be nagged about.
     # This is the DELIBERATE EXCEPTION to the `[ x~]` class used by
-    # validate-story.sh, cross-reference.sh and hook-task-completed.sh. Those
+    # validate-story.sh and cross-reference.sh. Those
     # ask "is this line a task?" — all three box states are. This one asks
     # "is work still owed here?" — only `[ ]` is. Do NOT widen it to
     # `\[[ x~]\]` for the sake of consistency: that resurrects stale
@@ -225,12 +181,5 @@ find_stale() {
   done
 }
 
-if [ "$MODE" = "once" ]; then
-  find_stale
-  exit 0
-fi
-
-while true; do
-  find_stale
-  sleep "$POLL_INTERVAL_SECONDS"
-done
+find_stale
+exit 0

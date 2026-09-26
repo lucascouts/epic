@@ -6,12 +6,11 @@
 #   <!-- epic:index:start -->   ...generated table...   <!-- epic:index:end -->
 #
 # Everything OUTSIDE those markers is the project's own hand-written content
-# and is copied through byte for byte (R5.3). Regenerating the block from disk
+# and is copied through byte for byte. Regenerating the block from disk
 # state is what makes the links correct by construction: archiving a story
-# moves its directory, the next regeneration re-derives the link (R5.1/R5.2) —
-# no sed surgery on a file humans also edit, which is the failure mode a
-# hand-maintained index produced (a frozen index became the reason archives
-# stopped happening).
+# moves its directory, the next regeneration re-derives the link —
+# no sed surgery on a file humans also edit, because a hand-maintained index
+# drifts out of date and discourages archiving.
 #
 # Three sources, in this order of authority: stories/, archive/, and
 # archive/manifest.yaml. The first two are the live filesystem and always win.
@@ -357,18 +356,18 @@ front_value() {
   printf '%s' "$val"
 }
 
-# --- Checkbox census (story 004 grammar) ---
+# --- Checkbox census ---
 # One line grammar, three box states: `[ ]` open, `[x]` closed, `[~]` closed
 # WITHOUT the work being done — qualified on the same line by one of
 # deferred: / waived: / n-a: / superseded-by:.
 #
-# The GRAMMAR is shared verbatim with validate-story.sh and hook-precompact.sh.
+# The GRAMMAR is shared verbatim with validate-story.sh and hook-session-restore.sh.
 # The AGGREGATION is per-consumer, and this script is the third consumer:
 #   * validate-story.sh folds every qualified [~] into `closed` (it only needs
 #     "is anything still open?");
 #   * archive-story.sh partitions closed/deferred/open for the manifest (three
 #     disjoint numbers a reader must be able to add up);
-#   * this index RENDERS FOR A HUMAN, exactly like hook-precompact.sh — so it
+#   * this index RENDERS FOR A HUMAN, exactly like hook-session-restore.sh — so it
 #     reuses that script's split verbatim: terminal qualifiers close the box,
 #     `deferred:` is reported apart (that work is settled in the plan but still
 #     owed by an external actor), `deferred:` wins when a line carries both,
@@ -416,7 +415,7 @@ census() {
   return $rc
 }
 
-# --- Spike verdict (story 007 grammar) ---
+# --- Spike verdict ---
 # A `scale: spike` story concludes through a mandatory section, not through a
 # lifecycle status:
 #   ## Verdict
@@ -429,11 +428,11 @@ census() {
 #
 # The GRAMMAR — these four regexes — is shared VERBATIM with the parse_verdict
 # of archive-story.sh AND of validate-story.sh, exactly as the checkbox census
-# above shares its grammar with validate-story.sh and hook-precompact.sh. THREE
+# above shares its grammar with validate-story.sh and hook-session-restore.sh. THREE
 # full consumers, plus a PARTIAL fourth — monitor-stale.sh's verdict_status,
 # which copies the first three regexes verbatim and deliberately omits
-# `promoted-to` (staleness keys on the status alone). If 007 ever amends the
-# grammar, all four move together. The AGGREGATION is per-consumer and differs
+# `promoted-to` (staleness keys on the status alone). If the grammar
+# changes, all four move together. The AGGREGATION is per-consumer and differs
 # on purpose: archive-story.sh turns the verdict into a completion verdict (may
 # this story be archived?), validate-story.sh turns it into validation errors (a
 # spike must HAVE a verdict, and `promote` must name its target),
@@ -513,7 +512,7 @@ scan_area "$ARCHIVE_DIR" archive
 STORY_COUNT=${#S_DIR[@]}
 
 # --- The third source: .epic/archive/manifest.yaml ---
-# The index scans stories/ + archive/ + THE MANIFEST (design.md:67). The first
+# The index scans stories/ + archive/ + THE MANIFEST. The first
 # two are the filesystem; the manifest is the PERMANENT RECORD of every story
 # that ever left stories/, and it outlives the directory it names. Prune an
 # archived story's files and the row must not vanish with them — the archive's
@@ -530,7 +529,7 @@ STORY_COUNT=${#S_DIR[@]}
 #  2. THE DISK ALWAYS WINS. A recorded story that either scan already found is
 #     NOT emitted here: the directory is the live truth, the manifest only the
 #     record of what left. That covers the interrupted archive too — the entry
-#     is appended BEFORE the move (R3.4), so a run that died in between leaves a
+#     is appended BEFORE the move, so a run that died in between leaves a
 #     story that is recorded AND still in stories/, and it must render once,
 #     from disk. Identity is checked two ways, because claiming "directory
 #     removed" about a directory that is right there is worse than a duplicate
@@ -554,8 +553,8 @@ STORY_COUNT=${#S_DIR[@]}
 #
 # NOT done here, deliberately: these numbers are NOT added to KNOWN_NUMS, so a
 # `superseded-by: MMM` pointing at a manifest-only story still renders
-# `(missing)`. Widening that resolution would change rows this sub-task is not
-# about; it is noted for whoever owns supersede semantics.
+# `(missing)`. Widening that resolution belongs to supersede semantics, not to
+# this reader.
 MAN_ROWS=()
 
 # manifest_row <story> <number> <slug> <status> <total> <closed> <deferred>
@@ -614,7 +613,7 @@ manifest_row() {
     prog+=" (+$deferred deferred)"
   fi
 
-  # NO LINK. R5.1 asks for a link resolving to the story's CURRENT location;
+  # NO LINK. Every link resolves to the story's CURRENT location, and
   # this story has none, so the row says so instead of emitting a href that
   # 404s. Same shape as `superseded by MMM (missing)`: state what is recorded,
   # then name what could not be resolved.
@@ -688,8 +687,8 @@ read_manifest || echo "epic-index manifest=$MANIFEST_FILE note=unreadable-in-par
 
 MANIFEST_COUNT=${#MAN_ROWS[@]}
 
-# Nothing to index and no file to maintain: stay quiet (design — "no noise in
-# empty repos"). A project holding a manifest entry is NOT an empty repo: the
+# Nothing to index and no file to maintain: stay quiet, because an empty repo
+# gets no noise. A project holding a manifest entry is NOT an empty repo: the
 # story it records is exactly what this block must not erase. An index that
 # already exists IS maintained even at zero stories, because the user asked for
 # it by creating it.
@@ -701,7 +700,7 @@ fi
 # --- Cell renderers ---
 
 # verdict_cell <tasks.md> — the Status column for a `scale: spike` story: its
-# `## Verdict`, which is the only conclusion a spike has (007 R1.7).
+# `## Verdict`, which is the only conclusion a spike has.
 #
 # NO VERDICT MEANS THE EM DASH — the very same one a story with no `status:`
 # renders. Falling back to the frontmatter status would print a lifecycle value
@@ -740,9 +739,9 @@ verdict_cell() {
 }
 
 # status_cell <story.md> <tasks.md> — the Status column: the frontmatter value;
-# an em dash for the 340+ legacy stories that predate the field (an empty cell
-# would read as a rendering bug, and crashing on absence would make the index
-# unusable on exactly the corpus it has to describe); and, for a superseded
+# an em dash for stories that do not declare the field (an empty cell would
+# read as a rendering bug, and crashing on absence would make the index
+# unusable on older stories); and, for a superseded
 # story, the successor it points at. A pointer that resolves nowhere is SHOWN,
 # not hidden: a dangling supersede is precisely what a reader needs to be told
 # about.
@@ -757,9 +756,8 @@ verdict_cell() {
 # status_cell therefore keeps its OWN precedence: it reads the row's story.md and
 # falls back to tasks.md. That fallback covers `status` as well as `scale`, and for
 # the same reason: a `fast` or `spike` story HAS no story.md, so story.md-only
-# resolution renders an em dash for a story whose status is right there in tasks.md
-# — which is what this index did for every Fast row until it was measured. The
-# precedence itself is not invented here and is not this file's to define: a
+# resolution renders an em dash for a story whose status is right there in tasks.md.
+# The precedence itself is not invented here and is not this file's to define: a
 # lifecycle field lives in story.md when there is one and in tasks.md when there
 # is not, which is how the archiver reads one too, so a row and an archive entry
 # never disagree about the same story. `scale:` is the one field that does NOT
@@ -870,7 +868,7 @@ build_rows() {
 
     # Link target: the story file when there is one, the directory otherwise.
     # Relative to .epic/, which is where EPIC.md lives — that is what makes the
-    # link resolve to the story's CURRENT location (R5.1).
+    # link resolve to the story's CURRENT location.
     if [[ -f "$EPIC_DIR/$area/$dir/story.md" ]]; then
       link="$area/$(url_escape "$dir")/story.md"
     else
@@ -897,7 +895,7 @@ build_rows() {
 build_rows
 # The manifest rows were built during the scan (they gate the no-stories exit
 # above). They join the same array, so ONE sort orders disk and record rows
-# together — which is what keeps R5.4 true with manifest rows in play.
+# together and the output stays deterministic with manifest rows in play.
 ROWS+=(${MAN_ROWS[@]+"${MAN_ROWS[@]}"})
 
 # --- Render the generated block ---
@@ -923,7 +921,7 @@ render_block() {
 # --- Locate the marker pair ---
 # Byte offsets, not line numbers: the head and the tail are spliced back with
 # head -c / tail -c so that anything the project wrote outside the block —
-# trailing spaces, CRLF, a missing final newline — survives untouched (R5.3).
+# trailing spaces, CRLF, a missing final newline — survives untouched.
 START_COUNT=0
 END_COUNT=0
 HEAD_BYTES=0
@@ -990,8 +988,7 @@ if [[ -e "$INDEX_FILE" ]]; then
     } > "$TMP_BUILD" || fail "could not compose the new index"
   fi
 else
-  # Created with a heading above the block: the design's premise is that
-  # projects hand-write context around the index, and a bare pair of HTML
+  # Created with a heading above the block: projects hand-write context around the index, and a bare pair of HTML
   # comments does not invite it.
   {
     printf '%s\n\n' '# Epic — Story Index'
@@ -1000,7 +997,7 @@ else
 fi
 
 # --- Write only when something actually changed ---
-# R5.4 at its strongest: a second run with no state change does not open the
+# Idempotence at its strongest: a second run with no state change does not open the
 # file for writing at all, so neither the bytes nor the mtime move.
 if [[ -f "$INDEX_FILE" ]] && cmp -s "$TMP_BUILD" "$INDEX_FILE"; then
   echo "epic-index index=$INDEX_FILE stories=$STORY_COUNT manifest_only=$MANIFEST_COUNT action=unchanged" >&2

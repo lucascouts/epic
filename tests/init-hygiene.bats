@@ -10,7 +10,8 @@
 #   I3  the Agent memory hygiene section names consent, the default, headless
 #   I4  the versioning-policy text names the evidence files as scratch by
 #       decision, and points at the memory page as the durable form
-#   I5  run-mode.md no longer asks [y/n] to parallelize and documents --serial
+#   I5  run-mode.md states a proven parallel group instead of asking [y/n],
+#       and documents --serial
 
 ROOT="$BATS_TEST_DIRNAME/.."
 
@@ -57,8 +58,8 @@ has() {
 }
 
 @test "I5: run-mode.md states a proven parallel group instead of asking, and documents --serial" {
-  # Parallel Execution moved to its own appendix, loaded only when a run has a
-  # group to prove; run-mode.md keeps the pointer, the detection lives there.
+  # Parallel Execution lives in its own appendix (references/run-parallel.md),
+  # loaded only when a run has a group to prove; run-mode.md keeps the pointer.
   det=$(section "$ROOT/references/run-parallel.md" '^### Detection' '^### ')
   if printf '%s' "$det" | grep -q 'Execute in parallel? \[y/n\]'; then
     echo 'detection still asks [y/n] to parallelize' >&2

@@ -2,7 +2,7 @@
 
 Design-level view of the Epic plugin for contributors and integrators. The [README](README.md) covers *what* Epic is and how to install it; this document covers *how the pieces fit together* and *why*.
 
-- Last verified against: **v0.9.0** (`.claude-plugin/plugin.json`)
+- Last verified against: **v0.10.0** (`.claude-plugin/plugin.json`)
 - If you only want to add a new story mode or tweak an agent prompt, jump to [Extension points](#extension-points).
 
 ---
@@ -63,14 +63,13 @@ The plugin surface maps to Claude Code's extension points:
 | `skills/epic/` | Skill | The `/epic:epic` entry point. Parses `$ARGUMENTS`, routes to modes, orchestrates agents, writes artifacts. |
 | `agents/` | Sub-agents | 8 specialized personas with bounded tool access and dedicated context windows. |
 | `hooks/hooks.json` | Hooks | 9 hook events, each `if:`-filtered to `.epic/**` paths or tool-arg patterns. |
-| `monitors/monitors.json` | Monitors | Opt-in stale-story watcher (requires CC 2.1.105+). |
 | `output-styles/epic.md` | Output style | Optional structured presentation mode. |
 | `bin/` | PATH executables | `epic-validate`, `epic-xref`, `epic-archive` — thin wrappers over `scripts/`. |
 | `scripts/` | — | Bash implementations behind hooks, bin, and CI. |
 | `references/` | — | Mode-specific operational guides loaded on-demand by the skill. |
 | `.claude-plugin/plugin.json` | Manifest | Plugin metadata + `userConfig` schema. |
 | `assets/examples/` | — | Reference artifacts for each scale, used as format anchors. |
-| `evals/` | — | Trigger-query + test-case suite, and `README.md` — the measurement methodology, including why a trigger eval must not gate anything. |
+| `evals/` | — | Native `claude plugin eval` suite (trigger and end-to-end cases), and `README.md` — how to run it and why a trigger score must not gate anything. |
 | `tests/` | — | `bats` unit tests for scripts. |
 
 ---
@@ -102,7 +101,7 @@ Each `agents/*.md` declares its allowed tools. Narrower scopes catch drift early
 
 - `executor`: `Read, Write, Edit, Bash, Glob, Grep` (implements code)
 - `auditor`: `Read, Glob, Grep, Bash, LSP, Write` — `LSP` reads symbols; `Write` reaches exactly one path, `.draft/audit-report.yaml`
-- `test-advisor`: `Read, Write, Bash, Glob, Grep` — no longer a read-only surface. It authors the failing tests for test-first sub-tasks (`Write`) and runs them to capture Red evidence (`Bash`). Its scope now covers `E2E` sub-tasks in addition to `Unit`/`Integration` — an `E2E` test is authored against the story's selected E2E tool (see [Preferred-tooling policy](#preferred-tooling-policy)) with Red-phase verification **deferred to Run mode**, so for those sub-tasks the Test Advisor writes the file but does not run `Bash`.
+- `test-advisor`: `Read, Write, Bash, Glob, Grep` — it authors the failing tests for test-first sub-tasks (`Write`) and runs them to capture Red evidence (`Bash`). Its scope covers `Unit`, `Integration` and `E2E` sub-tasks — an `E2E` test is authored against the story's selected E2E tool (see [Preferred-tooling policy](#preferred-tooling-policy)) with Red-phase verification **deferred to Run mode**, so for those sub-tasks the Test Advisor writes the file but does not run `Bash`.
 - `analyst`, `architect`, `reviewer`: read-only surfaces
 - `tech-reviewer`: `Read, Glob, Grep, Bash, WebFetch, WebSearch` — `Bash` is measurement only (linters, compilers, greps, query plans), never a mutation of files or git state, so a finding that rests on a runnable check can carry the command and the output backing it
 - `validator`: `Read, Glob, Grep, Bash, Write` — `Write` reaches exactly one path, `.draft/validation-report.yaml`
@@ -146,12 +145,12 @@ Artifacts are the stable interface between phases and between agents. Agents pas
     ├── meta.yaml         # phase + project-hash + analyst cache
     ├── authored-tests/   # failing test files authored in Phase 3 (test-first)
     ├── red-evidence.yaml # Red-phase verification record per pre-authored test
-    └── *.md.wip          # checkpoint markers inside long artifacts
+    └── *.md.wip          # section-progress markers inside long artifacts
 ```
 
 ### Frontmatter contract
 
-Every artifact carries a shared frontmatter block. See [`skills/epic/SKILL.md`](skills/epic/SKILL.md#output-rules):
+Every artifact carries a shared frontmatter block. See [`references/output-rules.md`](references/output-rules.md):
 
 ```yaml
 ---
@@ -184,21 +183,16 @@ All files in a story share the same `version`. It's an integer, not semver; bump
 
 ## Hook matrix
 
-All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — so they fire on `.epic/**` edits even outside a `/epic:epic` session (external editor, another skill, plain `Edit`). Each uses an `if:` filter or matcher to stay cheap when Epic is idle.
+All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — so they fire on Claude's `.epic/**` writes even outside a `/epic:epic` session (another skill, a plain `Write`). A skill-frontmatter hook would start only once the skill is invoked, and then stay active for the rest of the session. Tool hooks never see edits made in an external editor. Each uses an `if:` filter or matcher to stay cheap when Epic is idle.
 
 | Event | Matcher / if-filter | Script | Purpose | Min CC |
 |---|---|---|---|---|
 | `PostToolUse` | `Write(.epic/**)` | `hook-validate.sh` | Auto-run `validate-story.sh` on every story-artifact write | 2.1.85 |
 | `PreToolUse` | `Edit(.epic/archive/**)` · `Write(.epic/archive/**)` | `hook-archive-guard.sh` | Block mutations to archived stories | 2.1.85 |
-| `PreToolUse` | `Bash(git commit *)` | `hook-defer-commit.sh` | No-op interactively; returns `defer` when `CI=true`/`CLAUDE_CODE_HEADLESS=true` | 2.1.89 |
-| `PreCompact` | — | `hook-precompact.sh` | Snapshot active-story state before autocompaction | 2.1.105 |
-| `SessionStart` | `compact` | `hook-session-restore.sh` | Restore state after a compaction rewake | 2.1.105 |
-| `SessionEnd` | `clear` | `hook-session-end-cleanup.sh` | Clean transient drafts on explicit clear | 2.1.85 |
-| `TaskCompleted` | — (asyncRewake) | `hook-task-completed.sh` | Run `validate-story.sh` on the active story when a TodoWrite item completes — it **writes nothing**: tasks.md markers are written only by `scripts/close-subtask.sh` | 2.1.85 |
-| `PostToolUseFailure` | `Bash` | `hook-post-tool-failure.sh` | Capture failing validation context into the story's notes | 2.1.85 |
-| `CwdChanged` | — | `hook-cwd-changed.sh` | Detect project switch; reset story cache | 2.1.85 |
-| `FileChanged` | `constitution.md` | `hook-file-changed.sh` | Re-evaluate constitution constraints when it changes | 2.1.85 |
-| `PermissionDenied` | `mcp__.*` | inline `{"retry": true}` | Retry MCP calls after a permission prompt | 2.1.89 |
+| `PreToolUse` | `Bash(git commit *)` · `Edit`/`Write` of `.epic/stories/**/tasks.md` | `hook-executor-guard.sh` | Inside the Executor (`agent_type`), deny `git commit` and edits to `tasks.md` | 2.1.85 |
+| `SubagentStop` | `epic:validator` · `epic:auditor` | `hook-report-guard.sh` | Keep the agent running until it has written its report file | 2.1.69 |
+| `SessionStart` | `compact` | `hook-session-restore.sh` | After a compaction, render the active story's state from disk into context | 2.1.105 |
+| `SessionStart` | `clear` | `hook-orphan-drafts.sh` | After `/clear`, list drafts untouched for 30+ days, one removal line each; deletes nothing | 2.1.85 |
 
 Degradation on older CC versions is documented in [README.md#minimum-claude-code-version-per-component](README.md#minimum-claude-code-version-per-component).
 
@@ -208,7 +202,7 @@ Degradation on older CC versions is documented in [README.md#minimum-claude-code
 
 A sub-task passes through the executor as an ordered pipeline. Skipping any step is a protocol violation — the auditor catches this. Full definition in [`agents/executor.md`](agents/executor.md).
 
-The protocol **remains six steps**. Steps 2 and 5 are *conditional* — their wording depends on whether the sub-task carries a pre-authored failing test (a test-first sub-task) or not (a test-after sub-task):
+The protocol has **six steps**. Steps 2 and 5 are *conditional* — their wording depends on whether the sub-task carries a pre-authored failing test (a test-first sub-task) or not (a test-after sub-task):
 
 1. **Context gathering** — read every file/doc listed in the sub-task's `Context:` field before writing code.
 2. **Implementation** (**Green** for a test-first sub-task) — implement literally what `ToDo:` says; deviate only with a documented reason. For a test-first sub-task the goal is to make the pre-authored failing test pass; the test is a read-only input whose assertions are immutable.
@@ -252,7 +246,7 @@ The story audit includes a **Red-evidence gate** (auditor check #10): every sub-
                                   Phase 3 ─► tasks.md + artifacts promoted from .draft/
                                     │
                                     ▼
-                                  Run mode ─► executor per sub-task ─► TaskCompleted hook
+                                  Run mode ─► executor per sub-task ─► close-subtask.sh
                                     │
                                     ▼
                                   Validate mode ─► validator + auditor
@@ -275,13 +269,13 @@ All hook scripts and validators are bash. The plugin has zero runtime dependenci
 
 ### Single skill (`/epic:epic`), not multiple slash commands
 
-Every mode (Create, List, Run, Validate, Refine, Archive, Teams, Init) lives under `/epic:epic` via `$ARGUMENTS` routing. This keeps discovery simple (one command to remember), concentrates triage/orchestration in one place, and lets reference files share context-loading rules. Modes that diverge heavily load dedicated `references/*-mode.md` files on entry.
+Every mode (Create, List, Run, Validate, Refine, Archive, Init) lives under `/epic:epic` via `$ARGUMENTS` routing. This keeps discovery simple (one command to remember), concentrates triage/orchestration in one place, and lets reference files share context-loading rules. Modes that diverge heavily load dedicated `references/*-mode.md` files on entry.
 
 ### Scale-adaptive (Fast / Standard / Full)
 
 Forcing full planning ceremony on a 1-file change is user-hostile; skipping planning on a 10-file cross-cutting change is risk-hostile. Scale is chosen per-story during triage with an explicit trade-off statement. Upgrade paths exist (Fast → Standard → Full) if scope grows during planning.
 
-Test-first ordering is scale-adaptive too. Standard and Full author failing tests at **plan time** (Test Advisor, Phase 3) and stage them in `.draft/authored-tests/`. Fast is test-first at **run time**: there is no Test Advisor sub-agent, no `.draft/`, and no `red-evidence.yaml`. For a Fast sub-task carrying a `Tests` field the main agent authors the test and confirms it fails (Red) before implementation, then proceeds Green-then-Refactor — a Trivial sub-task runs this inline as a single author, while a Simple-or-higher sub-task has the main agent author and Red-verify, then pass the confirmed-failing test to the Executor as a read-only **Pre-Authored Test** input. The Executor (`agents/executor.md`) is **reused unchanged** across all scales: its existing conditional six-step protocol already consumes a Pre-Authored Test section regardless of scale, so wiring Fast into test-first needed no Executor edit.
+Test-first ordering is scale-adaptive too. Standard and Full author failing tests at **plan time** (Test Advisor, Phase 3) and stage them in `.draft/authored-tests/`. Fast is test-first at **run time**: there is no Test Advisor sub-agent, no `.draft/`, and no `red-evidence.yaml`. For a Fast sub-task carrying a `Tests` field the main agent authors the test and confirms it fails (Red) before implementation, then proceeds Green-then-Refactor — a Trivial sub-task runs this inline as a single author, while a Simple-or-higher sub-task has the main agent author and Red-verify, then pass the confirmed-failing test to the Executor as a read-only **Pre-Authored Test** input. The Executor (`agents/executor.md`) is the same at every scale: its conditional six-step protocol consumes a Pre-Authored Test section regardless of scale.
 
 ### English-only artifacts, user's language in chat
 
@@ -294,14 +288,6 @@ Plugin-scope hooks fire when the user edits `.epic/**` outside an active `/epic:
 ### Archive immutability via PreToolUse block, not convention
 
 A `PreToolUse` hook on `.epic/archive/**` returns a blocking response. Convention-only (a note in the README) would fail when an agent writes without reading the convention. Enforcement at the tool layer is robust against both drift and unfamiliar users.
-
-### Agent-teams as opt-in, project-scoped
-
-Agent-teams is an experimental CC flag. Epic proposes it only when the story has 2+ likely-independent tracks and the project hasn't opted out (`.epic/teams-opt-out`). The proposal never blocks triage — the user picks `y`/`n`/`never` and flow continues. See [`references/teams-mode.md`](references/teams-mode.md).
-
-### `defer` for headless commits
-
-In headless mode (`CI=true`/`CLAUDE_CODE_HEADLESS=true`), `hook-defer-commit.sh` returns `permissionDecision: "defer"` on `git commit`. The Agent SDK wrapper can collect approval out-of-band (Slack, GitHub Action) and resume with `--resume`. Interactive sessions are unaffected. Requires CC 2.1.89+.
 
 ### Degrade gracefully on missing MCPs
 
@@ -332,8 +318,7 @@ Common contributions and where they go:
 | New hook event | Append to `hooks/hooks.json` with `if:` filter, add script under `scripts/hook-*.sh`, document in [Hook matrix](#hook-matrix) |
 | New validation rule | Extend `scripts/validate-story.sh` (errors vs warnings), add a `bats` test under `tests/` |
 | New user-config field | Add schema entry under `userConfig` in `.claude-plugin/plugin.json`, read via `${CLAUDE_PLUGIN_CONFIG_*}` env in scripts |
-| New eval case | Add under `evals/` (trigger-query + expected artifacts), runnable via `scripts/run-evals.sh` |
-| New trigger verdict | `scripts/trigger-detect.sh` is the single scorer of a trigger run — it reads a transcript and answers `triggered` / `not-triggered` / `error`; `run-evals.sh` matches nothing inline |
+| New eval case | Add a case directory under `evals/` (`prompt.md` + `graders/`), run with `claude plugin eval . --no-publish` |
 
 Before adding a new reference file under `references/`, check whether existing ones can absorb the content — reference fragmentation hurts skill-load discoverability.
 
@@ -355,9 +340,8 @@ Epic deliberately does not do these things. Adding them would conflict with the 
 
 - [README.md](README.md) — installation, feature list, version-compatibility matrix
 - [`skills/epic/SKILL.md`](skills/epic/SKILL.md) — the orchestrator, command routing, phase execution
-- [`references/phase-gates.md`](references/phase-gates.md) — gate protocol, cascade rollback, checkpoint recovery
+- [`references/phase-gates.md`](references/phase-gates.md) — gate protocol, cascade rollback, section progress
 - [`references/ci-mode.md`](references/ci-mode.md) — headless invocation, deferred commits
-- [`references/teams-mode.md`](references/teams-mode.md) — agent-teams experimental flag
 - [`references/mcp-integration.md`](references/mcp-integration.md) — MCP health-check procedure
 - [`references/constitution.md`](references/constitution.md) — project-level constraints on stories
 - [`CHANGELOG.md`](CHANGELOG.md) — release notes per version

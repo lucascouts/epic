@@ -1,13 +1,13 @@
 #!/usr/bin/env bats
-# Story 007, Task 2.2 — spike Verdict contract in scripts/validate-story.sh.
-# Contract (R1.1 shape, R1.2–R1.4):
+# Spike Verdict contract in scripts/validate-story.sh.
+# Contract:
 #   - A spike is tasks-only and MUST carry a `## Verdict` section with a valid
 #     `status:` line (open | promote | wont-do); missing Verdict is an ERROR.
 #   - `status: promote` without a `promoted-to:` reference is an ERROR.
 #   - Any `Requirements:` field or R-number token in a spike tasks.md is an
 #     ERROR — spikes have no requirements chain.
 # The conforming-fixture test also asserts the spike template shape from
-# references/tasks.md (Task 2.1) validates clean, and that `spike` is an
+# references/tasks.md validates clean, and that `spike` is an
 # accepted member of the scale enum (complementing tests/scale-validation.bats).
 
 setup() {
@@ -53,7 +53,7 @@ EOF
   echo "$output" | grep -q '"status": "pass"'
 }
 
-@test "spike without a Verdict section is an error (R1.2)" {
+@test "spike without a Verdict section is an error" {
   cat > "$STORY/tasks.md" <<'EOF'
 ---
 story: probe-cache-strategy
@@ -73,7 +73,7 @@ EOF
   echo "$output" | jq -r '.error_details[]' | grep -qi 'verdict'
 }
 
-@test "spike promote without promoted-to is an error (R1.3)" {
+@test "spike promote without promoted-to is an error" {
   write_spike '- status: promote
 - conclusion: cache pays off, build the real story'
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
@@ -98,7 +98,7 @@ EOF
   echo "$output" | grep -q '"status": "pass"'
 }
 
-@test "Requirements field in a spike tasks.md is an error (R1.4)" {
+@test "Requirements field in a spike tasks.md is an error" {
   cat > "$STORY/tasks.md" <<'EOF'
 ---
 story: probe-cache-strategy
@@ -122,7 +122,7 @@ EOF
   echo "$output" | jq -r '.error_details[]' | grep -qi 'no requirements chain'
 }
 
-@test "bare R-number token in a spike tasks.md is an error (R1.4)" {
+@test "bare R-number token in a spike tasks.md is an error" {
   write_spike '- status: open
 - conclusion: pending, see R2.1 upstream'
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
@@ -130,27 +130,20 @@ EOF
   echo "$output" | jq -r '.error_details[]' | grep -qi 'no requirements chain'
 }
 
-# --- Appended at story 007, sub-task 5.3 -------------------------------------
-# THE SECOND HALF OF R1.2 HAD NEVER BEEN EXECUTED. Task 2.2 registered a
-# deviation: "a spike concludes through its Verdict" is enforced by TWO errors,
-# not one — an absent or unreadable Verdict, and a Verdict whose `status:` is
-# present but is not a member of the enum — and the deviation record states
-# "R1.2 is satisfied by both arms". Every case above exercises the first arm
-# (the fixture with no `## Verdict` section at all) and none exercises the
-# second, so deleting the second arm outright left the whole suite green while
-# R1.2 was only half met.
+# --- The Verdict's second arm: a status outside the enum ----------------------
+# "A spike concludes through its Verdict" is enforced by TWO errors, not one —
+# an absent or unreadable Verdict, and a Verdict whose `status:` is present but
+# is not a member of the enum. Every case above exercises the first arm (the
+# fixture with no `## Verdict` section at all); the case below exercises the
+# second, without which that arm could be deleted with the suite still green.
 #
 # The two arms are ALSO the pair most easily confused, because they are the two
 # that talk about the same section: the absent-Verdict case above asserts
 # `grep -qi verdict`, and that pattern matches BOTH messages. So a case for the
 # second arm has to assert its own sentence and the absence of the other's, or
 # it proves nothing the first case did not already prove.
-#
-# Characterization of behaviour that already shipped, so Red came from a
-# mutation of scripts/validate-story.sh rather than from absent behaviour —
-# recorded in the story 007 red evidence as `red_via: mutation`.
 
-@test "spike Verdict with a status outside the enum errors, naming the value and the enum (R1.2)" {
+@test "spike Verdict with a status outside the enum errors, naming the value and the enum" {
   # `promoted` rather than an obviously foreign word, ON PURPOSE: it is a
   # near-miss of a real member, so this case pins the ANCHORS on the membership
   # test and not merely "an unknown word errors". Drop the ^…$ from
@@ -181,9 +174,8 @@ EOF
   # section that is already sitting in the file.
   #
   # `if … then return 1; fi` rather than `! echo …`: bash exempts a `!`-inverted
-  # command from errexit, so with the error-count assertion following it this
-  # negation was inert — measured green with its pattern widened to match every
-  # detail. Canonical: tests/reports-by-artifact-policy.bats:49-67.
+  # command from errexit, so a negation followed by another assertion is inert.
+  # Canonical: tests/reports-by-artifact-policy.bats.
   if echo "$output" | jq -r '.error_details[]' | grep -q "has no readable"; then
     return 1
   fi
@@ -194,19 +186,15 @@ EOF
   [ "$(echo "$output" | jq -r '.errors')" -eq 1 ]
 }
 
-# --- Appended at story 007, sub-task 5.4 -------------------------------------
-# THE CONTRADICTION TASK 2.2 REGISTERED AND LEFT UNOWNED. The requirements-
-# coverage check is gated on `HAS_STORY`, not on the declared scale
-# (scripts/validate-story.sh, "Check Requirements field"). So a malformed spike
-# that ALSO carries a story.md reaches that check and is told to add
-# `Requirements:` fields — while the spike R-chain check three sections below
-# makes a `Requirements:` field an ERROR (R1.4), and references/tasks.md tells a
-# spike author to write no R-number anywhere in the file. Obeying either
-# instruction breaks the other, and the author has no way to tell which one is
-# the bug.
+# --- A contradiction between two checks --------------------------------------
+# A requirements-coverage check gated on file presence would tell a malformed
+# spike that ALSO carries a story.md to add `Requirements:` fields — while the
+# spike R-chain check makes a `Requirements:` field an ERROR, and
+# references/tasks.md tells a spike author to write no R-number anywhere in the
+# file. Obeying either instruction would break the other.
 #
-# The fix is a SUPPRESSION, not a rescue: the fixture below IS malformed, and
-# must go on being reported as such. The R2.3 scale-mismatch warning is the
+# The rule is a SUPPRESSION, not a rescue: the fixture below IS malformed, and
+# must go on being reported as such. The scale-mismatch warning is the
 # honest report — it names both sides and lets the author decide which is wrong
 # (drop story.md, or declare the scale the files describe). What must stop is
 # the second, contradictory instruction stacked on top of it.
@@ -237,7 +225,7 @@ refute_error() {
   fi
 }
 
-@test "a spike carrying a story.md warns about the scale mismatch and is not told to add 'Requirements:' fields (R1.4)" {
+@test "a spike carrying a story.md warns about the scale mismatch and is not told to add 'Requirements:' fields" {
   write_spike '- status: open
 - conclusion: pending'
   # The leftover artifact — an earlier attempt at a full story, never removed.
