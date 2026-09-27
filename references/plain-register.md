@@ -55,7 +55,7 @@ A new concept gets one example or one analogy, never a definition: "a file you c
 
 Visible text per turn stays under **~1,500 characters** — about one phone screen. Anything longer goes to a file and gets one line of pointer. Reports, lists of what was checked and explanations of how something works are files, not messages.
 
-**The ceiling is met by form, not by trimming.** A turn that runs tools writes nothing to the chat between them — the step notes are collected and written to the run report once, at the end, in a single write — and speaks once, at the end. Narration between tool calls is what pushes a turn to the ceiling and leaks process words into it; the closing message alone does not.
+**The ceiling is met by form, not by trimming.** A turn that runs tools writes nothing to the chat between them — the step notes are collected and written to the run report once, at the end, in a single write — and speaks once, at the end. **The report write is not announced either**: "Now the run report, in one write" is a status line like any other, and in a Portuguese chat it is also an English one. Narration between tool calls is what pushes a turn to the ceiling and leaks process words into it; the closing message alone does not.
 
 ## What does not change
 

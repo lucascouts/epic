@@ -36,3 +36,10 @@ section() {
   cl=$(section "$ROOT/references/context-discovery.md" '^## Completeness Checklist' '^[*][*]Rules:[*][*]')
   [[ "$cl" == *'**main agent writes the checklist itself**'* ]]
 }
+
+@test "A4: a story anchored on the root commit is audited against the files its sub-tasks name" {
+  # A one-commit repository puts the scaffold in the story's own commit; without
+  # this rule every scaffold file read as scope creep (c8 fixture, 5/5 runs).
+  grep -q "When the anchored commit is the repository's root commit" "$ROOT/agents/auditor.md"
+  grep -q "the anchored commit is the repository's root commit" "$ROOT/references/validate-mode.md"
+}
