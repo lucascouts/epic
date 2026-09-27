@@ -11,6 +11,26 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-09-27
+
+Fewer sub-agents, same findings. Validation and audit are one Auditor spawn, and a Full story's integration points and gotchas are written by the main agent — both measured side by side before the change.
+
+**Minimum Claude Code:** unchanged.
+
+### Changed
+
+- Validation and audit are one Auditor spawn: it runs the validation protocol first, writes `validation-report.yaml`, and audits only on a pass. Same defects found as the two-agent pair, 10–25% cheaper and up to a third faster.
+- Full stories add integration points and implementation gotchas in the main agent, before Phase 2, and record them in design.md under `## Integration Points` and `## Implementation Gotchas`. Same integration points as the Architect spawn, faster and cheaper, and the gotchas no longer get lost between the spawn and design.md.
+- A `layperson` build turn writes no text between tool calls — the report write is not announced either — now stated in SKILL.md, where every run reads it.
+
+### Fixed
+
+- The Auditor judges scope creep on a story anchored on the repository's root commit against the files its sub-tasks name: that commit carries the scaffold too, and every scaffold file used to read as scope creep.
+
+### Removed
+
+- The Validator and Architect agents. `agents/validator.md` became `references/validation-protocol.md`, which the Auditor runs as Part 1.
+
 ## [0.12.0] — 2026-09-27
 
 The end of a run offers one next step, decided by the story's state, and archive follows a passing validate. The context bands follow the model in the transcript, the fix loop is bounded, and the sub-agent audit fixes land.
@@ -1457,7 +1477,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/lucascouts/epic/releases/tag/v0.13.0
 [0.12.0]: https://github.com/lucascouts/epic/releases/tag/v0.12.0
 [0.11.1]: https://github.com/lucascouts/epic/releases/tag/v0.11.1
 [0.11.0]: https://github.com/lucascouts/epic/releases/tag/v0.11.0

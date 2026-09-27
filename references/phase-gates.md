@@ -7,7 +7,7 @@
 - [Cascade Rollback](#cascade-rollback)
 - [Section Progress](#section-progress)
 - [Reference Files Loaded Per Phase](#reference-files-loaded-per-phase)
-- [Architect Sub-agent (Full mode, before Phase 2)](#architect-sub-agent-full-mode-before-phase-2)
+- [Integration points and gotchas (Full mode, before Phase 2)](#integration-points-and-gotchas-full-mode-before-phase-2)
 - [Test Advisor Sub-agent (Standard + Full, during Phase 3)](#test-advisor-sub-agent-standard--full-during-phase-3)
 - [Reviewer Sub-agent (Full mode only)](#reviewer-sub-agent-full-mode-only)
 - [Traceability Check](#traceability-check)
@@ -123,20 +123,16 @@ On format doubts, load the relevant example from `assets/examples/`.
 
 Additionally, if `.epic/constitution.md` is present, its relevant sections are loaded as constraints (the project's `CLAUDE.md` is already in context).
 
-## Architect Sub-agent (Full mode, before Phase 2)
+## Integration points and gotchas (Full mode, before Phase 2)
 
-Before generating design.md, spawn the **Architect** sub-agent (`run_in_background: false`, result awaited), to research the codebase:
+Before writing design.md, the **main agent** adds what the Analyst's triage scan could not produce, because it ran before `story.md` existed. **No sub-agent**: every input — the Analyst's scan, `story.md`, the request — is already in the main agent's context, and a spawn would re-read all of it from empty. Measured side by side, doing it inline gave the same integration points, 17% cheaper and 29% faster, and the gotchas reached `design.md` in 5 of 5 runs against 2 of 5 when they had to cross a spawn boundary. Skipped for Fast and Standard.
 
-> "Provide design context for this story. Follow your agent definition: the Codebase analysis block is the Analyst's scan of this same tree — do not scan again; answer integration points against the written requirements, and the implementation gotchas.
->
-> Story requirements: [path to story.md]
-> Codebase analysis: [Analyst output from Context Discovery — `none: empty repository` when there was no code]"
+1. **Integration points, against the written requirements.** Start from the Analyst's list — do not rescan patterns, conventions or dependencies it already reported. Name where *this story* connects: the files, functions, signatures and contracts it must meet, and which it must not break. Read only the files that settles. On `none: empty repository` there is nothing to integrate with — write `none — greenfield`.
+2. **Implementation gotchas.** For each pattern or library this story needs, research known pitfalls, misconfiguration and non-obvious setup (a docs MCP, `WebFetch` or `WebSearch`). Write each as `GOTCHA: [pattern/library] — [what goes wrong] — [correct approach]`, specific enough to survive into a ToDo: not "use base layout pattern" but "parse each page template together with base.html into a separate template set — calling ExecuteTemplate on the page name alone will produce empty output". Nothing found → `none found`, never an empty section.
 
-The Architect output is injected as context when generating design.md. Skipped for Fast and Standard modes.
+Both go into design.md, under `## Integration Points` and `## Implementation Gotchas` ([design-guide.md](design-guide.md#design-document-template)).
 
-**Why the Architect is not asked to scan.** The Analyst output this prompt injects verbatim already answers patterns (Analyst step 1), conventions (step 2), library docs (step 4) and integration points, which the Analyst's own output format names. The first three have identical inputs — the same tree, the same request — so rescanning them at `effort: high` from an empty context is rediscovery and nothing else. Integration points are **re-scoped rather than duplicated**: the Analyst answers them against the raw request at triage, the Architect answers them against `story.md`, which did not exist yet. The gotcha hunt is the one task unique to this persona, and it is the one carrying a propagation rule. So the Architect answers only those two; on an empty repository there is nothing to integrate with, and its turns go to the gotchas.
-
-**Gotcha propagation rule:** When the Architect identifies implementation gotchas, the main agent MUST incorporate them into the relevant task ToDo fields as concrete implementation notes — not as vague references to patterns. Example: instead of "use base layout pattern", write "parse each page template together with base.html into a separate template set — calling ExecuteTemplate on the page name alone will produce empty output". The gotcha must survive from research → design → task without losing specificity.
+**Gotcha propagation rule:** The gotchas in design.md MUST be carried into the relevant task ToDo fields as concrete implementation notes — not as vague references to patterns. Example: instead of "use base layout pattern", write "parse each page template together with base.html into a separate template set — calling ExecuteTemplate on the page name alone will produce empty output". The gotcha must survive from research → design → task without losing specificity.
 
 ## Test Advisor Sub-agent (Standard + Full, during Phase 3)
 

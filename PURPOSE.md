@@ -13,7 +13,7 @@ Epic is responsible for:
 - **Epic/story creation** — turn a request into EARS-notation requirements, an optional design document, and a hierarchical task breakdown (`tasks.md`).
 - **Story management** — list, refine, archive, and version stories under `.epic/stories/`.
 - **Task orchestration** — drive the Executor sub-agent through the 6-step protocol (context → implementation → design fidelity → validation → refactor-or-tests → report; step 5 is conditional) for each sub-task in `tasks.md`.
-- **Planned validation & audit** — run the Validator and Auditor *against the story artifacts the plugin produced*, to verify implementation matches the planned scope.
+- **Planned validation & audit** — run the Auditor's validation and audit *against the story artifacts the plugin produced*, to verify implementation matches the planned scope.
 - **Traceability** — enforce the R-number → design-component → sub-task chain via `scripts/cross-reference.sh` and the archive immutability guard.
 
 ---
@@ -39,7 +39,7 @@ The refusal is not soft-fail; the skill surfaces a one-line rejection explaining
 
 ## Why this boundary exists
 
-- **Artifacts are the contract.** The Executor, Validator, and Auditor only work because they compare code against `story.md`, `design.md`, and `tasks.md`. Without those artifacts, the sub-agent pipeline has no anchor — the 6-step protocol degenerates into ad-hoc prompting.
+- **Artifacts are the contract.** The Executor and the Auditor only work because they compare code against `story.md`, `design.md`, and `tasks.md`. Without those artifacts, the sub-agent pipeline has no anchor — the 6-step protocol degenerates into ad-hoc prompting.
 - **Scope discipline prevents drift.** Every Epic run is traceable R-number → design-component → sub-task → commit. Accepting "just analyze this" or "just refactor this" breaks the chain and erodes the value proposition.
 - **Claude Code has better tools for the rest.** `/review`, `/security-review`, `/code-review`, `/gsd-debug`, `/gsd-explore`, `/tab`, and plain chat cover analysis, review, and exploration. Epic's job is to formalize *decided* work, not to explore or audit *existing* work.
 

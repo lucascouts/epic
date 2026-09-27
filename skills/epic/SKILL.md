@@ -103,9 +103,9 @@ Its JSON `mapping` field gives the requirement → sub-tasks relation directly �
 - Bugfix: Unchanged Behavior section is **mandatory**, minimum 2 items
 - Fast mode is test-first at run time: a sub-task with a `Tests` field is authored Red, then Green-then-Refactor; a sub-task with no testable logic carries an `Acceptance` field (1-3 observable-behavior statements) instead — every implementing (non-Commit) sub-task carries one or the other
 - **A run that finishes a story ends with an `AskUserQuestion`** when callable, `--auto` too: one step — refine if work is pending, else validate — plus *Stop here*; archive only after a passing validate. See [End of Run](../../references/run-mode.md#end-of-run--next-step-index)
-- Fast → Standard upgrade: recommend upgrading during triage or task generation when scope grows, **or** when a change genuinely needs requirement traceability or design documentation — Fast provides neither
+- Fast → Standard upgrade: recommend it at triage or task generation when scope grows, **or** when the change needs requirement traceability or design documentation — Fast has neither
 - Constitution constraints are soft — warnings, not blocks
-- This skill formalizes work into structured stories — it does NOT explore ideas from scratch or write implementation code
+- A `layperson` build turn writes no text between tool calls — no status line in any language; notes go to `run-report.md`, the chat gets the closing message
 ## Prerequisites
 
 - `bash`, `git`, and `jq` available on `PATH`
@@ -190,7 +190,7 @@ $ARGUMENTS parsing:
   → RUN mode (all pending tasks of story NNN)
 
 "stories validate NNN"
-  → VALIDATE mode (Validator + Auditor on story NNN)
+  → VALIDATE mode (one Auditor: validation, then audit)
 
 "stories refine NNN"
   → REFINE mode (delta workflow on story NNN)

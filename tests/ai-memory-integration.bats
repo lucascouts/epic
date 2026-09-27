@@ -83,7 +83,7 @@ has() { # has <label> <block> <keyword>
 }
 
 @test "M6: validate-mode.md hands prior findings to the Auditor to verify, and writes audit pages" {
-  aud=$(section "$ROOT/references/validate-mode.md" '^## Auditor Sub-agent' '^## ')
+  aud=$(section "$ROOT/references/validate-mode.md" '^## Audit — Part 2' '^## ')
   has "M6 prior" "$aud" "memory"
   has "M6 verify" "$aud" "verify"
   proc=$(section "$ROOT/references/validate-mode.md" '^## Validate Mode Procedure' '^## ')

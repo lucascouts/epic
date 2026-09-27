@@ -85,7 +85,7 @@
     ],
     "SubagentStop": [
       {
-        "matcher": "^(epic:)?(validator|auditor)$",
+        "matcher": "^(epic:)?auditor$",
         "hooks": [
           {
             "type": "command",

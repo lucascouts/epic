@@ -2,9 +2,9 @@
 # The per-agent reasoning-effort policy is DATA the suite reads, not a sentence
 # someone remembers to keep true.
 #
-# WHAT IS PINNED, AND WHY EACH ONE. The Validator runs at `medium` because its
-# verification is mechanical. The Auditor and the Executor stay at `high` or
-# above — they carry the judgment that trade-off relies on, so a silent drop
+# WHAT IS PINNED, AND WHY EACH ONE. The Auditor (which also runs the
+# validation) and the Executor stay at `high` or above — they carry the
+# judgment the pipeline relies on, so a silent drop
 # below `high` would remove the safety net while leaving the saving in place.
 # `high` over `max` is measured: an A/B at max/high/medium (n=5) found every
 # planted defect and the same passing tests in every arm, `max` at 2–4x cost. The Analyst is
@@ -19,15 +19,6 @@
 setup() {
   PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   AGENTS="$PLUGIN_ROOT/agents"
-}
-
-@test "the Validator declares medium" {
-  run grep -c '^effort: medium' "$AGENTS/validator.md"
-  if [ "$output" != "1" ]; then
-    echo "agents/validator.md must declare exactly one 'effort: medium' line; grep -c answered '$output'"
-    echo "it currently declares: $(grep -m1 '^effort:' "$AGENTS/validator.md")"
-    return 1
-  fi
 }
 
 @test "judgment stays at high or above — the Auditor and the Executor declare high or max" {

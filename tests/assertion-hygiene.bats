@@ -680,9 +680,9 @@ WHY     Pins the direction the count above cannot reach: the prose
 FILE    tests/reports-by-artifact-policy.bats
 PATTERN (delet|remov)[a-z]*[^.]{0,40}stale
 VERDICT PINNED
-WHY     Counts the deletion rule at exactly 3 sites inside `## Validate
-        Mode Procedure` of references/validate-mode.md — steps 3 and 4
-        and the `Before each spawn` heading — so reversing (`Keep the
+WHY     Counts the deletion rule at exactly 2 sites inside `## Validate
+        Mode Procedure` of references/validate-mode.md — step 3 and the
+        `Before the spawn` heading — so reversing (`Keep the
         stale …`) or deleting any single site turns RED. The scope keeps
         the `stale rendering` decoy in `## Index Refresh` out by
         construction; the trailing space in `^## ` keeps the `###`

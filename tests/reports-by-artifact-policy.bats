@@ -139,7 +139,7 @@
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  VALIDATOR="$PLUGIN_ROOT/agents/validator.md"
+  VALIDATOR="$PLUGIN_ROOT/references/validation-protocol.md"
   AUDITOR="$PLUGIN_ROOT/agents/auditor.md"
   TECH_REVIEWER="$PLUGIN_ROOT/agents/tech-reviewer.md"
   VALIDATE_MODE="$PLUGIN_ROOT/references/validate-mode.md"
@@ -188,8 +188,12 @@ agents_granting() { # $1 = tool name
 
 # --- Validator report contract -----------------------------------------------
 
-@test "validator frontmatter grants Write" {
-  grants "$VALIDATOR" "Write"
+@test "the Auditor runs the validation protocol as Part 1, and holds the Write it needs" {
+  # One spawn validates, then audits: the protocol is a reference the Auditor
+  # reads, and its report is the Auditor's first writable path.
+  grants "$AUDITOR" "Write"
+  command grep -q 'validation-protocol.md' "$AUDITOR"
+  flat "$AUDITOR" | command grep -qiE 'on a validation `fail`, stop there'
 }
 
 @test "validator names .draft/validation-report.yaml, its verdict, and the write-before-summary ordering" {
@@ -333,7 +337,7 @@ agents_granting() { # $1 = tool name
   # no heading of any depth and no line beginning `#` — the YAML comments
   # inside it all sit behind a `>` — so `^## `, `^##` and `^#` capture the same
   # lines. The form is kept for consistency with the neighbouring cases.
-  sec="$(md_section "$VALIDATE_MODE" '^## Validator Sub-agent' '^## ')"
+  sec="$(md_section "$VALIDATE_MODE" '^## Validation — Part 1' '^## ')"
   # `flat` reads a file, so a captured section is flattened inline.
   flatsec="$(printf '%s\n' "$sec" | tr '\n' ' ')"
 
@@ -524,7 +528,7 @@ agents_granting() { # $1 = tool name
   # the trailing space decides nothing here either. Each rule reversed or
   # deleted alone Reds; the surrounding template text reworded with all three
   # rules standing stays GREEN.
-  sec="$(md_section "$VALIDATE_MODE" '^## Auditor Sub-agent' '^## ')"
+  sec="$(md_section "$VALIDATE_MODE" '^## Audit — Part 2' '^## ')"
   # `flat` reads a file, so a captured section is flattened inline.
   flatsec="$(printf '%s\n' "$sec" | tr '\n' ' ')"
 
@@ -565,8 +569,8 @@ agents_granting() { # $1 = tool name
   # silently granted Write/Edit, wrote `.claude/agent-memory/` into the user's
   # repository and duplicated ai-memory. A carve-out naming a memory directory
   # would now point at a store no agent has.
-  aud="$(md_section "$VALIDATE_MODE" '^## Auditor Sub-agent' '^## ')"
-  val="$(md_section "$VALIDATE_MODE" '^## Validator Sub-agent' '^## ')"
+  aud="$(md_section "$VALIDATE_MODE" '^## Audit — Part 2' '^## ')"
+  val="$(md_section "$VALIDATE_MODE" '^## Validation — Part 1' '^## ')"
   run command grep -qi 'memory director' <<< "$aud$val"
   [ "$status" -eq 1 ]
 }
@@ -583,38 +587,38 @@ agents_granting() { # $1 = tool name
   # that agent's`) together with `Before each spawn` -> `After each spawn`
   # keeps both words, on prose that then states the opposite rule twice over.
   #
-  # SCOPED RATHER THAN WIDENED. All three sites sit inside `## Validate Mode
-  # Procedure` — steps 3 and 4 and the `### Before each spawn, delete that
-  # agent's stale report file` heading — and the decoy sits in `## Index
+  # SCOPED RATHER THAN WIDENED. Both sites sit inside `## Validate Mode
+  # Procedure` — step 3 and the `### Before the spawn, delete both stale
+  # report files` heading — and the decoy sits in `## Index
   # Refresh`, so the section boundary excludes it by construction. The decoy
   # reworded with the rule untouched stays GREEN.
   #
   # THE TRAILING SPACE IN `^## ` IS LOAD-BEARING HERE: `^## ` runs past the
   # `###` subsections to `## Status Transition`, the stale-report heading among
-  # them, while `^##` stops at the first `###` — dropping the third site
+  # them, while `^##` stops at the first `###` — dropping the heading site
   # entirely and Redding on unmutated prose.
   sec="$(md_section "$VALIDATE_MODE" '^## Validate Mode Procedure' '^## ')"
   # `flat` reads a file, so a captured section is flattened inline.
   flatsec="$(printf '%s\n' "$sec" | tr '\n' ' ')"
 
-  # HALF ONE, THE VERB, AND IT IS COUNTED. The rule stands at three sites, so
-  # asking whether it is stated ANYWHERE is answered by any two survivors — a
+  # HALF ONE, THE VERB, AND IT IS COUNTED. The rule stands at two sites, so
+  # asking whether it is stated ANYWHERE is answered by either survivor — a
   # partial removal would pass. Reversing the verb at any one site takes the
-  # count to 2 and Reds. Why the count is taken over flattened text with
+  # count to 1 and Reds. Why the count is taken over flattened text with
   # `grep -o | wc -l` rather than `grep -c`, why `-eq` rather than `-ge`, and
   # why it is captured before it is compared are argued once on the validator
   # carve-out twin above — one decision, not two.
   #
   # `remov` RIDES BESIDE `delet` because this document calls the act by both
-  # names — the stale-report paragraph writes "Step 3 removes … and step 4
-  # removes …" of the very deletes its heading mandates, and this case's own
+  # names — the stale-report paragraph writes "Step 3 removes …" of the very
+  # deletes its heading mandates, and this case's own
   # name says `removes`. A pin that Redded when the prose adopted the case's
   # own word would force prose to be rewritten for the grep. The widening
-  # cannot raise the count: the section holds exactly three `stale` tokens.
+  # cannot raise the count: no `remov` in the section sits within reach of `stale`.
   # The 40-character leash is rewording slack, not reach — the widest real gap
-  # is 14 (`delete that agent's stale`).
+  # is 11 (`delete both stale`).
   deletes=$(printf '%s\n' "$flatsec" | command grep -oiE '(delet|remov)[a-z]*[^.]{0,40}stale' | wc -l)
-  [ "$deletes" -eq 3 ]
+  [ "$deletes" -eq 2 ]
 
   # ...AND A COUNT CANNOT CARRY THE DIRECTION. `never delete that agent's
   # stale report file` is the rule reversed and still counts three, because
@@ -1049,23 +1053,21 @@ agents_granting() { # $1 = tool name
 
 # --- Least-privilege grant sets ----------------------------------------------
 
-@test "Write is granted to exactly auditor, executor, test-advisor and validator" {
+@test "Write is granted to exactly auditor, executor and test-advisor" {
   # Write is held by exactly these four agents; nobody else joins. An
   # exact-set compare reddens on an agent ADDED as loudly as on one removed.
   expected="auditor
 executor
-test-advisor
-validator"
+test-advisor"
   [ "$(agents_granting Write)" = "$expected" ]
 }
 
-@test "Bash is granted to exactly auditor, executor, tech-reviewer, test-advisor and validator" {
+@test "Bash is granted to exactly auditor, executor, tech-reviewer and test-advisor" {
   # Bash is held by exactly these five agents; nobody else joins.
   expected="auditor
 executor
 tech-reviewer
-test-advisor
-validator"
+test-advisor"
   [ "$(agents_granting Bash)" = "$expected" ]
 }
 
