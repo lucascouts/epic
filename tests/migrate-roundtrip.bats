@@ -191,6 +191,8 @@ EOF
   post=$(box_count "$f")
   # exactly the Commit box left the census — and only it
   [ "$post" -eq $((pre - 1)) ]
+  # Archive follows validation: a passing VALIDATE is what writes this.
+  sed -i 's/^status: done$/status: validated/' "$PROJ/.epic/stories/091-field-form/story.md"
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/091-field-form
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "archived"' > /dev/null

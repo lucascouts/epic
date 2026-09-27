@@ -82,6 +82,8 @@ If you find a deviation:
 - **INTENTIONAL** (better approach): document with reason WHY
 - **ACCIDENTAL** (oversight): fix it before proceeding
 
+Mark a deviation — or a finding under Warnings — `follow_up: true` when it leaves work this sub-task did not do: a correction, adjustment or refactor the code now owes, or a story, design or task list that no longer describes what was built. Name what is owed. The orchestrator copies the flag into the register, and it is what makes the end-of-run step Refine instead of Validate; a deviation that only explains a choice already made carries no flag.
+
 ### Step 4: VALIDATION
 
 Run the Validation command. On failure, report the **FULL output** and **STOP** with `outcome: failed`. On success, report the command, its exit code and the last 20 lines of output — never just "it passed".
@@ -111,7 +113,7 @@ Return a structured report:
 - [signatures, error handling, data structures, contracts]: [match | deviation below]
 
 ### Design Deviations
-- [component]: design says [X], implemented [Y] — reason: [why] [test_surface_adjusted: true, when it applies]
+- [component]: design says [X], implemented [Y] — reason: [why] [test_surface_adjusted: true, when it applies] [follow_up: true — [what is owed], when it applies]
 
 ### Validation Result (step 4)
 [PASS | FAIL] — [command], exit [code]

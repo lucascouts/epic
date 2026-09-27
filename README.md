@@ -99,7 +99,7 @@ Run `/reload-plugins` after updating plugin files.
 # 5. Validate the implementation against story + design
 /epic:epic stories validate 001
 
-# 6. Archive completed stories
+# 6. Archive validated stories
 /epic:epic stories archive 001
 ```
 
@@ -125,7 +125,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 | `/epic:epic stories validate NNN` | Run Validator + Auditor on NNN |
 | `/epic:epic stories refine NNN` | Delta refinement (versioned) |
 | `/epic:epic stories supersede NNN --by MMM` | Replace story NNN with MMM via `references/supersede-mode.md` — supersede banner, per-task remap, `superseded` status in every artifact, archive offer |
-| `/epic:epic stories archive NNN[-MMM]\|--done` | Archive completed stories via `scripts/archive-story.sh` — guarded move, pruned evidence, derived manifest entry |
+| `/epic:epic stories archive NNN[-MMM]\|--done` | Archive validated stories via `scripts/archive-story.sh` (anything else needs `--force <reason>`) — guarded move, pruned evidence, derived manifest entry |
 
 ---
 

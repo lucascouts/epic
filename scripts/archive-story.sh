@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Archives a completed story into .epic/archive/, under guard.
+# Archives a validated story into .epic/archive/, under guard.
 #
 # Usage: bash scripts/archive-story.sh <NNN|story-dir> [--allow-heavy]
 #        [--skip-secrets] [--keep-logs] [--keep-copies] [--force <reason>]
@@ -62,9 +62,10 @@ Flags:
                     recorded in the manifest entry.
   --help, -h        Show this help
 
-Completion: frontmatter status is done/validated/superseded OR no `- [ ]`
-checkbox remains. A `scale: spike` story is complete when its `## Verdict`
-status is `wont-do`, or `promote` with a `promoted-to:` reference recorded.
+Completion: frontmatter status is `validated` AND no `- [ ]` checkbox
+remains — `done` and `superseded` need --force <reason>. A `scale: spike` story
+is complete when its `## Verdict` status is `wont-do`, or `promote` with a
+`promoted-to:` reference recorded.
 
 Output: JSON on stdout — {story, path, status, moved, reason, tasks, pruned,
 guard{violations[{file, size, reason}]}, secrets, index, overrides_used,
@@ -630,11 +631,14 @@ assess_completion() {
     return 0
   fi
 
-  # Every other scale: the status claims it, OR the boxes prove it.
+  # Every other scale: a passed VALIDATE is the only unforced way out. `done`
+  # means the run closed its boxes, not that anyone checked the result; a
+  # superseded story was absorbed by another and never validated at all — both
+  # archive through --force <reason>, which records the decision. `validated`
+  # still needs its boxes closed: a partial pass writes no status, so a story
+  # an earlier pass left reading `validated` can carry a box reopened since.
   # A `[~]` box is closed by grammar and never counts as open.
-  if [[ "$FM_STATUS" == "done" || "$FM_STATUS" == "validated" || "$FM_STATUS" == "superseded" ]]; then
-    COMPLETE=true
-  elif [[ ! -f "$STORY_PATH/tasks.md" ]]; then
+  if [[ ! -f "$STORY_PATH/tasks.md" ]]; then
     # A seed: story.md without tasks. "No `[ ]` remaining" is vacuously true
     # here, so it must be caught before the checkbox branch — otherwise every
     # seed would archive itself clean.
@@ -642,10 +646,12 @@ assess_completion() {
   elif [[ "$BOX_TOTAL" -eq 0 ]]; then
     # Same vacuous-truth hole: an unrecognized tasks.md dialect proves nothing.
     INCOMPLETE_REASON="story '$STORY_ID' has no parseable checkbox tasks (- [ ] N - ...) — completion cannot be verified; fix the format or pass --force <reason>"
-  elif [[ "$BOX_OPEN" -eq 0 ]]; then
+  elif [[ "$BOX_OPEN" -ne 0 ]]; then
+    INCOMPLETE_REASON="story '$STORY_ID' is incomplete: $BOX_OPEN task checkbox(es) still open ([ ]) out of $BOX_TOTAL — pass --force <reason> to archive anyway"
+  elif [[ "$FM_STATUS" == "validated" ]]; then
     COMPLETE=true
   else
-    INCOMPLETE_REASON="story '$STORY_ID' is incomplete: $BOX_OPEN task checkbox(es) still open ([ ]) out of $BOX_TOTAL — pass --force <reason> to archive anyway"
+    INCOMPLETE_REASON="story '$STORY_ID' is not validated (status: ${FM_STATUS:-none}) — run '/epic:epic stories validate ${STORY_ID%%-*}' first, or pass --force <reason> to archive it unvalidated"
   fi
   return 0
 }

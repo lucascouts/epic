@@ -59,7 +59,7 @@ type: feature
 scale: standard
 version: 1
 created: 2026-08-01
-status: done
+status: validated
 ---
 
 # Story - fixture

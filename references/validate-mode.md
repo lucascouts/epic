@@ -229,7 +229,7 @@ Validate mode owns exactly one of the six `status:` values — `validated` — a
 |---|---|---|---|
 | 1 | Integration warning — validation passed but the story's work is not integrated into the main branch, or carries no anchor for the detection to find | Integration Warning, below | The caveat reaches the user before anything acts on the verdict |
 | 2 | The status write above (`validated`) | this section | — |
-| 3 | Archive offer, gated on a status of `done` or `validated` | Archive Offer, below | Its gate is true only once step 2 has written the value — which is why the gate reads `done` or `validated`, and not `done` alone |
+| 3 | Archive offer, gated on a status of `validated` | Archive Offer, below | Its gate is true only once step 2 has written the value, and `validated` is the one status `archive-story.sh` accepts without `--force` |
 | 4 | Index refresh — regenerate the managed block in `.epic/EPIC.md` | Index Refresh, below | It renders what steps 2 and 3 changed: the new status, and the story's new location when the archive was accepted |
 
 This section fixes the order and the reason for it — each step's behavior is defined where its Owner column points.
@@ -306,7 +306,7 @@ printf '%s\n' "$status_json" | epic-integration --validate <NNN>
 
 ## Archive Offer
 
-Step 3 of the pass point, and **the single definition of the offer**. Run mode makes the same offer at its own trigger and reuses this section unchanged (see [run-mode.md](run-mode.md#end-of-run--next-step-index)); a second copy of a prompt that spends guards is how one of the copies ends up spending them differently.
+Step 3 of the pass point, and **the single definition of the offer**. Run mode never makes it — a run ends at `done`, and its next step is this mode ([run-mode.md](run-mode.md#end-of-run--next-step-index)); [supersede](supersede-mode.md#the-archive-offer) reuses this section for a story absorbed by another. A second copy of a prompt that spends guards is how one of the copies ends up spending them differently.
 
 **Why here.** Archiving is the step most easily skipped, and right after a passing validate is when it is most likely to be done. Offering it anywhere else asks the user to remember; offering it here asks them to confirm.
 
@@ -315,13 +315,15 @@ Step 3 of the pass point, and **the single definition of the offer**. Run mode m
 Offer when **both** hold:
 
 1. Both report files read `verdict: pass` **and no `[ ]` remains** — rule 1 of the status table above.
-2. `status:` reads **`done` or `validated`** after step 2.
+2. `status:` reads **`validated`** after step 2.
 
-The field can still read `done` at this point even though rule 1 writes `validated`: a failed status write is reported and the flow continues, and an advisory write that failed must not also cost the user the offer. That is the whole reason the gate reads `done` **or** `validated`.
+**Archive follows validation, and only validation.** When step 2's write failed, the field still reads `done`: report the failure and make no offer — `archive-story.sh` would refuse a story that is not `validated` anyway, and an offer the script refuses is a question wasted. Any other way out — unfinished work, a story absorbed by another — is the user's `--force <reason>`, never this offer's.
 
 **A partial pass never offers.** Rule 2 — a pass with at least one `[ ]` still open — writes no status and makes no offer, whatever the field already says. `archive-story.sh` would not stop it either: its completion check is an **OR** (frontmatter `status` of `done`/`validated`/`superseded` **or** no `[ ]` remaining), so a story left reading `validated` by an earlier pass satisfies preflight with an open box still in the file. The gate is therefore ours to hold. The offer means *this story is finished*, and proposing the archive over open work would stamp unfinished work as complete.
 
 ### The prompt
+
+One `AskUserQuestion` — *Archive* first with the recommended marker in the user's language, *Keep it* second. It is the only next step this point offers, since validate has just run and refine has nothing to act on. In logs and below, it is written in its short form:
 
 ```
 Archive story NNN? [y/n]
@@ -346,7 +348,7 @@ Render each line as `N.N — title (qualifier: reason)` — the exact shape `arc
 epic-archive <story-dir>
 ```
 
-The story number (`005`) works in place of the directory — it resolves against the nearest `.epic/`. Pass **no flags**. `--allow-heavy`, `--skip-secrets`, `--keep-logs`, `--keep-copies` and `--force <reason>` are the user's decisions and each is recorded in the manifest entry as an override: an override the engine chose for itself is an override nobody agreed to. Never re-run a blocked archive with a guard flag on your own initiative — report the verdict and let the user ask for the override by name.
+The story number (`005`) works in place of the directory — it resolves against the nearest `.epic/`. Pass **no flags**. `--allow-heavy`, `--skip-secrets`, `--keep-logs`, `--keep-copies` and `--force <reason>` are the user's decisions and each is recorded in the manifest entry as an override: an override the engine chose for itself is an override nobody agreed to. The one `--force` an offer passes is supersede's, and only because its question names the flag and the reason before the user accepts ([supersede-mode.md](supersede-mode.md#the-archive-offer)). Never re-run a blocked archive with a guard flag on your own initiative — report the verdict and let the user ask for the override by name.
 
 The script prints **one JSON object on stdout**, diagnostics on stderr. Surface the verdict by its `status`:
 
@@ -365,7 +367,7 @@ One line, no argument, no second ask: the story stays in `.epic/stories/`. The o
 
 ### Headless
 
-**Headless / non-interactive session:** do **not** pause and do **not** call `AskUserQuestion`. Emit the offer as a logged note and proceed immediately — the archive is never performed without an accepted offer. The suggestion is informative, never gating, in a headless session. This is the same rule, in the same shape, that [preferred-tooling.md](preferred-tooling.md#no-favorite-available) applies to its install recommendation, and it reads the same session signal: `TaskCreate` present = interactive, per [triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage).
+**Only when `AskUserQuestion` is not callable** — not listed among the tools, directly or as a deferred tool to load, per [triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage): do **not** pause. Emit the offer as a logged note, with its command, and proceed immediately — the archive is never performed without an accepted offer. **While the tool is callable, ask with it**: `--auto` and a missing Task tool do not count as headless here, because the offer comes after the gates `--auto` answers, and an offer written as prose is an offer nobody can accept. The Task tools are never the signal — Claude Code offers them only on some models.
 
 The note names the command, so a logged suggestion is still actionable:
 

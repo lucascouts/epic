@@ -21,6 +21,8 @@ gracefully (see README "Prerequisites").
 - The Validator fails a `[x]` sub-task with no runnable Validation command (it used to SKIP it), and runs each command with a timeout and closed stdin.
 - The Executor spawn prompt now carries the sub-task's Context, Acceptance and the group's `Commit:` message; the Executor reports deviations instead of writing `.draft/deviations.yaml`, and `failed` carries a `reason`.
 - The Tech Reviewer covers the single-technology review of a `High` sub-task and reports `INCOMPLETE` instead of a pass it could not finish.
+- The end-of-run question offers one next step instead of a menu: refine when work is pending (an open box, a register entry with `follow_up: true`, or fix round 2), validate otherwise, plus *Stop here*. It is asked with `AskUserQuestion` whenever the tool is callable, `--auto` included; the recommendation is written as text only when the tool is not available.
+- Archive follows validation. Run mode no longer offers it, and `archive-story.sh` archives without `--force <reason>` only a story reading `validated` with no open box. A story reading `done` or `superseded` is refused by name. Supersede's archive offer passes `--force "superseded by MMM"`, and the question names the flag before the user accepts.
 
 ### Removed
 

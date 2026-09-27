@@ -321,7 +321,7 @@ tasks.md at the start                       status: in all three artifacts
     "validate":{"errors":0,"warnings":0,"status":"pass"}}
    0 open, 0 deferred (the waived gate is terminal, so it counts closed)
    -> RULE 1. status: in-progress -> done in all three artifacts, and
-   status_written.to == "done" is what sends the run to the archive offer.
+   status_written.to == "done" is what makes the next step Validate.
 ```
 
 The same run, with one box deferred instead:
@@ -343,7 +343,8 @@ The same run, with one box deferred instead:
     status: in-progress -> rules 2 and 3 no. RULE 4: nothing written.
     The story stays `in-progress`. LIST renders it
     `in-progress · done-except-external (1 deferred)`.
-    status_written is null on every call of this run -> NO archive offer.
+    status_written is null on every call of this run; the next step is still
+    Validate, which can take the in-progress -> validated edge.
 ```
 
 And the reopen edge, on the story left at `done` by step 5:
@@ -516,6 +517,8 @@ discoveries:
     finding: "Variables in {% if %} must exist in context — default filter only works in {{ }}"
 ```
 
+Either kind of entry carries the optional boolean field `follow_up: true` when it leaves work the run did not do — a correction, an adjustment or a refactor the code now owes, or a story, design or task list that no longer describes what was built. The orchestrator sets it when it records the entry, from the Executor's report; an entry that only explains a choice already made leaves it absent. It is what the end-of-run question reads to recommend Refine ([End of Run](#end-of-run--next-step-index)), so a pending fix is a field, not a judgment made at the end.
+
 A deviation entry carries the optional boolean field `test_surface_adjusted`. It is `true` on a deviation where the Executor adjusted a pre-authored test's imports or signature call-sites to match that INTENTIONAL deviation (the only test edit the frozen-test rule permits — assertions are never touched). The field is absent on deviations that did not require any test surface change.
 
 The register is:
@@ -541,9 +544,9 @@ Two or more pending tasks whose dependencies are all satisfied may run at once, 
 - **Marking** — every box this mode closes is closed by `close-subtask.sh`, one invocation per box; the orchestrator never edits a checkbox, and never re-reads tasks.md for a census the call already returned. See Closing a Box
 - **Lifecycle status** — Run mode writes `status: in-progress` when a census finds the field absent or `draft`, or finds an open `[ ]` on a story reading `done` or `validated` (the reopen edge), and `status: done` when a marking leaves no `[ ]` and no deferred `[~]`. **Run mode writes none of it by hand**: the same `close-subtask.sh` invocation that closed the box takes the census, applies the table, stamps every artifact that carries frontmatter — the same value in each, the field added on a legacy story with the state this run observed and never a back-dated one — and reports what it wrote in `status_written`. A failed write is reported and the run continues. See Status Transitions
 - **Quality gates check** — after all tasks complete (or after the last requested task), run through quality gates and report status. Settling a gate box is a marking like any other: it is closed with `close-subtask.sh <story> gate:<text prefix>` and carries its own status transition, since it is usually the marking that closes the story's last box
-- **Next-step question** — a run that ends without a failure closes with one `AskUserQuestion` offering validate, refine and archive, the recommendation set by the context `band` that `epic-telemetry` reports. See [End of Run](#end-of-run--next-step-index)
+- **Next-step question** — a run that ends without a failure closes with one `AskUserQuestion` offering **one** next step — refine when work is pending, validate otherwise — plus *Stop here*; the context `band` that `epic-telemetry` reports decides whether it runs in this session. Archive is never offered here. See [End of Run](#end-of-run--next-step-index)
 - **Spike promote offer** — when a run **sets** a `scale: spike` story's `## Verdict` to `promote`, offer to create the follow-up story, pre-filled with the spike's `conclusion:`. It is offered **at that moment, not at end of run**, and so lands ahead of the Archive offer — which is the order that works, since a promote whose follow-up was never created is not archivable yet. **The offer is defined once**, in [list-mode.md](list-mode.md#spike-lifecycle) — its gate, the ask-first rule, what is recorded on acceptance and the repeat after an interrupted run all live there, and Run mode reuses them unchanged. A spike's deliverable is the answer, and `promote` is the answer "this needs a story": the offer is how that answer becomes one, instead of a note nobody acts on
-- **Archive offer** — made as the archive option of the next-step question, gated on **`status_written.to == "done"`** (rule 1 of Status Transitions, written by that invocation); on acceptance run `epic-archive <story-dir>` and surface its JSON verdict in full — `blocked` and `refused` included, verbatim. **The offer's gate, deferred-items listing and verdict surfacing are defined once**, in [validate-mode.md](validate-mode.md#archive-offer), and Run mode reuses them unchanged
+- **No archive offer** — a run that writes `done` has closed its boxes, not checked its result: the archive is offered only at VALIDATE's pass point ([validate-mode.md](validate-mode.md#archive-offer)), and `archive-story.sh` refuses a story that is not `validated` unless the user passes `--force <reason>`
 - **Index refresh** — regenerate the managed index block at the end of a completed run: `epic-index`. Defined once, in [validate-mode.md](validate-mode.md#index-refresh); a non-zero exit warns and never gates the run
 - **The recorded line** — the end-of-run report opens with the line the execution plan opened with — scale, requester level, engineering level with its multiple, plan size in Task List boxes — and adds the wall clock and the boxes closed beside it ([engineering-level.md](engineering-level.md#where-it-is-recorded)). It lets the run's actual size and wall clock be compared against the engineering level's expected multiple; a report without it cannot be measured
 
@@ -551,7 +554,7 @@ Two or more pending tasks whose dependencies are all satisfied may run at once, 
 
 A run that ends without a failure finishes with these steps, in this order:
 
-1. **Next-step question** — one `AskUserQuestion`, below. It is the step most easily lost: a story that ran and was never validated, refined or archived is left for someone to remember. Asking in this session, while the run is still in context, is what keeps it from being forgotten
+1. **Next-step question** — one `AskUserQuestion`, below. It is the step most easily lost: a story that ran and was never validated or refined is left for someone to remember. Asking in this session, while the run is still in context, is what keeps it from being forgotten
 2. **Index refresh** — last, for the same reason it is last at the pass point: it renders what the steps before it changed. A zero-diff no-op when VALIDATE already refreshed it
 
 A run that stops on a failure makes neither: its FAIL path already asks how to proceed.
@@ -566,35 +569,38 @@ epic-telemetry | jq '.context'
 
 Read `band`. The script derives the window and the thresholds from the model the transcript records — never pass `--window` from a guess: a 200k guess on a 1M model reads five times the real fill and sends the user to a new session with most of the window unused. When the call fails or `band` is `null`, the fill is **unknown**: offer every option as in the `high` band, and say the context was not measured.
 
-| `band` | Haiku (200k) | Sonnet, Opus, Fable (1M) | Validate and refine | Recommended option |
-|---|---|---|---|---|
-| `high` | ≤ 100k | ≤ 200k | offered in this session — **strongly recommended here** | validate; refine when the run left deviations or discoveries that change the plan |
-| `efficient` | ≤ 150k | ≤ 500k | offered in this session, each option's description stating the fill (`used_pct`) | the same, with the fill stated in the question |
-| `degraded` | above | above | **not offered in this session** — replaced by one *New session* option | *New session*, which prints the command to type after `/clear`: `/epic:epic stories validate NNN` (or `refine NNN`) |
+| `band` | Haiku (200k) | Sonnet, Opus, Fable (1M) | The next step |
+|---|---|---|---|
+| `high` | ≤ 100k | ≤ 200k | offered in this session — **strongly recommended here** |
+| `efficient` | ≤ 150k | ≤ 500k | offered in this session, its description stating the fill (`used_pct`) |
+| `degraded` | above | above | **not run in this session** — offered as *New session*, which prints the command to type after `/clear`: `/epic:epic stories validate NNN` or `refine NNN`, whichever the step is |
 
 **In the `degraded` band the answers get worse before the window runs out**, and an auto-compaction in the middle of a validation drops what it was checking. The limit holds even when the user asks: explain the fill and give the command instead.
 
+#### Which step — one, decided by the story's state
+
+The question offers **one** next step, never a menu of modes: a menu hands the user a decision the run already has the facts for, and recommending validate beside a pending fix recommends checking work that is known to be unfinished. The first match wins:
+
+1. **Refine** — work is pending: the last close's `census.open > 0`, or an entry in `.draft/deviations.yaml` carries `follow_up: true` ([Deviation Register](#deviation-register)), or this run closed `Validation fixes — round 2` ([Fix loop bound](validate-mode.md#fix-loop-bound)). The option's description names what is pending, in one line
+2. **Validate** — otherwise: the story is finished and nothing is owed. Its pass point makes the archive offer ([validate-mode.md](validate-mode.md#archive-offer))
+
+**Archive is never this question's step.** A finished run is `done`, and `done` is not `validated`: the archive is offered after a passing validate, and a story absorbed by another reaches it through [supersede](supersede-mode.md#the-archive-offer). `archive-story.sh` enforces the same rule — without `--force <reason>` it refuses anything not `validated`.
+
 #### The question
 
-Options, at most four — drop **Refine** first when five would apply — the recommended one first, its label ending with the recommended marker **in the user's language** (e.g. `(Recomendado)` in a Portuguese conversation — never a literal English `(Recommended)` in another language):
+Two options — three for a `layperson` requester — the step first, its label ending with the recommended marker **in the user's language** (e.g. `(Recomendado)` in a Portuguese conversation — never a literal English `(Recommended)` in another language):
 
-- **Validate** — spawn the Validator and the Auditor on this story: VALIDATE mode, unchanged. Its pass point makes the archive offer itself, so a user who picks validate is not asked about the archive twice
-- **Refine** — change the story after what the run taught: REFINE mode, unchanged
-- **Archive** — **only** when the story is finished with nothing pending: this run's last close returned `status_written.to == "done"` (see the trigger below). Never offered on a story left `in-progress`, and never recommended over validate
-- **New session** — in the `degraded` band, in place of validate and refine; and **Stop here** whenever fewer than two other options remain, since the question needs two
+- **The step** — Refine or Validate, run here in the `high` and `efficient` bands; *New session* with its command in the `degraded` band. **A fix round is asked, never chained.** A fix round's Validate names the round and its cost in the description, and nothing revalidates until the user answers ([Fix loop bound](validate-mode.md#fix-loop-bound))
+- **Stop here** — end the run; the closing line prints the step's command so it can be run later
 - **See it running** — `layperson` requester only, and only when the program has a way to run it that the run has not shown yet: run it with sample input and show the output, then ask this question again without this option. For someone who does not program, seeing it work is the natural next step, and without the option they answer in free text and the question is lost
-
-**A fix round is asked, never chained.** When this run closed a `Validation fixes — round N` group, the Validate option's description names the round and its cost, and nothing revalidates until the user answers; after round 2 the recommendation is Refine, not Validate ([Fix loop bound](validate-mode.md#fix-loop-bound)).
 
 **A `layperson` requester is asked too** — the question comes after the closing three lines, never instead of them, and the three-line form rule does not remove it. Every label and description says what the option does for them, never the mode's name alone ([plain-register.md](plain-register.md)).
 
-**Headless — nobody can answer:** do not call `AskUserQuestion` and do not start any of the three. Log the recommendation with its command and end the run — the same rule the archive offer applies ([validate-mode.md](validate-mode.md#headless)); a run's end is not a gate to take on the user's behalf.
+**Ask whenever `AskUserQuestion` is callable** — listed among the tools, directly or as a deferred tool to load ([triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage)). That is the only test: `--auto`, a Fast default and a missing Task tool do not make the run's end headless, because `--auto` answers the run's gates, and this question comes after them. **Never write the step as prose while the tool is callable** — a recommendation in the closing text is the question lost.
+
+**Only when `AskUserQuestion` is not callable:** do not start the step. End the closing message with the recommendation and its command — the same rule the archive offer applies ([validate-mode.md](validate-mode.md#headless)); a run's end is not a gate to take on the user's behalf.
 
 **One memory write precedes the question, when memory is available and the register is not empty.** Write the deviation register as one page at `epic/deviations/NNN-<slug>.md`: an H1 `# Deviations of story NNN — <title>` and then the register's entries — deviations and discoveries — as they stand in `.draft/deviations.yaml`, with no secret carried over. One page per story at a stable path, so a re-run of the story rewrites it instead of adding a second. An empty register writes nothing; unavailable memory calls nothing ([mcp-integration.md](mcp-integration.md#memory-mcp)).
-
-**The trigger is the transition, not the census.** Run mode offers the archive option only when *this run* wrote `done` — rule 1 of Status Transitions — and it reads that from the closing call's **`status_written.to == "done"`**. A run that ends with the story still `in-progress`, or that changed no status at all, makes no offer: the offer marks the moment a story became finished, and a story that was already `done` before the run started did not become finished here. **Never re-derive the trigger from the census.** `census.open == 0` with `census.deferred == 0` is equally true of the story that arrived already `done`, and on that story `status_written` comes back `null` — the field is null on every close that wrote no transition, which is exactly the distinction the offer needs and the only one the census cannot make.
-
-**`done-except-external` never reaches this offer.** Rule 1 writes `done` only when no `[ ]` **and** no deferred `[~]` remains, so a story whose computed condition is `done-except-external` stays `in-progress`, every one of its closes returns `status_written: null`, and it is never offered the archive by Run mode — the deferred-items variant of the prompt is unreachable from here **by construction**, not by omission. It is reachable from VALIDATE, where such a story can pass and take the `in-progress → validated` edge documented in [validate-mode.md](validate-mode.md#status-transition-validated). The asymmetry is deliberate: the offer follows the transition, and only one of the two modes can transition a story that still owes work to the outside world.
 
 ## Progress Tracking
 
