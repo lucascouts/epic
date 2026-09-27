@@ -11,6 +11,32 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-09-27
+
+The end of a run offers one next step, decided by the story's state, and archive follows a passing validate. The context bands follow the model in the transcript, the fix loop is bounded, and the sub-agent audit fixes land.
+
+**Minimum Claude Code:** unchanged.
+
+### Changed
+
+- The end-of-run question reads the context `band` that `epic-telemetry` derives from the model in the transcript — Haiku: highly efficient up to 100k, efficient up to 150k; Sonnet, Opus and Fable: up to 200k and 500k. Above that, validate and refine are replaced by the command for a new session. `--window` is now an optional override.
+- The validate → fix → revalidate loop is bounded: each round's cost is stated, a revalidation after a fix round is asked, never chained, and step 6 offers no third round unless the user asks for it.
+- Language: the chat is entirely in the user's language, option labels and the recommended marker included; code and comments are English, with a translated comment added below the English one only on request. Every agent states which of its outputs are English.
+- A sub-task with no ToDo and no runnable Validation is `failed` before routing — nothing is changed and nobody invents its scope.
+- The Auditor fails a story only on gaps, unmet gates, inaccurate deviations and missing Red. Scope creep is judged against what the story's own commits added, and both it and code-review findings are advisory.
+- The Validator fails a `[x]` sub-task with no runnable Validation command (it used to SKIP it), and runs each command with a timeout and closed stdin.
+- The Executor spawn prompt now carries the sub-task's Context, Acceptance and the group's `Commit:` message; the Executor reports deviations instead of writing `.draft/deviations.yaml`, and `failed` carries a `reason`.
+- The Tech Reviewer covers the single-technology review of a `High` sub-task and reports `INCOMPLETE` instead of a pass it could not finish.
+- The end-of-run question offers one next step instead of a menu: refine when work is pending (an open box, a register entry with `follow_up: true`, or fix round 2), validate otherwise, plus *Stop here*. It is asked with `AskUserQuestion` whenever the tool is callable, `--auto` included; the recommendation is written as text only when the tool is not available.
+- The Executor and the Auditor run at effort `high` instead of `max`. Measured side by side, `max` found no planted defect `high` missed and wrote the same passing tests, at two to four times the cost and wall clock.
+- The completeness checklist is written by the main agent instead of an Analyst spawn: the same questions, in about two thirds of the time. The Analyst now only scans the codebase at triage.
+- Archive follows validation. Run mode no longer offers it, and `archive-story.sh` archives without `--force <reason>` only a story reading `validated` with no open box. A story reading `done` or `superseded` is refused by name. Supersede's archive offer passes `--force "superseded by MMM"`, and the question names the flag before the user accepts.
+
+### Removed
+
+- The Fork Route. The model never chose it, and when forced it tied inline on large sub-tasks and lost on small ones.
+- `memory: project` on the Analyst and the Auditor, and init's offer to ignore `.claude/agent-memory/`. Project memory is ai-memory, written by the orchestrator; a leftover `.claude/agent-memory/epic-*/` directory can be deleted.
+
 ## [0.11.1] — 2026-09-27
 
 The routing table now says what the runs already did: a sub-task names its files anywhere in its body, and tech review follows the work on every route.
@@ -1431,7 +1457,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.11.1...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/lucascouts/epic/releases/tag/v0.12.0
 [0.11.1]: https://github.com/lucascouts/epic/releases/tag/v0.11.1
 [0.11.0]: https://github.com/lucascouts/epic/releases/tag/v0.11.0
 [0.10.0]: https://github.com/lucascouts/epic/releases/tag/v0.10.0

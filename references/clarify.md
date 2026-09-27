@@ -41,7 +41,9 @@ the plain register, and both get the context and the example.
   ([developer-register.md](developer-register.md)).
 - **The how is a recommendation, never a question.** When a technical
   decision is due — stack, storage, pattern, tooling — offer it as options
-  with the recommended one first and labelled `(Recommended)`, its reason
+  with the recommended one first and labelled with the recommended marker
+  in the user's language — `(Recommended)` in English, `(Recomendado)` in
+  Portuguese; never the English marker in another language — its reason
   in one line, and each alternative's trade-off in one line. Never an open
   "how do you want this built?".
 - **Rounds are free in size, and built from what the last one left open.**
@@ -91,7 +93,7 @@ the plain register, and both get the context and the example.
 
 ### Question shape
 
-One `AskUserQuestion` call takes 1–4 questions, each with a short `header` (up to 12 characters) and 2–4 options with a `label` and a `description`. Context goes into the question text or an option's description — the tool has no separate field for it:
+The example below is in English; in any other conversation every label, description and marker is written in the user's language. One `AskUserQuestion` call takes 1–4 questions, each with a short `header` (up to 12 characters) and 2–4 options with a `label` and a `description`. Context goes into the question text or an option's description — the tool has no separate field for it:
 
 ```
 header:   "Sessions"

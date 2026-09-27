@@ -18,6 +18,8 @@ Validate the implementation of completed tasks by running their validation comma
 
 ## Protocol
 
+**Language.** The report file and its keys are English; the prose summary is in the language the prompt names for the user, English when it names none.
+
 A closed box is not always work that happened. Only `[x]` sub-tasks have an implementation to validate; a `[~]` box was closed **without** the work being done and carries a qualifier saying why (`deferred:`, `waived:`, `n-a:`, `superseded-by:` — see [tasks.md](${CLAUDE_PLUGIN_ROOT}/references/tasks.md#checkbox-grammar)). Running a `[~]` sub-task's Validation command would fail on work that was never meant to exist.
 
 For each sub-task marked `[x]`:
@@ -28,7 +30,7 @@ For each sub-task marked `[x]`:
 
 For each sub-task marked `[~]`: run nothing, and report SKIP naming its qualifier.
 
-Then settle the **Quality Gates**: for each gate in the Quality Gates section, decide from the task results whether it is satisfied, and record it PASS or FAIL with its evidence.
+Then settle the **Quality Gates**: for each gate in the Quality Gates section, decide from the task results whether it is satisfied, and record it PASS or FAIL with its evidence. **A generated gate — one carrying a `Qn` identifier and a command ([quality-catalog.md](${CLAUDE_PLUGIN_ROOT}/references/quality-catalog.md)) — is settled by running that command**: its exit status is the verdict and its output the evidence, never a judgment read off the task results.
 
 Then write the report file below. It is the last step of this protocol.
 
@@ -39,8 +41,8 @@ Then write the report file below. It is the last step of this protocol.
 The keys deliberately read like `close-subtask.sh`'s JSON: one story, one vocabulary.
 
 ```yaml
-story: "011-reports-by-artifact"        # the story directory name
-generated_at: "2026-08-17T14:03:11Z"    # UTC, ISO 8601
+story: "NNN-slug"                       # the story directory name
+generated_at: "<YYYY-MM-DD>T<hh:mm:ss>Z" # UTC, ISO 8601
 verdict: pass                           # pass | fail — fail when any result is FAIL
 results:
   - task: "1.1"
@@ -57,7 +59,7 @@ gates:
     evidence: "no FAIL in results[]"
 ```
 
-One `results[]` entry per sub-task you were given, `[x]` and `[~]` alike, and one `gates[]` entry per Quality Gate. `verdict` is `fail` when any entry is FAIL and `pass` otherwise — a SKIP never fails the run. `detail` carries what your prose would have said: the command's outcome for a PASS, what broke and why for a FAIL, the qualifier's reason for a SKIP.
+One `results[]` entry per sub-task you were given, `[x]` and `[~]` alike, and one `gates[]` entry per Quality Gate. `verdict` is `fail` when any entry is FAIL and `pass` otherwise — a SKIP never fails the run. `detail` is one line: the command's outcome for a PASS, what broke and why for a FAIL, the qualifier's reason for a SKIP. The full output of a failure goes in the prose summary, never in the file.
 
 ## Report Format
 
@@ -74,5 +76,6 @@ Then each Quality Gate as PASS or FAIL with its evidence, and the overall verdic
 
 - **One writable path: `.draft/validation-report.yaml`, and creating `.draft/` on demand is part of it.** The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for something you found broken. Any other write is a protocol violation: you report what is wrong, and someone else changes it
 - Run commands exactly as specified in the Validation fields
-- Report full command output for failures
-- If a validation command is missing or unclear, report SKIP with reason
+- Report full command output for failures, in the prose summary
+- **A `[x]` sub-task with no runnable Validation command is FAIL**, `detail: "no runnable Validation command"` — never SKIP. SKIP means *closed without the work*; a sub-task that claims the work and cannot be checked is a gap, and passing it would let an unchecked box through
+- **A command that hangs or waits for input is FAIL**, with the reason. Run each command with a timeout (`timeout 600 <command>`) and stdin closed (`< /dev/null`), so one interactive prompt cannot consume the whole run

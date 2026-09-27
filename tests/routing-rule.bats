@@ -26,11 +26,31 @@ setup() {
 @test "R2: the inline route runs the tech review too" {
   inline=$(awk '/^### Inline Route/{f=1; next} f && /^### /{exit} f' "$RUN")
   [[ "$inline" == *'**Tech review applies on this route too.**'* ]]
-  grep -q 'whether an Executor, a fork or the main agent inline did the work' "$TECH"
+  grep -q 'whether an Executor or the main agent inline did the work' "$TECH"
 }
 
 @test "R3: High complexity reviews even a single-tech sub-task, in both files" {
   grep -q "| High | Always (even single-tech) |" "$RUN"
   grep -q 'A single-technology sub-task skips it, unless its Complexity is `High`' "$RUN"
   grep -q 'unless the sub-task.s Complexity is `High`, which reviews always' "$TECH"
+}
+
+@test "R4: the Fork Route is gone — the model never chose it and it never beat inline" {
+  # 2026-09-27 fork battery: 0/3 chosen; forced, it tied (0.99x) or lost 16%.
+  run grep -n -i 'fork' "$RUN" "$TECH" "$ROOT/references/personas.md"
+  [ "$status" -eq 1 ]
+}
+
+@test "R5: a sub-task with no ToDo and no runnable Validation fails before routing, in both files" {
+  # 2026-09-27 battery: a vague sub-task had its scope invented in 2 of 5 runs.
+  grep -q '\*\*A sub-task too vague to act on takes no route.\*\*' "$RUN"
+  grep -q '^### Before Step 1: a spec you can act on' "$ROOT/agents/executor.md"
+  grep -q 'spec too vague' "$ROOT/agents/executor.md"
+}
+
+@test "R6: the Executor spawn template carries Context, Acceptance and the group's Commit" {
+  tpl=$(awk '/^### Executor Prompt Template/{f=1; next} f && /^### /{exit} f' "$RUN")
+  [[ "$tpl" == *'> **Context:**'* ]]
+  [[ "$tpl" == *'> **Acceptance:**'* ]]
+  [[ "$tpl" == *'> **Commit:**'* ]]
 }

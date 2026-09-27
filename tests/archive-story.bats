@@ -32,7 +32,7 @@ teardown() {
 # complete:   3 tasks - 2 [x], 1 [~]  (total 3, closed 2, deferred 1, open 0)
 # incomplete: 3 tasks - 1 [x], 2 [ ]  (total 3, closed 1, deferred 0, open 2)
 make_story() {
-  local dir="$PROJ/.epic/stories/$1" mode="${2:-complete}" status=done
+  local dir="$PROJ/.epic/stories/$1" mode="${2:-complete}" status=validated
   [ "$mode" = incomplete ] && status=in-progress
   mkdir -p "$dir"
   cat > "$dir/story.md" <<EOF
@@ -134,6 +134,38 @@ make_spike() {
   echo "$output" | grep -q '2'
   [ -d "$PROJ/.epic/stories/005-open" ]
   [ ! -d "$PROJ/.epic/archive/005-open" ]
+}
+
+@test "a done story that was never validated is refused, naming validate and --force" {
+  # `done` means the run closed its boxes, not that anyone checked the result.
+  make_story 005-unvalidated complete
+  sed -i 's/^status: validated$/status: done/' "$PROJ/.epic/stories/005-unvalidated/story.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-unvalidated
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "refused"' > /dev/null
+  echo "$output" | jq -e '.reason | contains("not validated") and contains("validate 005") and contains("--force")' > /dev/null
+  [ -d "$PROJ/.epic/stories/005-unvalidated" ]
+  [ ! -e "$MANIFEST" ]
+}
+
+@test "a superseded story archives only through --force, which records the reason" {
+  make_story 005-absorbed complete
+  sed -i 's/^status: validated$/status: superseded/' "$PROJ/.epic/stories/005-absorbed/story.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-absorbed
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "refused"' > /dev/null
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-absorbed --force "absorbed by 012"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.overrides_used == ["force"] and .manifest_entry.status == "superseded"' > /dev/null
+  grep -q 'absorbed by 012' "$MANIFEST"
+}
+
+@test "a validated story with a box reopened since is still refused" {
+  make_story 005-reopened incomplete
+  sed -i 's/^status: in-progress$/status: validated/' "$PROJ/.epic/stories/005-reopened/story.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-reopened
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "refused" and (.reason | contains("still open"))' > /dev/null
 }
 
 @test "already-archived story is refused untouched" {
@@ -430,7 +462,8 @@ created: 2026-08-01
 ## Task List
 - [x] 1 - Done
 EOF
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-legacy
+  # No status field means nothing says it was validated: --force carries it.
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-legacy --force "legacy story, predates status"
   [ "$status" -eq 0 ]
   local arch="$PROJ/.epic/archive/005-legacy"
   # One story, one status: EVERY artifact carrying frontmatter gets the field.
@@ -534,7 +567,7 @@ type: feature
 scale: standard
 version: 1
 created: 2026-08-01
-status: done
+status: validated
 ---
 
 # Story - concurrency fixture
@@ -845,18 +878,16 @@ print("OK")
   # `tr -d '[:space:]'` deleted whitespace INSIDE the value, not just at its
   # edges: `status: done  # closed early` became `done#closedearly`, which was
   # written verbatim into the permanent record - a derived field that appears
-  # nowhere in the source artifact - and which no longer equals `done`, so the
-  # completion branch refused a story that was genuinely done.
-  make_story 005-cmt incomplete
-  sed -i 's/^status: in-progress$/status: done  # closed early/' \
+  # nowhere in the source artifact - and which no longer equals `validated`, so
+  # the completion branch refused a story that was genuinely validated.
+  make_story 005-cmt complete
+  sed -i 's/^status: validated$/status: validated  # closed early/' \
     "$PROJ/.epic/stories/005-cmt/story.md"
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-cmt
-  # The status branch sees `done`, so an incomplete story archives without
-  # --force, because a status naming a completion state completes the story
-  # whatever the boxes say.
+  # The status branch sees `validated`, so the story archives without --force.
   [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.manifest_entry.status == "done"' > /dev/null
-  grep -Eq 'status:[[:space:]]*"done"' "$MANIFEST"
+  echo "$output" | jq -e '.manifest_entry.status == "validated"' > /dev/null
+  grep -Eq 'status:[[:space:]]*"validated"' "$MANIFEST"
   # NOT `! grep -q …`: bash's set -e exempts a command inverted with `!`, so
   # such an assertion is a NO-OP anywhere but the last line of the body — and
   # one appended line turns even a working one into silence. See the secrets
@@ -2378,13 +2409,19 @@ make_superseded_story() {
   return 0
 }
 
-@test "a superseded story clears the completion gate and archives" {
+@test "a superseded story is refused alone and archives with the offer's --force" {
   # The walkthrough's own fixture: 042 superseded by 051, one [x] survivor and
-  # three boxes the op closed. What the step-5 offer actually hands this script.
+  # three boxes the op closed. Absorbed work was never validated, so the gate
+  # refuses it; the step-5 offer passes the reason it names on acceptance.
   make_superseded_story 042-legacy-import 051
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/042-legacy-import
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "refused" and (.reason | contains("not validated"))' > /dev/null
+  [ -d "$PROJ/.epic/stories/042-legacy-import" ]
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/042-legacy-import --force "superseded by 051"
   # A REAL archive, not merely a run that did not crash.
   [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.manifest_entry.forced_reason == "superseded by 051"' > /dev/null
   echo "$output" | jq -e '.status == "archived" and .moved == true' > /dev/null
   [ -d "$PROJ/.epic/archive/042-legacy-import" ]
   [ ! -d "$PROJ/.epic/stories/042-legacy-import" ]
@@ -2405,13 +2442,15 @@ make_superseded_story() {
   grep -q 'superseded-by: 051' "$MANIFEST"
 }
 
-@test "status superseded archives a story whose closures were interrupted" {
-  # THE MUTATION GUARD. One box is still `[ ]`, so BOX_OPEN is 1 and every other
-  # branch of assess_completion refuses: only `FM_STATUS == "superseded"` can
-  # complete this. Drop that word from the alternation and this case goes red
-  # with "1 task checkbox(es) still open".
+@test "status superseded no longer clears the gate for a story whose closures were interrupted" {
+  # THE MUTATION GUARD, inverted: `superseded` used to complete this story on
+  # its own. One box is still `[ ]` and the status is not `validated`, so only
+  # --force can carry it through — and the manifest says so.
   make_superseded_story 043-interrupted 051 leftover-open-box
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/043-interrupted
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '.status == "refused"' > /dev/null
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/043-interrupted --force "superseded by 051"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "archived" and .moved == true' > /dev/null
   [ -d "$PROJ/.epic/archive/043-interrupted" ]
@@ -2422,9 +2461,7 @@ make_superseded_story() {
   # The open box is REAL and recorded as such - the archive does not launder it.
   echo "$output" | jq -e '.tasks == {total: 4, closed: 1, deferred: 2, open: 1}' > /dev/null
   grep -Eq 'tasks_open:[[:space:]]*1' "$MANIFEST"
-  # ...and no escape hatch was used: --force would have recorded both a
-  # `force` override and a `forced_reason`, so their absence proves the status
-  # branch alone carried this through the gate.
-  echo "$output" | jq -e '.manifest_entry.overrides_used == []' > /dev/null
-  echo "$output" | jq -e '.manifest_entry | has("forced_reason") | not' > /dev/null
+  # ...and the escape hatch is on the record, never implied by the status.
+  echo "$output" | jq -e '.manifest_entry.overrides_used == ["force"]' > /dev/null
+  echo "$output" | jq -e '.manifest_entry.forced_reason == "superseded by 051"' > /dev/null
 }

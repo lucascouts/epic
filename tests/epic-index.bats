@@ -33,6 +33,12 @@ teardown() {
 
 # make_story <area:stories|archive> <dir-name> - complete story fixture
 # (2 [x] + 1 [~], no [ ] remaining).
+# mark_validated <story-dir-name> — archive-story.sh archives only a story a
+# passing VALIDATE left reading `validated`; the index fixtures read `done`.
+mark_validated() {
+  sed -i 's/^status: done$/status: validated/' "$PROJ/.epic/stories/$1/story.md"
+}
+
 make_story() {
   local dir="$PROJ/.epic/$1/$2"
   mkdir -p "$dir"
@@ -459,6 +465,7 @@ EOF
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   grep -q 'stories/005-gamma' "$EPIC_MD"
+  mark_validated 005-gamma
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-gamma
   [ "$status" -eq 0 ]
   [ -d "$PROJ/.epic/archive/005-gamma" ]
@@ -477,6 +484,7 @@ EOF
   mkdir -p "$PROJ/.epic/archive"
   chmod 444 "$EPIC_MD"
   chmod 555 "$PROJ/.epic"
+  mark_validated 005-delta
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-delta
   # Design: regen failure warns, never rolls back - the move completed.
   [ "$status" -eq 0 ]
@@ -499,6 +507,7 @@ EOF
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   cp "$EPIC_MD" "$WORK/epic.before"
+  mark_validated 005-gamma
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-gamma
   [ "$status" -eq 0 ]
   json="$output"
@@ -518,6 +527,7 @@ EOF
 @test "index regeneration runs LAST, after the move and after the status" {
   # Proven from OUTSIDE the script, two independent ways.
   make_story stories 005-gamma
+  mark_validated 005-gamma
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-gamma
   [ "$status" -eq 0 ]
   # (1) THE ROW'S OWN CONTENT. Its link resolves into archive/, which is only
@@ -545,6 +555,7 @@ EOF
   mkdir -p "$PROJ/.epic/archive"
   chmod 444 "$EPIC_MD"
   chmod 555 "$PROJ/.epic"
+  mark_validated 005-delta
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-delta
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.index == "regen-failed"' > /dev/null
@@ -571,6 +582,7 @@ EOF
   # byte is what makes a file non-text for step 2's heuristic.
   make_story stories 002-blob
   printf 'a\000b' > "$PROJ/.epic/stories/002-blob/blob.bin"
+  mark_validated 002-blob
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/002-blob
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .index == "skipped"' > /dev/null
@@ -584,6 +596,7 @@ EOF
   # index reports `ok`, and the one row points into archive/.
   make_story stories 005-gamma
   [ ! -e "$EPIC_MD" ]
+  mark_validated 005-gamma
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-gamma
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.index == "ok"' > /dev/null
@@ -601,6 +614,7 @@ EOF
   tail_txt='and me, with no final newline'
   printf '%s<!-- epic:index:start -->\n| stale row |\n<!-- epic:index:end -->\n%s' \
     "$head_txt" "$tail_txt" > "$EPIC_MD"
+  mark_validated 005-gamma
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-gamma
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.index == "ok"' > /dev/null
@@ -632,6 +646,7 @@ EOF
   mkdir -p "$WORK/bin"
   cp "$ARCHIVE_SH" "$WORK/bin/archive-story.sh"
   [ ! -e "$WORK/bin/epic-index.sh" ]
+  mark_validated 005-gamma
   run --separate-stderr bash "$WORK/bin/archive-story.sh" .epic/stories/005-gamma
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.index == "regen-failed"' > /dev/null
@@ -752,6 +767,7 @@ EOF
   # of them: key order, indentation, quoting and the 6-space deferred_items
   # list are all whatever the writer actually emits.
   make_story stories 003-webhooks
+  mark_validated 003-webhooks
   run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/003-webhooks
   [ "$status" -eq 0 ]
   [ -f "$PROJ/.epic/archive/manifest.yaml" ]
@@ -761,12 +777,12 @@ EOF
   [ ! -e "$PROJ/.epic/archive/003-webhooks" ]
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  # Number, slug, status and progress are the RECORDED ones. `done` is the
+  # Number, slug, status and progress are the RECORDED ones. `validated` is the
   # story's own frontmatter status at derive time - proof the row was not
   # recomputed, since a row built from disk after step 7 would read `archived`.
   # 2/3 (+1 deferred) is the recorded census, not a recount of files that are
   # gone.
-  [ "$(row_with webhooks)" = "| 003 | webhooks | done | 2/3 (+1 deferred) | archived (directory removed) |" ]
+  [ "$(row_with webhooks)" = "| 003 | webhooks | validated | 2/3 (+1 deferred) | archived (directory removed) |" ]
   # NO href: a row links to the story's CURRENT location, and this story has
   # none - a href here would 404 by construction.
   idx=$(cat "$EPIC_MD")
@@ -882,7 +898,7 @@ EOF
   mk_tasks stories 006-quoted <<'EOF'
 - [x] 1 - done
 EOF
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/006-quoted
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/006-quoted --force "fixture: escaping under test"
   [ "$status" -eq 0 ]
   # The writer really did escape it - without this guard the case would pin
   # nothing whenever the fixture stopped producing an escape at all.

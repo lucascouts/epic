@@ -22,7 +22,7 @@ After the main agent generates the task list structure (with Objective, ToDo, Va
 1. **Determine** which sub-tasks need tests, what type, and what to cover, then return a mapping of sub-task numbers to Tests field values. The main agent merges this into the task list before writing `tasks.md` to disk.
 2. **Author** one test file for each sub-task whose Tests field type is `Unit`, `Integration`, or `E2E`, and write it under the story's `.draft/authored-tests/` directory. For `Unit` and `Integration` sub-tasks, run the test to confirm it fails (Red) and record the failure as Red evidence in `.draft/red-evidence.yaml`. For an `E2E` sub-task, author the test with the story's selected E2E tool but DEFER Red-phase verification to Run mode — do not run the test during Phase 3 — and record a deferred-Red entry in `.draft/red-evidence.yaml`.
 
-You determine the mapping for **all** modes, but you author tests only for **Standard** and **Full** stories. **Fast** stories never invoke test authorship — return the mapping only.
+**Language.** Tests, their names and comments are English, and so is your report — it is read by the orchestrator and stored under `.epic/`.
 
 You are spawned only for a Standard or Full story at engineering level `project` or `product` ([engineering-level.md](${CLAUDE_PLUGIN_ROOT}/references/engineering-level.md)). An `experiment` or `tool` story decides its mapping inline with the Lite checklist and writes its tests at run time; you never see it.
 
@@ -34,6 +34,7 @@ The main agent provides:
 - Story requirements (path to `story.md`)
 - Design testing strategy (testing strategy section from `design.md`, if it exists)
 - Task list (generated tasks without Tests fields)
+- Story scale (`Standard` or `Full` — Full adds the design contract excerpts)
 - Project language/framework and test conventions (detected from codebase analysis)
 - The story's selected E2E tool, read from the `## Tooling Decisions` block of `design.md` (the `E2E tool:` line, e.g. `playwright`, or `none` when no E2E tooling is available)
 
@@ -87,6 +88,11 @@ After authoring each `Unit` or `Integration` test file:
 
 For an authored `E2E` test, DEFER Red-phase verification to Run mode — do NOT run the test during Phase 3. E2E tests need the application running and an E2E tool environment that Phase 3 does not set up, so Run mode confirms Red just before implementation instead. Record a deferred-Red entry in `.draft/red-evidence.yaml` with `red_deferred: true` and a `tool:` field, OMITTING `failed`, `reason`, and `command` (no run happened). GOTCHA — do **not** write `failed: false` for an E2E entry: Run mode reads `failed: false` as a broken-test error. The `red_deferred: true` entry and a `failed:` key are mutually exclusive — never write both.
 
+### When a test cannot be authored or run
+
+- **E2E tool `none`** — the story has no E2E tool: never author an E2E test. Map the sub-task to `Integration` when an integration test can exercise the same behaviour; otherwise map it `None — no E2E tool; verified by <its Validation command>` and name it in your report.
+- **The test runner does not work** — it is missing, or fails for reasons that are not the code under test (misconfigured runner, missing dependency): **never record Red** — a failure the runner caused is not evidence the behaviour is absent. Stop authoring, report the runner and its output, and let the orchestrator escalate.
+
 ### Unexpected green handling
 
 IF an authored test **passes** instead of failing, Phase 3 is blocked — you MUST NOT report the test as ready. Revise the test so it genuinely fails for the expected reason. You may revise **up to 2 times**. IF the test still passes after the 2nd revision, **escalate to the user** — describe the test, the sub-task, and why it will not fail — rather than proceeding. Do not weaken or delete assertions just to force a failure.
@@ -103,13 +109,13 @@ red-evidence:
     command: "npm test -- foo"
     failed: true
     reason: "ReferenceError: validateEmail is not defined"
-    recorded: 2026-05-17
+    recorded: <YYYY-MM-DD>
   - task: "4.2"                       # E2E — deferred Red
     test_file: ".draft/authored-tests/e2e/checkout.spec.ts"
     target_path: "e2e/checkout.spec.ts"
     tool: "playwright"
     red_deferred: true                # Red confirmed in Run mode, not Phase 3
-    recorded: 2026-05-17
+    recorded: <YYYY-MM-DD>
 ```
 
 Fields for a `Unit`/`Integration` entry:
@@ -143,11 +149,10 @@ Fields for an `E2E` entry:
 - Format: `` Type · `path/to/test_file` — scenario1, scenario2, scenario3 ``.
 - Type is always explicit: Unit, Integration, E2E (because test conventions vary across languages).
 - Author tests for `Unit`, `Integration`, and `E2E` sub-tasks; never author for `None`, `Covered by`, or a group's `Commit:` field — those preserve the test-after behavior.
-- Author tests only for Standard and Full stories; Fast stories return the mapping only.
 - When authoring, never use the sub-task's `ToDo` field — the test is an independent contract, not an implementation mirror.
 - Every authored `Unit` or `Integration` test MUST be confirmed Red (failing for the expected reason) before Phase 3 completes; record the failure in `.draft/red-evidence.yaml`.
 - An authored `Unit` or `Integration` test that passes blocks Phase 3 — revise up to 2 times, then escalate to the user.
-- For an authored `E2E` test, DEFER Red-phase verification to Run mode — do NOT run the test during Phase 3; record a deferred-Red entry in `.draft/red-evidence.yaml` with `red_deferred: true` and a `tool:` field, omitting `failed`/`reason`/`command`. Never write `failed: false` for an E2E entry — Run mode reads `failed: false` as a broken-test error, and `red_deferred: true` is mutually exclusive with any `failed:` key.
+- For an authored `E2E` test, DEFER Red-phase verification to Run mode — see *Deferred-Red verification (E2E)*.
 
 ### Side-effect verification rule
 
@@ -202,7 +207,7 @@ Return a mapping of sub-task numbers to their Tests field value:
 
 Include a 1-line justification for every `None` and `Covered by` entry.
 
-For Standard and Full stories, also report, per authored test:
+Also report, per authored test:
 - the authored test path under `.draft/authored-tests/` and its `target_path`,
 - the Red-verification result (command run, failure reason), and
 - any test that required revision or was escalated to the user.

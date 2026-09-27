@@ -308,7 +308,7 @@ Archived stories:
 ```
 /epic:epic stories archive 001          ← story 001
 /epic:epic stories archive 001-005      ← stories 001 through 005
-/epic:epic stories archive --done       ← every complete story
+/epic:epic stories archive --done       ← every validated, complete story
 ```
 
 ### Resolving the argument
@@ -319,9 +319,9 @@ Archived stories:
 |---|---|
 | `NNN` | that one story |
 | `NNN-MMM` | every existing story in the inclusive range; a number with no directory is skipped, not an error |
-| `--done` | every story in `.epic/stories/` that is **complete** — no `[ ]` box remains, in the task list or in the Quality Gates. `[x]` and terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`) both close a box; see [tasks.md](tasks.md#completion). A `scale: spike` story is complete by its **Verdict** instead, never by its boxes (see Spike Lifecycle) |
+| `--done` | every story in `.epic/stories/` that is **validated and complete** — `status: validated` and no `[ ]` box remains, in the task list or in the Quality Gates. `[x]` and terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`) both close a box; see [tasks.md](tasks.md#completion). A `scale: spike` story is complete by its **Verdict** instead, never by its boxes (see Spike Lifecycle) |
 
-A `done-except-external` story clears that gate — nothing is open — and is reported with its deferred count, so work owed outside this repo is stated rather than buried. If any `[ ]` remains, the story is **not** `--done`; archiving it anyway is the user's explicit `--force <reason>` decision, never this mode's.
+A validated `done-except-external` story clears that gate — nothing is open — and is reported with its deferred count, so work owed outside this repo is stated rather than buried. **Archive follows validation**: a story reading `done`, `superseded` or `in-progress` is not `--done`, and `archive-story.sh` refuses it by name — validate it first, or archive it anyway with the user's explicit `--force <reason>`, a decision that is never this mode's.
 
 **One verdict per story, and a batch never stops on one.** Each call returns its own verdict; a `blocked` or `refused` story is reported and the batch continues with the next number. Surface every verdict exactly as [validate-mode.md](validate-mode.md#archive-offer) prescribes — that table is the single definition of how each `status` is presented, here and at the offer. Close a batch with a one-line tally (`archived N, blocked M, refused K`) so a partial sweep is visible as a partial sweep.
 

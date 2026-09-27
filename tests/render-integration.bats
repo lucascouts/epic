@@ -150,7 +150,7 @@ type: feature
 scale: standard
 version: 1
 created: 2026-08-08
-status: done
+status: validated
 ---
 
 ## Introduction
@@ -167,7 +167,7 @@ type: feature
 scale: standard
 version: 1
 created: 2026-08-08
-status: done
+status: validated
 ---
 
 ## Task List

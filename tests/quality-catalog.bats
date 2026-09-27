@@ -16,7 +16,7 @@
 #   C4  init-mode.md writes a Quality block and its Rules call it the default
 #       legend
 #   C5  constitution.md's template carries a Quality section
-#   C6  analyst.md Function 1 reports the catalog's signals
+#   C6  analyst.md's Codebase Analysis reports the catalog's signals
 #   C7  phase-gates.md loads the catalog with requirements.md and tasks.md
 #   C8  validate-mode.md settles a generated gate by running its command
 #   C9  plain-register.md renders the legend as the checks that were run
@@ -97,8 +97,8 @@ has() { # has <label> <block> <keyword>
   has "C5 catalog" "$tmpl" "quality-catalog"
 }
 
-@test "C6: analyst.md Function 1 reports the catalog's signals" {
-  block=$(section "$ROOT/agents/analyst.md" '^## Function 1' '^## Function 2')
+@test "C6: analyst.md's Codebase Analysis reports the catalog's signals" {
+  block=$(section "$ROOT/agents/analyst.md" '^## Codebase Analysis' '^## ')
   [ -n "$block" ]
   has "C6" "$block" "quality-catalog"
   has "C6 signals" "$block" "signals"

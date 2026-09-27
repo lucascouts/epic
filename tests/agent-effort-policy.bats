@@ -3,9 +3,11 @@
 # someone remembers to keep true.
 #
 # WHAT IS PINNED, AND WHY EACH ONE. The Validator runs at `medium` because its
-# verification is mechanical. The Auditor and the Executor stay at `max` —
-# they carry the judgment that trade-off relies on, so a silent drop there
-# would remove the safety net while leaving the saving in place. The Analyst is
+# verification is mechanical. The Auditor and the Executor stay at `high` or
+# above — they carry the judgment that trade-off relies on, so a silent drop
+# below `high` would remove the safety net while leaving the saving in place.
+# `high` over `max` is measured: an A/B at max/high/medium (n=5) found every
+# planted defect and the same passing tests in every arm, `max` at 2–4x cost. The Analyst is
 # pinned at `medium`: its work is discovery — it scans structure, samples
 # representative files and reports what it found.
 #
@@ -28,11 +30,11 @@ setup() {
   fi
 }
 
-@test "judgment stays at max — the Auditor and the Executor declare max" {
+@test "judgment stays at high or above — the Auditor and the Executor declare high or max" {
   for a in auditor executor; do
-    run grep -c '^effort: max' "$AGENTS/$a.md"
+    run grep -cE '^effort: (high|max)$' "$AGENTS/$a.md"
     if [ "$output" != "1" ]; then
-      echo "agents/$a.md must declare exactly one 'effort: max' line; grep -c answered '$output'"
+      echo "agents/$a.md must declare exactly one 'effort: high' or 'effort: max' line; grep -c answered '$output'"
       echo "it currently declares: $(grep -m1 '^effort:' "$AGENTS/$a.md")"
       return 1
     fi

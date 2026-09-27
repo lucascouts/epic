@@ -678,15 +678,6 @@ WHY     Pins the direction the count above cannot reach: the prose
         the token or the direction goes unpinned.
 
 FILE    tests/reports-by-artifact-policy.bats
-PATTERN memory director[a-z]*[^.]{0,160}is your own store
-VERDICT PINNED
-WHY     Inverting `Your memory directory is … your own store` in
-        references/validate-mode.md to `… it is not your own store`
-        turns the case RED, and so does dropping the clause. One span in
-        the whole file, and the polarity token `is your own store` is a
-        literal the negation breaks rather than prefixes.
-
-FILE    tests/reports-by-artifact-policy.bats
 PATTERN (delet|remov)[a-z]*[^.]{0,40}stale
 VERDICT PINNED
 WHY     Counts the deletion rule at exactly 3 sites inside `## Validate

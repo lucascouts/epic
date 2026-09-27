@@ -56,7 +56,13 @@ epic-supersede <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=tar
 
 ### The archive offer
 
-**Offer on exit 0 only** — `superseded` and `completed` both leave `NNN` in the state `archive-story.sh`'s preflight accepts. Make it exactly as [validate-mode.md#archive-offer](validate-mode.md#archive-offer) defines it: interactive sessions prompt `Archive story NNN? [y/n]`; headless sessions log the offer and proceed without pausing. Acceptance delegates to `archive-story.sh`, whose preflight accepts `superseded` as a completion state — a just-superseded story archives cleanly, no `--force` needed. The offer adds no preflight of its own — archive never consults integration state.
+**Offer on exit 0 only** — `superseded` and `completed` both leave `NNN` absorbed by `MMM`. Make it as [validate-mode.md#archive-offer](validate-mode.md#archive-offer) defines it — one `AskUserQuestion` whenever the tool is callable, a logged note with its command only when it is not — with one difference: **absorbed work was never validated, so the archive goes through `--force`**, and the offer says so. `archive-story.sh` accepts only `validated` without it. The question names the flag and its reason, in the user's language:
+
+```
+Archive story NNN without validation (--force, reason: superseded by MMM)? [y/n]
+```
+
+**Accepting the question is the user's consent to the override**, so on acceptance run `epic-archive NNN --force "superseded by MMM"` — the reason is the one the question showed, and the manifest records it as `overrides_used: ["force"]` + `forced_reason`. No other guard flag is added. The offer adds no preflight of its own — archive never consults integration state.
 
 ## Refusal Matrix
 

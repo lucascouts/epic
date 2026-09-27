@@ -30,7 +30,7 @@
 #       mechanism, context and example on every option, the how recommended
 #   Q15 the budget is counted in questions, the orientation round counts one
 #   Q16 the Question shape example carries a labelled recommendation
-#   Q17 the Analyst's checklist speaks in consequences and is asked in rounds
+#   Q17 the main agent's checklist speaks in consequences and is asked in rounds
 #   Q18 a request for speed changes the words, not the steps; a downgrade is
 #       a gate question and the mode changes only on the answer
 #
@@ -218,10 +218,11 @@ has() { # has <label> <block> <keyword>
   has "Q16 consequence" "$block" "consequence"
 }
 
-@test "Q17: the Analyst's checklist speaks in consequences, and context-discovery asks it in rounds" {
-  f2=$(section "$ROOT/agents/analyst.md" '^## Function 2' '^## ')
+@test "Q17: the main agent's checklist speaks in consequences, and context-discovery asks it in rounds" {
+  f2=$(section "$ROOT/references/context-discovery.md" '^## Completeness Checklist' '^[*][*]Rules:[*][*]')
   [ -n "$f2" ]
   has "Q17 consequence" "$f2" "consequence"
+  has "Q17 inline" "$f2" "no sub-agent"
   rules=$(section "$ROOT/references/context-discovery.md" '^[*][*]Rules:[*][*]' '^## ')
   [ -n "$rules" ]
   has "Q17 rounds" "$rules" "rounds"
