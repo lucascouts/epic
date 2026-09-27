@@ -293,7 +293,7 @@ printf '%s\n' "$status_json" | epic-integration --validate <NNN>
 
 ## Archive Offer
 
-Step 3 of the pass point, and **the single definition of the offer**. Run mode makes the same offer at its own trigger and reuses this section unchanged (see [run-mode.md](run-mode.md#end-of-run--validator-archive-index)); a second copy of a prompt that spends guards is how one of the copies ends up spending them differently.
+Step 3 of the pass point, and **the single definition of the offer**. Run mode makes the same offer at its own trigger and reuses this section unchanged (see [run-mode.md](run-mode.md#end-of-run--next-step-index)); a second copy of a prompt that spends guards is how one of the copies ends up spending them differently.
 
 **Why here.** Archiving is the step most easily skipped, and right after a passing validate is when it is most likely to be done. Offering it anywhere else asks the user to remember; offering it here asks them to confirm.
 

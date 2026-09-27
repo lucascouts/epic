@@ -11,6 +11,15 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Changed
+
+- A finished run ends with one `AskUserQuestion` — validate, refine or archive — instead of a `y/n` Validator prompt. Validate and refine are recommended in the same session below 50% of the context window, allowed up to 75%, and above that replaced by the command to run in a new session. Archive is offered only on a story that just reached `done` with nothing deferred. A headless run logs the recommendation and starts nothing. A layperson is also offered to see the program running before the other options.
+
+### Added
+
+- A PreToolUse guard denies a commit that supplies its own identity (`git -c user.*`, `--author`, `GIT_AUTHOR_*`) and any `git config user.*` write. With no identity configured, a run makes no commit and tells the user how to set one.
+- `epic-telemetry --window <tokens>` reports `context.used_pct`, the fill of the orchestrator's context window, read from the last main-thread message of the transcript.
+
 ## [0.10.0] — 2026-09-26
 
 The plugin now follows the Claude Code documentation and uses the platform's own features before its own machinery. Development history is gone from every shipped file.

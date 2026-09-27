@@ -8,7 +8,7 @@
 # format is internal to Claude Code and can change on any release.
 #
 # Usage: story-telemetry.sh [--transcript <path>] [--since <ts>] [--until <ts>]
-#                           [--project-dir <dir>] [--help]
+#                           [--project-dir <dir>] [--window <tokens>] [--help]
 #   --transcript  a session transcript JSONL. Default: the most recently
 #                 modified transcript for --project-dir under
 #                 ${CLAUDE_CONFIG_DIR:-~/.claude}/projects/<slug>/. Sub-agent
@@ -16,13 +16,26 @@
 #   --since       ISO-8601 instant; events strictly before it are excluded
 #   --until       ISO-8601 instant; events strictly after it are excluded
 #   --project-dir the project whose transcripts to search (default: cwd)
+#   --window      the session's context window in tokens (200000, 1000000).
+#                 The model knows its window; the transcript does not record
+#                 it. Without it, `context.window` and `context.used_pct` are
+#                 null and only `context.tokens` is reported
 #
 # Output: one JSON object on stdout —
 #   {transcript, window: {since, until}, wall_clock_seconds,
 #    events, unique_messages, models: [...],
 #    main:     {messages, input, cache_creation, cache_read, output},
 #    subagent: {messages, input, cache_creation, cache_read, output},
-#    subagent_split_verified}
+#    subagent_split_verified,
+#    context:  {tokens, window, used_pct, at}}
+#
+# WHAT `context` MEASURES. How full the orchestrator's context window is right
+# now: the prompt size of the LAST main-thread message — input + cache_creation
+# + cache_read, the whole prompt that message was sent with. Sub-agents are
+# excluded, since each has its own window. After a compaction the next message
+# is small again, which is the point: this is the window's current fill, not
+# the session's spend. Run mode reads it to decide whether validate or refine
+# still fits in this session (references/run-mode.md, "End of Run").
 #
 # Exit codes:
 #   0  telemetry computed (including an empty window — zeros, not an error)
@@ -56,7 +69,7 @@
 
 set -euo pipefail
 
-USAGE='Usage: story-telemetry.sh [--transcript <path>] [--since <ts>] [--until <ts>] [--project-dir <dir>]'
+USAGE='Usage: story-telemetry.sh [--transcript <path>] [--since <ts>] [--until <ts>] [--project-dir <dir>] [--window <tokens>]'
 
 die() { printf '%s\n' "$*" >&2; exit 2; }
 
@@ -64,12 +77,13 @@ TRANSCRIPT=""
 SINCE=""
 UNTIL=""
 PROJECT_DIR=""
+WINDOW=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help|-h)
       cat <<'HELP'
-Usage: story-telemetry.sh [--transcript <path>] [--since <ts>] [--until <ts>] [--project-dir <dir>]
+Usage: story-telemetry.sh [--transcript <path>] [--since <ts>] [--until <ts>] [--project-dir <dir>] [--window <tokens>]
 
 Read-only token and wall-clock telemetry for a Claude Code session transcript.
 Reports tokens, never money: the transcript carries usage and no price, and a
@@ -80,6 +94,7 @@ price table shipped here would age into a confident wrong answer.
   --since <ts>          ISO-8601 instant; drop events before it
   --until <ts>          ISO-8601 instant; drop events after it
   --project-dir <dir>   project whose transcripts to search (default: cwd)
+  --window <tokens>     the session's context window, to report context.used_pct
 
 Output: one JSON object on stdout. Usage sums are deduplicated by message.id —
 the transcript repeats the same usage on every content block of a message, and
@@ -93,11 +108,13 @@ HELP
     --since)      [[ $# -ge 2 ]] || die "--since needs a value";      SINCE="$2";      shift 2 ;;
     --until)      [[ $# -ge 2 ]] || die "--until needs a value";      UNTIL="$2";      shift 2 ;;
     --project-dir)[[ $# -ge 2 ]] || die "--project-dir needs a value";PROJECT_DIR="$2";shift 2 ;;
+    --window)     [[ $# -ge 2 ]] || die "--window needs a value";     WINDOW="$2";     shift 2 ;;
     *) die "unknown argument: $1"$'\n'"$USAGE" ;;
   esac
 done
 
 command -v jq >/dev/null 2>&1 || die "jq is required and was not found on PATH"
+[[ -z "$WINDOW" || "$WINDOW" =~ ^[1-9][0-9]*$ ]] || die "--window must be a positive integer of tokens: $WINDOW"
 
 # --- Resolve the transcript -------------------------------------------------
 # Claude Code stores a project's transcripts under a slug of its absolute path
@@ -133,6 +150,7 @@ jq -R -s \
   --arg transcript "$TRANSCRIPT" \
   --arg since "$SINCE" \
   --arg until "$UNTIL" \
+  --arg window "$WINDOW" \
   '
   # `fromdateiso8601` refuses fractional seconds and a numeric offset, and a
   # transcript carries both (`2026-01-02T03:04:05.678Z`). Normalise before
@@ -162,10 +180,17 @@ jq -R -s \
   ( $events
     | group_by(.message.id // .uuid)
     | map({ sidechain: (.[0].isSidechain == true or (.[0].parent_tool_use_id != null)),
+            timestamp: .[0].timestamp,
             model:     .[0].message.model,
             usage:     .[0].message.usage }) ) as $messages
   |
   ( [ $events[] | .timestamp | select(. != null) ] | sort ) as $stamps
+  |
+  ( [ $messages[] | select(.sidechain | not) ] | sort_by(.timestamp // "") | last ) as $last
+  |
+  ( if $last == null then null
+    else ($last.usage | (.input_tokens // 0) + (.cache_creation_input_tokens // 0)
+                        + (.cache_read_input_tokens // 0)) end ) as $ctx
   |
   { transcript: $transcript,
     window: { since: (if $since == "" then null else $since end),
@@ -181,7 +206,12 @@ jq -R -s \
     models: ([ $messages[] | .model | select(. != null) ] | unique),
     main:     ([ $messages[] | select(.sidechain | not) | .usage ] | sums),
     subagent: ([ $messages[] | select(.sidechain)       | .usage ] | sums),
-    subagent_split_verified: ([ $messages[] | .sidechain ] | any)
+    subagent_split_verified: ([ $messages[] | .sidechain ] | any),
+    context: { tokens: $ctx,
+               window: (if $window == "" then null else ($window | tonumber) end),
+               used_pct: (if $window == "" or $ctx == null then null
+                          else ($ctx * 100 / ($window | tonumber) | floor) end),
+               at: ($last.timestamp // null) }
   }
   ' < <(cat "$TRANSCRIPT"; [[ -d "${TRANSCRIPT%.jsonl}" ]] && find "${TRANSCRIPT%.jsonl}" -path '*subagents*' -type f -name '*.jsonl' -exec cat {} + 2>/dev/null; true)
 

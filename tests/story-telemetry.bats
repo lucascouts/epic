@@ -23,6 +23,9 @@
 #   T10 fractional-second timestamps produce a real wall clock (fromdateiso8601
 #       refuses them raw; a normalisation bug would silently report 0)
 #   T11 events that are not assistant, or carry no usage, are ignored
+#   T12 `context` is the prompt size of the LAST main-thread message by time —
+#       not the sum, not a sub-agent's — and used_pct needs --window. Run mode
+#       gates validate/refine on it, so a wrong pick is a wrong recommendation
 #
 # Fixtures are written per case: a transcript is just JSONL, so a case that
 # builds its own is readable without a fixtures directory to cross-reference.
@@ -189,4 +192,33 @@ msg() {
   [ "$(echo "$output" | jq '.main.input')" = "10" ]
   [ "$(echo "$output" | jq '.subagent.input')" = "7" ]
   [ "$(echo "$output" | jq '.subagent_split_verified')" = "true" ]
+}
+
+@test "T12: context is the last main-thread prompt by time, sub-agents excluded" {
+  # Written out of id order on purpose: the pick must follow the timestamp.
+  msg m9 false 2026-09-16T10:00:00.000Z 100 200 300 5
+  msg m1 false 2026-09-16T10:05:00.000Z 10 40000 60000 5
+  msg m5 true  2026-09-16T10:06:00.000Z 1 1 900000 5
+  run --separate-stderr bash "$SCRIPT" --transcript "$T" --window 200000
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.context.tokens == 100010' > /dev/null
+  echo "$output" | jq -e '.context.window == 200000 and .context.used_pct == 50' > /dev/null
+  echo "$output" | jq -e '.context.at == "2026-09-16T10:05:00.000Z"' > /dev/null
+}
+
+@test "T12: without --window the percentage is null, never guessed" {
+  msg m1 false 2026-09-16T10:00:00.000Z 1 2 3 4
+  run --separate-stderr bash "$SCRIPT" --transcript "$T"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.context.tokens == 6 and .context.window == null and .context.used_pct == null' > /dev/null
+}
+
+@test "T12: an empty window reports context null, and a bad --window exits 2" {
+  msg m1 false 2026-09-16T10:00:00.000Z 1 2 3 4
+  run --separate-stderr bash "$SCRIPT" --transcript "$T" --window 200000 --since 2030-01-01T00:00:00Z
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.context.tokens == null and .context.used_pct == null' > /dev/null
+  run --separate-stderr bash "$SCRIPT" --transcript "$T" --window 1M
+  [ "$status" -eq 2 ]
+  [ -z "$output" ]
 }

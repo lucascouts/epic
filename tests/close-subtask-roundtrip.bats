@@ -131,7 +131,7 @@ close_from_block() {
   close_from_block '{"task":"1.2","outcome":"done"}'
   [ "$status" -eq 0 ]
   # The archive offer keys on status_written.to == "done". Cited by name, not
-  # by line — run-mode.md's "End of Run — Validator, archive, index" trigger —
+  # by line — run-mode.md's "End of Run — next step, index" trigger —
   # because line numbers go stale.
   echo "$output" | jq -e '.status_written.from == "in-progress" and .status_written.to == "done"'
   [ "$(echo "$output" | jq -r '.status_written.to')" = done ]
