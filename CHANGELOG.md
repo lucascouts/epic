@@ -11,6 +11,16 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.13.1] — 2026-09-27
+
+The end of a partial run recommends finishing the plan instead of re-planning it.
+
+**Minimum Claude Code:** unchanged.
+
+### Fixed
+
+- A run that ends with planned boxes still open recommends running the rest (`stories NNN run all`), not refining. Refine is recommended only when the plan is owed a change — a `follow_up: true` register entry, or fix round 2. On a partial run the old rule recommended refining a plan that needed no change, and the model overrode it in 3 of 3 runs.
+
 ## [0.13.0] — 2026-09-27
 
 Fewer sub-agents, same findings. Validation and audit are one Auditor spawn, and a Full story's integration points and gotchas are written by the main agent — both measured side by side before the change.
@@ -1477,7 +1487,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/lucascouts/epic/releases/tag/v0.13.1
 [0.13.0]: https://github.com/lucascouts/epic/releases/tag/v0.13.0
 [0.12.0]: https://github.com/lucascouts/epic/releases/tag/v0.12.0
 [0.11.1]: https://github.com/lucascouts/epic/releases/tag/v0.11.1
