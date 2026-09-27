@@ -133,7 +133,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 
 | Agent | Role |
 |---|---|
-| `analyst` | Context discovery, codebase scan, completeness checklist |
+| `analyst` | Codebase scan at triage (the completeness checklist is written by the main agent) |
 | `architect` | Integration points and gotcha capture on top of the Analyst's scan (Full mode) |
 | `test-advisor` | Defines testing requirements per sub-task and authors one failing test per Unit/Integration/E2E sub-task with Red-phase verification — E2E tests use the story's selected E2E tool with Red verification deferred to Run mode (Phase 3, Standard + Full at `project`/`product` level) |
 | `reviewer` | Cross-artifact review — gaps, consistency, orphan wiring (Full mode) |

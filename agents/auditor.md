@@ -6,7 +6,7 @@ description: >
 model: inherit
 tools: Read, Glob, Grep, Bash, LSP, Write
 maxTurns: 40
-effort: max
+effort: high
 color: red
 ---
 

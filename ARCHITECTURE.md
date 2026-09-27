@@ -76,20 +76,20 @@ The plugin surface maps to Claude Code's extension points:
 
 ## Sub-agent pipeline
 
-Epic's sub-agents are activated by scale and phase. The main agent (the skill itself) never implements code — it only orchestrates.
+Epic's sub-agents are activated by scale and phase. The main agent orchestrates, writes the artifacts, runs the Completeness Checklist itself, and implements a closed-spec sub-task inline.
 
 ### Who activates when
 
 | Persona | Fast | Standard | Full |
 |---|---|---|---|
-| Analyst | — | Phase 1 | Phase 1 |
+| Analyst (codebase scan) | — | triage, when code exists | triage, when code exists |
 | Architect | — | — | Phase 2 |
 | Test-advisor | — | Phase 3 | Phase 3 |
 | Reviewer | — | — | after Phase 3 |
-| Executor | per sub-task | per sub-task | per sub-task |
-| Tech-reviewer | multi-tech only | multi-tech only | multi-tech only |
-| Validator | per completed task | per completed task | per completed task |
-| Auditor | story end | story end | story end |
+| Executor | exploratory, verification or parallel sub-tasks — a closed spec runs inline | same | same |
+| Tech-reviewer | technology boundary, or `High` complexity | same | same |
+| Validator | validate mode | validate mode | validate mode |
+| Auditor | validate mode, after the Validator passes | same | same |
 
 ### Context isolation
 
@@ -114,8 +114,8 @@ Each `agents/*.md` also declares a reasoning `effort:`. The tier is a cost decis
 
 | Agent | Effort | Why |
 | --- | --- | --- |
-| `executor` | `max` | Writes the code. A wrong implementation is the most expensive thing to discover late. |
-| `auditor` | `max` | Holds the semantic judgment the rest of the pipeline is priced against — it is what makes the Validator's `medium` affordable. |
+| `executor` | `high` | Writes the code. Measured against `max` on a large closed-spec sub-task: the same tests written and passing in 5 of 5 runs, at a quarter of the cost and a sixth of the wall clock. |
+| `auditor` | `high` | Holds the semantic judgment the rest of the pipeline is priced against. Measured against `max` on fixtures with planted defects: every planted defect found in every arm, at about half the cost and wall clock. |
 | `architect` | `high` | Does not re-scan what the Analyst already reported; reasons over that scan plus the written requirements for the contracts a design must meet, and hunts the gotchas around them. |
 | `reviewer` | `high` | Cross-artifact gaps are found by reasoning over three documents at once. |
 | `tech-reviewer` | `high` | Correctness at technology boundaries — the defect is precisely what a generalist would not think to look for. |
@@ -123,7 +123,7 @@ Each `agents/*.md` also declares a reasoning `effort:`. The tier is a cost decis
 | `analyst` | `medium` | Discovery: scans structure, samples representative files, reports what it found. |
 | `validator` | `medium` | Mechanical verification: runs the commands the sub-tasks name and compares output. The judgment lives with the Auditor. |
 
-**The table is enforced, not descriptive.** `tests/agent-effort-policy.bats` derives the tiers from the frontmatters and compares them against these rows, so a change on either side reddens until both agree. It also pins `max` on the Executor and the Auditor by name: they are the mitigation the Validator's `medium` was traded against, and a silent drop there would keep the saving while removing the safety net.
+**The table is enforced, not descriptive.** `tests/agent-effort-policy.bats` derives the tiers from the frontmatters and compares them against these rows, so a change on either side reddens until both agree. It also pins the Executor and the Auditor at `high` or above by name: they are the mitigation the Validator's `medium` was traded against, and a silent drop below `high` would keep the saving while removing the safety net.
 
 ---
 

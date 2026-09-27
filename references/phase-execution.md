@@ -4,7 +4,7 @@ Loaded when a Standard or Full story writes its phases, saves drafts or resumes.
 
 ## Completeness Checklist
 
-For standard/full: spawn Analyst sub-agent per procedure in [context-discovery.md](context-discovery.md#completeness-checklist).
+For standard/full: the main agent writes it inline, per [context-discovery.md](context-discovery.md#completeness-checklist) — no sub-agent.
 For Fast: ask 1-2 inline questions only if needed.
 
 ## Phase Execution

@@ -5,7 +5,7 @@ The checks a piece of software is expected to carry, in three tiers, and how the
 ## How the set is chosen
 
 1. **The constitution's `## Quality` block** is the project's default legend: the always tier, plus the context items init's scan detected. Written once by init, read by every story.
-2. **The Analyst's scan** (Function 1, [analyst.md](../agents/analyst.md)) reports which context signals the tree carries — a `Dockerfile`, a `.github/workflows/` directory, a database configuration, an HTTP surface, a UI — and which always-tier tools the tree is already configured for.
+2. **The Analyst's scan** ([analyst.md](../agents/analyst.md)) reports which context signals the tree carries — a `Dockerfile`, a `.github/workflows/` directory, a database configuration, an HTTP surface, a UI — and which always-tier tools the tree is already configured for.
 3. **The request** adds what the constitution could not know: an API consumed by more than one client activates contract tests; a stated performance requirement activates a benchmark.
 4. **The story's legend** is the result: `## Quality Requirements`, one line per active item, numbered `Q1`…`Qn` in the order of this catalog, each with the command that proves it on this project. A Fast story, which has no `story.md`, carries the legend at the top of `tasks.md`.
 

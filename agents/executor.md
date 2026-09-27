@@ -8,7 +8,7 @@ description: >
 model: inherit
 tools: Read, Write, Edit, Bash, Glob, Grep, WebFetch, WebSearch, Skill
 maxTurns: 50
-effort: max
+effort: high
 color: green
 ---
 

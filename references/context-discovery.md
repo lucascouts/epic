@@ -29,7 +29,7 @@ The hits are injected as a **Prior Knowledge** block in the triage proposal and 
 
 If existing code is detected, spawn the **Analyst** sub-agent — `run_in_background: false`, and wait for its result: the proposal needs its output ([personas.md](personas.md#personas)):
 
-> "Run Function 1 (Codebase Analysis) of your agent definition for this request.
+> "Run the Codebase Analysis of your agent definition for this request.
 >
 > User request: [original request]
 > Context files found: [list]
@@ -55,31 +55,18 @@ Results are saved to `.draft/meta.yaml` under `analyst_output` key and passed as
 
 ## Completeness Checklist
 
-For **standard and full scales**, spawn the **Analyst** sub-agent (result awaited) to generate a context-specific checklist. For **fast and spike scales**, ask 1-2 inline questions only — both are single-author scales, with no sub-agents and no `.draft/meta.yaml` to cache an Analyst's output in, and a probe whose whole point is to be time-boxed is not improved by a 10-question intake.
+For **standard and full scales**, the **main agent writes the checklist itself**, inline — no sub-agent. It reads no file for it: its only inputs are the codebase analysis already in hand (`.draft/meta.yaml`, `analyst_output` — `none: empty repository` on a greenfield story), the request and the constitution. A spawn would re-read all three from an empty context to produce the same questions; measured side by side, inline gave questions of the same coverage in about two thirds of the time. For **fast and spike scales**, ask 1-2 inline questions only — both are single-author scales, and a probe whose whole point is to be time-boxed is not improved by a 10-question intake.
 
-**Analyst sub-agent prompt (uses cached output from Codebase Analysis):**
+1. Identify every entity, action, input, and collection in the request
+2. For each, determine what implicit decisions the user hasn't stated
+3. For each state-changing action (create, login, enable, open, start), verify the inverse (delete, logout, disable, close, stop) is addressed or explicitly excluded
+4. Check for common pitfalls and edge cases in this domain — with a research MCP or `WebSearch`, only when the domain is not evident from the request and the analysis
+5. Write **5-10 assertive items**, each "I understand X will work as Y. Confirm?", with X and Y phrased as a **consequence the requester can observe**, never as the mechanism that produces it ("a stolen session stops working when the password changes", not "tokens are invalidated"). **Rank them by impact** — the story's question budget keeps the top of the list, and the rest become stated defaults
+6. For each proposed approach, check that it fully satisfies the requirement's intent — `<approach> — satisfies | partial: <what is missing>`
 
-> "Generate a completeness checklist of clarifying questions for this story.
-> Use the codebase analysis below as your ONLY source of project information — do NOT re-scan the codebase.
->
-> Codebase analysis (from triage — always present; on an empty repository it reads 'none: empty repository'):
-> [Analyst output from Context Discovery, stored in .draft/meta.yaml]
->
-> User request: [original request]
-> Context files: [summary of .epic/constitution.md, if present]
->
-> Focus exclusively on:
-> 1. Identify every entity, action, input, and collection in the request
-> 2. For each, determine what implicit decisions the user hasn't stated
-> 3. For each state-changing action (create, login, enable, open, start), verify the inverse (delete, logout, disable, close, stop) is addressed or explicitly excluded
-> 4. Check for common pitfalls and edge cases in this domain — with `WebSearch`, only when the domain is not evident from the request and the analysis
-> 5. Generate 5-10 assertive questions formatted as: 'I understand X will work as Y. Confirm?' — ranked by impact, highest first
-> 6. For each proposed approach, evaluate whether it fully satisfies the requirement's intent
->
-> Do NOT read files or scan directories to re-analyze the project — the codebase analysis above is current.
-> Do NOT ask questions already answered by the request."
+On a greenfield story (`none: empty repository`) there are no patterns to confirm: ask about the stack only when the request leaves it open, and spend the questions on behaviour. Never ask what the request already answers.
 
 **Rules:**
 - Present the questions in **rounds**, per the [Clarify Protocol](clarify.md#clarify-protocol) — orientation first, then precision, each round built from the last, every item reshaped into the consequence the requester can observe; the single numbered list is the headless fallback
 - If the user answers "out of scope", add to Out of Scope in story.md
-- For fast and spike scales: skip the sub-agent, ask 1-2 inline questions only if needed
+- For fast and spike scales: ask 1-2 inline questions only if needed

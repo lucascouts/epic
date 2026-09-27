@@ -10,7 +10,7 @@ Sub-agents with specialized roles. Scale determines which personas are activated
 
 | Persona | Role | Scale | Agent file |
 |---|---|---|---|
-| **Analyst** | Context discovery, domain research, checklist generation | standard + full | `agents/analyst.md` |
+| **Analyst** | Codebase scan at triage — patterns, conventions, quality-catalog signals; the completeness checklist is the main agent's | standard + full, when code exists | `agents/analyst.md` |
 | **Architect** | Codebase pattern research, design context gathering | full only | `agents/architect.md` |
 | **Test Advisor** | Authors one test per Unit/Integration/E2E sub-task during Phase 3 — Red-verified for Unit/Integration, Red deferred to Run for E2E — and records red-evidence | standard + full at engineering level `project` or `product` (Phase 3, and per added sub-task in Refine); an `experiment` or `tool` story writes its tests at run time, as Fast does ([engineering-level.md](engineering-level.md)) | `agents/test-advisor.md` |
 | **Reviewer** | Cross-artifact review, gap detection, consistency check | full only | `agents/reviewer.md` |
