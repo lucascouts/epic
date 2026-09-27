@@ -11,6 +11,10 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Fixed
+
+- Routing: a closed-spec sub-task may name its files in the title, the Objective or the ToDo, not only the ToDo. Tech review now applies on the inline route too, and a `High` complexity sub-task is reviewed even when it uses one technology.
+
 ## [0.11.0] — 2026-09-26
 
 A finished run now asks what comes next — validate, refine or archive — and fits the answer to how much of the session is left. A run never signs a commit with an identity it made up.
