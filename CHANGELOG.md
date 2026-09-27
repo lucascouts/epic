@@ -11,6 +11,10 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Fixed
+
+- A run that ends with planned boxes still open recommends running the rest (`stories NNN run all`), not refining. Refine is recommended only when the plan is owed a change — a `follow_up: true` register entry, or fix round 2. On a partial run the old rule recommended refining a plan that needed no change, and the model overrode it in 3 of 3 runs.
+
 ## [0.13.0] — 2026-09-27
 
 Fewer sub-agents, same findings. Validation and audit are one Auditor spawn, and a Full story's integration points and gotchas are written by the main agent — both measured side by side before the change.

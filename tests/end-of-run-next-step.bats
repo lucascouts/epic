@@ -10,8 +10,10 @@
 #       never from a guessed --window: a 200k guess on a 1M model read 107%
 #   N3  the bands: high recommended here, efficient allowed, degraded a new
 #       session — a mode that runs out of room mid-way loses what it checked
-#   N4  refine when work is pending (open box, follow_up entry, fix round 2),
-#       validate otherwise; archive only after validate, or --force
+#   N4  refine when the plan is owed a change (follow_up entry, fix round 2),
+#       run the rest when boxes are open, validate otherwise; archive only
+#       after validate, or --force. A partial run on 2026-09-27 reached the old
+#       `open box → refine` rule in 3/3 runs and the model overrode it 3/3
 #   N5  prose only when AskUserQuestion is not callable; --auto is not headless
 #       at the run's end. A 2026-09-27 run wrote "the session is non-interactive,
 #       so I logged the recommendation" with the tool available
@@ -48,9 +50,10 @@ setup() {
   printf '%s\n' "$END" | grep -q '^| `degraded` | above | above | \*\*not run in this session\*\*'
 }
 
-@test "N4: refine when work is pending, validate otherwise — first match wins" {
-  printf '%s\n' "$END" | grep -q '^1\. \*\*Refine\*\* — work is pending: the last close.s `census.open > 0`, or an entry in `.draft/deviations.yaml` carries `follow_up: true`'
-  printf '%s\n' "$END" | grep -q '^2\. \*\*Validate\*\* — otherwise'
+@test "N4: refine when the plan is owed a change, run the rest when boxes are open, validate otherwise" {
+  printf '%s\n' "$END" | grep -q '^1\. \*\*Refine\*\* — the plan no longer describes the work: an entry in `.draft/deviations.yaml` carries `follow_up: true`'
+  printf '%s\n' "$END" | grep -q '^2\. \*\*Run the rest\*\* — the plan still holds and part of it is unrun: the last close.s `census.open > 0`'
+  printf '%s\n' "$END" | grep -q '^3\. \*\*Validate\*\* — otherwise'
   grep -q 'optional boolean field `follow_up: true`' "$ROOT/references/run-mode.md"
   # The producer of the signal: without it the flag is the orchestrator's guess.
   grep -q '`follow_up: true` when it leaves work this sub-task did not do' "$ROOT/agents/executor.md"

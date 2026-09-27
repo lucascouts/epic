@@ -102,7 +102,7 @@ Its JSON `mapping` field gives the requirement → sub-tasks relation directly �
 - Requirements: number hierarchically (R1, R1.1, R1.2, R2...)
 - Bugfix: Unchanged Behavior section is **mandatory**, minimum 2 items
 - Fast mode is test-first at run time: a sub-task with a `Tests` field is authored Red, then Green-then-Refactor; a sub-task with no testable logic carries an `Acceptance` field (1-3 observable-behavior statements) instead — every implementing (non-Commit) sub-task carries one or the other
-- **A run that finishes a story ends with an `AskUserQuestion`** when callable, `--auto` too: one step — refine if work is pending, else validate — plus *Stop here*; archive only after a passing validate. See [End of Run](../../references/run-mode.md#end-of-run--next-step-index)
+- **A run that finishes a story ends with an `AskUserQuestion`** when callable, `--auto` too: one step (refine, run the rest or validate) plus *Stop here*; archive only after a passing validate. See [End of Run](../../references/run-mode.md#end-of-run--next-step-index)
 - Fast → Standard upgrade: recommend it at triage or task generation when scope grows, **or** when the change needs requirement traceability or design documentation — Fast has neither
 - Constitution constraints are soft — warnings, not blocks
 - A `layperson` build turn writes no text between tool calls — no status line in any language; notes go to `run-report.md`, the chat gets the closing message
