@@ -11,6 +11,12 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-09-27
+
+Fewer sub-agents, same findings. Validation and audit are one Auditor spawn, and a Full story's integration points and gotchas are written by the main agent — both measured side by side before the change.
+
+**Minimum Claude Code:** unchanged.
+
 ### Changed
 
 - Validation and audit are one Auditor spawn: it runs the validation protocol first, writes `validation-report.yaml`, and audits only on a pass. Same defects found as the two-agent pair, 10–25% cheaper and up to a third faster.
@@ -1471,7 +1477,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/lucascouts/epic/releases/tag/v0.13.0
 [0.12.0]: https://github.com/lucascouts/epic/releases/tag/v0.12.0
 [0.11.1]: https://github.com/lucascouts/epic/releases/tag/v0.11.1
 [0.11.0]: https://github.com/lucascouts/epic/releases/tag/v0.11.0
