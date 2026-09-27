@@ -11,6 +11,16 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.11.1] — 2026-09-27
+
+The routing table now says what the runs already did: a sub-task names its files anywhere in its body, and tech review follows the work on every route.
+
+**Minimum Claude Code:** unchanged.
+
+### Fixed
+
+- Routing: a closed-spec sub-task may name its files in the title, the Objective or the ToDo, not only the ToDo. Tech review now applies on the inline route too, and a `High` complexity sub-task is reviewed even when it uses one technology.
+
 ## [0.11.0] — 2026-09-26
 
 A finished run now asks what comes next — validate, refine or archive — and fits the answer to how much of the session is left. A run never signs a commit with an identity it made up.
@@ -1421,7 +1431,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.11.1...HEAD
+[0.11.1]: https://github.com/lucascouts/epic/releases/tag/v0.11.1
 [0.11.0]: https://github.com/lucascouts/epic/releases/tag/v0.11.0
 [0.10.0]: https://github.com/lucascouts/epic/releases/tag/v0.10.0
 [0.9.0]: https://github.com/lucascouts/epic/releases/tag/v0.9.0
