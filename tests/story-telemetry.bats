@@ -24,8 +24,10 @@
 #       refuses them raw; a normalisation bug would silently report 0)
 #   T11 events that are not assistant, or carry no usage, are ignored
 #   T12 `context` is the prompt size of the LAST main-thread message by time —
-#       not the sum, not a sub-agent's — and used_pct needs --window. Run mode
-#       gates validate/refine on it, so a wrong pick is a wrong recommendation
+#       not the sum, not a sub-agent's. Run mode gates validate/refine on it
+#   T13-T15 the window and the bands come from the model family, never from a
+#       guess: a 200k guess on a 1M model once reported 107%
+#   T16 an empty window is null context; a malformed --window exits 2
 #
 # Fixtures are written per case: a transcript is just JSONL, so a case that
 # builds its own is readable without a fixtures directory to cross-reference.
@@ -194,30 +196,57 @@ msg() {
   [ "$(echo "$output" | jq '.subagent_split_verified')" = "true" ]
 }
 
+
+
 @test "T12: context is the last main-thread prompt by time, sub-agents excluded" {
   # Written out of id order on purpose: the pick must follow the timestamp.
   msg m9 false 2026-09-16T10:00:00.000Z 100 200 300 5
   msg m1 false 2026-09-16T10:05:00.000Z 10 40000 60000 5
   msg m5 true  2026-09-16T10:06:00.000Z 1 1 900000 5
-  run --separate-stderr bash "$SCRIPT" --transcript "$T" --window 200000
+  run --separate-stderr bash "$SCRIPT" --transcript "$T"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.context.tokens == 100010' > /dev/null
-  echo "$output" | jq -e '.context.window == 200000 and .context.used_pct == 50' > /dev/null
   echo "$output" | jq -e '.context.at == "2026-09-16T10:05:00.000Z"' > /dev/null
 }
 
-@test "T12: without --window the percentage is null, never guessed" {
-  msg m1 false 2026-09-16T10:00:00.000Z 1 2 3 4
+@test "T13: a non-Haiku model gets a 1M window and the 200k/500k bands" {
+  msg m1 false 2026-09-16T10:00:00.000Z 0 0 200000 1
   run --separate-stderr bash "$SCRIPT" --transcript "$T"
-  [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.context.tokens == 6 and .context.window == null and .context.used_pct == null' > /dev/null
+  echo "$output" | jq -e '.context.family == "other" and .context.window == 1000000' > /dev/null
+  echo "$output" | jq -e '.context.used_pct == 20 and .context.band == "high"' > /dev/null
+  msg m2 false 2026-09-16T10:01:00.000Z 0 0 500000 1
+  run --separate-stderr bash "$SCRIPT" --transcript "$T"
+  echo "$output" | jq -e '.context.band == "efficient"' > /dev/null
+  msg m3 false 2026-09-16T10:02:00.000Z 0 0 500001 1
+  run --separate-stderr bash "$SCRIPT" --transcript "$T"
+  echo "$output" | jq -e '.context.band == "degraded" and .context.thresholds == {"high":200000,"efficient":500000}' > /dev/null
 }
 
-@test "T12: an empty window reports context null, and a bad --window exits 2" {
+@test "T14: a Haiku model gets a 200k window and the 100k/150k bands" {
+  add() { printf '{"type":"assistant","uuid":"%s","isSidechain":false,"timestamp":"%s","message":{"id":"%s","model":"claude-haiku-4-5-20251001","usage":{"input_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":%s,"output_tokens":1}}}\n' "$1" "$2" "$1" "$3" >> "$T"; }
+  add h1 2026-09-16T10:00:00.000Z 100000
+  run --separate-stderr bash "$SCRIPT" --transcript "$T"
+  echo "$output" | jq -e '.context.family == "haiku" and .context.window == 200000 and .context.band == "high"' > /dev/null
+  add h2 2026-09-16T10:01:00.000Z 150000
+  run --separate-stderr bash "$SCRIPT" --transcript "$T"
+  echo "$output" | jq -e '.context.used_pct == 75 and .context.band == "efficient"' > /dev/null
+  add h3 2026-09-16T10:02:00.000Z 150001
+  run --separate-stderr bash "$SCRIPT" --transcript "$T"
+  echo "$output" | jq -e '.context.band == "degraded"' > /dev/null
+}
+
+@test "T15: --window overrides the derived window; each threshold is the lower of tokens and percentage" {
+  msg m1 false 2026-09-16T10:00:00.000Z 0 0 50000 1
+  run --separate-stderr bash "$SCRIPT" --transcript "$T" --window 200000
+  echo "$output" | jq -e '.context.window == 200000 and .context.used_pct == 25' > /dev/null
+  echo "$output" | jq -e '.context.thresholds == {"high":40000,"efficient":100000} and .context.band == "efficient"' > /dev/null
+}
+
+@test "T16: an empty window reports context null, and a bad --window exits 2" {
   msg m1 false 2026-09-16T10:00:00.000Z 1 2 3 4
-  run --separate-stderr bash "$SCRIPT" --transcript "$T" --window 200000 --since 2030-01-01T00:00:00Z
+  run --separate-stderr bash "$SCRIPT" --transcript "$T" --since 2030-01-01T00:00:00Z
   [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.context.tokens == null and .context.used_pct == null' > /dev/null
+  echo "$output" | jq -e '.context.tokens == null and .context.band == null and .context.used_pct == null' > /dev/null
   run --separate-stderr bash "$SCRIPT" --transcript "$T" --window 1M
   [ "$status" -eq 2 ]
   [ -z "$output" ]

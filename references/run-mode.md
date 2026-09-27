@@ -89,11 +89,13 @@ The `tech_profile` is passed to the Executor sub-agent prompt. Boundaries trigge
 
 Read the sub-task's own body and take the **first** route that matches.
 
+**A sub-task too vague to act on takes no route.** When it has **no ToDo and no runnable `Validation` command**, nothing says what to change and nothing could prove it changed: treat it as `failed` before routing — change no file, spawn nothing, and report it by number with an offer to refine the story. Neither the main agent nor an Executor invents the scope from the title. The Executor carries the same check as a backstop ([executor.md](../agents/executor.md)).
+
 | The sub-task is… | How you can tell, from its body | Route | Why |
 |---|---|---|---|
 | **Verification** | its Objective is to review, audit or validate work that is already done | **Sub-agent, always** | here the fresh context *is* the product — whoever did not watch the author work is the only one who can see what the author cannot |
 | **Exploratory** | `Context.Files` lists many files, or names a directory instead of files, or the ToDo says where to look rather than what to change | **Sub-agent** | the throwaway reading dies with the sub-agent instead of settling into the orchestrator's context for the rest of the run |
-| **Closed spec** | the sub-task's body — its title, Objective or ToDo — names the files to create or modify, `Validation` carries a runnable command, and `Context` is absent or lists at most a couple of files | **Main agent, inline** — or a **fork** each, when several of them are independent (see Fork Route) | every input is already in hand; a sub-agent would spend its first minutes re-deriving them, and a fork has them already |
+| **Closed spec** | the sub-task's body — its title, Objective or ToDo — names the files to create or modify, `Validation` carries a runnable command, and `Context` is absent or lists at most a couple of files | **Main agent, inline** | every input is already in hand; a sub-agent would spend its first minutes re-deriving them |
 | anything else | — | **Sub-agent** | when the sub-task does not say enough to route it, the isolated context is the safe default |
 
 `Complexity` still governs the two columns the route does not decide. A sub-task carrying its own `Complexity` override uses that value; otherwise it inherits the parent's:
@@ -142,25 +144,6 @@ For an **inline-routed** sub-task under the run-time ordering above (Fast, spike
 
 **The box is closed the same way it is on the Executor path** — one `close-subtask.sh` invocation, never a hand edit (see Closing a Box). Being the single author makes the main agent the executor here; it does not make it a second writer of the checkbox grammar. It produces the same closing block for itself that an Executor would have reported, and feeds it to the same script.
 
-### Fork Route — inline, in parallel
-
-**A fork is the orchestrator duplicated, not a fresh worker.** It inherits the parent conversation instead of starting fresh, receives the main conversation's exact tool pool, and runs on the main conversation's model. That is precisely the property the Closed-spec row was written around: the row routes inline because a fresh sub-agent would spend its first minutes re-deriving what the orchestrator is already holding. A fork holds it already — so what it buys over inline is not context, it is **overlap**. Several closed-spec sub-tasks that are independent under the Parallel Execution detection run at once instead of one after another.
-
-**The protocol travels in the prompt.** A fork does not carry the Executor's system prompt — it carries the orchestrator's — so the six steps, the sub-task body and the closing block are written into the spawn prompt verbatim. A fork is *inline done elsewhere*: same steps, same `close-subtask.sh` call, same closing block, and the box is closed in the main tree by the orchestrator when the fork returns.
-
-**When to take it — and why it is rarely the answer.** The three tests are the ones the detection in [run-parallel.md](run-parallel.md) already runs, at sub-task granularity: two or more pending sub-tasks route Closed spec, their dependencies are satisfied, and they touch no common file. One closed-spec sub-task alone stays inline. The same maximum of five applies.
-
-**But a fork must first beat inline, and at this plugin's unit size it usually does not.** Every spawn adds a fixed cost in wall clock and in money before any work starts, and inline pays no such cost.
-
-Spawn overhead dominates when the unit is small, and a sub-task here is small by construction — one Executor pass with a `Validation:` command that proves it alone. **Take the Fork Route only when each sub-task is large enough for overlap to repay the spawn**, and record the reason. A plan whose sub-tasks each finish in under a minute is a plan to run inline.
-
-**Two environment gates, and neither does what its name suggests.**
-
-- `CLAUDE_CODE_FORK_SUBAGENT=1` enables the fork agent type. It is off by default in non-interactive mode (`-p`) and in the Agent SDK, so a run that does not set it gets `Agent type 'fork' not found` and must fall back to inline, in order, without comment.
-- `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` is **not a fork setting**; it is an optional user setting, fork or no fork, and it must be set before Claude Code starts — a plugin cannot set it. Under `-p`, sub-agents are backgrounded **by default with fork mode off**: without the variable, spawns report `is_backgrounded: true` whether or not fork mode is on. A backgrounded sub-agent's result arrives only as a completion notification in a later turn, and that holds for the Analyst, the Validator and the Auditor as much as for any fork. With the variable set, spawns report `is_backgrounded: false`: it **does** restore the foreground, in fork mode and out of it. Without it, the waiting rule in [personas.md](personas.md#personas) applies.
-
-**Worktrees are still the isolation.** Forks writing different files at once are as capable of colliding as Executors are; the group runs under the same worktree discipline as Parallel Execution, and boxes are closed only in the main tree, sequentially, after each merge.
-
 ### Delegated Route — Executor Sub-agent
 
 Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent section. The orchestrator:
@@ -192,7 +175,7 @@ epic-close <NNN|story-dir> <N.N|N|gate:<text-prefix>> \
 
 #### From the closing block to the call
 
-The Executor's step-6 report ends with a machine-liftable **closing block** (defined in [executor.md](../agents/executor.md)); on the Trivial inline path the main agent produces the same block for itself. Lift the arguments from it and change nothing on the way:
+The Executor's step-6 report ends with a machine-liftable **closing block** (defined in [executor.md](../agents/executor.md)); on the inline route the main agent produces the same block for itself. Lift the arguments from it and change nothing on the way:
 
 | Closing block `outcome` | The call |
 |---|---|
@@ -259,7 +242,7 @@ A refusal names its own reason in `reason`, and each arm is a statement about th
 
 The story's `status:` frontmatter field is **engine-written, never hand-edited**. Run mode owns two of the six values — `in-progress` and `done` — and writes them right after a box in tasks.md is marked. The other four belong elsewhere and Run mode never writes them: `draft` to CREATE, `validated` to VALIDATE, `superseded` to the supersede operation, `archived` to the archive operation. `in-progress` has one further writer, and only for one edge: REFINE mode, when a refinement reopens a story — the table below is the single definition both modes apply. See [lifecycle-status.md](lifecycle-status.md#lifecycle-status-status) for the full field spec.
 
-**When the check runs:** after **every** marking in tasks.md — each sub-task marking, whichever path executed the sub-task (Trivial inline or Executor, step 7 above), and the end-of-Run quality-gate settlement, which is usually the marking that closes the last box.
+**When the check runs:** after **every** marking in tasks.md — each sub-task marking, whichever route executed the sub-task (inline or Executor, step 7 above), and the end-of-Run quality-gate settlement, which is usually the marking that closes the last box.
 
 **In Run mode, `close-subtask.sh` runs it** — census and table both, inside the same invocation that closed the box (see Closing a Box), so a marking and its status can never be left apart. The orchestrator reads the outcome from the JSON's `status_written` and takes no census of its own. **Refine mode takes the same census by hand**, at its own point (see [refine-mode.md](refine-mode.md#status-census)): a refinement does not mark boxes, it **adds** them — which is the one way a story that already reads `done` gains open work, and there is no close call to carry the write, so REFINE performs the `Edit` itself. The table below is one definition with two performers, never two tables.
 
@@ -426,9 +409,13 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 > **Sub-task:** [number] - [name]
 > **Objective:** [objective field]
 > **ToDo:** [todo field]
+> **Context:** [context field — Files, Docs, Research — if exists; step 1 reads it]
 > **Validation:** [validation field]
 > **Tests:** [tests field, if exists]
+> **Acceptance:** [acceptance field, if exists]
 > **Requirements:** [requirements field]
+> **Commit:** [the group's `Commit:` message, verbatim, when this sub-task is the group's last — your closing block reports it]
+> **Comment language:** [English only — or English plus <language> on the line below, when the user asked for it]
 >
 > ## Story Context
 >
@@ -448,9 +435,9 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 >
 > [INCLUDED ONLY when this sub-task has a pre-authored failing test. Path to the materialized test file plus its contents. This is a **read-only input** — you implement against it to make it pass; you do NOT author, replace, or weaken it. If this section is absent, this is a test-after sub-task: author tests yourself in step 5.]
 >
-> ## Available MCPs
+> ## Docs already fetched
 >
-> [List of verified MCPs from triage: context7 for docs, brave/perplexity for research, etc.]
+> [INCLUDED ONLY when the orchestrator already queried a docs or research MCP for this sub-task: the source and the passage. You hold `WebFetch`/`WebSearch`, not the MCPs themselves.]
 >
 > ---
 >
@@ -468,12 +455,12 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 - The Executor does NOT commit code. Commits are handled by the orchestrator from each group's `Commit:` field — post-merge, in the main tree, with the pre-authored message verbatim. A parallel Executor sits in a worktree, where a commit would land on a branch nobody has merged yet
 - The Executor does NOT mark tasks — not `[x]`, and not `[~]` either: `close-tilde` is something its closing block *reports*, never something it writes. The orchestrator does the marking, after verifying the report — and it does it through `close-subtask.sh`, the one sanctioned writer of the checkbox grammar (see Closing a Box). This is not a matter of trust: a box marked anywhere else is a box written outside the only writer that takes the census, stamps the status and validates the story in the same transaction — and, inside a worktree, written into a copy of tasks.md that the merge would then have to reconcile
 - The Executor does NOT skip steps. If Context Gathering finds nothing useful, the step still executes and reports "no actionable findings."
-- If a step fails (validation, tests), the Executor STOPS and reports. It does not attempt fixes autonomously.
+- If the final validation or test run fails, the Executor STOPS and reports `outcome: failed`. Iterating toward Green inside step 2 is its work; starting another fix round after the final run is not.
 - The Executor receives only the relevant sections of story.md and design.md, not the full files, to keep context focused.
 
 ## Multi-Tech Review
 
-When a sub-task's `tech_profile` carries two or more technologies that meet at a boundary (handler to template, app to SQL, API to client), Tech Reviewer sub-agents review that boundary after execution — inline, fork or Executor alike. **Read [run-tech-review.md](run-tech-review.md) when the profile has such a boundary** — the trigger table, the reviewer prompt template and the orchestrator's handling live there. A single-technology sub-task skips it, unless its Complexity is `High`, which reviews always (see the Complexity table in Execution Threshold).
+When a sub-task's `tech_profile` carries two or more technologies that meet at a boundary (handler to template, app to SQL, API to client), Tech Reviewer sub-agents review that boundary after execution — inline or Executor alike. **Read [run-tech-review.md](run-tech-review.md) when the profile has such a boundary** — the trigger table, the reviewer prompt template and the orchestrator's handling live there. A single-technology sub-task skips it, unless its Complexity is `High`, which reviews always (see the Complexity table in Execution Threshold).
 ## Context Passing Between Tasks
 
 Each Executor sub-agent starts with a fresh context. The orchestrator bridges information between tasks to prevent context loss.
@@ -554,7 +541,7 @@ Two or more pending tasks whose dependencies are all satisfied may run at once, 
 - **Marking** — every box this mode closes is closed by `close-subtask.sh`, one invocation per box; the orchestrator never edits a checkbox, and never re-reads tasks.md for a census the call already returned. See Closing a Box
 - **Lifecycle status** — Run mode writes `status: in-progress` when a census finds the field absent or `draft`, or finds an open `[ ]` on a story reading `done` or `validated` (the reopen edge), and `status: done` when a marking leaves no `[ ]` and no deferred `[~]`. **Run mode writes none of it by hand**: the same `close-subtask.sh` invocation that closed the box takes the census, applies the table, stamps every artifact that carries frontmatter — the same value in each, the field added on a legacy story with the state this run observed and never a back-dated one — and reports what it wrote in `status_written`. A failed write is reported and the run continues. See Status Transitions
 - **Quality gates check** — after all tasks complete (or after the last requested task), run through quality gates and report status. Settling a gate box is a marking like any other: it is closed with `close-subtask.sh <story> gate:<text prefix>` and carries its own status transition, since it is usually the marking that closes the story's last box
-- **Next-step question** — a run that ends without a failure closes with one `AskUserQuestion` offering validate, refine and archive, the recommendation set by how full the context window is. See [End of Run](#end-of-run--next-step-index)
+- **Next-step question** — a run that ends without a failure closes with one `AskUserQuestion` offering validate, refine and archive, the recommendation set by the context `band` that `epic-telemetry` reports. See [End of Run](#end-of-run--next-step-index)
 - **Spike promote offer** — when a run **sets** a `scale: spike` story's `## Verdict` to `promote`, offer to create the follow-up story, pre-filled with the spike's `conclusion:`. It is offered **at that moment, not at end of run**, and so lands ahead of the Archive offer — which is the order that works, since a promote whose follow-up was never created is not archivable yet. **The offer is defined once**, in [list-mode.md](list-mode.md#spike-lifecycle) — its gate, the ask-first rule, what is recorded on acceptance and the repeat after an interrupted run all live there, and Run mode reuses them unchanged. A spike's deliverable is the answer, and `promote` is the answer "this needs a story": the offer is how that answer becomes one, instead of a note nobody acts on
 - **Archive offer** — made as the archive option of the next-step question, gated on **`status_written.to == "done"`** (rule 1 of Status Transitions, written by that invocation); on acceptance run `epic-archive <story-dir>` and surface its JSON verdict in full — `blocked` and `refused` included, verbatim. **The offer's gate, deferred-items listing and verdict surfacing are defined once**, in [validate-mode.md](validate-mode.md#archive-offer), and Run mode reuses them unchanged
 - **Index refresh** — regenerate the managed index block at the end of a completed run: `epic-index`. Defined once, in [validate-mode.md](validate-mode.md#index-refresh); a non-zero exit warns and never gates the run
@@ -574,28 +561,30 @@ A run that stops on a failure makes neither: its FAIL path already asks how to p
 Validate and refine are whole modes — they re-read the story, spawn agents and write reports — so whether they fit in **this** session depends on how full its context window already is. Measure it, never estimate it:
 
 ```
-epic-telemetry --window <tokens> | jq '.context'
+epic-telemetry | jq '.context'
 ```
 
-`<tokens>` is this session's context window as the model knows it — `1000000` on a 1M-context model, `200000` otherwise, and `200000` when unsure: a smaller window overstates the fill, which errs toward a fresh session and never toward running out mid-mode. Read `used_pct`. When the call fails or `used_pct` is `null`, the fill is **unknown**: offer every option as in the first band, and say the context was not measured.
+Read `band`. The script derives the window and the thresholds from the model the transcript records — never pass `--window` from a guess: a 200k guess on a 1M model reads five times the real fill and sends the user to a new session with most of the window unused. When the call fails or `band` is `null`, the fill is **unknown**: offer every option as in the `high` band, and say the context was not measured.
 
-| `used_pct` | Validate and refine | Recommended option |
-|---|---|---|
-| below 50 | offered in this session — **strongly recommended here** | validate; refine when the run left deviations or discoveries that change the plan |
-| 50 to 75 | offered in this session, each option's description stating the fill | the same, with the fill stated in the question |
-| above 75 | **not offered in this session** — replaced by one *New session* option | *New session*, which prints the command to type after `/clear`: `/epic:epic stories validate NNN` (or `refine NNN`) |
+| `band` | Haiku (200k) | Sonnet, Opus, Fable (1M) | Validate and refine | Recommended option |
+|---|---|---|---|---|
+| `high` | ≤ 100k | ≤ 200k | offered in this session — **strongly recommended here** | validate; refine when the run left deviations or discoveries that change the plan |
+| `efficient` | ≤ 150k | ≤ 500k | offered in this session, each option's description stating the fill (`used_pct`) | the same, with the fill stated in the question |
+| `degraded` | above | above | **not offered in this session** — replaced by one *New session* option | *New session*, which prints the command to type after `/clear`: `/epic:epic stories validate NNN` (or `refine NNN`) |
 
-**Above 75% the mode would run out of room before it ends**, and an auto-compaction in the middle of a validation drops what it was checking. The limit holds even when the user asks: explain the fill and give the command instead.
+**In the `degraded` band the answers get worse before the window runs out**, and an auto-compaction in the middle of a validation drops what it was checking. The limit holds even when the user asks: explain the fill and give the command instead.
 
 #### The question
 
-Options, at most four — drop **Refine** first when five would apply — the recommended one first with `(Recommended)` on its label:
+Options, at most four — drop **Refine** first when five would apply — the recommended one first, its label ending with the recommended marker **in the user's language** (e.g. `(Recomendado)` in a Portuguese conversation — never a literal English `(Recommended)` in another language):
 
 - **Validate** — spawn the Validator and the Auditor on this story: VALIDATE mode, unchanged. Its pass point makes the archive offer itself, so a user who picks validate is not asked about the archive twice
 - **Refine** — change the story after what the run taught: REFINE mode, unchanged
 - **Archive** — **only** when the story is finished with nothing pending: this run's last close returned `status_written.to == "done"` (see the trigger below). Never offered on a story left `in-progress`, and never recommended over validate
-- **New session** — above 75%, in place of validate and refine; and **Stop here** whenever fewer than two other options remain, since the question needs two
+- **New session** — in the `degraded` band, in place of validate and refine; and **Stop here** whenever fewer than two other options remain, since the question needs two
 - **See it running** — `layperson` requester only, and only when the program has a way to run it that the run has not shown yet: run it with sample input and show the output, then ask this question again without this option. For someone who does not program, seeing it work is the natural next step, and without the option they answer in free text and the question is lost
+
+**A fix round is asked, never chained.** When this run closed a `Validation fixes — round N` group, the Validate option's description names the round and its cost, and nothing revalidates until the user answers; after round 2 the recommendation is Refine, not Validate ([Fix loop bound](validate-mode.md#fix-loop-bound)).
 
 **A `layperson` requester is asked too** — the question comes after the closing three lines, never instead of them, and the three-line form rule does not remove it. Every label and description says what the option does for them, never the mode's name alone ([plain-register.md](plain-register.md)).
 

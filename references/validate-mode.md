@@ -8,6 +8,7 @@ Triggered by `/epic:epic stories validate NNN`.
 - [Validator Sub-agent](#validator-sub-agent)
 - [Auditor Sub-agent](#auditor-sub-agent)
 - [Validate Mode Procedure](#validate-mode-procedure)
+  - [Fix loop bound](#fix-loop-bound)
 - [Status Transition (`validated`)](#status-transition-validated)
 - [Integration Warning](#integration-warning)
 - [Archive Offer](#archive-offer)
@@ -45,7 +46,7 @@ Triggered per-task or in batch after implementation. Can be invoked incrementall
 >
 > ```yaml
 > story: "NNN-slug"                       # the story directory name
-> generated_at: "2026-08-17T14:03:11Z"    # UTC, ISO 8601
+> generated_at: "<YYYY-MM-DD>T<hh:mm:ss>Z" # UTC, ISO 8601
 > verdict: pass                           # pass | fail — fail when any result is FAIL
 > results:
 >   - task: "1.1"
@@ -62,7 +63,7 @@ Triggered per-task or in batch after implementation. Can be invoked incrementall
 >     evidence: "no FAIL in results[]"
 > ```
 >
-> One results[] entry per sub-task you were given, `[x]` and `[~]` alike, and one gates[] entry per Quality Gate. A SKIP never fails the run.
+> One results[] entry per sub-task you were given, `[x]` and `[~]` alike, and one gates[] entry per Quality Gate. A SKIP never fails the run. A `[x]` sub-task with no runnable Validation command is FAIL, never SKIP; a command that hangs or waits for input is FAIL with its reason.
 >
 > Only then summarize in prose:
 > - PASS: task N.N — validation succeeded
@@ -74,7 +75,7 @@ Triggered per-task or in batch after implementation. Can be invoked incrementall
 
 ## Auditor Sub-agent
 
-Triggered after all tasks are complete and Validator has passed. Performs a holistic review comparing what was planned vs what was built.
+Triggered once the Validator has passed — on a finished story, or on the `[x]` boxes of a partial one. Performs a holistic review comparing what was planned vs what was built.
 
 > "Review the implementation against the story and design artifacts.
 >
@@ -95,16 +96,16 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 > 4. Security considerations in design.md are addressed in the implementation
 > 5. Testing strategy levels in design.md all have corresponding test files
 > 6. Quality gates in tasks.md are all satisfied
-> 7. No scope creep — nothing implemented that wasn't in the story or confirmed during clarify
+> 7. Scope creep, against a baseline — only what this story provably added (the files its `type(NNN):` commits touched, or with none yet, the files its sub-tasks name plus the uncommitted changes) can be scope creep; code whose origin you cannot tie to this story is an `info` finding at most
 > 8. If deviations.yaml exists: for each deviation, verify the stated impact is accurate and no downstream breakage occurred. For each deviation marked with limited impact, check actual callers of the deviated component to confirm.
 > 9. If deviations.yaml has discoveries: verify each discovery was addressed in subsequent tasks (e.g., if a template engine gotcha was found, check that later tasks using templates account for it)
-> 10. Red precedence — at engineering level `project` or `product` ([engineering-level.md](engineering-level.md)); at `experiment` or `tool`, as for Fast and spike, the Red lives in the run report and this check is skipped with `missing_red` left empty: every sub-task whose `Tests:` field is **not `None`** has both a pre-authored test and an entry in `.draft/red-evidence.yaml` with `failed: true` (or `red_deferred: true` for `E2E`); a missing entry is reported as a finding. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction. Quantify over the `Tests:` field, never over the set of authored tests — a sub-task added by a refinement after Phase 3 ran has no authored test, so "every sub-task with a pre-authored test" excludes the very sub-task that is broken. Report a non-`None` `Tests:` field with no authored test as its own finding.
+> 10. Red precedence — at engineering level `project` or `product` ([engineering-level.md](engineering-level.md)), read from tasks.md's frontmatter `engineering:` — `project` when absent; at `experiment` or `tool`, as for Fast and spike, the Red lives in the run report and this check is skipped with `missing_red` left empty: every sub-task whose `Tests:` field is **not `None`** has both a pre-authored test and an entry in `.draft/red-evidence.yaml` with `failed: true` (or `red_deferred: true` for `E2E`); a missing entry is reported as a finding. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction. Quantify over the `Tests:` field, never over the set of authored tests — a sub-task added by a refinement after Phase 3 ran has no authored test, so "every sub-task with a pre-authored test" excludes the very sub-task that is broken. Report a non-`None` `Tests:` field with no authored test as its own finding.
 >
 > Then, as the LAST step before composing any textual summary, write the whole audit to `.draft/audit-report.yaml` in the story directory — creating `.draft/` on demand is part of that step, since fast and spike stories have none. The orchestrator concludes from that file, not from your reply; the head is the Validator's, key for key, so one reader parses both:
 >
 > ```yaml
 > story: "NNN-slug"                       # the story directory name
-> generated_at: "2026-08-17T14:03:11Z"    # UTC, ISO 8601
+> generated_at: "<YYYY-MM-DD>T<hh:mm:ss>Z" # UTC, ISO 8601
 > verdict: pass                           # pass | fail — see below
 > gaps:
 >   - requirement: "R2.3"                 # requirement number, component name or file path
@@ -131,7 +132,7 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 >     detail: "import left behind by the refactor"
 > ```
 >
-> Every array is present even when empty (`gaps: []`) — only the empty one says checked and clean. `verdict` is `fail` when any gap, unmet gate, inaccurate deviation, scope-creep item, `missing_red` entry or `issue`-severity finding exists, and `pass` otherwise. `missing_red`'s `kind` keeps the two absences apart: `no-entry` for a pre-authored test with no Red evidence, `no-test` for a non-`None` `Tests:` field with no test at all.
+> Every array is present even when empty (`gaps: []`) — only the empty one says checked and clean. `verdict` is `fail` when any gap, unmet gate, inaccurate deviation or `missing_red` entry exists, and `pass` otherwise; scope creep and checklist findings are advisory, never held against the run. `missing_red`'s `kind` keeps the two absences apart: `no-entry` for a pre-authored test with no Red evidence, `no-test` for a non-`None` `Tests:` field with no test at all.
 >
 > Only then summarize in prose:
 > - List of gaps found (cite requirement numbers, component names, file paths)
@@ -140,9 +141,10 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 > - List of scope creep items (if any)
 > - List of sub-tasks with a pre-authored test missing a Red-evidence entry in `.draft/red-evidence.yaml` (if any)
 > - List of sub-tasks whose `Tests:` field is not `None` but which have no pre-authored test at all (if any) — the refine-added case, reported separately
+> - List of code review findings from the checklist (severity: info / warning / issue)
 > - 'All checks passed' if clean
 >
-> Do NOT modify any other file: that report is your only write, and any other write is a protocol violation — report what is wrong, never fix it. Your memory directory is not a second path in the code under audit — it is your own store, governed by the Memory section of your agent definition."
+> Do NOT modify any other file: that report is your only write, and any other write is a protocol violation — report what is wrong, never fix it."
 
 ## Validate Mode Procedure
 
@@ -151,16 +153,27 @@ Triggered after all tasks are complete and Validator has passed. Performs a holi
 3. Delete the stale `.draft/validation-report.yaml`, then spawn the Validator sub-agent (`run_in_background: false`) and wait for its completion — it runs each task's validation command and tests, and writes that file as its last step. Take the verdict from the file
 4. If `.draft/validation-report.yaml` reads `verdict: pass`, delete the stale `.draft/audit-report.yaml`, then spawn the Auditor sub-agent (`run_in_background: false`) and wait for its completion — compares code against story + design, reviews the deviation register — and take its verdict from that file the same way. On `verdict: fail` the Auditor is not spawned. When memory is available, the spawn prompt carries prior structural findings recalled with one `memory_query` — `audit OR scope-creep OR false-positive OR recurring`, `limit: 10` — as things to verify ([mcp-integration.md](mcp-integration.md#memory-mcp))
 5. Present the combined results to the user, composed from the two files: the Validator's `results[]` and `gates[]`, the Auditor's `gaps[]`, `unmet_gates[]`, `deviations_reviewed[]`, `scope_creep[]`, `missing_red[]` and `findings[]`
-6. If gaps found, offer to create new tasks to address them
+6. If gaps found, offer to create new tasks to address them — **bounded to two fix rounds**, see [Fix loop bound](#fix-loop-bound)
 7. Apply the status transition for this verdict — see Status Transition (`validated`)
 7a. **Memory write (when memory is available)** — for each `findings[]` entry that is structural by the Auditor's own criterion (likely to recur in this codebase: a recurring scope-creep pattern, a false-positive deviation, a project-specific gate failure) and for each `deviations_reviewed[]` entry with `accurate: false`, write or rewrite one page at `epic/audit/<subject-slug>.md`: H1 = the subject, body = the finding, the story it came from and the file/line evidence. Same subject, same path — a finding seen again rewrites its page, and that rewrite is the supersession. A story-specific bug gets no page; it belongs to the tasks step 6 offers ([mcp-integration.md](mcp-integration.md#memory-mcp))
 8. On a passing verdict, surface **at most one** integration warning when it applies — run `story-git-status.sh` once, then either report its `anchored_commits == 0` sentence or pipe the same JSON into `epic-integration --validate <NNN>`, which writes the sentence or nothing — then offer the archive and refresh the index. See Ordering at the pass point, then Integration Warning (and its precedence table), Archive Offer and Index Refresh
+
+### Fix loop bound
+
+A **fix round** is one pass of the loop validate fails → fix tasks are created and run → validate again. Unbounded, it is the most expensive thing Epic does: every round re-runs the whole suite in the Validator and re-reads the whole story in the Auditor, and a finding the fix did not settle — or a new one the fix introduced — sends it round again.
+
+- **The round is counted from tasks.md, never remembered.** The group step 6 creates is titled `Validation fixes — round N`; the next round is one more than the highest `N` already in the file.
+- **Every offer states what a round costs**: the fix run plus one Validator and one Auditor spawn. When `epic-telemetry` measured this validation, give its `subagent` tokens and its wall clock as the price of the revalidation.
+- **Round 1** — offered as step 6 always offered it.
+- **After a fix round runs, the revalidation is asked, never chained.** Neither Run mode nor this mode starts VALIDATE on its own after a `Validation fixes` group closes; the next-step question at the end of that run offers it, stating the round and its cost ([run-mode.md](run-mode.md#end-of-run--next-step-index)).
+- **Round 2 is the last one offered.** When the validation that follows round 2 still fails, step 6 creates no round 3: present what remains, say two rounds did not settle it, and recommend refining the story, since a finding that survives two fixes is usually a plan problem, not an implementation one. A third round runs only when the user asks for it in so many words.
+- **Headless** takes the recommended option at each point — so it runs at most round 1, never revalidates on its own, and logs the command instead.
 
 ### The verdict is the file; the reply is a courtesy
 
 Both agents write their report as the **last** step of their protocol, before composing any prose ([validator.md](../agents/validator.md), [auditor.md](../agents/auditor.md)), and steps 3-5 conclude from those two files. The final message is a convenience for the human reading along and **the source of no pass/fail decision** — an agent that ends on an intermediate line swallows its own reply, and the verdict is on disk regardless. Without the file, recovering a swallowed verdict costs a `SendMessage` round, or a respawn that re-runs the entire suite.
 
-**Read `verdict`; never re-derive it.** Each agent computes its own by its own rule — a SKIP never fails the Validator, and `info` and `warning` findings never fail the Auditor — so a second derivation here is a second rule, and two rules disagree on the first story that tells them apart. The arrays are what step 5 presents and step 6 turns into tasks, never what the pass/fail is computed from.
+**Read `verdict`; never re-derive it.** Each agent computes its own by its own rule — a SKIP never fails the Validator, and scope creep and checklist findings never fail the Auditor — so a second derivation here is a second rule, and two rules disagree on the first story that tells them apart. The arrays are what step 5 presents and step 6 turns into tasks, never what the pass/fail is computed from.
 
 ### Before each spawn, delete that agent's stale report file
 

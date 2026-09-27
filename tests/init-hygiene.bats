@@ -6,8 +6,8 @@
 #
 #   I1  init's verbatim .epic/.gitignore block carries node_modules/ beside
 #       .draft/ and *.wip
-#   I2  the init procedure has an agent-memory step under either policy
-#   I3  the Agent memory hygiene section names consent, the default, headless
+#   I2  no agent-memory step: since 0.12.0 no agent declares `memory:`, so
+#       nothing writes .claude/agent-memory/ and there is nothing to ignore
 #   I4  the versioning-policy text names the evidence files as scratch by
 #       decision, and points at the memory page as the durable form
 #   I5  run-mode.md states a proven parallel group instead of asking [y/n],
@@ -34,19 +34,9 @@ has() {
   has "I1" "$block" "[*][.]wip"
 }
 
-@test "I2: the init procedure has an agent-memory step" {
-  proc=$(section "$ROOT/references/init-mode.md" '^## Procedure' '^## ')
-  has "I2" "$proc" "agent-memory"
-  has "I2" "$proc" "Agent memory hygiene"
-}
-
-@test "I3: Agent memory hygiene names consent, the default and the headless branch" {
-  block=$(section "$ROOT/references/init-mode.md" '^### Agent memory hygiene' '^### ')
-  [ -n "$block" ]
-  has "I3 path" "$block" "[.]claude/agent-memory/"
-  has "I3 default" "$block" "default"
-  has "I3 headless" "$block" "headless"
-  has "I3 consent" "$block" "question"
+@test "I2: init has no agent-memory step — no agent writes one any more" {
+  run grep -n 'agent-memory' "$ROOT/references/init-mode.md"
+  [ "$status" -eq 1 ]
 }
 
 @test "I4: the policy text names the evidence files as scratch by decision, with the page as durable form" {

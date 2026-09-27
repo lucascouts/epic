@@ -33,12 +33,11 @@ If existing code is detected, spawn the **Analyst** sub-agent — `run_in_backgr
 >
 > User request: [original request]
 > Context files found: [list]
-> Available MCPs: [list of relevant MCPs approved by user]
 > Prior knowledge (from memory — verify against the code before using any of it): [Prior Knowledge hits, or "none"]"
 
 The steps, the 20-line summary and its contents (the quality-catalog signals included) live in [analyst.md](../agents/analyst.md).
 
-Results are saved to `.draft/meta.yaml` under `analyst_output` key and passed as context to Phase 2 (design) and the Completeness Checklist.
+Results are saved to `.draft/meta.yaml` under `analyst_output` key and passed as context to Phase 2 (design) and the Completeness Checklist. **On an empty repository nothing is spawned**: `analyst_output` is written as `none: empty repository`, so the Completeness Checklist still receives an analysis and knows the work is greenfield.
 
 ## Context File Usage
 
@@ -63,19 +62,18 @@ For **standard and full scales**, spawn the **Analyst** sub-agent (result awaite
 > "Generate a completeness checklist of clarifying questions for this story.
 > Use the codebase analysis below as your ONLY source of project information — do NOT re-scan the codebase.
 >
-> Codebase analysis (from triage — mandatory, always present):
+> Codebase analysis (from triage — always present; on an empty repository it reads 'none: empty repository'):
 > [Analyst output from Context Discovery, stored in .draft/meta.yaml]
 >
 > User request: [original request]
 > Context files: [summary of .epic/constitution.md, if present]
-> Available MCPs: [list of approved MCPs]
 >
 > Focus exclusively on:
 > 1. Identify every entity, action, input, and collection in the request
 > 2. For each, determine what implicit decisions the user hasn't stated
 > 3. For each state-changing action (create, login, enable, open, start), verify the inverse (delete, logout, disable, close, stop) is addressed or explicitly excluded
-> 4. Check for common pitfalls and edge cases in this domain — via a research MCP if one is available to you, otherwise `WebSearch`
-> 5. Generate 5-10 assertive questions formatted as: 'I understand X will work as Y. Confirm?'
+> 4. Check for common pitfalls and edge cases in this domain — with `WebSearch`, only when the domain is not evident from the request and the analysis
+> 5. Generate 5-10 assertive questions formatted as: 'I understand X will work as Y. Confirm?' — ranked by impact, highest first
 > 6. For each proposed approach, evaluate whether it fully satisfies the requirement's intent
 >
 > Do NOT read files or scan directories to re-analyze the project — the codebase analysis above is current.

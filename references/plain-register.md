@@ -60,6 +60,7 @@ Visible text per turn stays under **~1,500 characters** — about one phone scre
 ## What does not change
 
 - Every artifact is still written, in English, with every internal name — [SKILL.md](../skills/epic/SKILL.md#language)
+- Everything they read in the chat is in their language — every line, option label and recommended marker; a name or a popular term may stay as it is, a whole English sentence may not. The code and its comments stay English; a comment in their language is added on the line below the English one only when they ask ([SKILL.md](../skills/epic/SKILL.md#language))
 - Every sub-agent still runs its whole protocol. The register is the orchestrator's voice, never a protocol switch
 - A layperson who asks for more — "show me the plan", "I want to pick the library" — gets it, and the register stays plain around it
 - **The level never changes the scale.** A layperson who asks for something Full-shaped gets Full: the same files, with every gate in one line

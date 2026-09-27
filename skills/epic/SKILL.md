@@ -61,12 +61,13 @@ The refusal is hard. Do not partially engage, do not propose an Epic-wrapped ver
 
 ## Language
 
-**Everything the Epic writes under `.epic/` is written in English — stories, design, tasks, backlog, reports and every other document.** This is not an option and no setting changes it: these files are read later by sub-agents, and Claude models perform best on English technical content. The project itself may carry comments and domain terms in other languages; that is the project's choice, and the Epic neither rewrites nor flags them.
+**Everything the Epic writes under `.epic/` is written in English — stories, design, tasks, backlog, reports and every other document.** This is not an option and no setting changes it: these files are read later by sub-agents, and Claude models perform best on English technical content.
 
 - **Spec artifacts** (story.md, design.md, tasks.md): always English
 - **EARS keywords**: always English and CAPS (SHALL, WHEN, WHILE, IF, WHERE)
-- **Communication with the user**: always in the user's language — the `language` setting when the user has set one, otherwise the language of their prompt — **every line they can see, including a note between two tool calls and the closing message**. A status line is communication: "Now closing the final checks" in the middle of a Portuguese conversation is the same defect as an English menu.
-- **Code identifiers the Epic introduces**: English (function names, variables, etc.)
+- **Communication with the user**: always in the user's language — the `language` setting when the user has set one, otherwise the language of their prompt — **every line they can see, including a note between two tool calls and the closing message**.
+- **No whole passage in another language in the chat** — names and popular terms are fine; an English status line, sentence or option label in a Portuguese chat is not, the recommended marker included (`(Recomendado)`).
+- **Code identifiers and comments the Epic writes**: English. A comment in the user's language only when they ask, on the line below the English one.
 - **What the requester's own users read**: the program's interface — menu, prompts, error messages — and the documentation of how to use it (its README). **This is the one thing the English rule does not cover**, and it is not the Epic's to decide: it belongs to whoever will read it.
 
 **The interface language is asked, not assumed.** A request written in a language other than English carries no instruction about the program's own text, and the English rule above is about artifacts — reading it as a rule about the interface ships a menu the requester cannot read, decided by a rule that was never about them. So:
@@ -101,7 +102,7 @@ Its JSON `mapping` field gives the requirement → sub-tasks relation directly �
 - Requirements: number hierarchically (R1, R1.1, R1.2, R2...)
 - Bugfix: Unchanged Behavior section is **mandatory**, minimum 2 items
 - Fast mode is test-first at run time: a sub-task with a `Tests` field is authored Red, then Green-then-Refactor; a sub-task with no testable logic carries an `Acceptance` field (1-3 observable-behavior statements) instead — every implementing (non-Commit) sub-task carries one or the other
-- **A run that finishes a story ends with an `AskUserQuestion`** — validate, refine or archive — after the closing message, layperson included; see [End of Run](../../references/run-mode.md#end-of-run--next-step-index)
+- **A run that finishes a story ends with an `AskUserQuestion`** — validate, refine or archive — after the closing message, layperson included, recommended by the context `band` from `epic-telemetry`; see [End of Run](../../references/run-mode.md#end-of-run--next-step-index)
 - Fast → Standard upgrade: recommend upgrading during triage or task generation when scope grows, **or** when a change genuinely needs requirement traceability or design documentation — Fast provides neither
 - Constitution constraints are soft — warnings, not blocks
 - This skill formalizes work into structured stories — it does NOT explore ideas from scratch or write implementation code

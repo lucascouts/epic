@@ -5,8 +5,9 @@
 # archive, and gates the first two on the measured context fill:
 #
 #   N1  the question is AskUserQuestion, and it names all three options
-#   N2  the fill is measured by epic-telemetry --window, never estimated
-#   N3  the bands: below 50 recommended here, 50 to 75 allowed, above 75 a new
+#   N2  the fill is measured by epic-telemetry's `band`, never estimated and
+#       never from a guessed --window: a 200k guess on a 1M model read 107%
+#   N3  the bands: high recommended here, efficient allowed, degraded a new
 #       session — a mode that runs out of room mid-way loses what it checked
 #   N4  archive is gated on the transition to done, never on the census
 #   N5  headless starts nothing and logs the command
@@ -28,15 +29,17 @@ setup() {
   [[ "$END" == *'**Archive**'* ]]
 }
 
-@test "N2: the context fill is measured with epic-telemetry --window" {
-  [[ "$END" == *'epic-telemetry --window'* ]]
-  [[ "$END" == *'used_pct'* ]]
+@test "N2: the context fill is read from epic-telemetry's band, never a guessed window" {
+  [[ "$END" == *"epic-telemetry | jq '.context'"* ]]
+  [[ "$END" == *'Read `band`'* ]]
+  run grep -q 'epic-telemetry --window' "$ROOT/references/run-mode.md"
+  [ "$status" -eq 1 ]
 }
 
-@test "N3: below 50 recommended here, 50 to 75 allowed, above 75 a new session" {
-  printf '%s\n' "$END" | grep -q '^| below 50 | offered in this session — \*\*strongly recommended here\*\*'
-  printf '%s\n' "$END" | grep -q '^| 50 to 75 | offered in this session'
-  printf '%s\n' "$END" | grep -q '^| above 75 | \*\*not offered in this session\*\*'
+@test "N3: high recommended here, efficient allowed, degraded a new session" {
+  printf '%s\n' "$END" | grep -q '^| `high` | ≤ 100k | ≤ 200k | offered in this session — \*\*strongly recommended here\*\*'
+  printf '%s\n' "$END" | grep -q '^| `efficient` | ≤ 150k | ≤ 500k | offered in this session'
+  printf '%s\n' "$END" | grep -q '^| `degraded` | above | above | \*\*not offered in this session\*\*'
 }
 
 @test "N4: archive is offered only on the transition to done" {
@@ -69,4 +72,20 @@ setup() {
   # in free text: "run it so I can see it working".
   [[ "$END" == *'**See it running** — `layperson` requester only'* ]]
   [[ "$END" == *'drop **Refine** first when five would apply'* ]]
+}
+
+@test "N10: the recommended marker is written in the user's language" {
+  # 2026-09-27 battery: a Portuguese run labelled its option "(Recommended)".
+  [[ "$END" == *"recommended marker **in the user's language**"* ]]
+  grep -q 'never the English marker in another language' "$ROOT/references/clarify.md"
+}
+
+@test "N11: the validate-fix loop is bounded — asked after round 1, stopped after round 2" {
+  # 2026-09-27 battery: a validate-fix-revalidate loop ran with no ceiling.
+  VM="$ROOT/references/validate-mode.md"
+  grep -q '^### Fix loop bound' "$VM"
+  grep -q 'Validation fixes — round N' "$VM"
+  grep -q '\*\*Round 2 is the last one offered.\*\*' "$VM"
+  grep -q '\*\*Every offer states what a round costs\*\*' "$VM"
+  [[ "$END" == *'**A fix round is asked, never chained.**'* ]]
 }

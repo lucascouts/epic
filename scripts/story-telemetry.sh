@@ -16,10 +16,9 @@
 #   --since       ISO-8601 instant; events strictly before it are excluded
 #   --until       ISO-8601 instant; events strictly after it are excluded
 #   --project-dir the project whose transcripts to search (default: cwd)
-#   --window      the session's context window in tokens (200000, 1000000).
-#                 The model knows its window; the transcript does not record
-#                 it. Without it, `context.window` and `context.used_pct` are
-#                 null and only `context.tokens` is reported
+#   --window      override the context window in tokens. Normally not needed:
+#                 the window is derived from the model the transcript records
+#                 (Haiku 200k, every other family 1M)
 #
 # Output: one JSON object on stdout —
 #   {transcript, window: {since, until}, wall_clock_seconds,
@@ -27,15 +26,25 @@
 #    main:     {messages, input, cache_creation, cache_read, output},
 #    subagent: {messages, input, cache_creation, cache_read, output},
 #    subagent_split_verified,
-#    context:  {tokens, window, used_pct, at}}
+#    context:  {tokens, model, family, window, used_pct, band,
+#               thresholds: {high, efficient}, at}}
 #
 # WHAT `context` MEASURES. How full the orchestrator's context window is right
 # now: the prompt size of the LAST main-thread message — input + cache_creation
 # + cache_read, the whole prompt that message was sent with. Sub-agents are
 # excluded, since each has its own window. After a compaction the next message
 # is small again, which is the point: this is the window's current fill, not
-# the session's spend. Run mode reads it to decide whether validate or refine
-# still fits in this session (references/run-mode.md, "End of Run").
+# the session's spend. Run mode reads `band` to decide whether validate or
+# refine still fits in this session (references/run-mode.md, "End of Run").
+#
+# THE BANDS. Quality degrades with fill long before the window is full, and
+# the knee sits at a different size per family. `high` = highly efficient,
+# `efficient` = still efficient, `degraded` = move to a new session:
+#   Haiku (200k window)             high <= 100k (50%)   efficient <= 150k (75%)
+#   Sonnet, Opus, Fable (1M window) high <= 200k (20%)   efficient <= 500k (50%)
+# With --window, each threshold is the lower of its token figure and its
+# percentage of that window. The window is never guessed: a 200k guess on a 1M
+# model once reported 107% and sent a user to a new session at ~21% real fill.
 #
 # Exit codes:
 #   0  telemetry computed (including an empty window — zeros, not an error)
@@ -94,7 +103,7 @@ price table shipped here would age into a confident wrong answer.
   --since <ts>          ISO-8601 instant; drop events before it
   --until <ts>          ISO-8601 instant; drop events after it
   --project-dir <dir>   project whose transcripts to search (default: cwd)
-  --window <tokens>     the session's context window, to report context.used_pct
+  --window <tokens>     override the window derived from the model (200k Haiku, 1M others)
 
 Output: one JSON object on stdout. Usage sums are deduplicated by message.id —
 the transcript repeats the same usage on every content block of a message, and
@@ -207,11 +216,25 @@ jq -R -s \
     main:     ([ $messages[] | select(.sidechain | not) | .usage ] | sums),
     subagent: ([ $messages[] | select(.sidechain)       | .usage ] | sums),
     subagent_split_verified: ([ $messages[] | .sidechain ] | any),
-    context: { tokens: $ctx,
-               window: (if $window == "" then null else ($window | tonumber) end),
-               used_pct: (if $window == "" or $ctx == null then null
-                          else ($ctx * 100 / ($window | tonumber) | floor) end),
-               at: ($last.timestamp // null) }
+    context: ( ($last.model // null) as $model
+               | (if $model != null and ($model | test("haiku"; "i")) then "haiku"
+                  elif $model == null then null else "other" end) as $family
+               | (if $family == "haiku" then {w: 200000, h: 100000, e: 150000, hp: 50, ep: 75}
+                  else {w: 1000000, h: 200000, e: 500000, hp: 20, ep: 50} end) as $f
+               | (if $window == "" then $f.w else ($window | tonumber) end) as $w
+               | ([$f.h, ($w * $f.hp / 100 | floor)] | min) as $hi
+               | ([$f.e, ($w * $f.ep / 100 | floor)] | min) as $ef
+               | { tokens: $ctx,
+                   model: $model,
+                   family: $family,
+                   window: (if $ctx == null then null else $w end),
+                   used_pct: (if $ctx == null then null else ($ctx * 100 / $w | floor) end),
+                   band: (if $ctx == null then null
+                          elif $ctx <= $hi then "high"
+                          elif $ctx <= $ef then "efficient"
+                          else "degraded" end),
+                   thresholds: {high: $hi, efficient: $ef},
+                   at: ($last.timestamp // null) } )
   }
   ' < <(cat "$TRANSCRIPT"; [[ -d "${TRANSCRIPT%.jsonl}" ]] && find "${TRANSCRIPT%.jsonl}" -path '*subagents*' -type f -name '*.jsonl' -exec cat {} + 2>/dev/null; true)
 

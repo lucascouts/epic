@@ -11,6 +11,22 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Changed
+
+- The end-of-run question reads the context `band` that `epic-telemetry` derives from the model in the transcript — Haiku: highly efficient up to 100k, efficient up to 150k; Sonnet, Opus and Fable: up to 200k and 500k. Above that, validate and refine are replaced by the command for a new session. `--window` is now an optional override.
+- The validate → fix → revalidate loop is bounded: each round's cost is stated, a revalidation after a fix round is asked, never chained, and step 6 offers no third round unless the user asks for it.
+- Language: the chat is entirely in the user's language, option labels and the recommended marker included; code and comments are English, with a translated comment added below the English one only on request. Every agent states which of its outputs are English.
+- A sub-task with no ToDo and no runnable Validation is `failed` before routing — nothing is changed and nobody invents its scope.
+- The Auditor fails a story only on gaps, unmet gates, inaccurate deviations and missing Red. Scope creep is judged against what the story's own commits added, and both it and code-review findings are advisory.
+- The Validator fails a `[x]` sub-task with no runnable Validation command (it used to SKIP it), and runs each command with a timeout and closed stdin.
+- The Executor spawn prompt now carries the sub-task's Context, Acceptance and the group's `Commit:` message; the Executor reports deviations instead of writing `.draft/deviations.yaml`, and `failed` carries a `reason`.
+- The Tech Reviewer covers the single-technology review of a `High` sub-task and reports `INCOMPLETE` instead of a pass it could not finish.
+
+### Removed
+
+- The Fork Route. The model never chose it, and when forced it tied inline on large sub-tasks and lost on small ones.
+- `memory: project` on the Analyst and the Auditor, and init's offer to ignore `.claude/agent-memory/`. Project memory is ai-memory, written by the orchestrator; a leftover `.claude/agent-memory/epic-*/` directory can be deleted.
+
 ## [0.11.1] — 2026-09-27
 
 The routing table now says what the runs already did: a sub-task names its files anywhere in its body, and tech review follows the work on every route.

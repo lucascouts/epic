@@ -1,10 +1,10 @@
 # Multi-Tech Review — RUN
 
 Loaded from [run-mode.md](run-mode.md) when a sub-task's `tech_profile` carries
-two or more technologies that interact at a boundary. A single-technology
-sub-task never needs this file.
+two or more technologies that interact at a boundary, or when its Complexity is
+`High` — which reviews even a single-technology sub-task.
 
-When a sub-task's tech_profile includes 2+ distinct technologies that interact at a boundary, the orchestrator spawns Tech Reviewer sub-agents AFTER the sub-task's implementation passes validation — whether an Executor, a fork or the main agent inline did the work.
+When a sub-task's tech_profile includes 2+ distinct technologies that interact at a boundary, the orchestrator spawns Tech Reviewer sub-agents AFTER the sub-task's implementation passes validation — whether an Executor or the main agent inline did the work.
 
 ### When to Trigger
 
@@ -28,11 +28,11 @@ The Tech Reviewer's focus areas, its measurement rule and its report format live
 >
 > ## Technology and boundary
 >
-> [technology] — [the boundary, e.g. handler → template, app → SQL]
+> [technology] — [the boundary, e.g. handler → template, app → SQL — or `none: single-tech review (Complexity High)`]
 >
 > ## Files to Review
 >
-> [Files created/modified by the Executor]
+> [Files the sub-task created or modified — from the Executor's report, or from the inline route's own closing block]
 >
 > ## Design Contract
 >
@@ -41,9 +41,10 @@ The Tech Reviewer's focus areas, its measurement rule and its report format live
 ### Orchestrator Handling of Tech Review
 
 - If all Tech Reviewers report PASS: proceed to next sub-task
+- If any reports INCOMPLETE: tell the user what was not reviewed and why, and ask whether to proceed — an unfinished review is not a pass
 - If any report ISSUES:
   1. Present issues to user (in `--auto` mode: attempt fix first)
-  2. Spawn a new Executor instance with the original task + issues to fix
+  2. Fix them on the route the sub-task took: inline, the main agent fixes them itself; delegated, spawn a new Executor with the original task + the issues
   3. Re-run only the affected Tech Reviewers
   4. Maximum 2 fix cycles. If still failing after 2 cycles, stop and escalate to user
 - Tech Reviews are skipped for a group's `Commit:` field — there is no implementation to review

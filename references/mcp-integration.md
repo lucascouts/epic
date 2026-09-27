@@ -73,7 +73,7 @@ Its LLM work — the consolidation that turns raw observations into pages, the l
 | Run — [run-mode.md](run-mode.md#procedure) | one `memory_query` per run for prior deviations, discoveries and gotchas on the detected techs, passed to every Executor as Project State | at End of Run, the deviation register as one page: `epic/deviations/NNN-<slug>.md` |
 | Validate — [validate-mode.md](validate-mode.md#auditor-sub-agent) | prior structural audit findings, handed to the Auditor as things to verify | after the verdict, one page per structural finding: `epic/audit/<subject>.md` |
 
-**The orchestrator is the only writer.** Pages are composed from files that already exist — `.draft/deviations.yaml`, `.draft/audit-report.yaml` — so no sub-agent needs a memory tool in its grant, and the sub-agents' own `.claude/agent-memory/` directories are untouched by this section.
+**The orchestrator is the only writer.** Pages are composed from files that already exist — `.draft/deviations.yaml`, `.draft/audit-report.yaml` — so no sub-agent needs a memory tool in its grant, and none declares a memory store of its own.
 
 **Supersession is by path.** `memory_write_page` versions a page in place: writing the same `path` again replaces what search returns, and there is no `supersedes` argument to pass. So every page above lives at a **stable path** — the story number for deviations, the subject for audit findings — and an updated finding is a rewrite of that path, never a second page beside the old one. Start each body with an H1 and omit the `title` argument.
 

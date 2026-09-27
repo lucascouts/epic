@@ -40,7 +40,6 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 
 4. **Generate files** — create all requested files with sensible defaults based on scan
 5. **Ask the versioning-policy question** — measure first, offer exactly two options, then write the chosen state. Defined once, below: [Versioning Policy](#versioning-policy). A non-interactive run never asks and never starts tracking
-5a. **Offer to ignore the sub-agents' memory directories** — under either policy, consent-gated and additive: [Agent memory hygiene](#agent-memory-hygiene)
 6. **Report** — list all files created, and name the policy that was recorded
 
 ## Rules
@@ -244,18 +243,6 @@ Epic versioning policy: local-only applied (non-interactive run — the conserva
 default; nothing under .epic/ will be committed). Run `/epic:epic init` in an
 interactive session to choose versioned artifacts instead.
 ```
-
-### Agent memory hygiene
-
-Claude Code writes the Epic auditor's and analyst's project memory into `.claude/agent-memory/epic-*/` **inside the user's repository** — their agent definitions declare `memory: project` — where, unless something ignores them, those notes sit untracked and unignored. The directory is outside `.epic/`, so neither policy branch above touches it; this step does, under both.
-
-WHEN `git check-ignore -q .claude/agent-memory/` fails — nothing ignores it yet — offer, default **yes**, to append one line to the root `.gitignore`:
-
-```
-.claude/agent-memory/
-```
-
-Appending is not the destructive edit of step 5.3b, which is why the default flips: nothing the user wrote is removed. It is still a question, because the root `.gitignore` is theirs. Already ignored → say nothing. Not a git repository → skip and say so. Headless → never edit; log the recommendation and proceed.
 
 ### After init — making a `tracked-md` declaration real
 

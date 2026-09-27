@@ -560,26 +560,15 @@ agents_granting() { # $1 = tool name
   [ "$allowed" -eq 1 ]
 }
 
-@test "the Auditor template's carve-out keeps the memory clause, and the Validator's stays memory-free" {
-  # Both halves. auditor.md's carve-out names the memory directory as the
-  # agent's OWN store so that 'one writable path' does not forbid the after-audit
-  # append the same file mandates. A restatement that drops the clause tells a
-  # template-spawned Auditor to violate its own system prompt.
+@test "neither report template names an agent memory directory" {
+  # 0.12.0 dropped `memory: project` from the Analyst and the Auditor: it
+  # silently granted Write/Edit, wrote `.claude/agent-memory/` into the user's
+  # repository and duplicated ai-memory. A carve-out naming a memory directory
+  # would now point at a store no agent has.
   aud="$(md_section "$VALIDATE_MODE" '^## Auditor Sub-agent' '^## ')"
-  # `is your own store`, not a bare `own store`: the clause is what LICENSES the
-  # append, so "it is not your own store" must red rather than satisfy it.
-  printf '%s\n' "$aud" | tr '\n' ' ' \
-    | command grep -qiE 'memory director[a-z]*[^.]{0,160}is your own store'
-
-  # The NEGATIVE half, and it is the load-bearing one. `memory: project` is
-  # carried by analyst and auditor alone, so a memory clause in the Validator's
-  # prompt would name a store that agent does not have. Deliberately broad — any
-  # mention of memory here reddens, because the failure mode is a well-meaning
-  # sweep copying the clause into every carve-out it can find.
   val="$(md_section "$VALIDATE_MODE" '^## Validator Sub-agent' '^## ')"
-  if printf '%s\n' "$val" | command grep -qi 'memory'; then
-    return 1
-  fi
+  run command grep -qi 'memory director' <<< "$aud$val"
+  [ "$status" -eq 1 ]
 }
 
 # --- The orchestrator consumes the files ------------------------------------
@@ -1101,24 +1090,14 @@ frontmatter_memory() {
        inb && $0 ~ /^memory:/ {print; exit}' "$1"
 }
 
-@test "convention: an agent granted memory: project heads its Memory section with the epic- prefixed directory" {
-  # `.claude/agent-memory/epic-<name>/` is the runtime's path for a
-  # plugin-namespaced agent; an unprefixed heading would send the agent to
-  # consult and append to a directory that never exists.
-  #
-  # DERIVED FROM THE FRONTMATTER, never from a hardcoded pair, so a third
-  # memory-carrying agent joins this pin by existing rather than by someone
-  # remembering to come back here.
-  checked=0
+@test "convention: no agent declares memory: — project memory is ai-memory, written by the orchestrator" {
+  # DERIVED FROM THE FRONTMATTER, so a new agent joins this pin by existing.
+  offenders=()
   for f in "$PLUGIN_ROOT"/agents/*.md; do
-    frontmatter_memory "$f" | command grep -q 'project' || continue
-    name="$(basename "$f" .md)"
-    heading="$(awk '/^## Memory/ {print; exit}' "$f")"
-    printf '%s\n' "$heading" | command grep -q "agent-memory/epic-${name}/"
-    checked=$(( checked + 1 ))
+    [ -n "$(frontmatter_memory "$f")" ] && offenders+=("$(basename "$f")")
   done
-  # Without this the loop is a vacuous pass: a frontmatter shape the helper
-  # stopped parsing would enrol nobody and the case would go green having
-  # pinned nothing.
-  [ "$checked" -ge 1 ]
+  if [ "${#offenders[@]}" -gt 0 ]; then
+    printf 'declares memory: %s\n' "${offenders[@]}"
+    return 1
+  fi
 }
