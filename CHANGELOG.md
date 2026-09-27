@@ -22,6 +22,8 @@ gracefully (see README "Prerequisites").
 - The Executor spawn prompt now carries the sub-task's Context, Acceptance and the group's `Commit:` message; the Executor reports deviations instead of writing `.draft/deviations.yaml`, and `failed` carries a `reason`.
 - The Tech Reviewer covers the single-technology review of a `High` sub-task and reports `INCOMPLETE` instead of a pass it could not finish.
 - The end-of-run question offers one next step instead of a menu: refine when work is pending (an open box, a register entry with `follow_up: true`, or fix round 2), validate otherwise, plus *Stop here*. It is asked with `AskUserQuestion` whenever the tool is callable, `--auto` included; the recommendation is written as text only when the tool is not available.
+- The Executor and the Auditor run at effort `high` instead of `max`. Measured side by side, `max` found no planted defect `high` missed and wrote the same passing tests, at two to four times the cost and wall clock.
+- The completeness checklist is written by the main agent instead of an Analyst spawn: the same questions, in about two thirds of the time. The Analyst now only scans the codebase at triage.
 - Archive follows validation. Run mode no longer offers it, and `archive-story.sh` archives without `--force <reason>` only a story reading `validated` with no open box. A story reading `done` or `superseded` is refused by name. Supersede's archive offer passes `--force "superseded by MMM"`, and the question names the flag before the user accepts.
 
 ### Removed
