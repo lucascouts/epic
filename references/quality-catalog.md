@@ -19,7 +19,7 @@ Cheap, universal, and each provable by one command. A story that leaves one out 
 
 | Item | What it proves | Typical command |
 |---|---|---|
-| Formatting | one style, applied by a tool, never by hand | `gofmt -l .` · `prettier --check .` · `ruff format --check` · `cargo fmt --check` |
+| Formatting | one style, applied by a tool, never by hand | `gofmt -l .` · `prettier --check <source dirs and files>` · `ruff format --check` · `cargo fmt --check` |
 | Lint | probable defects and known bad practice are absent | `golangci-lint run` · `eslint .` · `ruff check` · `cargo clippy` · `shellcheck` |
 | Types | the program type-checks; a dynamic language carries annotations and a checker | `tsc --noEmit` (strict) · `mypy` · the compiler, for Go and Rust |
 | Error handling | every error carries context and none is swallowed | the story's tests; a grep for bare `catch {}`, `_ = err`, `except: pass` |
@@ -52,6 +52,8 @@ The four are chosen as much for their price as for their weight: **one command o
 Everything else in this catalog stays bound by the level.
 
 **At `tool`, the tier is paid with defaults — no configuration file.** Every always item stays active, and every one is proved by **one command**: whatever the checker needs rides on the command line (`npx tsc --noEmit --allowJs --checkJs src`), and the command is recorded where the project already records commands — a `scripts` entry, a `Makefile` target, the README. **A new configuration file for a checker is a `project` cost, not a `tool` cost.** Checker configuration files can outnumber a small program's own files and push a `tool` story past both the 2–3× its level promises and the 5× ceiling ([engineering-level.md](engineering-level.md)). Defaults buy the same guarantee for one line instead of one file; what they give up is that the next person's run may disagree with yours, which is precisely what a level with no other dependants can afford. Files that *are* the deliverable — the README, `.gitignore`, `.editorconfig`, the lockfile, the runtime declaration — are written at every level: they are the item, not its configuration.
+
+**The format check covers the project's files, never `.epic/`.** `prettier --check .` also reads the story's own Markdown, and the run report written at the end of the run then fails a gate that had passed — so name the source directories and files instead of `.`. It is scope, not policy: no ignore file is written for it.
 
 **A syntax check is not a lint.** `node --check`, `python -m py_compile` and `bash -n` prove that a file parses and nothing else; a legend line that names one of them as Lint counts the item as **omitted**, not covered, and says so on the line. Left unasked, a run accepts whatever runtime it finds — even one out of support — declares no version, and carries no formatter, linter, type checker or `.editorconfig`; tests and error handling are the only always-tier items that appear without being asked. The runtime version is chosen the way every technical decision is: a recommended version with its reason, in one line ([clarify.md](clarify.md#clarify-protocol)).
 

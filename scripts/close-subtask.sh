@@ -1771,7 +1771,7 @@ if [[ -n "$STATUS_TO" ]]; then
     # offer on the trigger it already has: the offer keys on "this run wrote
     # `done`", never on the census, because a story that was already `done`
     # before the run started did not become finished here
-    # (references/run-mode.md, "End of Run — Validator, archive, index" — cited
+    # (references/run-mode.md, "End of Run — next step, index" — cited
     # by section name because line numbers drift). That distinction is exactly the difference
     # between `{"from": …, "to": "done"}` and the `null` below.
     STATUS_WRITTEN_JSON="{ \"from\": $(json_or_null "$STATUS_FROM"), \"to\": $(json_or_null "$STATUS_TO") }"
