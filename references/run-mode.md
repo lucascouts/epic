@@ -81,7 +81,7 @@ tech_profile:
     - handler → database  # application code executes SQL
 ```
 
-The `tech_profile` is passed to the Executor sub-agent prompt. Boundaries trigger Tech Review after execution.
+The `tech_profile` is passed to the Executor sub-agent prompt. Boundaries trigger Tech Review after execution, on every route.
 
 ## Execution Threshold
 
@@ -93,7 +93,7 @@ Read the sub-task's own body and take the **first** route that matches.
 |---|---|---|---|
 | **Verification** | its Objective is to review, audit or validate work that is already done | **Sub-agent, always** | here the fresh context *is* the product — whoever did not watch the author work is the only one who can see what the author cannot |
 | **Exploratory** | `Context.Files` lists many files, or names a directory instead of files, or the ToDo says where to look rather than what to change | **Sub-agent** | the throwaway reading dies with the sub-agent instead of settling into the orchestrator's context for the rest of the run |
-| **Closed spec** | the ToDo names the files to create or modify, `Validation` carries a runnable command, and `Context` is absent or lists at most a couple of files | **Main agent, inline** — or a **fork** each, when several of them are independent (see Fork Route) | every input is already in hand; a sub-agent would spend its first minutes re-deriving them, and a fork has them already |
+| **Closed spec** | the sub-task's body — its title, Objective or ToDo — names the files to create or modify, `Validation` carries a runnable command, and `Context` is absent or lists at most a couple of files | **Main agent, inline** — or a **fork** each, when several of them are independent (see Fork Route) | every input is already in hand; a sub-agent would spend its first minutes re-deriving them, and a fork has them already |
 | anything else | — | **Sub-agent** | when the sub-task does not say enough to route it, the isolated context is the safe default |
 
 `Complexity` still governs the two columns the route does not decide. A sub-task carrying its own `Complexity` override uses that value; otherwise it inherits the parent's:
@@ -135,6 +135,8 @@ The two routes below — inline and delegated — apply this ordering; Standard/
 ### Inline Route — Main Agent
 
 The main agent executes directly but MUST follow the same step sequence as the Executor. No step may be skipped. If a Context field exists, context MUST be gathered before implementation.
+
+**Tech review applies on this route too.** It is an orchestrator step, not an Executor step, so "the same step sequence" does not carry it: after the sub-task's validation passes and before the box is closed, run the Delegated Route's step 5 — spawn Tech Reviewers when the Complexity table in Execution Threshold calls for one. A closed spec that crosses a technology boundary is exactly where a generalist implementer misses what the reviewer catches, and routing it inline must not also drop its review.
 
 For an **inline-routed** sub-task under the run-time ordering above (Fast, spike, or an `experiment`/`tool` story, `Tests` present), the main agent is the **single author** for the whole cycle: it authors the test, runs it, confirms **Red** (for the right reason), then implements inline to **Green**, validates, and **Refactors** — all in the one inline execution. The unexpected-green rule above applies: revise once, then escalate.
 
@@ -471,7 +473,7 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 
 ## Multi-Tech Review
 
-When a sub-task's `tech_profile` carries two or more technologies that meet at a boundary (handler to template, app to SQL, API to client), Tech Reviewer sub-agents review that boundary after execution. **Read [run-tech-review.md](run-tech-review.md) when the profile has such a boundary** — the trigger table, the reviewer prompt template and the orchestrator's handling live there. A single-technology sub-task skips it.
+When a sub-task's `tech_profile` carries two or more technologies that meet at a boundary (handler to template, app to SQL, API to client), Tech Reviewer sub-agents review that boundary after execution — inline, fork or Executor alike. **Read [run-tech-review.md](run-tech-review.md) when the profile has such a boundary** — the trigger table, the reviewer prompt template and the orchestrator's handling live there. A single-technology sub-task skips it, unless its Complexity is `High`, which reviews always (see the Complexity table in Execution Threshold).
 ## Context Passing Between Tasks
 
 Each Executor sub-agent starts with a fresh context. The orchestrator bridges information between tasks to prevent context loss.

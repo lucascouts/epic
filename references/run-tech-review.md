@@ -4,7 +4,7 @@ Loaded from [run-mode.md](run-mode.md) when a sub-task's `tech_profile` carries
 two or more technologies that interact at a boundary. A single-technology
 sub-task never needs this file.
 
-When a sub-task's tech_profile includes 2+ distinct technologies that interact at a boundary, the orchestrator spawns Tech Reviewer sub-agents AFTER the Executor completes successfully.
+When a sub-task's tech_profile includes 2+ distinct technologies that interact at a boundary, the orchestrator spawns Tech Reviewer sub-agents AFTER the sub-task's implementation passes validation — whether an Executor, a fork or the main agent inline did the work.
 
 ### When to Trigger
 
@@ -18,7 +18,7 @@ Detect technology boundaries from the tech_profile:
 | Application → external API | HTTP client calling third-party services |
 | Application → message queue | Producer/consumer message format contracts |
 
-If only one technology with no boundary interaction: skip review.
+If only one technology with no boundary interaction: skip review — unless the sub-task's Complexity is `High`, which reviews always, even single-tech.
 
 ### Tech Reviewer Prompt Template
 
