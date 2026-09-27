@@ -5,8 +5,8 @@ Triggered by `/epic:epic stories validate NNN`.
 ## Contents
 
 - [Post-Implementation Personas](#post-implementation-personas)
-- [Validator Sub-agent](#validator-sub-agent)
-- [Auditor Sub-agent](#auditor-sub-agent)
+- [Validation — Part 1 of the Auditor's spawn prompt](#validation--part-1-of-the-auditors-spawn-prompt)
+- [Audit — Part 2 of the Auditor's spawn prompt](#audit--part-2-of-the-auditors-spawn-prompt)
 - [Validate Mode Procedure](#validate-mode-procedure)
   - [Fix loop bound](#fix-loop-bound)
 - [Status Transition (`validated`)](#status-transition-validated)
@@ -20,12 +20,13 @@ These personas are activated **after implementation**, not during story creation
 
 | Persona | Role | When | Sub-agent type |
 |---|---|---|---|
-| **Validator** | Runs validation commands and tests per completed task | After tasks marked `[x]` | `validator` |
-| **Auditor** | Compares implemented code against story + design artifacts | After all tasks complete | `auditor` |
+| **Auditor** | Part 1: runs the validation commands, tests and gates ([validation-protocol.md](validation-protocol.md)). Part 2, on a pass: compares implemented code against story + design artifacts | validate mode | `auditor` |
 
-## Validator Sub-agent
+**One spawn validates and audits.** A separate Validator would re-read the same story from an empty context before the Auditor read it again; measured side by side, the single spawn found every planted defect the pair found, faster and for less.
 
-Triggered per-task or in batch after implementation. Can be invoked incrementally (after each task) or at the end.
+## Validation — Part 1 of the Auditor's spawn prompt
+
+The first block of the one spawn prompt. The Auditor runs it before any audit check.
 
 > "Validate the implementation of these completed tasks.
 >
@@ -73,9 +74,9 @@ Triggered per-task or in batch after implementation. Can be invoked incrementall
 >
 > Do NOT modify any other file: that report is your only write, and any other write is a protocol violation — report what is wrong, never fix it."
 
-## Auditor Sub-agent
+## Audit — Part 2 of the Auditor's spawn prompt
 
-Triggered once the Validator has passed — on a finished story, or on the `[x]` boxes of a partial one. Performs a holistic review comparing what was planned vs what was built.
+The second block of the same prompt, run only when Part 1's verdict is `pass` — on a finished story, or on the `[x]` boxes of a partial one. Performs a holistic review comparing what was planned vs what was built.
 
 > "Review the implementation against the story and design artifacts.
 >
@@ -101,7 +102,7 @@ Triggered once the Validator has passed — on a finished story, or on the `[x]`
 > 9. If deviations.yaml has discoveries: verify each discovery was addressed in subsequent tasks (e.g., if a template engine gotcha was found, check that later tasks using templates account for it)
 > 10. Red precedence — at engineering level `project` or `product` ([engineering-level.md](engineering-level.md)), read from tasks.md's frontmatter `engineering:` — `project` when absent; at `experiment` or `tool`, as for Fast and spike, the Red lives in the run report and this check is skipped with `missing_red` left empty: every sub-task whose `Tests:` field is **not `None`** has both a pre-authored test and an entry in `.draft/red-evidence.yaml` with `failed: true` (or `red_deferred: true` for `E2E`); a missing entry is reported as a finding. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction. Quantify over the `Tests:` field, never over the set of authored tests — a sub-task added by a refinement after Phase 3 ran has no authored test, so "every sub-task with a pre-authored test" excludes the very sub-task that is broken. Report a non-`None` `Tests:` field with no authored test as its own finding.
 >
-> Then, as the LAST step before composing any textual summary, write the whole audit to `.draft/audit-report.yaml` in the story directory — creating `.draft/` on demand is part of that step, since fast and spike stories have none. The orchestrator concludes from that file, not from your reply; the head is the Validator's, key for key, so one reader parses both:
+> Then, as the LAST step before composing any textual summary, write the whole audit to `.draft/audit-report.yaml` in the story directory — creating `.draft/` on demand is part of that step, since fast and spike stories have none. The orchestrator concludes from that file, not from your reply; the head is the validation report's, key for key, so one reader parses both:
 >
 > ```yaml
 > story: "NNN-slug"                       # the story directory name
@@ -150,9 +151,9 @@ Triggered once the Validator has passed — on a finished story, or on the `[x]`
 
 1. Resolve story directory from NNN
 2. Read tasks.md and take the checkbox census. A story is **complete** when **no `[ ]` remains**: it is **`done`** when every box is `[x]` or terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), and **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`. `done-except-external` is computed at read time, never written to a file. Only `[x]` sub-tasks have an implementation to validate — see [tasks.md](tasks.md#completion)
-3. Delete the stale `.draft/validation-report.yaml`, then spawn the Validator sub-agent (`run_in_background: false`) and wait for its completion — it runs each task's validation command and tests, and writes that file as its last step. Take the verdict from the file
-4. If `.draft/validation-report.yaml` reads `verdict: pass`, delete the stale `.draft/audit-report.yaml`, then spawn the Auditor sub-agent (`run_in_background: false`) and wait for its completion — compares code against story + design, reviews the deviation register — and take its verdict from that file the same way. On `verdict: fail` the Auditor is not spawned. When memory is available, the spawn prompt carries prior structural findings recalled with one `memory_query` — `audit OR scope-creep OR false-positive OR recurring`, `limit: 10` — as things to verify ([mcp-integration.md](mcp-integration.md#memory-mcp))
-5. Present the combined results to the user, composed from the two files: the Validator's `results[]` and `gates[]`, the Auditor's `gaps[]`, `unmet_gates[]`, `deviations_reviewed[]`, `scope_creep[]`, `missing_red[]` and `findings[]`
+3. Delete the stale `.draft/validation-report.yaml` and `.draft/audit-report.yaml`, then spawn **one** Auditor sub-agent (`run_in_background: false`) and wait for its completion. It runs the validation first — each task's validation command, tests and gates, per [validation-protocol.md](validation-protocol.md) — and writes `.draft/validation-report.yaml`; on a validation pass it goes on to compare the code against story + design, review the deviation register, and write `.draft/audit-report.yaml`. The spawn prompt is the two blocks below, validation first. When memory is available, it carries prior structural findings recalled with one `memory_query` — `audit OR scope-creep OR false-positive OR recurring`, `limit: 10` — as things to verify ([mcp-integration.md](mcp-integration.md#memory-mcp))
+4. Take the validation verdict from the file `.draft/validation-report.yaml`. On `verdict: fail` the audit file is absent by design — the run is a validation failure. On `verdict: pass`, take the audit verdict from the file `.draft/audit-report.yaml` the same way
+5. Present the combined results to the user, composed from the two files: the validation's `results[]` and `gates[]`, the audit's `gaps[]`, `unmet_gates[]`, `deviations_reviewed[]`, `scope_creep[]`, `missing_red[]` and `findings[]`
 6. If gaps found, offer to create new tasks to address them — **bounded to two fix rounds**, see [Fix loop bound](#fix-loop-bound)
 7. Apply the status transition for this verdict — see Status Transition (`validated`)
 7a. **Memory write (when memory is available)** — for each `findings[]` entry that is structural by the Auditor's own criterion (likely to recur in this codebase: a recurring scope-creep pattern, a false-positive deviation, a project-specific gate failure) and for each `deviations_reviewed[]` entry with `accurate: false`, write or rewrite one page at `epic/audit/<subject-slug>.md`: H1 = the subject, body = the finding, the story it came from and the file/line evidence. Same subject, same path — a finding seen again rewrites its page, and that rewrite is the supersession. A story-specific bug gets no page; it belongs to the tasks step 6 offers ([mcp-integration.md](mcp-integration.md#memory-mcp))
@@ -160,10 +161,10 @@ Triggered once the Validator has passed — on a finished story, or on the `[x]`
 
 ### Fix loop bound
 
-A **fix round** is one pass of the loop validate fails → fix tasks are created and run → validate again. Unbounded, it is the most expensive thing Epic does: every round re-runs the whole suite in the Validator and re-reads the whole story in the Auditor, and a finding the fix did not settle — or a new one the fix introduced — sends it round again.
+A **fix round** is one pass of the loop validate fails → fix tasks are created and run → validate again. Unbounded, it is the most expensive thing Epic does: every round re-runs the whole suite and re-reads the whole story in the Auditor, and a finding the fix did not settle — or a new one the fix introduced — sends it round again.
 
 - **The round is counted from tasks.md, never remembered.** The group step 6 creates is titled `Validation fixes — round N`; the next round is one more than the highest `N` already in the file.
-- **Every offer states what a round costs**: the fix run plus one Validator and one Auditor spawn. When `epic-telemetry` measured this validation, give its `subagent` tokens and its wall clock as the price of the revalidation.
+- **Every offer states what a round costs**: the fix run plus one Auditor spawn, which validates and audits. When `epic-telemetry` measured this validation, give its `subagent` tokens and its wall clock as the price of the revalidation.
 - **Round 1** — offered as step 6 always offered it.
 - **After a fix round runs, the revalidation is asked, never chained.** Neither Run mode nor this mode starts VALIDATE on its own after a `Validation fixes` group closes; the next-step question at the end of that run offers it, stating the round and its cost ([run-mode.md](run-mode.md#end-of-run--next-step-index)).
 - **Round 2 is the last one offered.** When the validation that follows round 2 still fails, step 6 creates no round 3: present what remains, say two rounds did not settle it, and recommend refining the story, since a finding that survives two fixes is usually a plan problem, not an implementation one. A third round runs only when the user asks for it in so many words.
@@ -171,17 +172,17 @@ A **fix round** is one pass of the loop validate fails → fix tasks are created
 
 ### The verdict is the file; the reply is a courtesy
 
-Both agents write their report as the **last** step of their protocol, before composing any prose ([validator.md](../agents/validator.md), [auditor.md](../agents/auditor.md)), and steps 3-5 conclude from those two files. The final message is a convenience for the human reading along and **the source of no pass/fail decision** — an agent that ends on an intermediate line swallows its own reply, and the verdict is on disk regardless. Without the file, recovering a swallowed verdict costs a `SendMessage` round, or a respawn that re-runs the entire suite.
+Each part writes its report as the **last** step of that part, before composing any prose ([validation-protocol.md](validation-protocol.md), [auditor.md](../agents/auditor.md)), and steps 3-5 conclude from those two files. The final message is a convenience for the human reading along and **the source of no pass/fail decision** — an agent that ends on an intermediate line swallows its own reply, and the verdict is on disk regardless. Without the file, recovering a swallowed verdict costs a `SendMessage` round, or a respawn that re-runs the entire suite.
 
-**Read `verdict`; never re-derive it.** Each agent computes its own by its own rule — a SKIP never fails the Validator, and scope creep and checklist findings never fail the Auditor — so a second derivation here is a second rule, and two rules disagree on the first story that tells them apart. The arrays are what step 5 presents and step 6 turns into tasks, never what the pass/fail is computed from.
+**Read `verdict`; never re-derive it.** Each part computes its own by its own rule — a SKIP never fails the validation, and scope creep and checklist findings never fail the audit — so a second derivation here is a second rule, and two rules disagree on the first story that tells them apart. The arrays are what step 5 presents and step 6 turns into tasks, never what the pass/fail is computed from.
 
-### Before each spawn, delete that agent's stale report file
+### Before the spawn, delete both stale report files
 
-Step 3 removes `.draft/validation-report.yaml` and step 4 removes `.draft/audit-report.yaml`, each immediately before spawning the agent that owns it. Once an agent fails to write, a leftover from a prior run is indistinguishable from a fresh verdict — and *does the file exist* is exactly the test the next step performs, so without the delete the flow reads last week's `pass` as this run's.
+Step 3 removes `.draft/validation-report.yaml` and `.draft/audit-report.yaml` immediately before the spawn. Once the agent fails to write, a leftover from a prior run is indistinguishable from a fresh verdict — and *does the file exist* is exactly the test step 4 performs, so without the delete the flow reads last week's `pass` as this run's.
 
-**That agent's file only, never both at once.** The Validator runs first and the Auditor only on its pass, so a single wipe at step 3 would destroy the Validator verdict steps 5, 7 and 8 still need. Pairing each delete with its spawn also settles the file the run never touches: a report is read only by the step that spawned its agent, so on a Validator `fail` the Auditor's file is neither refreshed nor consulted.
+**Both, because one spawn writes both.** A validation `fail` ends the spawn with no audit report, and an audit file left over from an earlier pass would then read as this run's audit.
 
-**Deleting what is not there is a no-op, never an error, and never a reason to skip the spawn.** A fast or spike story has no `.draft/` at all — both agents create it on demand — so a missing file and a missing directory are the ordinary first-run state.
+**Deleting what is not there is a no-op, never an error, and never a reason to skip the spawn.** A fast or spike story has no `.draft/` at all — the Auditor creates it on demand — so a missing file and a missing directory are the ordinary first-run state.
 
 ### Absent or unparseable: one re-request, then the run is failed
 
@@ -215,7 +216,7 @@ Validate mode owns exactly one of the six `status:` values — `validated` — a
 | 2 | Both files read `verdict: pass`, and at least one `[ ]` remains | write nothing — report the pass and state why the status was not advanced |
 | 3 | Either file reads `verdict: fail`, or no verdict was readable at all | write nothing — leave `status:` exactly as it was |
 
-**Rule 2 — a partial validation must not manufacture the lie.** `/epic:epic stories validate NNN` can be invoked at any time, including on a story that still has open `[ ]` boxes: the Validator simply has fewer `[x]` sub-tasks to run, and it can still pass. Writing `validated` there would immediately trip `validate-story.sh`'s ahead-of-checkboxes warning — `done` or `validated` while a `[ ]` remains — so the engine would have written the exact claim that check exists to expose. Report the pass instead, and say why the status stayed where it is: **`validated` means "the finished story was verified", not "the part that exists so far looks fine".** When the remaining boxes close, Run mode writes its own transition, and the next passing verdict earns `validated`.
+**Rule 2 — a partial validation must not manufacture the lie.** `/epic:epic stories validate NNN` can be invoked at any time, including on a story that still has open `[ ]` boxes: the validation simply has fewer `[x]` sub-tasks to run, and it can still pass. Writing `validated` there would immediately trip `validate-story.sh`'s ahead-of-checkboxes warning — `done` or `validated` while a `[ ]` remains — so the engine would have written the exact claim that check exists to expose. Report the pass instead, and say why the status stayed where it is: **`validated` means "the finished story was verified", not "the part that exists so far looks fine".** When the remaining boxes close, Run mode writes its own transition, and the next passing verdict earns `validated`.
 
 **Rule 3 — a failing verdict writes nothing at all.** Not `in-progress`, and not a rollback of a `validated` left by an earlier pass. A failure is a report, not a lifecycle transition; the story keeps whatever state its last real transition recorded. A run failed for want of a readable report lands here too: an unknown verdict is not a passing one.
 

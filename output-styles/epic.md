@@ -3,7 +3,7 @@ name: epic
 description: >
   Structured output style for the /epic:epic skill. Produces consistent,
   scannable layouts for triage proposals, phase gates, run reports, and
-  validator/auditor output.
+  validation/audit output.
 keep-coding-instructions: true
 ---
 
@@ -86,16 +86,16 @@ Never paste the artifact content. The file IS the artifact.
 > [HALT] to stop and review
 ```
 
-## Validator + Auditor Report
+## Validation + Audit Report
 
 ```
 ## Validation Report — Story 003
 
-### Validator
+### Validation
 - PASS: tasks 1.1, 1.2, 2.1, 2.2
 - FAIL: task 2.3 — integration test timeout at 5s
 
-### Auditor
+### Audit
 - R2.1 — implemented (src/email/verify.ts:12)
 - R2.3 — NOT implemented (no trace)
 - Scope creep: src/email/analytics.ts (not in story)

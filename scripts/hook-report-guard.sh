@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# SubagentStop hook for the Validator and the Auditor: each one's protocol ends
-# by writing its report file (.draft/validation-report.yaml or
-# .draft/audit-report.yaml), and validate mode takes its verdict from that file,
-# never from the agent's closing message. When the agent's transcript shows no
-# write to its report, the stop is blocked and the reason tells the agent to
-# write it. Claude Code delivers that reason to the subagent as its next
-# instruction.
+# SubagentStop hook for the Auditor. One spawn validates and then audits, and
+# each part ends by writing its report file: .draft/validation-report.yaml,
+# then — only when that verdict is pass — .draft/audit-report.yaml. Validate
+# mode takes its verdicts from those files, never from the agent's closing
+# message. The stop is allowed once the audit report is written, or once the
+# validation report is written with `verdict: fail` (the audit never runs
+# then). Otherwise it is blocked, and the reason names the file still owed;
+# Claude Code delivers that reason to the subagent as its next instruction.
 #
 # Fails open: unreadable input, a missing transcript, or a second stop attempt
 # (stop_hook_active) lets the agent finish, so a guard defect never traps it.
@@ -17,21 +18,30 @@ AGENT=$(printf '%s' "$INPUT" | jq -r '.agent_type // empty' 2>/dev/null || true)
 ACTIVE=$(printf '%s' "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo true)
 TRANSCRIPT=$(printf '%s' "$INPUT" | jq -r '.agent_transcript_path // empty' 2>/dev/null || true)
 
-case "${AGENT##*:}" in
-  validator) REPORT="validation-report.yaml" ;;
-  auditor)   REPORT="audit-report.yaml" ;;
-  *) exit 0 ;;
-esac
+[ "${AGENT##*:}" = "auditor" ] || exit 0
 
 [ "$ACTIVE" = "true" ] && exit 0
 TRANSCRIPT="${TRANSCRIPT/#\~/$HOME}"
 [ -n "$TRANSCRIPT" ] && [ -r "$TRANSCRIPT" ] || exit 0
 
-if jq -e --arg r "/.draft/$REPORT" '
-     select(.type == "assistant") | .message.content[]?
-     | select(.type == "tool_use" and (.name == "Write" or .name == "Edit"))
-     | select((.input.file_path // "") | endswith($r))' "$TRANSCRIPT" >/dev/null 2>&1; then
-  exit 0
+# wrote <file> [pattern] — the transcript shows a Write/Edit to .draft/<file>,
+# whose written content matches <pattern> when one is given.
+wrote() {
+  jq -e --arg r "/.draft/$1" --arg p "${2:-}" '
+    select(.type == "assistant") | .message.content[]?
+    | select(.type == "tool_use" and (.name == "Write" or .name == "Edit"))
+    | select((.input.file_path // "") | endswith($r))
+    | select($p == "" or ((.input.content // .input.new_string // "") | test($p)))' \
+    "$TRANSCRIPT" >/dev/null 2>&1
+}
+
+wrote audit-report.yaml && exit 0
+wrote validation-report.yaml '(^|\n)verdict:[[:space:]]*fail' && exit 0
+
+if wrote validation-report.yaml; then
+  REPORT="audit-report.yaml"
+else
+  REPORT="validation-report.yaml"
 fi
 
 jq -n --arg r "$REPORT" '{

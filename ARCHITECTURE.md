@@ -29,8 +29,8 @@ Epic turns an unstructured request into a tracked, validated implementation thro
 
 ```
              ┌──────────────────────── Plan ────────────────────────┐
-user request │  triage ─► clarify ─► analyst ─► architect           │
-             │                    │           │  (full only)        │
+user request │  triage ─► analyst ─► clarify ─► phases (main agent)│
+             │                    │           │                     │
              │                    │           ▼                     │
              │                    └──► story.md ─► design.md        │
              │                                         │            │
@@ -46,7 +46,7 @@ user request │  triage ─► clarify ─► analyst ─► architect         
              └────────────────────────┬──────────────────────────┘
                                       │
              ┌────────────────── Verify ─▼──────────────────────┐
-             │  validator (per sub-task) ─► auditor (story-wide) │
+             │  auditor: validation, then audit (one spawn)      │
              └───────────────────────────────────────────────────┘
 ```
 
@@ -83,13 +83,11 @@ Epic's sub-agents are activated by scale and phase. The main agent orchestrates,
 | Persona | Fast | Standard | Full |
 |---|---|---|---|
 | Analyst (codebase scan) | — | triage, when code exists | triage, when code exists |
-| Architect | — | — | Phase 2 |
 | Test-advisor | — | Phase 3 | Phase 3 |
 | Reviewer | — | — | after Phase 3 |
 | Executor | exploratory, verification or parallel sub-tasks — a closed spec runs inline | same | same |
 | Tech-reviewer | technology boundary, or `High` complexity | same | same |
-| Validator | validate mode | validate mode | validate mode |
-| Auditor | validate mode, after the Validator passes | same | same |
+| Auditor | validate mode — validation, then audit on a pass | same | same |
 
 ### Context isolation
 
@@ -100,13 +98,12 @@ Each sub-agent runs in its own context window. The main agent selects inputs (fi
 Each `agents/*.md` declares its allowed tools. Narrower scopes catch drift early:
 
 - `executor`: `Read, Write, Edit, Bash, Glob, Grep` (implements code)
-- `auditor`: `Read, Glob, Grep, Bash, LSP, Write` — `LSP` reads symbols; `Write` reaches exactly one path, `.draft/audit-report.yaml`
+- `auditor`: `Read, Glob, Grep, Bash, LSP, Write` — `LSP` reads symbols; `Write` reaches exactly two paths, `.draft/validation-report.yaml` (validation, Part 1) and `.draft/audit-report.yaml` (audit, Part 2)
 - `test-advisor`: `Read, Write, Bash, Glob, Grep` — it authors the failing tests for test-first sub-tasks (`Write`) and runs them to capture Red evidence (`Bash`). Its scope covers `Unit`, `Integration` and `E2E` sub-tasks — an `E2E` test is authored against the story's selected E2E tool (see [Preferred-tooling policy](#preferred-tooling-policy)) with Red-phase verification **deferred to Run mode**, so for those sub-tasks the Test Advisor writes the file but does not run `Bash`.
-- `analyst`, `architect`, `reviewer`: read-only surfaces
+- `analyst`, `reviewer`: read-only surfaces
 - `tech-reviewer`: `Read, Glob, Grep, Bash, WebFetch, WebSearch` — `Bash` is measurement only (linters, compilers, greps, query plans), never a mutation of files or git state, so a finding that rests on a runnable check can carry the command and the output backing it
-- `validator`: `Read, Glob, Grep, Bash, Write` — `Write` reaches exactly one path, `.draft/validation-report.yaml`
 
-Both report writes are **carve-outs, not licences**: each agent names its one file, creates `.draft/` on demand, and treats any other write as a protocol violation. Nothing enforces that at runtime — the guard is the exact-set grant assertion in `tests/reports-by-artifact-policy.bats`, which reddens when a tool lands on an agent this list does not name.
+The Auditor's two report writes are **carve-outs, not licences**: each part names its one file, creates `.draft/` on demand, and treats any other write as a protocol violation. Nothing enforces that at runtime — the guard is the exact-set grant assertion in `tests/reports-by-artifact-policy.bats`, which reddens when a tool lands on an agent this list does not name.
 
 ### Effort tiers
 
@@ -116,14 +113,12 @@ Each `agents/*.md` also declares a reasoning `effort:`. The tier is a cost decis
 | --- | --- | --- |
 | `executor` | `high` | Writes the code. Measured against `max` on a large closed-spec sub-task: the same tests written and passing in 5 of 5 runs, at a quarter of the cost and a sixth of the wall clock. |
 | `auditor` | `high` | Holds the semantic judgment the rest of the pipeline is priced against. Measured against `max` on fixtures with planted defects: every planted defect found in every arm, at about half the cost and wall clock. |
-| `architect` | `high` | Does not re-scan what the Analyst already reported; reasons over that scan plus the written requirements for the contracts a design must meet, and hunts the gotchas around them. |
 | `reviewer` | `high` | Cross-artifact gaps are found by reasoning over three documents at once. |
 | `tech-reviewer` | `high` | Correctness at technology boundaries — the defect is precisely what a generalist would not think to look for. |
 | `test-advisor` | `high` | Authoring a test that fails for the right reason is a design act, not a transcription. |
 | `analyst` | `medium` | Discovery: scans structure, samples representative files, reports what it found. |
-| `validator` | `medium` | Mechanical verification: runs the commands the sub-tasks name and compares output. The judgment lives with the Auditor. |
 
-**The table is enforced, not descriptive.** `tests/agent-effort-policy.bats` derives the tiers from the frontmatters and compares them against these rows, so a change on either side reddens until both agree. It also pins the Executor and the Auditor at `high` or above by name: they are the mitigation the Validator's `medium` was traded against, and a silent drop below `high` would keep the saving while removing the safety net.
+**The table is enforced, not descriptive.** `tests/agent-effort-policy.bats` derives the tiers from the frontmatters and compares them against these rows, so a change on either side reddens until both agree. It also pins the Executor and the Auditor at `high` or above by name: they carry the judgment the rest of the pipeline is priced against, and a silent drop below `high` would keep a saving while removing the safety net.
 
 ---
 
@@ -190,7 +185,7 @@ All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — 
 | `PostToolUse` | `Write(.epic/**)` | `hook-validate.sh` | Auto-run `validate-story.sh` on every story-artifact write | 2.1.85 |
 | `PreToolUse` | `Edit(.epic/archive/**)` · `Write(.epic/archive/**)` | `hook-archive-guard.sh` | Block mutations to archived stories | 2.1.85 |
 | `PreToolUse` | `Bash(git commit *)` · `Edit`/`Write` of `.epic/stories/**/tasks.md` | `hook-executor-guard.sh` | Inside the Executor (`agent_type`), deny `git commit` and edits to `tasks.md` | 2.1.85 |
-| `SubagentStop` | `epic:validator` · `epic:auditor` | `hook-report-guard.sh` | Keep the agent running until it has written its report file | 2.1.69 |
+| `SubagentStop` | `epic:auditor` | `hook-report-guard.sh` | Keep the agent running until it has written its report file | 2.1.69 |
 | `SessionStart` | `compact` | `hook-session-restore.sh` | After a compaction, render the active story's state from disk into context | 2.1.105 |
 | `SessionStart` | `clear` | `hook-orphan-drafts.sh` | After `/clear`, list drafts untouched for 30+ days, one removal line each; deletes nothing | 2.1.85 |
 
@@ -249,7 +244,7 @@ The story audit includes a **Red-evidence gate** (auditor check #10): every sub-
                                   Run mode ─► executor per sub-task ─► close-subtask.sh
                                     │
                                     ▼
-                                  Validate mode ─► validator + auditor
+                                  Validate mode ─► auditor (validation, then audit)
                                     │
                                     ▼
                                   Archive ─► .epic/archive/NNN-name/  (read-only)

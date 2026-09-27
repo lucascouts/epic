@@ -30,10 +30,14 @@ The end of a run offers one next step, decided by the story's state, and archive
 - The end-of-run question offers one next step instead of a menu: refine when work is pending (an open box, a register entry with `follow_up: true`, or fix round 2), validate otherwise, plus *Stop here*. It is asked with `AskUserQuestion` whenever the tool is callable, `--auto` included; the recommendation is written as text only when the tool is not available.
 - The Executor and the Auditor run at effort `high` instead of `max`. Measured side by side, `max` found no planted defect `high` missed and wrote the same passing tests, at two to four times the cost and wall clock.
 - The completeness checklist is written by the main agent instead of an Analyst spawn: the same questions, in about two thirds of the time. The Analyst now only scans the codebase at triage.
+- Validation and audit are one Auditor spawn: it runs the validation protocol first, writes `validation-report.yaml`, and audits only on a pass. Same defects found as the two-agent pair, 10–25% cheaper and up to a third faster.
+- Full stories add integration points and implementation gotchas in the main agent, before Phase 2, and record them in design.md under `## Integration Points` and `## Implementation Gotchas`. Same integration points as the Architect spawn, faster and cheaper, and the gotchas no longer get lost between the spawn and design.md.
+- A `layperson` build turn writes no text between tool calls, now stated in SKILL.md where every run reads it.
 - Archive follows validation. Run mode no longer offers it, and `archive-story.sh` archives without `--force <reason>` only a story reading `validated` with no open box. A story reading `done` or `superseded` is refused by name. Supersede's archive offer passes `--force "superseded by MMM"`, and the question names the flag before the user accepts.
 
 ### Removed
 
+- The Validator and Architect agents. `agents/validator.md` became `references/validation-protocol.md`, which the Auditor runs as Part 1.
 - The Fork Route. The model never chose it, and when forced it tied inline on large sub-tasks and lost on small ones.
 - `memory: project` on the Analyst and the Auditor, and init's offer to ignore `.claude/agent-memory/`. Project memory is ai-memory, written by the orchestrator; a leftover `.claude/agent-memory/epic-*/` directory can be deleted.
 

@@ -88,7 +88,7 @@ Its LLM work — the consolidation that turns raw observations into pages, the l
 
 - Only suggest MCPs relevant to the current mode (don't list all installed MCPs unconditionally).
 - Always health-check before suggesting — never recommend an MCP that is not connected.
-- Research-capable sub-agents (analyst, architect, executor, tech-reviewer) carry native `WebFetch`/`WebSearch` as a guaranteed fallback; a sub-agent calls a research/docs MCP only when its own tool grant includes it. The verified MCP list is passed in the sub-agent prompt as a preference — MCP-based research is most reliable from the orchestrator, which has full tool access.
+- Research-capable sub-agents (analyst, executor, tech-reviewer) carry native `WebFetch`/`WebSearch` as a guaranteed fallback; a sub-agent calls a research/docs MCP only when its own tool grant includes it. The verified MCP list is passed in the sub-agent prompt as a preference — MCP-based research is most reliable from the orchestrator, which has full tool access.
 - For **Fast mode**: skip MCP detection entirely — the overhead outweighs the gain for 1–2 file changes. The one exception is the memory check (see Memory MCP): a single local call, so Fast runs it too.
 - For **Standard/Full mode**: run the health-check once during triage and reuse the result for the whole story.
 - Perplexity's cost rule applies even during clarify rounds: never auto-call it.

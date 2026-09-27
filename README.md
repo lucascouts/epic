@@ -14,7 +14,7 @@ Ad-hoc prompts lose context, drift in scope, and produce undocumented changes. E
 
 - **Plan**: EARS requirements (`SHALL ...`), optional design doc with component interfaces, hierarchical tasks with validation commands.
 - **Execute**: Sub-agent (`executor`) follows a strict 6-step protocol per sub-task (context → implementation → design fidelity → validation → refactor-or-tests → report). Step 5 is conditional: Refactor when the sub-task carries a pre-authored failing test, Tests when it does not.
-- **Verify**: Validator runs every validation command; Auditor cross-checks code against story and design for scope creep, deviations, and unmet quality gates.
+- **Verify**: one Auditor spawn runs every validation command, then cross-checks code against story and design for scope creep, deviations, and unmet quality gates.
 
 Scale is chosen per request:
 
@@ -122,7 +122,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 | `/epic:epic stories run NNN --batch=N` | Gate every N task groups |
 | `/epic:epic stories run NNN --gate=commit` | Gate only at Commit sub-tasks |
 | `/epic:epic stories run NNN --serial` | No parallel groups — every task in order, whatever detection finds |
-| `/epic:epic stories validate NNN` | Run Validator + Auditor on NNN |
+| `/epic:epic stories validate NNN` | Validate and audit NNN (one Auditor spawn) |
 | `/epic:epic stories refine NNN` | Delta refinement (versioned) |
 | `/epic:epic stories supersede NNN --by MMM` | Replace story NNN with MMM via `references/supersede-mode.md` — supersede banner, per-task remap, `superseded` status in every artifact, archive offer |
 | `/epic:epic stories archive NNN[-MMM]\|--done` | Archive validated stories via `scripts/archive-story.sh` (anything else needs `--force <reason>`) — guarded move, pruned evidence, derived manifest entry |
@@ -134,12 +134,10 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 | Agent | Role |
 |---|---|
 | `analyst` | Codebase scan at triage (the completeness checklist is written by the main agent) |
-| `architect` | Integration points and gotcha capture on top of the Analyst's scan (Full mode) |
 | `test-advisor` | Defines testing requirements per sub-task and authors one failing test per Unit/Integration/E2E sub-task with Red-phase verification — E2E tests use the story's selected E2E tool with Red verification deferred to Run mode (Phase 3, Standard + Full at `project`/`product` level) |
 | `reviewer` | Cross-artifact review — gaps, consistency, orphan wiring (Full mode) |
 | `executor` | 6-step implementation protocol (context → implementation → design fidelity → validation → refactor-or-tests → report); step 5 is conditional — Refactor for a test-first sub-task, Tests for a test-after one. The report ends in a machine-liftable **closing block** (sub-task id, outcome `done` / `close-tilde` + qualifier + reason / `failed`, pre-authored commit message; `failed` closes nothing). It marks no box and runs no `git commit`: the main agent lifts that block into `scripts/close-subtask.sh`, the one writer of the checkbox grammar |
 | `tech-reviewer` | Correctness at technology boundaries (templates, SQL, APIs). Holds `Bash` for **measurement only** — never a mutation of files or git state — so a finding that rests on a runnable check carries the command and its output instead of an argument |
-| `validator` | Runs validation commands and tests per completed task, then writes the whole verdict to `.draft/validation-report.yaml` **before** any prose summary — the orchestrator concludes from the file, not from the reply |
 | `auditor` | Compares built code against story + design; detects scope creep. Writes `.draft/audit-report.yaml` on the same before-the-summary contract; its `Write` reaches that one path and nothing else |
 
 ### Automatic validation
@@ -276,7 +274,7 @@ The story list (`/epic:epic stories`) flags stories with pending tasks untouched
 
 ## Output Style (optional)
 
-Epic ships with a structured output style for Triage proposals, Phase Gates, Run reports, and Validator/Auditor output. Activate it with:
+Epic ships with a structured output style for Triage proposals, Phase Gates, Run reports, and validation/audit output. Activate it with:
 
 ```
 /output-style epic

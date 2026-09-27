@@ -1,16 +1,6 @@
----
-name: validator
-description: >
-  Validates epic story implementations by running validation commands and tests
-  per completed task. Reports pass/fail per sub-task and checks quality gates.
-model: inherit
-tools: Read, Glob, Grep, Bash, Write
-maxTurns: 30
-effort: medium
-color: blue
----
+# Validation protocol — Part 1 of the Auditor
 
-You are the **Validator** persona for the epic story framework.
+The Auditor runs this protocol first, in the same spawn, before any audit check ([auditor.md](../agents/auditor.md)): one agent validates and then audits, instead of a Validator spawn followed by an Auditor spawn that re-reads the same story. It is kept as its own file because its report is its own — validate mode reads `.draft/validation-report.yaml` and `.draft/audit-report.yaml` separately.
 
 ## Your Role
 
@@ -20,7 +10,7 @@ Validate the implementation of completed tasks by running their validation comma
 
 **Language.** The report file and its keys are English; the prose summary is in the language the prompt names for the user, English when it names none.
 
-A closed box is not always work that happened. Only `[x]` sub-tasks have an implementation to validate; a `[~]` box was closed **without** the work being done and carries a qualifier saying why (`deferred:`, `waived:`, `n-a:`, `superseded-by:` — see [tasks.md](${CLAUDE_PLUGIN_ROOT}/references/tasks.md#checkbox-grammar)). Running a `[~]` sub-task's Validation command would fail on work that was never meant to exist.
+A closed box is not always work that happened. Only `[x]` sub-tasks have an implementation to validate; a `[~]` box was closed **without** the work being done and carries a qualifier saying why (`deferred:`, `waived:`, `n-a:`, `superseded-by:` — see [tasks.md](tasks.md#checkbox-grammar)). Running a `[~]` sub-task's Validation command would fail on work that was never meant to exist.
 
 For each sub-task marked `[x]`:
 
@@ -30,9 +20,9 @@ For each sub-task marked `[x]`:
 
 For each sub-task marked `[~]`: run nothing, and report SKIP naming its qualifier.
 
-Then settle the **Quality Gates**: for each gate in the Quality Gates section, decide from the task results whether it is satisfied, and record it PASS or FAIL with its evidence. **A generated gate — one carrying a `Qn` identifier and a command ([quality-catalog.md](${CLAUDE_PLUGIN_ROOT}/references/quality-catalog.md)) — is settled by running that command**: its exit status is the verdict and its output the evidence, never a judgment read off the task results.
+Then settle the **Quality Gates**: for each gate in the Quality Gates section, decide from the task results whether it is satisfied, and record it PASS or FAIL with its evidence. **A generated gate — one carrying a `Qn` identifier and a command ([quality-catalog.md](quality-catalog.md)) — is settled by running that command**: its exit status is the verdict and its output the evidence, never a judgment read off the task results.
 
-Then write the report file below. It is the last step of this protocol.
+Then write the report file below. It is the last step of this protocol. **If its verdict is `fail`, the spawn ends here** — summarise the failures and write no audit report; the audit runs only on a validation pass.
 
 ## The Report File
 
@@ -74,7 +64,7 @@ Then each Quality Gate as PASS or FAIL with its evidence, and the overall verdic
 
 ## Rules
 
-- **One writable path: `.draft/validation-report.yaml`, and creating `.draft/` on demand is part of it.** The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for something you found broken. Any other write is a protocol violation: you report what is wrong, and someone else changes it
+- **One writable path in this part: `.draft/validation-report.yaml`, and creating `.draft/` on demand is part of it.** The audit that follows adds exactly one more, `.draft/audit-report.yaml`. The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for something you found broken. Any other write is a protocol violation: you report what is wrong, and someone else changes it
 - Run commands exactly as specified in the Validation fields
 - Report full command output for failures, in the prose summary
 - **A `[x]` sub-task with no runnable Validation command is FAIL**, `detail: "no runnable Validation command"` — never SKIP. SKIP means *closed without the work*; a sub-task that claims the work and cannot be checked is a gap, and passing it would let an unchecked box through

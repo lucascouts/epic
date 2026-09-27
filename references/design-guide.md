@@ -116,6 +116,10 @@ WHEN a flow execution is requested THE SYSTEM SHALL enqueue the job and return a
 ## Integration Points
 
 - [System/component 1]: [How this feature integrates]
+
+## Implementation Gotchas
+
+- GOTCHA: [pattern/library] — [what goes wrong] — [correct approach]
 ```
 
 ## Template Guidelines
