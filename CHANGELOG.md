@@ -11,6 +11,12 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-09-26
+
+A finished run now asks what comes next — validate, refine or archive — and fits the answer to how much of the session is left. A run never signs a commit with an identity it made up.
+
+**Minimum Claude Code:** unchanged.
+
 ### Changed
 
 - A finished run ends with one `AskUserQuestion` — validate, refine or archive — instead of a `y/n` Validator prompt. Validate and refine are recommended in the same session below 50% of the context window, allowed up to 75%, and above that replaced by the command to run in a new session. Archive is offered only on a story that just reached `done` with nothing deferred. A headless run logs the recommendation and starts nothing. A layperson is also offered to see the program running before the other options.
@@ -19,6 +25,10 @@ gracefully (see README "Prerequisites").
 
 - A PreToolUse guard denies a commit that supplies its own identity (`git -c user.*`, `--author`, `GIT_AUTHOR_*`) and any `git config user.*` write. With no identity configured, a run makes no commit and tells the user how to set one.
 - `epic-telemetry --window <tokens>` reports `context.used_pct`, the fill of the orchestrator's context window, read from the last main-thread message of the transcript.
+
+### Fixed
+
+- The quality catalog's format check names the project's files instead of `.`, so `prettier --check` no longer reads `.epic/` and fails on the run report written after the gate closed.
 
 ## [0.10.0] — 2026-09-26
 
@@ -1411,7 +1421,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/lucascouts/epic/releases/tag/v0.11.0
 [0.10.0]: https://github.com/lucascouts/epic/releases/tag/v0.10.0
 [0.9.0]: https://github.com/lucascouts/epic/releases/tag/v0.9.0
 [0.8.0]: https://github.com/lucascouts/epic/releases/tag/v0.8.0

@@ -123,3 +123,11 @@ has() { # has <label> <block> <keyword>
   has "C9 rendering" "$words" "checks I ran"
   has "C9 never by number" "$words" "never by number"
 }
+
+@test "the format check is scoped to the project, never sweeping .epic/" {
+  # A 2026-09-26 run gated on `prettier --check .`; the run report written at
+  # the end of the run then failed the gate it had already closed.
+  run grep -q '^| Formatting .*prettier --check \.`' "$BATS_TEST_DIRNAME/../references/quality-catalog.md"
+  [ "$status" -eq 1 ]
+  grep -q "The format check covers the project's files, never \`.epic/\`" "$BATS_TEST_DIRNAME/../references/quality-catalog.md"
+}
