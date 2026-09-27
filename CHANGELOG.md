@@ -11,6 +11,12 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-09-27
+
+The end of a run offers one next step, decided by the story's state, and archive follows a passing validate. The context bands follow the model in the transcript, the fix loop is bounded, and the sub-agent audit fixes land.
+
+**Minimum Claude Code:** unchanged.
+
 ### Changed
 
 - The end-of-run question reads the context `band` that `epic-telemetry` derives from the model in the transcript — Haiku: highly efficient up to 100k, efficient up to 150k; Sonnet, Opus and Fable: up to 200k and 500k. Above that, validate and refine are replaced by the command for a new session. `--window` is now an optional override.
@@ -1451,7 +1457,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.11.1...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/lucascouts/epic/releases/tag/v0.12.0
 [0.11.1]: https://github.com/lucascouts/epic/releases/tag/v0.11.1
 [0.11.0]: https://github.com/lucascouts/epic/releases/tag/v0.11.0
 [0.10.0]: https://github.com/lucascouts/epic/releases/tag/v0.10.0
