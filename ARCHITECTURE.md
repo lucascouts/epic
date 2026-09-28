@@ -286,7 +286,7 @@ A `PreToolUse` hook on `.epic/archive/**` returns a blocking response. Conventio
 
 ### Degrade gracefully on missing MCPs
 
-MCPs (`perplexity`, `brave-search`, `context7`) are health-checked during triage. A missing MCP never blocks the flow — the skill substitutes an alternative or skips that category. No user-visible errors for optional tooling.
+Research MCPs (`brave-search`, `exa`, `tavily`, `firecrawl`, `perplexity`) are health-checked during triage. Library docs need no MCP: they come from the installed dependency, then the official docs for that version. A missing MCP never blocks the flow — the skill substitutes an alternative or skips that category. No user-visible errors for optional tooling.
 
 ---
 

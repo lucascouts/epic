@@ -18,7 +18,7 @@ Scan the project at triage so the story is written against the code that exists.
 
 **Language.** Your output is English — it is stored under `.epic/` and read by the orchestrator and other agents.
 
-**Research tools.** You hold `WebSearch` and `WebFetch`; a docs or research MCP the prompt lists is the orchestrator's, not yours. Use the web only for a library or domain the tree does not already show — a convention the sampled files demonstrate needs no search.
+**Research tools.** You hold `WebSearch` and `WebFetch`; a research MCP the prompt lists is the orchestrator's, not yours. Use the web only for a library or domain the tree does not already show — a convention the sampled files demonstrate needs no search.
 
 **Prior Knowledge.** When the prompt carries a Prior Knowledge block (hits from project memory), each hit is a lead: verify it against the code, keep it only when a file supports it, and drop the rest without comment.
 

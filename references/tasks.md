@@ -42,8 +42,8 @@ created: <date>
     - _Complexity: [level]_
     - Context:
       - Files: `path/to/file` (reason to read)
-      - Docs: library-name reference (context7)
-      - Research: "specific query" (perplexity)
+      - Docs: <library>@<lockfile version> — <topic>
+      - Research: "specific query" (brave-search)
     - Objective: [Concrete coding goal]
     - ToDo: [Technical approach — files to create/modify, patterns to follow]
     - Tests: [Type] · `path/to/test_file` — scenarios to cover
@@ -221,13 +221,13 @@ The Context field tells the implementer (human or agent) where to gather informa
 ```markdown
 - Context:
   - Files: `path/to/existing.go` (existing auth pattern)
-  - Docs: golang-jwt/jwt/v5 API reference (context7)
-  - Research: "Argon2id recommended parameters 2026" (perplexity)
+  - Docs: github.com/golang-jwt/jwt/v5@v5.x — ParseWithClaims, validation options
+  - Research: "Argon2id recommended parameters 2026" (brave-search)
 ```
 
 - Only include sub-fields that apply. If only Docs is needed, omit Files and Research.
-- MCP tools in parentheses are suggestions based on servers detected during triage.
-- Multiple MCP tools can be suggested: `(context7 or perplexity)`.
+- Docs names the library, its version from the lockfile, and the topic — never a tool. The implementer follows the [Docs source order](mcp-integration.md#docs-source-order).
+- A research MCP in parentheses is a suggestion based on servers detected during triage; several can be listed: `(brave-search or exa)`.
 
 ### Tests Field
 
