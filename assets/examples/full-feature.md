@@ -129,7 +129,7 @@ Configure TypeScript for ESM output, set up Prisma 7 with explicit config, valid
   - [ ] 1.1 - Configure base and package tsconfigs
     - Context:
       - Files: `tsconfig.base.json` (current config to migrate)
-      - Docs: TypeScript Node16 module resolution (context7)
+      - Docs: typescript@5.x — Node16 module resolution
     - Objective: Set up shared ESM configuration for all packages
     - ToDo: Update tsconfig.base.json with target ES2022, module Node16, moduleResolution Node16. Add composite: true in each package tsconfig. Update package.json files with "type": "module".
     - Validation: `tsc --build` passes, runtime import between packages works without ERR_REQUIRE_ESM
@@ -142,8 +142,8 @@ Configure TypeScript for ESM output, set up Prisma 7 with explicit config, valid
 
   - [ ] 2.1 - Configure Prisma generator
     - Context:
-      - Docs: Prisma 7 ESM configuration (context7)
-      - Research: "Prisma 7 adapter-pg ESM setup" (perplexity)
+      - Docs: prisma@7.x — ESM configuration, prisma.config.ts
+      - Research: "Prisma 7 adapter-pg ESM setup" (brave-search)
     - Objective: Set up prisma.config.ts with ESM-compatible output
     - ToDo: Create prisma.config.ts with output path to src/generated/prisma/. Install @prisma/adapter-pg. Run prisma generate.
     - Validation: `prisma generate` succeeds, PrismaClient importable from generated path

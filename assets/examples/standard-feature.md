@@ -85,7 +85,7 @@ Implement API key guard as a NestJS Guard. Workspace lookup by apiKey, inject wo
   - [ ] 1.1 - Implement guard logic
     - Context:
       - Files: `src/guards/` (existing guard patterns, if any)
-      - Docs: NestJS Guards documentation (context7)
+      - Docs: @nestjs/common@11.x — Guards, CanActivate
     - Objective: Create ApiKeyGuard implementing CanActivate
     - ToDo: Implement guard that reads `x-api-key` header, queries workspace by apiKey, rejects deleted workspaces, injects workspaceId into request object.
     - Tests: Unit · `src/guards/api-key.guard.spec.ts` — valid key accepted, invalid key rejected (401), missing header rejected (401), deleted workspace rejected (401)

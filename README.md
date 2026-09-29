@@ -63,7 +63,7 @@ Run `/reload-plugins` after updating plugin files.
 
 - **Claude Code v2.1.105+** — required for the full capability surface. Epic works on v2.1.85+ with degraded ergonomics (no compact recovery; hooks fire on every Write/Edit regardless of path).
 - `bash`, `git`, `jq` available on PATH
-- **Optional MCPs** for deeper context and research: `perplexity`, `brave-search`, `context7`. Epic health-checks each MCP before suggesting it; missing MCPs degrade gracefully.
+- **Optional MCPs** for web research: `brave-search`, `exa`, `tavily`, `firecrawl`, and `perplexity` (premium, never the default). Epic health-checks each MCP before suggesting it; missing MCPs degrade gracefully. Library docs need no MCP: Epic reads the installed dependency first, then the official docs for that version.
 - **Optional — keep sub-agents in the foreground:** in interactive sessions Claude Code runs sub-agents in the background by default, and Epic then waits for each one's completion notification. To run them in the foreground instead, start Claude Code with `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` (or put it in your settings `env`). Side effect: no background Bash commands and no Ctrl+B.
 - **Optional tooling for development**: `shellcheck` and `bats` for running the script test suite locally (`bats tests/`).
 

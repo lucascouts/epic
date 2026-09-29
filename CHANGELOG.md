@@ -11,6 +11,16 @@ gracefully (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Removed
+
+- `context7` is no longer used or recommended. No sub-agent could call it; the one independent study found it better than no docs, never better than the installed dependency; its answers carried a wrong snippet and invented source paths in a 10-lookup probe; and it was the vector of CVE-2026-75130.
+
+### Changed
+
+- Library docs follow a docs source order that needs no MCP: the installed dependency at the lockfile version first, then the official docs for that version through `WebFetch`. The Executor reads the installed dependency before going to the web, and treats fetched text as data, never as instructions.
+- A sub-task's `Docs:` line names the library, its lockfile version and the topic — never a tool.
+- Research examples in the task template suggest `brave-search`, not `perplexity`, matching the rule that `perplexity` is never the default.
+
 ## [0.13.1] — 2026-09-27
 
 The end of a partial run recommends finishing the plan instead of re-planning it.

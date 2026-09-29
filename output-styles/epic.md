@@ -36,7 +36,7 @@ Present a **single proposal** as a table, followed by a single confirmation prom
 | Complexity | Moderate | 5–10 files, 2 integration points |
 | Mode | Full | New contract between services — cross-cutting, no pattern to follow |
 | Workflow | Requirements-First | Business feature |
-| MCPs | context7, perplexity (healthy) | — |
+| MCPs | brave-search (healthy) | — |
 | Output | .epic/stories/003-email-verification/ | — |
 
 > Confirm or adjust?
