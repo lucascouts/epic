@@ -121,7 +121,7 @@ EOF
   run bash "$VALIDATE" "$LINT"
   [ "$status" -eq 0 ]                       # a warning, never an error
   echo "$output" | grep -q '"errors": 0'
-  echo "$output" | jq -e '.warnings >= 1'
+  echo "$output" | jq -e '.warning_count >= 1'
   echo "$output" | grep -qF '(010)'         # the expected shape names this story
   echo "$output" | grep -qF 'feat: add the scaffold'   # and the offending value
 }
@@ -130,14 +130,14 @@ EOF
   write_lint_story "feat(010): add the scaffold"
   run bash "$VALIDATE" "$LINT"
   [ "$status" -eq 0 ]
-  echo "$output" | grep -q '"warnings": 0'
+  echo "$output" | grep -q '"warning_count": 0'
 }
 
 @test "PIN unpadded anchor accepted — fix(10): stays quiet" {
   write_lint_story "fix(10): add the scaffold"
   run bash "$VALIDATE" "$LINT"
   [ "$status" -eq 0 ]
-  echo "$output" | grep -q '"warnings": 0'
+  echo "$output" | grep -q '"warning_count": 0'
 }
 
 @test "the lint reads the field on a Commit sub-task too — not the checkbox shape" {
@@ -147,7 +147,7 @@ EOF
   sed -i 's|^## Quality Gates|- [ ] 1.6 - Commit\n  - Validation: all green\n  - Commit: "chore: tidy the scaffold"\n\n## Quality Gates|' "$LINT/tasks.md"
   run bash "$VALIDATE" "$LINT"
   [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.warnings >= 1'
+  echo "$output" | jq -e '.warning_count >= 1'
   echo "$output" | grep -qF 'chore: tidy the scaffold'
 }
 
@@ -293,7 +293,7 @@ TASKSEOF
   run bash "$VALIDATE" "$GROUPED"
   [ "$status" -eq 0 ]                       # still a warning, never an error
   echo "$output" | grep -q '"errors": 0'
-  echo "$output" | jq -e '.warnings >= 1'
+  echo "$output" | jq -e '.warning_count >= 1'
   echo "$output" | grep -qF '(010)'
   echo "$output" | grep -qF 'feat: add the grouped scaffold'
 }
@@ -302,7 +302,7 @@ TASKSEOF
   write_group_lint_story "feat(010): add the grouped scaffold"
   run bash "$VALIDATE" "$GROUPED"
   [ "$status" -eq 0 ]
-  echo "$output" | grep -q '"warnings": 0'
+  echo "$output" | grep -q '"warning_count": 0'
 }
 
 @test "validate-mode.md settles the no-double-fire precedence (doc contract)" {

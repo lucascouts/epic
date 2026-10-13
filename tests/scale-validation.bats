@@ -166,8 +166,12 @@ EOF
 {
   "story": "story",
   "errors": 0,
-  "warnings": 2,
+  "warning_count": 2,
   "error_details": [],
+  "warnings": [
+    "No metadata lines found (expected _Complexity: ... | Tests: ... | ..._) on parent tasks",
+    "No Commit fields or Commit sub-tasks found — every task group should have a commit point"
+  ],
   "warning_details": [
     "No metadata lines found (expected _Complexity: ... | Tests: ... | ..._) on parent tasks",
     "No Commit fields or Commit sub-tasks found — every task group should have a commit point"

@@ -262,7 +262,7 @@ load_roster() {
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$MIXED"
   [ "$status" -eq 0 ]
   echo "$output" | grep -q '"errors": 0'
-  echo "$output" | grep -q '"warnings": 0'
+  echo "$output" | grep -q '"warning_count": 0'
   refute_grep 'ahead of the checkboxes'
 
   # cross-reference still traces every requirement, deferred box included.
@@ -468,8 +468,9 @@ load_roster() {
 {
   "story": "story",
   "errors": 0,
-  "warnings": 0,
+  "warning_count": 0,
   "error_details": [],
+  "warnings": [],
   "warning_details": [],
   "strict": false,
   "status": "pass"

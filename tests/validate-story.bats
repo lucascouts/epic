@@ -822,3 +822,10 @@ TASKS
   echo "$output" | jq -e '[.error_details[] | select(contains("more than one header"))] | length == 1' > /dev/null
   echo "$output" | jq --arg e "lines $expected" -e '.error_details[0] | contains($e)' > /dev/null
 }
+
+@test "warnings is the list, warning_count its length, warning_details the deprecated copy" {
+  printf -- '---\nstory: x\n---\n## Task List\n- [ ] 1 - Do it\n' > "$STORY/tasks.md"
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  echo "$output" | jq -e '(.warnings | type) == "array" and .warning_count == (.warnings | length) and .warning_count > 0 and .warning_details == .warnings'
+  echo "$output" | jq -er '.warnings[]' > /dev/null
+}
