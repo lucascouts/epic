@@ -47,3 +47,9 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/output-rules.md 'epic-report --story'
   has references/validate-mode.md 'epic-report --story <dir>'
 }
+
+@test "X5: per-spawn effort for the Executor by complexity; model only in a declared A/B" {
+  has references/run-mode.md 'executor `effort`'
+  has references/run-mode.md 'this skill asks for the `effort` column'
+  has references/run-mode.md 'never pass `model` on an executor spawn outside a declared a/b'
+}

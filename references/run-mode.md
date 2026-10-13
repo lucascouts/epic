@@ -98,14 +98,16 @@ Read the sub-task's own body and take the **first** route that matches.
 | **Closed spec** | the sub-task's body — its title, Objective or ToDo — names the files to create or modify, `Validation` carries a runnable command, and `Context` is absent or lists at most a couple of files | **Main agent, inline** | every input is already in hand; a sub-agent would spend its first minutes re-deriving them |
 | anything else | — | **Sub-agent** | when the sub-task does not say enough to route it, the isolated context is the safe default |
 
-`Complexity` still governs the two columns the route does not decide. A sub-task carrying its own `Complexity` override uses that value; otherwise it inherits the parent's:
+`Complexity` still governs the three columns the route does not decide. A sub-task carrying its own `Complexity` override uses that value; otherwise it inherits the parent's:
 
-| Task Complexity | Tech Review | Context Gathering |
-|-----------------|-------------|-------------------|
-| Trivial | No | Optional |
-| Simple | Only if multi-tech boundary | Required if Context field exists |
-| Moderate | Yes, if multi-tech boundary | Required |
-| High | Always (even single-tech) | Required + extra research |
+| Task Complexity | Tech Review | Context Gathering | Executor `effort` |
+|-----------------|-------------|-------------------|-------------------|
+| Trivial | No | Optional | `low` |
+| Simple | Only if multi-tech boundary | Required if Context field exists | `medium` |
+| Moderate | Yes, if multi-tech boundary | Required | (omit — the agent's own `high`) |
+| High | Always (even single-tech) | Required + extra research | (omit — the agent's own `high`) |
+
+**This skill asks for the `effort` column**, so pass it as the Agent call's `effort` parameter when the row names one; omit the parameter otherwise, and the agent runs at its definition's `high`. A small sub-task does not need the depth of reasoning a design-level one does, and the per-spawn value is what lets one agent definition serve both. Never pass `model` on an Executor spawn outside a declared A/B — the model is the user's choice.
 
 **The route never relaxes the protocol.** Inline means the main agent runs the same six steps an Executor would (see Inline Route — Main Agent), gathers context whenever a Context field exists, and closes the box through `close-subtask.sh` like everyone else. It is the same work done in a cheaper place — never less work.
 
