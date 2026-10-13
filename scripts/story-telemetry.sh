@@ -43,8 +43,8 @@
 #   Haiku (200k window)             high <= 100k (50%)   efficient <= 150k (75%)
 #   Sonnet, Opus, Fable (1M window) high <= 200k (20%)   efficient <= 500k (50%)
 # With --window, each threshold is the lower of its token figure and its
-# percentage of that window. The window is never guessed: a 200k guess on a 1M
-# model once reported 107% and sent a user to a new session at ~21% real fill.
+# percentage of that window. Never pass --window from a guess: the window is
+# derived from the model the transcript records.
 #
 # Exit codes:
 #   0  telemetry computed (including an empty window — zeros, not an error)

@@ -36,9 +36,9 @@ For any library, framework or SDK API, stop at the first source that answers:
 
 ## Health check procedure
 
-Before suggesting any MCP during triage, check that it is connected — without calling it. Claude Code already reports this: a connected server's tools are in your tool list (directly or as deferred tools), and a server that failed to connect is named in a failure notice with its error.
+Before suggesting any MCP during triage, check that it is connected — without calling it. Claude Code already reports this: a connected server's tools are in your tool list (directly or as deferred tools) — named `mcp__<server>__<tool>`, or `mcp__plugin_<plugin>_<server>__<tool>` when a plugin bundles the server, so match the server name in both forms. With tool search on (the default), a server that failed to connect is also named in a failure notice with its error; without tool search (a custom `ANTHROPIC_BASE_URL`, `ENABLE_TOOL_SEARCH=false`) no notice comes, and the tool list is the only signal.
 
-1. A candidate is **available** when its tools are in the tool list and no failure notice names it. Make no probe call: a probe spends a metered query, may raise a permission prompt, and teaches nothing the tool list does not.
+1. A candidate is **available** when its tools are in the tool list and no failure notice names it — the absence of a notice proves nothing on its own, since a configuration without tool search sends none. Make no probe call: a probe spends a metered query, may raise a permission prompt, and teaches nothing the tool list does not.
 2. If it is **not available**: do NOT suggest it. Drop to the next candidate in the priority list for the same category.
 3. A server can be connected and still fail on its first real call (an expired key, an exhausted quota). Treat that failure like an absent server: fall back as below, and do not retry it for the rest of the story.
 4. Categories:
@@ -53,7 +53,7 @@ If no research MCP is detected (empty category after health-check):
 1. Fall back to Claude Code's native `WebFetch` and `WebSearch` tools for research tasks. Do not block the flow.
 2. Surface a one-time suggestion in the triage output:
 
-   > "No research MCP detected. Epic will use Claude Code's native `WebFetch` / `WebSearch`. For better research quality, consider installing one of: `brave-search` (recommended default, low cost), `exa`, or `tavily`. See https://code.claude.com/docs/en/mcp#find-and-connect-mcp-servers."
+   > "No research MCP detected. Epic will use Claude Code's native `WebFetch` / `WebSearch`. For better research quality, consider installing one of: `brave-search` (recommended default, low cost), `exa`, or `tavily`. See https://code.claude.com/docs/en/mcp#find-and-build-mcp-servers."
 
 3. Let the user choose:
    - Proceed without an MCP (default — use native tools).

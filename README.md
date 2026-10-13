@@ -61,23 +61,11 @@ Run `/reload-plugins` after updating plugin files.
 
 ### Prerequisites
 
-- **Claude Code v2.1.105+** — required for the full capability surface. Epic works on v2.1.85+ with degraded ergonomics (no compact recovery; hooks fire on every Write/Edit regardless of path).
+- **Claude Code v2.1.295 or newer.** One floor for every feature: the fail-closed guards (`onFailure`), the sub-agent status line, `LSP` in a background sub-agent and the plugin options all need it. Older versions are not supported.
 - `bash`, `git`, `jq` available on PATH
 - **Optional MCPs** for web research: `brave-search`, `exa`, `tavily`, `firecrawl`, and `perplexity` (premium, never the default). Epic health-checks each MCP before suggesting it; missing MCPs degrade gracefully. Library docs need no MCP: Epic reads the installed dependency first, then the official docs for that version.
 - **Optional — keep sub-agents in the foreground:** in interactive sessions Claude Code runs sub-agents in the background by default, and Epic then waits for each one's completion notification. To run them in the foreground instead, start Claude Code with `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` (or put it in your settings `env`). Side effect: no background Bash commands and no Ctrl+B.
 - **Optional tooling for development**: `shellcheck` and `bats` for running the script test suite locally (`bats tests/`).
-
-#### Minimum Claude Code version per component
-
-| Component | Minimum CC version | Behavior on older versions |
-|---|---|---|
-| Conditional hooks (`if:` field in `hooks/hooks.json`) | **2.1.85** | `if:` ignored — hooks fire on every matched call (noisy but functional) |
-| Skill `effort` field | **2.1.85** | Field ignored — inherits session effort |
-| Skill description cap raised to 1,536 chars | **2.1.105** | Older sessions truncate at 250 chars (some Epic descriptions get cut) |
-| `SessionStart(compact)` hook (context recovery) | **2.1.105** | No automatic restore after compactions; drafts still work |
-| Plugin `bin/` executables on PATH | **2.1.91** | `epic-validate`/`epic-xref`/`epic-archive` not exposed; call scripts directly |
-| Output style `keep-coding-instructions: true` | **2.1.94** | Activating `/output-style epic` may override skill directives |
-| `disableSkillShellExecution` setting honored | **2.1.91** | Inline `!` shell blocks always execute (not blockable by managed policy) |
 
 ---
 

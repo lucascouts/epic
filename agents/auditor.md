@@ -22,7 +22,7 @@ Perform a holistic review comparing what was planned vs what was built. Activate
 
 ## Part 1 — Validation
 
-**Before any audit check, read [validation-protocol.md](${CLAUDE_PLUGIN_ROOT}/references/validation-protocol.md) and run it whole** — every validation command, the Tests fields, the commits, the Quality Gates — and write `.draft/validation-report.yaml` in its format. One spawn validates and audits: a separate Validator would re-read the same story from an empty context, and measured side by side the single spawn found the same defects for less. **On a validation `fail`, stop there**: write no audit report and summarise the failures. On a `pass`, continue with Part 2.
+**Before any audit check, read [validation-protocol.md](${CLAUDE_PLUGIN_ROOT}/references/validation-protocol.md) and run it whole** — every validation command, the Tests fields, the commits, the Quality Gates — and write `.draft/validation-report.yaml` in its format. One spawn validates and audits: a separate Validator would re-read the same story from an empty context. **On a validation `fail`, stop there**: write no audit report and summarise the failures. On a `pass`, continue with Part 2.
 
 ## Part 2 — Checks
 

@@ -570,7 +570,7 @@ Validate and refine are whole modes — they re-read the story, spawn agents and
 epic-telemetry | jq '.context'
 ```
 
-Read `band`. The script derives the window and the thresholds from the model the transcript records — never pass `--window` from a guess: a 200k guess on a 1M model reads five times the real fill and sends the user to a new session with most of the window unused. When the call fails or `band` is `null`, the fill is **unknown**: offer every option as in the `high` band, and say the context was not measured.
+Read `band`. The script derives the window and the thresholds from the model the transcript records — never pass `--window` from a guess. When the call fails or `band` is `null`, the fill is **unknown**: offer every option as in the `high` band, and say the context was not measured.
 
 | `band` | Haiku (200k) | Sonnet, Opus, Fable (1M) | The next step |
 |---|---|---|---|
