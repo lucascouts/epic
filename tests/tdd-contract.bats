@@ -64,3 +64,9 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has agents/auditor.md 'regression test does not reproduce the defect'
   has references/validate-mode.md 'the guard must bite'
 }
+
+@test "T7: three failures of the same command end the sub-task as failed, inline route included" {
+  has agents/executor.md 'three failures of the same command end the sub-task'
+  has agents/executor.md '--status failed'
+  has references/run-mode.md 'failing three times ends the sub-task'
+}

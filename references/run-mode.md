@@ -136,7 +136,7 @@ The two routes below — inline and delegated — apply this ordering; Standard/
 
 ### Inline Route — Main Agent
 
-The main agent executes directly but MUST follow the same step sequence as the Executor. No step may be skipped. If a Context field exists, context MUST be gathered before implementation.
+The main agent executes directly but MUST follow the same step sequence as the Executor. No step may be skipped. The Executor's breaker holds here too: the same command failing three times ends the sub-task as failed, with the shared error as its reason. If a Context field exists, context MUST be gathered before implementation.
 
 **Tech review applies on this route too.** It is an orchestrator step, not an Executor step, so "the same step sequence" does not carry it: after the sub-task's validation passes and before the box is closed, run the Delegated Route's step 5 — spawn Tech Reviewers when the Complexity table in Execution Threshold calls for one. A closed spec that crosses a technology boundary is exactly where a generalist implementer misses what the reviewer catches, and routing it inline must not also drop its review.
 
