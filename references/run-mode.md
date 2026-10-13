@@ -496,7 +496,18 @@ When a sub-task has a pre-authored failing test, the orchestrator also passes th
 
 ### Deviation Register
 
-The orchestrator maintains a deviation register across task execution:
+The orchestrator maintains a deviation register across task execution — **written only through `epic-deviation`**, never by an `Edit`, a heredoc or an inline script. The script owns the format, gives each entry a stable `id`, and writes atomically under a lock:
+
+```bash
+epic-deviation add deviation --story <dir> --task 2.1 --component "…" --design "…" --actual "…" --reason "…" --impact "…" [--test-surface-adjusted] [--follow-up "<what is owed>"]
+epic-deviation add discovery --story <dir> --task 5.3 --tech "…" --finding "…"
+epic-deviation list --story <dir> [--open]           # JSON; --open = entries with follow_up: true
+epic-deviation discharge --story <dir> --id 3 --evidence "<what paid it>"
+epic-deviation amend --story <dir> --id 3 --impact "…"   # correct a field
+```
+
+A register it cannot read — a multi-line value, a nested mapping someone wrote by hand — is refused with the line number; fix that line, never rewrite the file around it. The file looks like this:
+
 
 ```yaml
 # .epic/stories/<name>/.draft/deviations.yaml

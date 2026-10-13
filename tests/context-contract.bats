@@ -33,3 +33,10 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has scripts/story-telemetry.sh 'CLAUDE_CODE_DISABLE_1M_CONTEXT'
   has scripts/story-telemetry.sh 'e: 400000'
 }
+
+@test "X3: the deviation register is written only through epic-deviation" {
+  has references/run-mode.md 'written only through `epic-deviation`'
+  has references/run-mode.md 'epic-deviation discharge'
+  has references/validate-mode.md 'epic-deviation'
+  has references/refine-mode.md 'epic-deviation add deviation'
+}
