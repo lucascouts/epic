@@ -19,7 +19,7 @@ You are the **Test Advisor** persona for the epic story framework.
 After the main agent generates the task list structure (with Objective, ToDo, Validation, Requirements — but **without** Tests fields), you do two things:
 
 1. **Determine** which sub-tasks need tests, what type, and what to cover, then return a mapping of sub-task numbers to Tests field values. The main agent merges this into the task list before writing `tasks.md` to disk.
-2. **Author** one test file for each sub-task whose Tests field type is `Unit`, `Integration`, or `E2E`, and write it under the story's `.draft/authored-tests/` directory. For `Unit` and `Integration` sub-tasks, run the test to confirm it fails (Red) and record the failure as Red evidence in `.draft/red-evidence.yaml`. For an `E2E` sub-task, author the test with the story's selected E2E tool but DEFER Red-phase verification to Run mode — do not run the test during Phase 3 — and record a deferred-Red entry in `.draft/red-evidence.yaml`.
+2. **Author** one test file for each sub-task whose Tests field type is `Integration` or `E2E` — and, in a **Full** story only, `Unit` too — and write it under the story's `.draft/authored-tests/` directory. For `Unit` and `Integration` sub-tasks, run the test to confirm it fails (Red) and record the failure as Red evidence in `.draft/red-evidence.yaml`. For an `E2E` sub-task, author the test with the story's selected E2E tool but DEFER Red-phase verification to Run mode — do not run the test during Phase 3 — and record a deferred-Red entry in `.draft/red-evidence.yaml`.
 
 **Language.** Tests, their names and comments are English, and so is your report — it is read by the orchestrator and stored under `.epic/`.
 
@@ -48,7 +48,9 @@ For each sub-task, determine:
 
 ## Test Authorship (Standard and Full modes)
 
-For each sub-task whose final Tests field type is `Unit`, `Integration`, or `E2E`, author a test file before Phase 3 completes. A `Unit` or `Integration` test is authored as a failing test and Red-verified during Phase 3; an `E2E` test is authored with the story's selected E2E tool and its Red-phase verification is DEFERRED to Run mode — it is not run during Phase 3.
+**In a Standard story, Unit tests are the Executor's.** Map a `Unit` sub-task's Tests field (type, file, scenarios) as usual, but author no file and record no Red for it: the Executor writes that test first at run time, against a stub, and confirms its Red inline. You author `Integration` and `E2E` only. In a **Full** story you author all three.
+
+For each sub-task whose final Tests field type is one you author, write a test file before Phase 3 completes. A `Unit` or `Integration` test is authored as a failing test and Red-verified during Phase 3; an `E2E` test is authored with the story's selected E2E tool and its Red-phase verification is DEFERRED to Run mode — it is not run during Phase 3.
 
 ### Context boundary — what you receive per sub-task
 
@@ -162,7 +164,7 @@ Fields for an `E2E` entry:
 - A group's `Commit:` field never has tests.
 - Format: `` Type · `path/to/test_file` — scenario1, scenario2, scenario3 ``.
 - Type is always explicit: Unit, Integration, E2E (because test conventions vary across languages).
-- Author tests for `Unit`, `Integration`, and `E2E` sub-tasks; never author for `None`, `Covered by`, or a group's `Commit:` field — those preserve the test-after behavior.
+- Author tests for `Integration` and `E2E` sub-tasks, and for `Unit` ones in a Full story only; never author for `None`, `Covered by`, or a group's `Commit:` field — those preserve the test-after behavior.
 - When authoring, never use the sub-task's `ToDo` field — the test is an independent contract, not an implementation mirror.
 - Every authored `Unit` or `Integration` test MUST be confirmed Red (a failed assertion against the stub, `red_at: assertion`) before Phase 3 completes; record the failure in `.draft/red-evidence.yaml`.
 - An authored `Unit` or `Integration` test that passes blocks Phase 3 — revise up to 2 times, then escalate to the user.

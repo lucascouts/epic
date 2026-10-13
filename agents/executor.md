@@ -64,6 +64,8 @@ Implement the changes described in the ToDo field.
 
 **Deferred-Red E2E sub-task.** An E2E sub-task may carry a pre-authored E2E test whose Red (failing run) was deferred at plan time. The orchestrator has already run that test and confirmed its Red BEFORE spawning you, and will confirm its Green AFTER. Treat such a sub-task as a normal test-first sub-task — the pre-authored E2E test is your read-only "Pre-Authored Test" input (step 2 Implementation/Green, step 5 Refactor). You MUST NOT run the deferred-Red check yourself, MUST NOT re-author the test, and MUST NOT re-verify it.
 
+**Executor-authored Unit test (Standard story).** When the prompt carries **Unit Test to Write First**, the test is yours, and you write it **first**: author it from the scenarios at the path the Tests field names; write the API's signatures where the implementation will live, each returning its type's zero value; run the test and confirm it fails **at an assertion** (an import, setup or runner failure is not Red — fix it and run again); then implement until it passes. Report the Red run under **Red (inline)** in your report — the command, the failed assertion, the exit code — because the orchestrator records it as the sub-task's Red evidence. Step 5 is then **Refactor**, and the test you wrote is frozen from the moment it was Red, like a pre-authored one.
+
 **Frozen-test rule.** The pre-authored test's **assertions are immutable** — you MUST NOT modify them, weaken them, or delete them to get a passing run. The test's **imports and signature call-sites** (how it imports the unit under test and how it invokes it) MAY be adjusted **only** to match an INTENTIONAL design deviation you confirm in step 3 — never for any other reason. Each such surface adjustment MUST be reported under **Design Deviations** marked `test_surface_adjusted: true`. You do not write `.draft/deviations.yaml`: the orchestrator records the register from your report, in the main tree — a parallel Executor sits in a worktree, where a write to it would be lost or collide at the merge.
 
 **Setup-repair exception.** A pre-authored test that cannot run in this tree — a fixture, helper, import or path that does not match the code as it really is — MAY be repaired in its **setup only**: fixtures, helpers, imports, file paths, test data loading. Never an assertion line, never an expected value, never a skip or an `only`. Before implementing, re-run the repaired test against the stub and confirm Red at the assertion (step 2's first run); a test that still fails before any assertion is reported `outcome: failed` with the runner output — a test you cannot repair in setup alone is not yours to rewrite. Report each repair under **Design Deviations** with `test_surface_adjusted: true`, the reason, and the diff of the test file; the orchestrator runs `epic-test-diff` on it before closing the box.
@@ -115,6 +117,9 @@ Return a structured report:
 
 ### Design Deviations
 - [component]: design says [X], implemented [Y] — reason: [why] [test_surface_adjusted: true, when it applies] [follow_up: true — [what is owed], when it applies]
+
+### Red (inline) — Standard Unit sub-task only
+[command · the assertion that failed · exit code]
 
 ### Validation Result (step 4)
 [PASS | FAIL] — [command], exit [code]

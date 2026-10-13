@@ -47,3 +47,13 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has agents/test-advisor.md 'git worktree remove --force'
   has agents/test-advisor.md 'never create `\.draft/red-scratch/`'
 }
+
+@test "T5: in Standard, Unit tests are the Executor's, written first with inline Red; Full unchanged" {
+  has references/phase-execution.md 'who writes which test'
+  has agents/test-advisor.md 'in a standard story, unit tests are the executor'
+  has agents/executor.md 'executor-authored unit test'
+  has agents/executor.md 'red \(inline\)'
+  has references/run-mode.md 'unit test to write first'
+  has references/run-mode.md 'recorded_by: executor'
+  has agents/auditor.md 'recorded_by: executor'
+}
