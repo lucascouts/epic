@@ -60,3 +60,10 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/init-mode.md '\.claude/worktrees/'
   has references/init-mode.md '"baseRef": "head"'
 }
+
+@test "P6: the story list marks dormant drafts with both ways out and changes nothing" {
+  has references/list-mode.md '`dormant` \| `epic-doctor` reports'
+  has references/list-mode.md 'stories archive NNN --force'
+  has references/list-mode.md 'stories supersede NNN --by MMM'
+  has references/list-mode.md 'a dormant draft is shown, never touched'
+}

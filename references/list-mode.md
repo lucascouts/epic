@@ -24,7 +24,7 @@ Triggered by `/epic:epic stories`, `/epic:epic stories full`, or `/epic:epic sto
 5. Derive the story's computed condition from the census (see Status and Progress) — except for a `scale: spike` story, whose condition comes from its `## Verdict` plus one staleness pass for the whole listing (see Spike Lifecycle)
 6. For each story, ask `epic-integration --should-annotate <status> <story-count> <is-stories-full>` whether this story is annotated at all — exit 0 evaluates, exit 1 skips — and on exit 0 pipe `story-git-status.sh` into the same script's `--list` mode and append what it writes (see Integration Annotation). That one decision holds both gates: only `done`/`validated` stories are annotated, and more than 50 stories skips unless the command is `stories full`
 7. Refresh the managed index block opportunistically — `epic-index`; a non-zero exit warns and never blocks the listing (defined once, in [validate-mode.md](validate-mode.md#index-refresh))
-8. Run `epic-doctor --summary --stale-days <staleThresholdDays>` once, after the index refresh (so a stale `EPIC.md` it just fixed is not reported), and render the line it prints, if any, verbatim under the last story row. It prints nothing when the tree is healthy; `epic-doctor` without `--summary` gives every finding as JSON when the user asks what the line means. Read-only, never a gate
+8. Run `epic-doctor --stale-days <staleThresholdDays>` once, after the index refresh: mark its `dormant` stories in their rows (see Status and Progress), then render its summary — `epic-doctor --summary` prints the same findings as one line (so a stale `EPIC.md` it just fixed is not reported), and render the line it prints, if any, verbatim under the last story row. It prints nothing when the tree is healthy; `epic-doctor` without `--summary` gives every finding as JSON when the user asks what the line means. Read-only, never a gate
 
 ## Policy Notice
 
@@ -132,6 +132,9 @@ A computed condition is appended after a `·`. It is derived from the boxes at r
 | Condition | Rendered when | Rendered as |
 |---|---|---|
 | `done-except-external` | no `[ ]` remains and at least one box is `[~] (deferred: …)` | `done-except-external (N deferred)` |
+| `dormant` | `epic-doctor` reports the story as a dormant draft — no box at all, untouched for `staleThresholdDays` | `dormant (Nd) — archive: /epic:epic stories archive NNN --force · or supersede it: /epic:epic stories supersede NNN --by MMM` |
+
+**A dormant draft is shown, never touched.** The listing names the two ways out and changes nothing: whether a draft nobody started is abandoned or merely waiting is the user's call. Take the set from the `epic-doctor` JSON the listing already runs (step 8) — its `dormant` findings — rather than re-measuring ages here.
 
 So `in-progress · done-except-external (2 deferred)` reads: the file says `in-progress`, the boxes say nothing is open here and two items are still owed by an actor outside this repo. The pairing is the normal one — Run mode writes `done` only when no `[ ]` and no deferred box remains, so a story waiting on an external actor keeps `in-progress` until that work lands. The persisted enum has no value for "done except external"; that is deliberate, and the reason the condition is computed rather than stored.
 
