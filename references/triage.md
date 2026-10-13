@@ -4,10 +4,18 @@ Loaded by Create and by Instant before anything is written. Instant reads it wit
 
 ## Contents
 
+- [Constitution gate](#constitution-gate)
 - [Runtime dependency precheck (MANDATORY before Standard/Full triage)](#runtime-dependency-precheck-mandatory-before-standardfull-triage)
 - [Adaptive Modes](#adaptive-modes)
 - [Workflow Variants (Full mode, feature only)](#workflow-variants-full-mode-feature-only)
 - [Triage Protocol](#triage-protocol)
+
+## Constitution gate
+
+**Standard and Full need `.epic/constitution.md`** — its `## Defaults` answer the questions the requester is never asked, and its `## Quality` and `## Security floor` are the story's starting legend. Without it, both scales would ask what the project already decided, or decide it differently each run. So, before the precheck below:
+
+- **Missing, or without `## Defaults` and `## Quality`:** do not triage at Standard or Full. Interactively, say so in one line and offer `/epic:epic init --repair` now — one question, the run continues after it. **Headless:** run `init --repair` with every default, record it as an assumption, and continue.
+- **Fast and spike** are untouched: they read the constitution when it exists and carry on without it.
 
 ## Runtime dependency precheck (MANDATORY before Standard/Full triage)
 

@@ -66,3 +66,8 @@ The level ties three things together. Each row is the whole difference between l
 - The scale, the artifacts and the gates — a `product` Fast story is still `tasks.md` alone, an `experiment` Full story still has its design doc
 - The requester level and the register — the two levels are read and recorded independently
 - The Executor's six steps, the closing of a box, the commit — the level decides how much is planned, never how a planned box is done
+
+## Runtime provisioning
+
+**Only `project` and `product` provision a runtime** — install an interpreter, create a venv, build a container — and only as the constitution's `## Runtime` line says, with the user's yes for anything installed on the host. `experiment` and `tool` run on what the host already has: when the runtime the plan needs is missing or end-of-life, stop before the first sub-task and say exactly what to install and the command, rather than provisioning a whole environment for work nobody will maintain.
+

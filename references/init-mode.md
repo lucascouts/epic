@@ -15,7 +15,8 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 2a. **Check memory** — one `memory_status` call ([mcp-integration.md](mcp-integration.md#memory-mcp)). WHEN `ai-memory` answers and the nearest `.ai-memory.toml`, if any, has no `ignore_paths` entry covering `.epic/**`, add one line to the final report: `ai-memory detected — add ignore_paths = [".epic/**"] to .ai-memory.toml so its hooks do not capture the artifacts Epic versions`. Informative, never gating; a non-interactive run prints the same line and asks nothing
 3. **Interactive questionnaire** — ask questions in a single numbered block:
 
-   **For `.epic/constitution.md`:**
+   **For `.epic/constitution.md` — always written, mandatory for Standard and Full ([constitution.md](constitution.md)):**
+   - Runtime? [1] the host's (default for a `developer`) [2] a venv or language-local environment [3] a container (default for a `layperson`: the program never touches the system it runs on)
    - Testing philosophy? [1] TDD [2] Test-after (default) [3] Minimal
    - Hard constraints? (e.g., "no ORMs", "integration tests hit real DB")
    - Commit style? (auto-detect from git log if available)
@@ -36,7 +37,9 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
    - Context items whose signal the scan found (a `Dockerfile`, workflows, a database, an HTTP surface, a UI)? [1] include each detected (default) [2] ask per item
    - An always-tier item whose tool is not installed? [1] recommend the tool and record the item with that note (default) [2] leave the item out, with the reason on its line
 
-   Unanswered items take the default. Activating an item never installs a tool — the [preferred-tooling policy](preferred-tooling.md) applies.
+   Unanswered items take the default. Activating an item never installs a tool — the [preferred-tooling policy](preferred-tooling.md) applies. Each command is the one the host can run: check it with `command -v` and write the tool that is there; a missing one is written with `(recommended — not installed)` on its line.
+
+   **Security floor, Reversibility, Invariants:** written from the template every time — the floor from [quality-catalog.md](quality-catalog.md#the-security-floor--four-items-no-level-drops) with this host's commands, the reversibility rule as written, and `## Invariants` empty until the project has one.
 
 4. **Generate files** — create all requested files with sensible defaults based on scan
 4a. **Write the managed `CLAUDE.md` block** — `epic-claude-md write`, after the constitution exists, since the block is built from it ([The managed CLAUDE.md block](#the-managed-claudemd-block)). Interactively, when a `CLAUDE.md` already exists, say in one line that the block is appended at its end and nothing else in it changes, and ask once; headless, append it

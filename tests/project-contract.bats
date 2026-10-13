@@ -32,3 +32,16 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has agents/executor.md 'lookup-order.md'
   has references/mcp-integration.md 'part of the \[lookup order\]'
 }
+
+@test "P3: the constitution is mandatory, complete, host-derived; triage gates on it; provisioning from project up" {
+  has references/constitution.md '## security floor'
+  has references/constitution.md '## reversibility'
+  has references/constitution.md '## runtime'
+  has references/constitution.md '## invariants'
+  has references/constitution.md 'the constitution is mandatory'
+  has references/init-mode.md 'command -v'
+  has references/init-mode.md 'default for a `layperson`'
+  has references/triage.md '## constitution gate'
+  has references/triage.md 'init --repair'
+  has references/engineering-level.md 'only `project` and `product` provision a runtime'
+}
