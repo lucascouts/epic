@@ -1,6 +1,6 @@
 # Supervision — the relay between a run and an outside supervisor
 
-Loaded by Run mode at a group gate when `epic-inbox` printed something, and by anyone writing a supervisor. A supervisor is an agent in its own session, outside every workspace, that watches a run through what it leaves on disk and in memory, and says what it found. It never touches code, documents or `.epic/`. The plugin carries the relay; the supervisors live in their own repository.
+Loaded by Run mode at a group gate when `epic-inbox` printed something, and by anyone writing a supervisor. A supervisor is an agent in its own session, outside every workspace, that watches a run through what it leaves on disk and in memory, and says what it found. It never touches code, documents or `.epic/`. The plugin carries the relay; the supervisors live in their own repository, `epic-supervisor` — one `claude -p` session per mandate (`claims` first, then `layout`, `drift`, `stall`), read-only, on a cheap model, portable to any system that runs Claude Code and ai-memory.
 
 ## The channel
 
