@@ -57,3 +57,10 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/run-mode.md 'recorded_by: executor'
   has agents/auditor.md 'recorded_by: executor'
 }
+
+@test "T6: a bugfix story's regression test must fail on the commit before the fix" {
+  has agents/auditor.md 'the guard must bite'
+  has agents/auditor.md 'parent of the oldest commit'
+  has agents/auditor.md 'regression test does not reproduce the defect'
+  has references/validate-mode.md 'the guard must bite'
+}
