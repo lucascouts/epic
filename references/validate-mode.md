@@ -134,6 +134,9 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 >     claim: "validation exit 0"
 >     status: confirmed                   # confirmed | partial | unsupported
 >     evidence: "go test ./internal/parser → exit 0"
+> not_verified:                           # the loss annotation — mandatory, never omitted
+>   - what: "E2E checkout flow"
+>     why: "no E2E tool in this story (design.md: E2E tool: none)"
 > checks_run:                             # what was run for each check that found nothing
 >   - check: "Security"
 >     ran: "read src/auth/*.go; gosec ./... → 0 issues"
@@ -164,7 +167,7 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 2. Read tasks.md and take the checkbox census. A story is **complete** when **no `[ ]` remains**: it is **`done`** when every box is `[x]` or terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), and **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`. `done-except-external` is computed at read time, never written to a file. Only `[x]` sub-tasks have an implementation to validate — see [tasks.md](tasks.md#completion)
 3. Delete the stale `.draft/validation-report.yaml` and `.draft/audit-report.yaml`, then spawn **one** Auditor sub-agent (`run_in_background: false`) and wait for its completion. It runs the validation first — each task's validation command, tests and gates, per [validation-protocol.md](validation-protocol.md) — and writes `.draft/validation-report.yaml`; on a validation pass it goes on to compare the code against story + design, review the deviation register, and write `.draft/audit-report.yaml`. The spawn prompt is the two blocks below, validation first. When memory is available, it carries prior structural findings recalled with one `memory_query` — `audit OR scope-creep OR false-positive OR recurring`, `limit: 10` — as things to verify ([mcp-integration.md](mcp-integration.md#memory-mcp))
 4. Take the validation verdict from the file `.draft/validation-report.yaml`. On `verdict: fail` the audit file is absent by design — the run is a validation failure. On `verdict: pass`, take the audit verdict from the file `.draft/audit-report.yaml` the same way
-5. Present the combined results to the user, composed from the two files: the validation's `results[]` and `gates[]`, the audit's `gaps[]`, `unmet_gates[]`, `deviations_reviewed[]`, `scope_creep[]`, `missing_red[]` and `findings[]`
+5. Present the combined results to the user, composed from the two files: the validation's `results[]` and `gates[]`, the audit's `gaps[]`, `unmet_gates[]`, `deviations_reviewed[]`, `scope_creep[]`, `missing_red[]` and `findings[]` — and always its `not_verified[]`, as the last line, even on a pass
 5a. **On `verdict: fail-record`, fix the record yourself.** Apply each `record_issues[]` fix to `.draft/deviations.yaml` (rewrite the entry, or add the missing one), list every fix in `.draft/run-report.md` under `## Record fixes` and in the presented results, and treat the audit as `pass` from here on. No fix round, no task group, no second Auditor: the code passed, and only the register was wrong
 6. If gaps found, offer to create new tasks to address them — **bounded to two fix rounds**, see [Fix loop bound](#fix-loop-bound)
 7. Apply the status transition for this verdict — see Status Transition (`validated`)

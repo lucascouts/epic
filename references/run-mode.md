@@ -573,6 +573,8 @@ A run that ends without a failure finishes with these steps, in this order:
 
 A run that stops on a failure makes neither: its FAIL path already asks how to proceed.
 
+**Every closing names what was not verified — the loss annotation.** Success or failure, the closing message carries one `Not verified:` line: what this run did not check and why (no E2E tool, a sub-task closed `[~]`, a test that could not run here, a platform not exercised, a claim nobody re-ran). `Not verified: nothing — every validation, test and gate ran` is a valid line; an absent one is not. For a `layperson` requester it is one plain sentence after the closing lines, in their words — "I did not try it on a phone." A closing that reports only what passed reads as a claim that everything did.
+
 #### Measure the context window first
 
 Validate and refine are whole modes — they re-read the story, spawn agents and write reports — so whether they fit in **this** session depends on how full its context window already is. Measure it, never estimate it:

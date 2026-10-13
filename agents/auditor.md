@@ -92,6 +92,9 @@ claims:                                 # Executor-report claims your checks rel
     claim: "validation exit 0"
     status: confirmed                   # confirmed | partial | unsupported
     evidence: "go test ./internal/parser → exit 0"
+not_verified:                           # the loss annotation — mandatory, never omitted
+  - what: "E2E checkout flow"
+    why: "no E2E tool in this story (design.md: E2E tool: none)"
 checks_run:                             # what was run for each check that found nothing
   - check: "Security"
     ran: "read src/auth/*.go; gosec ./... → 0 issues"
@@ -102,7 +105,7 @@ findings:
     detail: "import left behind by the refactor"
 ```
 
-Every array is present even when empty (`gaps: []`): an absent key and an empty one are not the same claim, and only the empty one says *checked and clean*. `verdict` is `fail` when any gap, unmet gate or `missing_red` entry exists — the code or its tests fall short. It is **`fail-record`** when none of those exists but the record does not match the code: a deviation whose stated impact is wrong (`accurate: false`), or a deviation the code shows and the register never recorded — each one also listed in `record_issues[]` with the exact `fix`. It is `pass` otherwise. A wrong record never fails the code: the orchestrator applies the fixes itself. **Scope creep and checklist findings are advisory** — recorded and presented, never held against the run: a verdict of `fail` sends the story into a fix round, and a round spent removing code nobody proved was out of scope, or renaming a variable, is the loop the fix-round bound exists to stop. `missing_red`'s `kind` keeps the two absences apart: a test that exists but left no Red evidence is a different defect from a `Tests:` field with no test at all, and a single list would hide which of them you found.
+Every array is present even when empty (`gaps: []`): an absent key and an empty one are not the same claim, and only the empty one says *checked and clean*. `verdict` is `fail` when any gap, unmet gate or `missing_red` entry exists — the code or its tests fall short. It is **`fail-record`** when none of those exists but the record does not match the code: a deviation whose stated impact is wrong (`accurate: false`), or a deviation the code shows and the register never recorded — each one also listed in `record_issues[]` with the exact `fix`. It is `pass` otherwise. A wrong record never fails the code: the orchestrator applies the fixes itself. **`not_verified` is the loss annotation and is never empty by omission**: list every check, claim or requirement you could not settle and why — a tool absent, a test that cannot run here, check 11 with no anchored commit. When everything was checked, write `not_verified: []` and say so in `checks_run`. **Scope creep and checklist findings are advisory** — recorded and presented, never held against the run: a verdict of `fail` sends the story into a fix round, and a round spent removing code nobody proved was out of scope, or renaming a variable, is the loop the fix-round bound exists to stop. `missing_red`'s `kind` keeps the two absences apart: a test that exists but left no Red evidence is a different defect from a `Tests:` field with no test at all, and a single list would hide which of them you found.
 
 ## Report Format
 
@@ -110,6 +113,7 @@ Only now, with the file written, reply — and keep the reply to the verdict and
 
 - line 1: `verdict: <pass | fail | fail-record>`
 - one line per gap, unmet gate, `missing_red` entry and `record_issues` entry, citing the requirement, gate, sub-task or file
+- one line `not verified:` with each `not_verified` item, or `nothing`
 - one last line counting what stays in the file: `advisory: N findings, N scope-creep items, N claims not confirmed — see .draft/audit-report.yaml`
 - `All checks passed` when line 1 is `pass` and nothing else is owed
 

@@ -21,6 +21,13 @@ created: 2026-04-01
 
 Authentication errors (wrong credentials) are being retried 3 times with exponential backoff, wasting ~21 seconds before failing. Auth errors should fail immediately since retrying with the same credentials cannot succeed.
 
+## Report as Given
+
+- **Observed:** a login with a wrong password hangs about 20 seconds before the error appears
+- **Expected:** the error appears at once
+- **Reporter's diagnosis:** "the retry logic retries everything" — unverified
+- **Proposed fix:** none given
+
 ## Reproduction Steps
 
 1. Configure a flow with incorrect portal credentials

@@ -19,6 +19,15 @@ created: <date>
 
 [1-2 sentences: what is broken, where, and impact.]
 
+## Report as Given
+
+Kept apart, because only the first is a fact. The reporter's diagnosis and fix are hypotheses Phase 2 confirms or rejects; they never become Current Behavior or a requirement on their own.
+
+- **Observed:** [what the reporter saw happen, in their words — the symptom only]
+- **Expected:** [what they expected instead]
+- **Reporter's diagnosis:** [their theory of the cause, or "none given" — unverified]
+- **Proposed fix:** [the change they suggest, or "none given" — unverified]
+
 ## Reproduction Steps
 
 1. [Step 1: exact precondition or setup]
@@ -48,6 +57,8 @@ WHEN [adjacent feature trigger] THEN the system SHALL CONTINUE TO [existing corr
 ```
 
 ## Writing Guidelines
+
+0. **Report as Given separates fact from theory.** Current Behavior is written from **Observed** and the reproduction, never from the reporter's diagnosis. When the root cause is found in Phase 2, say whether it confirms or contradicts the diagnosis.
 
 1. **Unchanged Behavior is mandatory.** Minimum 2 items. This is the most valuable section — it forces you to think about what the fix might break.
 2. **Use EARS notation** in all three behavior sections. `SHALL` for expected, `SHALL CONTINUE TO` for unchanged.

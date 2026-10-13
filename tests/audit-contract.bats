@@ -45,3 +45,14 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/mcp-integration.md 'auto-assumptions'
   has skills/epic/SKILL.md 'under `--auto` the recommended step is taken'
 }
+
+@test "A4: loss annotation in the audit and in every closing; bugfix intake keeps diagnosis apart from observation" {
+  has agents/auditor.md 'not_verified'
+  has agents/auditor.md 'never empty by omission'
+  has references/validate-mode.md 'always its `not_verified\[\]`'
+  has references/run-mode.md 'the loss annotation'
+  has references/run-mode.md 'not verified:'
+  has references/bugfix.md "reporter's diagnosis"
+  has references/bugfix.md 'proposed fix'
+  has references/triage.md 'split the report into four'
+}
