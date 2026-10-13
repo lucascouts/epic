@@ -55,7 +55,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 
 ## The managed CLAUDE.md block
 
-`epic-claude-md` owns one block at the end of the project's `CLAUDE.md`, between `<!-- epic:start … -->` and `<!-- epic:end -->`, and never a byte outside it. It is the part of the project's rules every session needs before reading anything else: where the constitution is, the docs the scan found, the order to look things up in, the constitution's `## Quality` commands as "before committing", the code rules, the constitution's `## Invariants`, and where the living examples are — under 100 lines, every section left out when it has no source.
+`epic-claude-md` owns one block at the end of the project's `CLAUDE.md`, between `<!-- epic:start … -->` and `<!-- epic:end -->`, and never a byte outside it. It is the part of the project's rules every session needs before reading anything else: where the constitution is, the docs the scan found, the order to look things up in ([lookup-order.md](lookup-order.md)), the constitution's `## Quality` commands as "before committing", the code rules, the constitution's `## Invariants`, and where the living examples are — under 100 lines, every section left out when it has no source.
 
 - **No `CLAUDE.md`:** the file is created with the block only. The built-in `/init` can still be run later; it writes above the block.
 - **An `AGENTS.md`:** one `@AGENTS.md` line goes before the block, once, so both are read.

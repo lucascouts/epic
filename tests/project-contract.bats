@@ -23,3 +23,12 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/init-mode.md '## repair \(`init --repair`\)'
   has scripts/doctor.sh 'claude-md.sh" check'
 }
+
+@test "P2: one lookup order, in the reference, the managed block and the Executor" {
+  has references/lookup-order.md 'memory, as a pointer'
+  has references/lookup-order.md 'issue tracker'
+  has references/lookup-order.md 'the web\*\*, last'
+  has scripts/claude-md.sh 'Where to look, in order'
+  has agents/executor.md 'lookup-order.md'
+  has references/mcp-integration.md 'part of the \[lookup order\]'
+}
