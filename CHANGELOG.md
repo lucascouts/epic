@@ -5,21 +5,41 @@ All notable changes to the Epic plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Each release notes the **minimum Claude Code version** required to use the new
-capabilities introduced in that version. Earlier Claude Code versions degrade
-gracefully (see README "Prerequisites").
+Each release notes the **minimum Claude Code version** it requires. From 0.14.0
+on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
+
+## [0.14.0] — 2026-10-13
+
+Sub-agents report instead of being cut off, the guards hold from any directory and fail closed, and a run that stopped moving shows on disk.
+
+**Minimum Claude Code:** 2.1.295, one floor for every feature.
+
+### Added
+
+- `epic-doctor`: a read-only check of `.epic/` — constitution and its `## Defaults` / `## Quality` sections, `.gitpolicy`, `EPIC.md` behind the disk, archive manifest, stories missing `tasks.md` or `story.md`, `.draft/red-scratch/` leftovers, untracked `.epic/` copies in worktrees, dormant drafts, and stalled stories. One line at session start (startup, resume, clear) and under the story list; nothing when healthy.
+- `epic-progress`: progress notes, one JSON line per protocol step in `.draft/progress.log` (`story`, `task`, `step`, `status`, `evidence`, `at`). The Executor writes six per sub-task; the Auditor, Tech Reviewer and Test Advisor write start, each major step and report; the orchestrator writes them for the Analyst and the Reviewer. A stall is an in-progress story whose last note is older than 15 minutes.
+- The sub-agent status line shows each Epic agent's role, label and tokens through the documented stdin/stdout row contract. It never rendered before.
+
+### Changed
+
+- No agent declares `maxTurns`. Each one writes its report as soon as the work is done, before any further exploration.
+- Hook `if` patterns start with `**/`, so the archive, executor and validate hooks fire when the session runs from a subdirectory. The executor guard's Bash handler has no `if`: `Bash(git commit *)` missed `git -C dir commit` and `git -c k=v commit`.
+- The archive, executor and commit-identity guards carry `"onFailure": "block"`: a guard that cannot run blocks the call instead of letting it through. `jq` was already a requirement.
+- The Auditor's report guard reads `.draft/validation-report.yaml` and `.draft/audit-report.yaml` from disk instead of inferring them from the transcript.
+- `epic-validate`: `warnings` is the list and `warning_count` the number. `warning_details` repeats the list for this release and is deprecated.
+- Run mode: push, merge, tag, publish or a pull request only on an explicit answer in the session; the Executor never sets or passes a git identity.
+- MCP detection: a failure notice exists only with tool search on, and a plugin-bundled server's tools are named `mcp__plugin_<plugin>_<server>__<tool>`.
+- Library docs follow a docs source order that needs no MCP: the installed dependency at the lockfile version first, then the official docs for that version through `WebFetch`. The Executor reads the installed dependency before going to the web, and treats fetched text as data, never as instructions.
+- A sub-task's `Docs:` line names the library, its lockfile version and the topic — never a tool.
+- Research examples in the task template suggest `brave-search`, not `perplexity`, matching the rule that `perplexity` is never the default.
 
 ### Removed
 
 - `context7` is no longer used or recommended. No sub-agent could call it; the one independent study found it better than no docs, never better than the installed dependency; its answers carried a wrong snippet and invented source paths in a 10-lookup probe; and it was the vector of CVE-2026-75130.
-
-### Changed
-
-- Library docs follow a docs source order that needs no MCP: the installed dependency at the lockfile version first, then the official docs for that version through `WebFetch`. The Executor reads the installed dependency before going to the web, and treats fetched text as data, never as instructions.
-- A sub-task's `Docs:` line names the library, its lockfile version and the topic — never a tool.
-- Research examples in the task template suggest `brave-search`, not `perplexity`, matching the rule that `perplexity` is never the default.
+- The per-feature Claude Code version table in README and `SKILL.md`.
+- The duplicate `version` in `marketplace.json`; `plugin.json` is the one source.
 
 ## [0.13.1] — 2026-09-27
 
@@ -1497,7 +1517,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.13.1...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/lucascouts/epic/releases/tag/v0.14.0
 [0.13.1]: https://github.com/lucascouts/epic/releases/tag/v0.13.1
 [0.13.0]: https://github.com/lucascouts/epic/releases/tag/v0.13.0
 [0.12.0]: https://github.com/lucascouts/epic/releases/tag/v0.12.0

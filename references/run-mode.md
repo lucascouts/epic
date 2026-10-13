@@ -375,6 +375,8 @@ Always executed by the main agent (not a sub-agent). Git operations require the 
 
 **Commit as the identity git already has — never supply one.** Check `git config user.email` once before the first commit. When it is empty, make **no** commit: the boxes stay closed, the changes stay uncommitted, and the closing message gives the user the two `git config user.name` / `user.email` commands and the pending commit messages. Never pass `-c user.name=…`, `-c user.email=…`, `--author` or `GIT_AUTHOR_*` / `GIT_COMMITTER_*`, and never run `git config user.*` with a value: a name inferred from the session puts someone's signature on a commit they never made. `hook-commit-identity-guard.sh` denies all of these.
 
+**Nothing leaves the machine without an explicit answer.** The commit is local and is the last git step a run takes by itself. Push, merge, tag, publish a release or open a pull request only when the user has answered yes to that action in this session — a plan, a `--auto` flag or an earlier yes to a different action is not that answer. Without one, the closing message names the command that would do it, and the run ends there.
+
 **When `.epic/` is untracked and no ignore rule covers it, leave it that way and say so in one line.** Do not add an ignore rule on the story's behalf: whether the artifacts belong in git is the workspace's policy to declare, and `scripts/epic-gitpolicy.sh` is what reports a workspace contradicting itself. Silently committing them decides that policy by accident.
 
 **The message is the pre-authored one, verbatim.** The `Commit:` message was written at plan time and carries the story's `type(NNN):` anchor — the one `validate-story.sh` lints for and `story-git-status.sh` counts back as `anchored_commits`. Rewording it at commit time spends that anchor, and the story's own commits stop being findable. The Executor never runs `git commit`: it reports, in its closing block, the pre-authored message it validated against, and the orchestrator is what executes it.
@@ -417,6 +419,7 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 > **Requirements:** [requirements field]
 > **Commit:** [the group's `Commit:` message, verbatim, when this sub-task is the group's last — your closing block reports it]
 > **Comment language:** [English only — or English plus <language> on the line below, when the user asked for it]
+> **Story directory:** [absolute path to .epic/stories/NNN-slug in the main tree — your progress notes go there, never into a worktree copy]
 >
 > ## Story Context
 >
@@ -567,7 +570,7 @@ Validate and refine are whole modes — they re-read the story, spawn agents and
 epic-telemetry | jq '.context'
 ```
 
-Read `band`. The script derives the window and the thresholds from the model the transcript records — never pass `--window` from a guess: a 200k guess on a 1M model reads five times the real fill and sends the user to a new session with most of the window unused. When the call fails or `band` is `null`, the fill is **unknown**: offer every option as in the `high` band, and say the context was not measured.
+Read `band`. The script derives the window and the thresholds from the model the transcript records — never pass `--window` from a guess. When the call fails or `band` is `null`, the fill is **unknown**: offer every option as in the `high` band, and say the context was not measured.
 
 | `band` | Haiku (200k) | Sonnet, Opus, Fable (1M) | The next step |
 |---|---|---|---|

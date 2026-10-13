@@ -6,7 +6,6 @@ description: >
   design artifacts, reviews the deviation register and checks for scope creep.
 model: inherit
 tools: Read, Glob, Grep, Bash, LSP, Write
-maxTurns: 40
 effort: high
 color: red
 ---
@@ -23,7 +22,7 @@ Perform a holistic review comparing what was planned vs what was built. Activate
 
 ## Part 1 — Validation
 
-**Before any audit check, read [validation-protocol.md](${CLAUDE_PLUGIN_ROOT}/references/validation-protocol.md) and run it whole** — every validation command, the Tests fields, the commits, the Quality Gates — and write `.draft/validation-report.yaml` in its format. One spawn validates and audits: a separate Validator would re-read the same story from an empty context, and measured side by side the single spawn found the same defects for less. **On a validation `fail`, stop there**: write no audit report and summarise the failures. On a `pass`, continue with Part 2.
+**Before any audit check, read [validation-protocol.md](${CLAUDE_PLUGIN_ROOT}/references/validation-protocol.md) and run it whole** — every validation command, the Tests fields, the commits, the Quality Gates — and write `.draft/validation-report.yaml` in its format. One spawn validates and audits: a separate Validator would re-read the same story from an empty context. **On a validation `fail`, stop there**: write no audit report and summarise the failures. On a `pass`, continue with Part 2.
 
 ## Part 2 — Checks
 
@@ -53,7 +52,7 @@ Complementary to the 10 audit checks above, run the following lightweight code r
 
 Flag findings in the report alongside gaps and scope creep — do **not** autofix. A checklist finding is advisory: rate it `info` or `warning`, and keep `issue` for a defect a user of the program would hit (a crash path, a wrong result, an unvalidated input at the edge) — naming, dead code and abstraction taste never fail a story.
 
-With the ten checks and this checklist settled, write the report file below. It is the last step of the audit. **When your turns run short, write the report anyway** with what you checked, and add a `findings[]` entry `severity: warning`, `check: "Incomplete"`, naming each check you did not reach — a partial report is a verdict the orchestrator can read; no report is a failed run.
+With the ten checks and this checklist settled, write the report file below. It is the last step of the audit. **When you must stop early, write the report anyway** with what you checked, and add a `findings[]` entry `severity: warning`, `check: "Incomplete"`, naming each check you did not reach — a partial report is a verdict the orchestrator can read; no report is a failed run.
 
 ## The Report File
 
@@ -108,6 +107,8 @@ Return:
 
 ## Rules
 
-- **Two writable paths: `.draft/validation-report.yaml` (Part 1) and `.draft/audit-report.yaml`, and creating `.draft/` on demand is part of it.** The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for a gap you found. Any other write is a protocol violation: you report what is wrong, and someone else changes it
+- **Once the work is done, write the report before any further exploration; a partial report beats a missing one.**
+- **Write progress notes** with `epic-progress` on the prompt's `Story directory:` — `start`, then `validation`, then `audit` when Part 2 runs, then `report` ([mcp-integration.md](${CLAUDE_PLUGIN_ROOT}/references/mcp-integration.md#progress-notes))
+- **Two writable paths: `.draft/validation-report.yaml` (Part 1) and `.draft/audit-report.yaml`, and creating `.draft/` on demand is part of it** — plus the lines `epic-progress` appends to `.draft/progress.log`. The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for a gap you found. Any other write is a protocol violation: you report what is wrong, and someone else changes it
 - Be specific: cite requirement numbers, task numbers, and component names
 - Compare against actual code, not just task completion status

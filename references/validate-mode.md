@@ -22,7 +22,7 @@ These personas are activated **after implementation**, not during story creation
 |---|---|---|---|
 | **Auditor** | Part 1: runs the validation commands, tests and gates ([validation-protocol.md](validation-protocol.md)). Part 2, on a pass: compares implemented code against story + design artifacts | validate mode | `auditor` |
 
-**One spawn validates and audits.** A separate Validator would re-read the same story from an empty context before the Auditor read it again; measured side by side, the single spawn found every planted defect the pair found, faster and for less.
+**One spawn validates and audits.** A second agent would re-read the same story from an empty context before the Auditor read it again.
 
 ## Validation — Part 1 of the Auditor's spawn prompt
 

@@ -248,7 +248,7 @@ done
 #
 # EMITTED AHEAD OF THAT MISMATCH BLOCK, deliberately: the disagreement is the
 # reason two values exist at all, so it is read before the consequence of the
-# resolved one. That fixes its position in `warning_details[]`.
+# resolved one. That fixes its position in `warnings[]`.
 #
 # THE ONLY PLACE design.md's declaration IS OBSERVABLE: it is compared
 # here like any other declaring artifact and never resolves, so a `design.md:
@@ -1573,7 +1573,7 @@ TOTAL_WARNINGS=${#WARNINGS[@]}
 echo "{"
 echo "  \"story\": \"$(json_escape "$STORY_DIR")\","
 echo "  \"errors\": $TOTAL_ERRORS,"
-echo "  \"warnings\": $TOTAL_WARNINGS,"
+echo "  \"warning_count\": $TOTAL_WARNINGS,"
 
 if [[ $TOTAL_ERRORS -gt 0 ]]; then
   echo "  \"error_details\": ["
@@ -1587,17 +1587,20 @@ else
   echo "  \"error_details\": [],"
 fi
 
+# `warnings` is the list and `warning_count` its length, as `errors` will be.
+# `warning_details` repeats the list for one release (deprecated in 0.14.0).
+WARNING_LIST="[]"
 if [[ $TOTAL_WARNINGS -gt 0 ]]; then
-  echo "  \"warning_details\": ["
+  WARNING_LIST="["
   for i in "${!WARNINGS[@]}"; do
     COMMA=","
     [[ $i -eq $((TOTAL_WARNINGS - 1)) ]] && COMMA=""
-    echo "    \"$(json_escape "${WARNINGS[$i]}")\"$COMMA"
+    WARNING_LIST+=$'\n'"    \"$(json_escape "${WARNINGS[$i]}")\"$COMMA"
   done
-  echo "  ],"
-else
-  echo "  \"warning_details\": [],"
+  WARNING_LIST+=$'\n'"  ]"
 fi
+echo "  \"warnings\": $WARNING_LIST,"
+echo "  \"warning_details\": $WARNING_LIST,"
 
 # In --strict mode, warnings count as failures for the status and exit code.
 if [[ "$STRICT" == true && $TOTAL_WARNINGS -gt 0 ]]; then

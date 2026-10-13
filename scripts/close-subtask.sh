@@ -1843,9 +1843,10 @@ fi
 unset _epic_script_dir
 
 # THE THREE FIELDS THE CONTRACT EMBEDS, and only these three: validate-story.sh
-# also reports `story`, `error_details`, `warning_details` and `strict`, and none
-# of them belongs here. `story` is this report's own first field; the two detail
-# arrays are the validator's output to read on its own, and copying them would
+# also reports `story`, `error_details`, the `warnings` list (and its deprecated
+# copy `warning_details`) and `strict`, and none of them belongs here; the count
+# is read from `warning_count` and embedded as `warnings`. `story` is this
+# report's own first field; the detail arrays are the validator's output to read on its own, and copying them would
 # make this object grow without bound with text nobody asked this script for.
 # `{errors, warnings, status}` is the summary the output contract names, and a
 # caller that wants the details runs the validator — this report tells it
@@ -1881,7 +1882,7 @@ VALIDATE_ERR=""     # why there is no verdict, for the human on stderr
 # `pass` and `fail` are what validate-story.sh:1149-1153 emits; the class
 # is wide enough that a third verdict word would not need a change here.
 VAL_ERRORS_RE='^[[:space:]]*"errors":[[:space:]]*([0-9]+)[[:space:]]*,?[[:space:]]*$'
-VAL_WARNINGS_RE='^[[:space:]]*"warnings":[[:space:]]*([0-9]+)[[:space:]]*,?[[:space:]]*$'
+VAL_WARNINGS_RE='^[[:space:]]*"warning_count":[[:space:]]*([0-9]+)[[:space:]]*,?[[:space:]]*$'
 VAL_STATUS_RE='^[[:space:]]*"status":[[:space:]]*"([A-Za-z][A-Za-z0-9_-]*)"[[:space:]]*,?[[:space:]]*$'
 
 # parse_validate_json <text> — fills the triple, or returns 1 having filled

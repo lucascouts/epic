@@ -2,7 +2,7 @@
 
 Design-level view of the Epic plugin for contributors and integrators. The [README](README.md) covers *what* Epic is and how to install it; this document covers *how the pieces fit together* and *why*.
 
-- Last verified against: **v0.13.1** (`.claude-plugin/plugin.json`)
+- Last verified against: **v0.14.0** (`.claude-plugin/plugin.json`)
 - If you only want to add a new story mode or tweak an agent prompt, jump to [Extension points](#extension-points).
 
 ---
@@ -111,7 +111,7 @@ Each `agents/*.md` also declares a reasoning `effort:`. The tier is a cost decis
 
 | Agent | Effort | Why |
 | --- | --- | --- |
-| `executor` | `high` | Writes the code. Measured against `max` on a large closed-spec sub-task: the same tests written and passing in 5 of 5 runs, at a quarter of the cost and a sixth of the wall clock. |
+| `executor` | `high` | Writes the code. `max` wrote the same passing tests on a large closed-spec sub-task for several times the cost and wall clock. |
 | `auditor` | `high` | Holds the semantic judgment the rest of the pipeline is priced against. Measured against `max` on fixtures with planted defects: every planted defect found in every arm, at about half the cost and wall clock. |
 | `reviewer` | `high` | Cross-artifact gaps are found by reasoning over three documents at once. |
 | `tech-reviewer` | `high` | Correctness at technology boundaries — the defect is precisely what a generalist would not think to look for. |
@@ -180,16 +180,18 @@ All files in a story share the same `version`. It's an integer, not semver; bump
 
 All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — so they fire on Claude's `.epic/**` writes even outside a `/epic:epic` session (another skill, a plain `Write`). A skill-frontmatter hook would start only once the skill is invoked, and then stay active for the rest of the session. Tool hooks never see edits made in an external editor. Each uses an `if:` filter or matcher to stay cheap when Epic is idle.
 
-| Event | Matcher / if-filter | Script | Purpose | Min CC |
-|---|---|---|---|---|
-| `PostToolUse` | `Write(.epic/**)` | `hook-validate.sh` | Auto-run `validate-story.sh` on every story-artifact write | 2.1.85 |
-| `PreToolUse` | `Edit(.epic/archive/**)` · `Write(.epic/archive/**)` | `hook-archive-guard.sh` | Block mutations to archived stories | 2.1.85 |
-| `PreToolUse` | `Bash(git commit *)` · `Edit`/`Write` of `.epic/stories/**/tasks.md` | `hook-executor-guard.sh` | Inside the Executor (`agent_type`), deny `git commit` and edits to `tasks.md` | 2.1.85 |
-| `SubagentStop` | `epic:auditor` | `hook-report-guard.sh` | Keep the agent running until it has written its report file | 2.1.69 |
-| `SessionStart` | `compact` | `hook-session-restore.sh` | After a compaction, render the active story's state from disk into context | 2.1.105 |
-| `SessionStart` | `clear` | `hook-orphan-drafts.sh` | After `/clear`, list drafts untouched for 30+ days, one removal line each; deletes nothing | 2.1.85 |
+| Event | Matcher / if-filter | Script | Purpose |
+|---|---|---|---|
+| `PostToolUse` | `Write(**/.epic/**)` | `hook-validate.sh` | Auto-run `validate-story.sh` on every story-artifact write |
+| `PreToolUse` | `Edit(**/.epic/archive/**)` · `Write(**/.epic/archive/**)` | `hook-archive-guard.sh` | Block mutations to archived stories |
+| `PreToolUse` | `Bash` (no filter) · `Edit`/`Write` of `**/.epic/stories/**/tasks.md` | `hook-executor-guard.sh` | Inside the Executor (`agent_type`), deny `git commit` and edits to `tasks.md` |
+| `PreToolUse` | `Bash` (no filter) | `hook-commit-identity-guard.sh` | Deny a commit that supplies its own identity, and any `git config user.*` write |
+| `SubagentStop` | `epic:auditor` | `hook-report-guard.sh` | Keep the agent running until its report file is on disk |
+| `SessionStart` | `compact` | `hook-session-restore.sh` | After a compaction, render the active story's state from disk into context |
+| `SessionStart` | `clear` | `hook-orphan-drafts.sh` | After `/clear`, list drafts untouched for 30+ days, one removal line each; deletes nothing |
+| `SessionStart` | `startup\|resume\|clear` | `doctor.sh --summary` | One line naming what is wrong with `.epic/`, nothing when healthy; read-only |
 
-Degradation on older CC versions is documented in [README.md#minimum-claude-code-version-per-component](README.md#minimum-claude-code-version-per-component).
+`if` patterns start with `**/` because a pattern is matched against the working directory: `Edit(.epic/**)` misses every call made from a subdirectory. The `PreToolUse` guards carry `"onFailure": "block"`, so a guard that cannot run blocks the call instead of letting it through. Minimum Claude Code: 2.1.295 for the whole plugin.
 
 ---
 

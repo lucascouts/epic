@@ -75,33 +75,83 @@ guard() { bash "$PLUGIN_ROOT/scripts/hook-executor-guard.sh"; }
   [ -z "$output" ]
 }
 
+# --- hooks.json shape and guards from a subdirectory (cwd-relative `if`) ---
+
+@test "hooks.json: every if pattern is rooted with **/, guards fail closed, the Bash guards have no if" {
+  H="$PLUGIN_ROOT/hooks/hooks.json"
+  jq -e '.description | type == "string" and length > 0' "$H"
+  jq -e '[.. | objects | .if? // empty] | length > 0 and all(test("^[A-Za-z]+\\(\\*\\*/"))' "$H"
+  jq -e '[.hooks.PreToolUse[].hooks[]] | all(.onFailure == "block")' "$H"
+  jq -e '[.hooks.PreToolUse[] | select(.matcher == "Bash") | .hooks[] | has("if")] | all(. == false)' "$H"
+  if command grep -q MultiEdit "$PLUGIN_ROOT/scripts/hook-executor-guard.sh"; then echo "dead MultiEdit branch is back"; return 1; fi
+}
+
+@test "guards hold when the session cwd is a subdirectory of the project" {
+  mkdir -p "$WORK/src/deep" "$WORK/.epic/archive/001-old"
+  cd "$WORK/src/deep"
+  run bash -c "jq -n --arg f '$WORK/.epic/archive/001-old/story.md' '{tool_name:\"Edit\",tool_input:{file_path:\$f}}' | bash '$PLUGIN_ROOT/scripts/hook-archive-guard.sh'"
+  [ "$status" -eq 2 ]
+  run bash -c "jq -n --arg f '../../.epic/stories/001-x/tasks.md' '{agent_type:\"epic:executor\",tool_name:\"Write\",tool_input:{file_path:\$f}}' | bash '$PLUGIN_ROOT/scripts/hook-executor-guard.sh'"
+  echo "$output" | jq -e '.hookSpecificOutput.permissionDecision == "deny"'
+  for c in 'git -C ../.. commit -m x' 'git -c core.hooksPath=/dev/null commit -m x' 'cd ../.. && git commit -m x'; do
+    run bash -c "jq -n --arg c '$c' '{agent_type:\"epic:executor\",tool_name:\"Bash\",tool_input:{command:\$c}}' | bash '$PLUGIN_ROOT/scripts/hook-executor-guard.sh'"
+    echo "$output" | jq -e '.hookSpecificOutput.permissionDecision == "deny"'
+  done
+  run bash -c "jq -n '{tool_name:\"Bash\",tool_input:{command:\"cd ../.. && git -c user.email=a@b commit -m x\"}}' | bash '$PLUGIN_ROOT/scripts/hook-commit-identity-guard.sh'"
+  echo "$output" | jq -e '.hookSpecificOutput.permissionDecision == "deny"'
+}
+
 # --- Report guard (SubagentStop) ---
 
-report_guard() { bash "$PLUGIN_ROOT/scripts/hook-report-guard.sh"; }
+# The transcript carries only the spawn prompt; the verdict comes from disk.
+spawn_transcript() {  # <file> <story-dir line> [project-root line]
+  jq -cn --arg s "$2" --arg r "${3:-}" '{type:"user",message:{role:"user",content:[{type:"text",text:("> Validate the implementation of these completed tasks.\n>\n> Story directory: " + $s + "\n" + (if $r == "" then "" else "> Project root: " + $r + "\n" end))}]}}' > "$1"
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}' >> "$1"
+}
+report_guard() {  # <transcript> [stop_hook_active]
+  jq -n --arg t "$1" --arg c "$WORK" --argjson a "${2:-false}" '{agent_type:"epic:auditor",stop_hook_active:$a,agent_transcript_path:$t,cwd:$c}' \
+    | bash "$PLUGIN_ROOT/scripts/hook-report-guard.sh"
+}
+D() { printf '%s' "$WORK/.epic/stories/001-old/.draft"; }
 
-@test "report guard blocks an Auditor stop when no report was written — the validation one first" {
-  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}' > "$WORK/t.jsonl"
-  run bash -c "$(declare -f report_guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n --arg t '$WORK/t.jsonl' '{agent_type:\"epic:auditor\",stop_hook_active:false,agent_transcript_path:\$t}' | report_guard"
+@test "report guard blocks an Auditor stop when no report is on disk — the validation one first" {
+  spawn_transcript "$WORK/t.jsonl" "$WORK/.epic/stories/001-old"
+  run report_guard "$WORK/t.jsonl"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.decision == "block" and (.reason | test("validation-report.yaml"))'
 }
 
-@test "report guard lets the stop through once the report is written, or on a second attempt" {
-  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/w/.epic/stories/001-x/.draft/audit-report.yaml"}}]}}' > "$WORK/t.jsonl"
-  run bash -c "$(declare -f report_guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n --arg t '$WORK/t.jsonl' '{agent_type:\"epic:auditor\",stop_hook_active:false,agent_transcript_path:\$t}' | report_guard"
-  [ -z "$output" ]
-  printf '%s\n' '{"type":"assistant","message":{"content":[]}}' > "$WORK/t2.jsonl"
-  run bash -c "$(declare -f report_guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n --arg t '$WORK/t2.jsonl' '{agent_type:\"epic:auditor\",stop_hook_active:true,agent_transcript_path:\$t}' | report_guard"
+@test "report guard reads the disk, not the transcript: a Write the transcript shows proves nothing" {
+  spawn_transcript "$WORK/t.jsonl" ".epic/stories/001-old"
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/w/.epic/stories/001-old/.draft/audit-report.yaml"}}]}}' >> "$WORK/t.jsonl"
+  run report_guard "$WORK/t.jsonl"
+  echo "$output" | jq -e '.decision == "block"'
+  printf 'story: "001-old"\nverdict: pass\n' > "$(D)/audit-report.yaml"
+  run report_guard "$WORK/t.jsonl"
+  [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
 
-@test "report guard: a validation fail ends the spawn, a validation pass still owes the audit" {
-  # One Auditor spawn validates, then audits only on a pass.
-  w() { jq -cn --arg c "$1" '{type:"assistant",message:{content:[{type:"tool_use",name:"Write",input:{file_path:"/w/.epic/stories/001-x/.draft/validation-report.yaml",content:$c}}]}}'; }
-  w $'story: "001-x"\nverdict: fail' > "$WORK/f.jsonl"
-  run bash -c "$(declare -f report_guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n --arg t '$WORK/f.jsonl' '{agent_type:\"epic:auditor\",stop_hook_active:false,agent_transcript_path:\$t}' | report_guard"
+@test "report guard: a validation fail on disk ends the spawn, a validation pass still owes the audit" {
+  spawn_transcript "$WORK/t.jsonl" "\`.epic/stories/001-old\`" "$WORK"
+  printf 'story: "001-old"\nverdict: fail\n' > "$(D)/validation-report.yaml"
+  run report_guard "$WORK/t.jsonl"
   [ -z "$output" ]
-  w $'story: "001-x"\nverdict: pass' > "$WORK/p.jsonl"
-  run bash -c "$(declare -f report_guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n --arg t '$WORK/p.jsonl' '{agent_type:\"epic:auditor\",stop_hook_active:false,agent_transcript_path:\$t}' | report_guard"
+  printf 'story: "001-old"\nverdict: pass\n' > "$(D)/validation-report.yaml"
+  run report_guard "$WORK/t.jsonl"
   echo "$output" | jq -e '.decision == "block" and (.reason | test("audit-report.yaml"))'
+}
+
+@test "report guard fails open: second stop attempt, no story directory, another agent, empty file is not a report" {
+  spawn_transcript "$WORK/t.jsonl" "$WORK/.epic/stories/001-old"
+  run report_guard "$WORK/t.jsonl" true
+  [ -z "$output" ]
+  printf '%s\n' '{"type":"user","message":{"role":"user","content":"validate it"}}' > "$WORK/n.jsonl"
+  run report_guard "$WORK/n.jsonl"
+  [ -z "$output" ]
+  run bash -c "jq -n '{agent_type:\"epic:executor\",stop_hook_active:false}' | bash '$PLUGIN_ROOT/scripts/hook-report-guard.sh'"
+  [ -z "$output" ]
+  : > "$(D)/audit-report.yaml"
+  run report_guard "$WORK/t.jsonl"
+  echo "$output" | jq -e '.decision == "block"'
 }

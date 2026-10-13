@@ -40,7 +40,7 @@ approved: 2026-04-01
 project-hash: <short SHA of HEAD at approval time>
 requester:                  # read at triage, re-read from Clarify answers
   level: layperson          # layperson | developer
-  persona: "beginner, informal, has never opened a terminal. Read from: 'the black window'"
+  persona: "beginner, informal, has never opened a terminal. Read from: describes an outcome and not a mechanism"
   always:
     - explain by example, one per new concept
   never:

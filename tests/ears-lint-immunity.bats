@@ -70,8 +70,13 @@ EOF
 {
   "story": "story",
   "errors": 0,
-  "warnings": 3,
+  "warning_count": 3,
   "error_details": [],
+  "warnings": [
+    "declared scale 'fast' (in tasks.md) contradicts the files present: a 'fast' story is tasks-only, but story.md is present — remove story.md, or declare the scale the files actually describe",
+    "No metadata lines found (expected _Complexity: ... | Tests: ... | ..._) on parent tasks",
+    "No Commit fields or Commit sub-tasks found — every task group should have a commit point"
+  ],
   "warning_details": [
     "declared scale 'fast' (in tasks.md) contradicts the files present: a 'fast' story is tasks-only, but story.md is present — remove story.md, or declare the scale the files actually describe",
     "No metadata lines found (expected _Complexity: ... | Tests: ... | ..._) on parent tasks",
@@ -115,8 +120,13 @@ EOF
 {
   "story": "story",
   "errors": 0,
-  "warnings": 3,
+  "warning_count": 3,
   "error_details": [],
+  "warnings": [
+    "tasks.md is missing 'Quality Gates' section",
+    "No metadata lines found (expected _Complexity: ... | Tests: ... | ..._) on parent tasks",
+    "No Commit fields or Commit sub-tasks found — every task group should have a commit point"
+  ],
   "warning_details": [
     "tasks.md is missing 'Quality Gates' section",
     "No metadata lines found (expected _Complexity: ... | Tests: ... | ..._) on parent tasks",
@@ -177,8 +187,12 @@ EOF
 {
   "story": "story",
   "errors": 0,
-  "warnings": 2,
+  "warning_count": 2,
   "error_details": [],
+  "warnings": [
+    "No metadata lines found (expected _Complexity: ... | Tests: ... | ..._) on parent tasks",
+    "No Commit fields or Commit sub-tasks found — every task group should have a commit point"
+  ],
   "warning_details": [
     "No metadata lines found (expected _Complexity: ... | Tests: ... | ..._) on parent tasks",
     "No Commit fields or Commit sub-tasks found — every task group should have a commit point"
@@ -235,8 +249,12 @@ EOF
 {
   "story": "story",
   "errors": 0,
-  "warnings": 2,
+  "warning_count": 2,
   "error_details": [],
+  "warnings": [
+    "No metadata lines found (expected _Complexity: ... | Tests: ... | ..._) on parent tasks",
+    "No Commit fields or Commit sub-tasks found — every task group should have a commit point"
+  ],
   "warning_details": [
     "No metadata lines found (expected _Complexity: ... | Tests: ... | ..._) on parent tasks",
     "No Commit fields or Commit sub-tasks found — every task group should have a commit point"

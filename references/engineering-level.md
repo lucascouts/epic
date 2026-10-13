@@ -64,5 +64,5 @@ The level ties three things together. Each row is the whole difference between l
 ## What the level never changes
 
 - The scale, the artifacts and the gates — a `product` Fast story is still `tasks.md` alone, an `experiment` Full story still has its design doc
-- The requester level and the register — the two levels are read independently and recorded side by side
+- The requester level and the register — the two levels are read and recorded independently
 - The Executor's six steps, the closing of a box, the commit — the level decides how much is planned, never how a planned box is done

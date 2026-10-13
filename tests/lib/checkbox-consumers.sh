@@ -25,6 +25,7 @@ CHECKBOX_CONSUMERS=(
   archive-story.sh
   close-subtask.sh
   cross-reference.sh
+  doctor.sh
   epic-index.sh
   hook-session-restore.sh
   migrate-story.sh

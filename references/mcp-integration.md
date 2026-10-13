@@ -36,9 +36,9 @@ For any library, framework or SDK API, stop at the first source that answers:
 
 ## Health check procedure
 
-Before suggesting any MCP during triage, check that it is connected — without calling it. Claude Code already reports this: a connected server's tools are in your tool list (directly or as deferred tools), and a server that failed to connect is named in a failure notice with its error.
+Before suggesting any MCP during triage, check that it is connected — without calling it. Claude Code already reports this: a connected server's tools are in your tool list (directly or as deferred tools) — named `mcp__<server>__<tool>`, or `mcp__plugin_<plugin>_<server>__<tool>` when a plugin bundles the server, so match the server name in both forms. With tool search on (the default), a server that failed to connect is also named in a failure notice with its error; without tool search (a custom `ANTHROPIC_BASE_URL`, `ENABLE_TOOL_SEARCH=false`) no notice comes, and the tool list is the only signal.
 
-1. A candidate is **available** when its tools are in the tool list and no failure notice names it. Make no probe call: a probe spends a metered query, may raise a permission prompt, and teaches nothing the tool list does not.
+1. A candidate is **available** when its tools are in the tool list and no failure notice names it — the absence of a notice proves nothing on its own, since a configuration without tool search sends none. Make no probe call: a probe spends a metered query, may raise a permission prompt, and teaches nothing the tool list does not.
 2. If it is **not available**: do NOT suggest it. Drop to the next candidate in the priority list for the same category.
 3. A server can be connected and still fail on its first real call (an expired key, an exhausted quota). Treat that failure like an absent server: fall back as below, and do not retry it for the rest of the story.
 4. Categories:
@@ -53,7 +53,7 @@ If no research MCP is detected (empty category after health-check):
 1. Fall back to Claude Code's native `WebFetch` and `WebSearch` tools for research tasks. Do not block the flow.
 2. Surface a one-time suggestion in the triage output:
 
-   > "No research MCP detected. Epic will use Claude Code's native `WebFetch` / `WebSearch`. For better research quality, consider installing one of: `brave-search` (recommended default, low cost), `exa`, or `tavily`. See https://code.claude.com/docs/en/mcp#find-and-connect-mcp-servers."
+   > "No research MCP detected. Epic will use Claude Code's native `WebFetch` / `WebSearch`. For better research quality, consider installing one of: `brave-search` (recommended default, low cost), `exa`, or `tavily`. See https://code.claude.com/docs/en/mcp#find-and-build-mcp-servers."
 
 3. Let the user choose:
    - Proceed without an MCP (default — use native tools).
@@ -92,6 +92,21 @@ Its LLM work — the consolidation that turns raw observations into pages, the l
 - **Never call `memory_feedback`**, and never write a handoff by hand — the server's own lifecycle hooks capture sessions and hand off between them. The Epic writes durable pages and nothing else.
 - **Never copy a secret, a token or personal data** into a page. The register and the audit report are the sources; if one of them carries such a value, it is dropped from the page, not carried over.
 - **Recommend `ignore_paths = [".epic/**"]`** in the user's `.ai-memory.toml`, once, the first time memory is detected on a project — the server's hooks would otherwise capture the artifacts the Epic already versions, and the two records would drift. Informative, never gating.
+
+## Progress notes
+
+A progress note says which protocol step a spawn has reached, so a run that stopped moving can be told from one that is still working. **One note per protocol step**: the Executor writes six per sub-task — `context`, `implementation`, `fidelity`, `validation`, `refactor` or `tests`, `report`; the Auditor, the Tech Reviewer and the Test Advisor write `start`, one per major step, and `report`.
+
+```bash
+epic-progress --story <story-dir> --task <id> --step <name> --status <started|done|failed|skipped> --evidence "<one line>"
+```
+
+Each call appends one JSON line to `<story-dir>/.draft/progress.log` — fields `story`, `task`, `step`, `status`, `evidence`, `at` (UTC). `--evidence` is the one line that shows the step happened (the command and its exit code, the file written); the script flattens it and cuts it at 300 characters.
+
+- **The log is the only destination, never a memory page.** Sub-agents carry no memory tool (the orchestrator is the only writer, above), and `epic-doctor` is a script that reads files: a note it cannot read is a stall it cannot see.
+- **The main tree's story directory, always.** A parallel Executor sits in a worktree, where a `.draft/` write is lost at the merge; the spawn prompt's `Story directory:` line names the path to pass.
+- **The Analyst and the Reviewer have no Bash.** The orchestrator writes their `start` note before the spawn and their `report` note after it returns.
+- A note is a trace, not a verdict: no mode reads a pass or a fail from it.
 
 ## Rules
 

@@ -5,8 +5,10 @@
 #   - edit or write a story's tasks.md: boxes are closed only by epic-close,
 #     which takes the census and validates the story in one transaction.
 # It acts only inside the Executor (agent_type), so the orchestrator and every
-# other agent are untouched. hooks.json narrows the calls with `if` filters;
-# this script re-checks the command, because those filters are best-effort.
+# other agent are untouched. hooks.json narrows the Edit/Write calls with `if`
+# filters, which are best-effort, so the path is re-checked here. The Bash
+# handler has no filter: `Bash(git commit *)` misses `git -C dir commit` and
+# `git -c k=v commit`, which the regex below catches.
 
 set -euo pipefail
 
@@ -23,7 +25,7 @@ case "$TOOL" in
       REASON="The Executor never commits: report the pre-authored message in the closing block's commit field, and the orchestrator commits after the merge."
     fi
     ;;
-  Edit | Write | MultiEdit)
+  Edit | Write)
     FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty')
     case "$FILE" in
       *".epic/stories/"*"/tasks.md")

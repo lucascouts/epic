@@ -109,7 +109,7 @@ Its JSON `mapping` field gives the requirement → sub-tasks relation directly �
 ## Prerequisites
 
 - `bash`, `git`, and `jq` available on `PATH`
-- Claude Code **v2.1.105+** (for conditional hooks `if:`, skill `effort`/`paths:`, description caps). Core planning features work on v2.1.85+ but with degraded ergonomics.
+- Claude Code **v2.1.295 or newer** — one floor for every feature.
 - Optional MCP servers for research. See [mcp-integration.md](../../references/mcp-integration.md) for the full priority order and cost policy. Default search MCP is `brave-search`; `perplexity` is **never** the default (premium/high-cost).
 
 ## Runtime dependency precheck (MANDATORY before Standard/Full triage)

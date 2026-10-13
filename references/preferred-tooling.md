@@ -29,7 +29,7 @@ When a story involves E2E testing and more than one E2E tool is available, pick 
 
 Run during triage, in **all modes including Fast**, to resolve which tools are available. Each tier has its own mechanism.
 
-1. **MCP tools** (`playwright`, `chrome-devtools`, `browser-use`, `stagehand`): available when its tools are in the tool list and no connection-failure notice names the server — the same rule as the research MCPs in [mcp-integration.md](mcp-integration.md#health-check-procedure); make no probe call. Otherwise mark it absent.
+1. **MCP tools** (`playwright`, `chrome-devtools`, `browser-use`, `stagehand`): available when its tools are in the tool list (in either name form) and no connection-failure notice names the server — the same rule as the research MCPs in [mcp-integration.md](mcp-integration.md#health-check-procedure); make no probe call. Otherwise mark it absent.
 2. **Library/CLI tools** (`puppeteer`, `selenium`): inspect the dependency manifest **first** (`package.json` and its lockfiles, `requirements.txt`, `pyproject.toml`, etc.). Run a version-probe CLI command (`npx <tool> --version` or the equivalent) **only when the manifest is inconclusive** — never probe unconditionally. Detection must stay passive: read the manifest before running any command.
 3. **Skill** (`frontend-design`): check for its presence in the session's available-skills list. Present means available; absent from the list means not available.
 4. **When a mechanism cannot run, mark the tool `undetermined`** — never assume it is installed. A mechanism cannot run WHERE there is no dependency manifest present for a library/CLI tool, or WHERE the session's available-skills list is unavailable for `frontend-design`. Mark the affected tool `undetermined` rather than installed, and proceed.
@@ -38,9 +38,9 @@ Run during triage, in **all modes including Fast**, to resolve which tools are a
 
 When a story requires E2E testing and no favorite E2E tool (`playwright`, `chrome-devtools`) is available — or when a story is a frontend task and the `frontend-design` skill is unavailable — present an install recommendation rather than silently downgrading.
 
-1. **Interactive session:** present the install recommendation with a `[y/n]` install/proceed choice, and link to the relevant install docs (https://code.claude.com/docs/en/mcp#find-and-connect-mcp-servers for an MCP tool; the skill's install docs for `frontend-design`). **Pause** for the user's decision.
+1. **Interactive session:** present the install recommendation with a `[y/n]` install/proceed choice, and link to the relevant install docs (https://code.claude.com/docs/en/mcp#find-and-build-mcp-servers for an MCP tool; the skill's install docs for `frontend-design`). **Pause** for the user's decision.
 
-   > "No favorite E2E tool detected. Epic recommends installing `playwright` (default favorite, MCP). Install now, or proceed with the best available tool? [y/n]  See https://code.claude.com/docs/en/mcp#find-and-connect-mcp-servers."
+   > "No favorite E2E tool detected. Epic recommends installing `playwright` (default favorite, MCP). Install now, or proceed with the best available tool? [y/n]  See https://code.claude.com/docs/en/mcp#find-and-build-mcp-servers."
 
 2. **If the user installs:** re-run detection for that tool and select the favorite.
 3. **If the user proceeds without installing:** continue using the best available tool that fits the task context — an installed optional E2E tool when one fits (see "Priority order"), otherwise record `no E2E tooling available` as a story constraint. For a frontend task with no `frontend-design`, fall back to the Executor's default approach.

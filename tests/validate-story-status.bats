@@ -108,7 +108,7 @@ write_story_pair() {
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   [ "$status" -eq 0 ]
   echo "$output" | grep -q '"errors": 0'
-  echo "$output" | grep -q '"warnings": 0'
+  echo "$output" | grep -q '"warning_count": 0'
 }
 
 @test "status done with an open [ ] box warns that status is ahead of the checkboxes" {
@@ -117,7 +117,7 @@ write_story_pair() {
   # Warning, not error: exit stays 0 without --strict.
   [ "$status" -eq 0 ]
   echo "$output" | grep -qi 'ahead'
-  refute_grep '"warnings": 0'
+  refute_grep '"warning_count": 0'
 }
 
 @test "status validated with an open [ ] box also warns" {
@@ -131,7 +131,7 @@ write_story_pair() {
   write_story_pair "status: done" "status: draft" "x"
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   [ "$status" -eq 0 ]
-  refute_grep '"warnings": 0'
+  refute_grep '"warning_count": 0'
   echo "$output" | grep -q 'story\.md'
   echo "$output" | grep -q 'tasks\.md'
 }

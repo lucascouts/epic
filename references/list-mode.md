@@ -24,6 +24,7 @@ Triggered by `/epic:epic stories`, `/epic:epic stories full`, or `/epic:epic sto
 5. Derive the story's computed condition from the census (see Status and Progress) — except for a `scale: spike` story, whose condition comes from its `## Verdict` plus one staleness pass for the whole listing (see Spike Lifecycle)
 6. For each story, ask `epic-integration --should-annotate <status> <story-count> <is-stories-full>` whether this story is annotated at all — exit 0 evaluates, exit 1 skips — and on exit 0 pipe `story-git-status.sh` into the same script's `--list` mode and append what it writes (see Integration Annotation). That one decision holds both gates: only `done`/`validated` stories are annotated, and more than 50 stories skips unless the command is `stories full`
 7. Refresh the managed index block opportunistically — `epic-index`; a non-zero exit warns and never blocks the listing (defined once, in [validate-mode.md](validate-mode.md#index-refresh))
+8. Run `epic-doctor --summary --stale-days <staleThresholdDays>` once, after the index refresh (so a stale `EPIC.md` it just fixed is not reported), and render the line it prints, if any, verbatim under the last story row. It prints nothing when the tree is healthy; `epic-doctor` without `--summary` gives every finding as JSON when the user asks what the line means. Read-only, never a gate
 
 ## Policy Notice
 
@@ -63,7 +64,7 @@ Stories in .epic/stories/:
 
 `git`, `policy` and `verdict` are **total** — present on every path the script takes, safe to read unconditionally. The other four (`gitignore_ignores_epic`, `gitignore_source`, `tracked_md`, `tracked_draft`) are **absent when `git` is `false`**, and `jq -r` renders an absent key as the literal text `null`, not as `false`, `""` or `0`. Under `set -u` a `-gt` against that word aborts with `null: unbound variable`. **Read a measurement key only inside the `verdict != "consistent"` branch**, which is where every arm of the table below already lives.
 
-That is safe today by an invariant of the *script* rather than of the JSON, and it is stated here so a later edit cannot lose it: the non-git object always reports `verdict: "consistent"`, so the gate is never open on the one path where those four keys are missing. **If a future line ever needs a measurement key outside that branch, gate it on `git == true` instead** — the script's own stated consumer requirement, in [`scripts/epic-gitpolicy.sh`](../scripts/epic-gitpolicy.sh)'s header, and the same contract [init-mode.md](init-mode.md#step-51--measure-before-asking) reads it under.
+That is safe today by an invariant of the *script* rather than of the JSON, and it holds because the non-git object always reports `verdict: "consistent"`, so the gate is never open on the one path where those four keys are missing. **If a future line ever needs a measurement key outside that branch, gate it on `git == true` instead** — the script's own stated consumer requirement, in [`scripts/epic-gitpolicy.sh`](../scripts/epic-gitpolicy.sh)'s header, and the same contract [init-mode.md](init-mode.md#step-51--measure-before-asking) reads it under.
 
 ```bash
 lint=$(epic-gitpolicy 2>/dev/null) || lint=''

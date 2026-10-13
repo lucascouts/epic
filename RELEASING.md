@@ -48,12 +48,11 @@ It is a **monitor, never a gate**: a distribution is read by a human before cutt
 
 ## 4. Cut the version
 
-Four sites, and they must agree:
+Three sites, and they must agree. `marketplace.json` carries no version: for a plugin whose source is this repository, `plugin.json` is the one source.
 
 | File | Where |
 |---|---|
 | `.claude-plugin/plugin.json` | `.version` |
-| `.claude-plugin/marketplace.json` | `.plugins[0].version` |
 | `README.md` | the version line near the end |
 | `ARCHITECTURE.md` | "Last verified against" |
 

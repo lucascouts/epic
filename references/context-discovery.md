@@ -55,7 +55,7 @@ Results are saved to `.draft/meta.yaml` under `analyst_output` key and passed as
 
 ## Completeness Checklist
 
-For **standard and full scales**, the **main agent writes the checklist itself**, inline — no sub-agent. It reads no file for it: its only inputs are the codebase analysis already in hand (`.draft/meta.yaml`, `analyst_output` — `none: empty repository` on a greenfield story), the request and the constitution. A spawn would re-read all three from an empty context to produce the same questions; measured side by side, inline gave questions of the same coverage in about two thirds of the time. For **fast and spike scales**, ask 1-2 inline questions only — both are single-author scales, and a probe whose whole point is to be time-boxed is not improved by a 10-question intake.
+For **standard and full scales**, the **main agent writes the checklist itself**, inline — no sub-agent. It reads no file for it: its only inputs are the codebase analysis already in hand (`.draft/meta.yaml`, `analyst_output` — `none: empty repository` on a greenfield story), the request and the constitution. A spawn would re-read all three from an empty context to produce the same questions. For **fast and spike scales**, ask 1-2 inline questions only — both are single-author scales, and a probe whose whole point is to be time-boxed is not improved by a 10-question intake.
 
 1. Identify every entity, action, input, and collection in the request
 2. For each, determine what implicit decisions the user hasn't stated

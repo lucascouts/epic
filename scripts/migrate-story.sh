@@ -373,7 +373,7 @@ if [ -x "$SCRIPT_DIR/validate-story.sh" ] || [ -r "$SCRIPT_DIR/validate-story.sh
   V_OUT=$(bash "$SCRIPT_DIR/validate-story.sh" "$STORY_DIR" 2>/dev/null)
   set -e
   if printf '%s' "$V_OUT" | jq -e . >/dev/null 2>&1; then
-    VALIDATE_JSON=$(printf '%s' "$V_OUT" | jq -c '{errors, warnings, status}')
+    VALIDATE_JSON=$(printf '%s' "$V_OUT" | jq -c '{errors, warnings: .warning_count, status}')
   else
     VALIDATE_JSON='{"errors":null,"warnings":null,"status":"unavailable"}'
   fi

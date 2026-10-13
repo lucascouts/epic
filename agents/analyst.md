@@ -5,7 +5,6 @@ description: >
   representative files, patterns, conventions and quality-catalog signals.
 model: inherit
 tools: Read, Glob, Grep, WebFetch, WebSearch
-maxTurns: 15
 effort: medium
 color: cyan
 ---
@@ -41,3 +40,7 @@ Return a concise summary (**max 20 lines**) covering:
 **Do NOT read every file** — be lightweight and fast.
 
 **An empty repository is an answer, not a failure.** When there is no code to scan, return `none: empty repository` as the first line, then the quality-catalog signals (none) and, when the request names a stack, one line on its current conventions. When there is code but no recognisable stack, say `stack: undetected` and report what the files are.
+
+**Once the work is done, write the report before any further exploration; a partial report beats a missing one.**
+
+**You write no progress notes** — you have no Bash; the orchestrator records your `start` and `report`.
