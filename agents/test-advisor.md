@@ -79,9 +79,10 @@ For example, a sub-task whose Tests field targets `tests/foo.test.ts` is authore
 
 After authoring each `Unit` or `Integration` test file:
 
-1. Run that test with the project's test runner (e.g. `npm test -- foo`, `pytest path/to/test`, `go test ./...`).
-2. Confirm it **fails**, and that it fails **for the expected reason** — the code under test does not yet exist or does not yet behave as specified (e.g. `ReferenceError`, `ImportError`, assertion mismatch). A failure from a broken test (syntax error, wrong import path, misconfigured runner) does **not** count as valid Red.
-3. Record the failure as Red evidence in `.draft/red-evidence.yaml`.
+1. **Stub the API under test**, so the test can reach its assertions: the signatures the design names (function, method, type, route), each returning the zero value of its type — never the specified behaviour, and never a throw. The stub lives in the Red scratch directory, never in the project tree.
+2. Run that test with the project's test runner (e.g. `npm test -- foo`, `pytest path/to/test`, `go test ./...`).
+3. **Red is a failed assertion, and nothing else.** The run must reach an assertion (`expect`, `assert`, `t.Error`, …) and fail there: the behaviour is absent, so the stub's zero value does not match. A failure before any assertion runs — an import or module-not-found error, a fixture or setup error, a syntax error, a misconfigured runner, a `ReferenceError` on the missing API — is **`setup`**, not Red: it proves the test cannot run, not that the behaviour is absent. Fix the test or the stub and run again; never record `setup` as Red.
+4. Record the result in `.draft/red-evidence.yaml` with `red_at: assertion`.
 
 ### Deferred-Red verification (E2E)
 
@@ -107,7 +108,8 @@ red-evidence:
     target_path: "tests/foo.test.ts"
     command: "npm test -- foo"
     failed: true
-    reason: "ReferenceError: validateEmail is not defined"
+    red_at: assertion                 # the run reached an assertion and failed there
+    reason: "expected true, got false — validateEmail('a@b.co') on the stub"
     recorded: <YYYY-MM-DD>
   - task: "4.2"                       # E2E — deferred Red
     test_file: ".draft/authored-tests/e2e/checkout.spec.ts"
@@ -124,6 +126,7 @@ Fields for a `Unit`/`Integration` entry:
 - `target_path` — the path the test will occupy in the real test tree after materialization.
 - `command` — the exact command used to run the test.
 - `failed` — `true` once Red is confirmed.
+- `red_at` — `assertion` when the failure is a failed assertion against the stub; `setup` when the run failed before any assertion. Only `assertion` is Red: an entry you would write as `setup` means the test is not ready, so fix it instead of recording it.
 - `reason` — the concise failure reason from the test output.
 - `recorded` — the date Red was confirmed.
 
@@ -151,7 +154,7 @@ Fields for an `E2E` entry:
 - Type is always explicit: Unit, Integration, E2E (because test conventions vary across languages).
 - Author tests for `Unit`, `Integration`, and `E2E` sub-tasks; never author for `None`, `Covered by`, or a group's `Commit:` field — those preserve the test-after behavior.
 - When authoring, never use the sub-task's `ToDo` field — the test is an independent contract, not an implementation mirror.
-- Every authored `Unit` or `Integration` test MUST be confirmed Red (failing for the expected reason) before Phase 3 completes; record the failure in `.draft/red-evidence.yaml`.
+- Every authored `Unit` or `Integration` test MUST be confirmed Red (a failed assertion against the stub, `red_at: assertion`) before Phase 3 completes; record the failure in `.draft/red-evidence.yaml`.
 - An authored `Unit` or `Integration` test that passes blocks Phase 3 — revise up to 2 times, then escalate to the user.
 - For an authored `E2E` test, DEFER Red-phase verification to Run mode — see *Deferred-Red verification (E2E)*.
 

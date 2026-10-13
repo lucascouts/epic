@@ -122,7 +122,7 @@ For each pending sub-task, in order:
 For a sub-task of any of them carrying a `Tests` field, the test is authored, run, and confirmed failing **before** implementation begins — the order is **author → Red → Green → Refactor**:
 
 1. **Author** the test from the sub-task's `Tests` field, Objective, and Acceptance contract.
-2. **Run** it and confirm **Red** — it must fail, and fail **for the right reason**: the behavior under test is absent or not yet correct. A failure caused by a broken test (syntax error, wrong import, misconfigured runner) is **not** valid Red; correct the test, then re-run, before implementation proceeds.
+2. **Run** it against a stub and confirm **Red** — first write the API's signatures where the implementation will live, each returning its type's zero value, then run the test: it must reach an assertion and fail there. A failure before any assertion (syntax error, wrong import, missing module, misconfigured runner) is `setup`, **not** valid Red; correct the test or the stub, then re-run, before implementation proceeds.
 3. **Green** — implement until the test passes and the Validation command passes.
 4. **Refactor** — improve the code while keeping the test and Validation green; revert any refactor that breaks either.
 
@@ -387,7 +387,7 @@ Most Standard/Full pre-authored tests have their Red confirmed by the Test Advis
 
 For a sub-task whose pre-authored test's `red-evidence.yaml` entry carries `red_deferred: true`:
 
-1. **Before spawning the Executor**, the orchestrator runs the materialized E2E test and confirms it **FAILS (Red)** — the behavior under test is absent or not yet correct. This is the same "valid Red" bar used elsewhere: a failure caused by a broken test (syntax error, wrong import, misconfigured runner, missing driver) is **not** valid Red.
+1. **Before spawning the Executor**, the orchestrator runs the materialized E2E test and confirms it **FAILS (Red)** — the behavior under test is absent or not yet correct. This is the same "valid Red" bar used elsewhere: the run must reach an assertion and fail there (`red_at: assertion`); a failure before any assertion — syntax error, wrong import, misconfigured runner, missing driver — is `setup` and **not** valid Red. Record the confirmed Red on the entry: `failed: true`, `red_at: assertion`, `reason`, `command`.
 2. **If the deferred Red does not fail as expected** — it passes, errors out, or cannot be run — the orchestrator does **not** spawn the Executor. **STOP and escalate to the user**, describing the test, the sub-task, and the unexpected result.
 3. If Red is confirmed, the orchestrator spawns the Executor for the sub-task as normal.
 4. **After the Executor completes**, the orchestrator runs the same E2E test again and confirms it now **PASSES (Green)**. A still-failing test is a failed sub-task — report it and stop, as with any validation/test failure.
