@@ -11,7 +11,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 ## Procedure
 
 1. **Scan project** — detect language, framework, dependencies, existing config files
-2. **Check existing files** — report whether `.epic/constitution.md` exists, and whether the project has a `CLAUDE.md`. Init writes no `CLAUDE.md`: when there is none, recommend the built-in `/init`, which scans the repository and writes one
+2. **Check existing files** — report whether `.epic/constitution.md` exists, whether the project has a `CLAUDE.md` and an `AGENTS.md`, and whether `epic-claude-md check` finds the managed block current
 2a. **Check memory** — one `memory_status` call ([mcp-integration.md](mcp-integration.md#memory-mcp)). WHEN `ai-memory` answers and the nearest `.ai-memory.toml`, if any, has no `ignore_paths` entry covering `.epic/**`, add one line to the final report: `ai-memory detected — add ignore_paths = [".epic/**"] to .ai-memory.toml so its hooks do not capture the artifacts Epic versions`. Informative, never gating; a non-interactive run prints the same line and asks nothing
 3. **Interactive questionnaire** — ask questions in a single numbered block:
 
@@ -39,6 +39,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
    Unanswered items take the default. Activating an item never installs a tool — the [preferred-tooling policy](preferred-tooling.md) applies.
 
 4. **Generate files** — create all requested files with sensible defaults based on scan
+4a. **Write the managed `CLAUDE.md` block** — `epic-claude-md write`, after the constitution exists, since the block is built from it ([The managed CLAUDE.md block](#the-managed-claudemd-block)). Interactively, when a `CLAUDE.md` already exists, say in one line that the block is appended at its end and nothing else in it changes, and ask once; headless, append it
 5. **Ask the versioning-policy question** — measure first, offer exactly two options, then write the chosen state. Defined once, below: [Versioning Policy](#versioning-policy). A non-interactive run never asks and never starts tracking
 6. **Report** — list all files created, and name the policy that was recorded
 
@@ -51,6 +52,18 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 - **The `## Quality` block is the project's default legend.** A story starts its `## Quality Requirements` from it and adds what the Analyst detected and the request asked; an always-tier item a story leaves out says why on its legend
 - Each generated file includes comments explaining its purpose
 - **Init writes files and nothing else.** It never runs `git add`, `git rm --cached`, `git commit` or `git checkout` — not in either policy branch, not in a headless run. Choosing to version artifacts is a declaration; committing them is the user's next action, and this is the wizard that must never make it for them
+
+## The managed CLAUDE.md block
+
+`epic-claude-md` owns one block at the end of the project's `CLAUDE.md`, between `<!-- epic:start … -->` and `<!-- epic:end -->`, and never a byte outside it. It is the part of the project's rules every session needs before reading anything else: where the constitution is, the docs the scan found, the order to look things up in, the constitution's `## Quality` commands as "before committing", the code rules, the constitution's `## Invariants`, and where the living examples are — under 100 lines, every section left out when it has no source.
+
+- **No `CLAUDE.md`:** the file is created with the block only. The built-in `/init` can still be run later; it writes above the block.
+- **An `AGENTS.md`:** one `@AGENTS.md` line goes before the block, once, so both are read.
+- **Refreshed, never edited:** `init --repair` rewrites the block from the current constitution; a hand edit inside the markers is lost on the next repair, so project-specific rules go in the constitution or outside the block.
+
+## Repair (`init --repair`)
+
+Re-runs steps 1, 2 and 4a against what exists and writes only what is missing or stale: the managed `CLAUDE.md` block, a constitution section the doctor reports absent (asked for interactively, never invented). It never overwrites a file, never re-asks the versioning-policy question when `.gitpolicy` exists, and ends with `epic-doctor --summary`.
 
 ## Versioning Policy
 

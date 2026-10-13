@@ -106,6 +106,16 @@ if [ -d "$EPIC_DIR/archive" ] && [ -n "$(find "$EPIC_DIR/archive" -mindepth 1 -m
   add warning manifest .epic/archive/manifest.yaml "missing while archived stories exist"
 fi
 
+if [ -f "$ROOT/CLAUDE.md" ] || [ -f "$EPIC_DIR/constitution.md" ]; then
+  if ! CM=$(bash "$SCRIPT_DIR/claude-md.sh" check --root "$ROOT" 2>/dev/null); then
+    if printf '%s' "$CM" | jq -e '.present == true' >/dev/null 2>&1; then
+      add warning claude-md CLAUDE.md "the Epic block is stale — run /epic:epic init --repair"
+    else
+      add warning claude-md CLAUDE.md "no Epic block — run /epic:epic init --repair"
+    fi
+  fi
+fi
+
 # --- Stories ---
 NOW=$(date +%s)
 # newest_mtime <dir> — epoch of the most recently modified file under <dir>
