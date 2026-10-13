@@ -20,3 +20,12 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/supervision.md 'a reply is written even when nothing changes'
   has references/run-mode.md 'epic-inbox --story'
 }
+
+@test "S2: typed page paths with as_of and typed links; _global only for tech gotchas and research; global recall at triage" {
+  has references/mcp-integration.md 'epic/<type>/<NNN>-<slug>'
+  has references/mcp-integration.md '`causes`, `fixes`, `contradicts`, `supersedes`'
+  has references/mcp-integration.md 'only `gotcha` and `research` pages that carry a `tech:`'
+  has references/context-discovery.md 'global: true'
+  has references/run-mode.md 'epic/deviation/NNN'
+  has references/validate-mode.md 'epic/finding/NNN'
+}

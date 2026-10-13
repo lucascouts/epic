@@ -632,7 +632,7 @@ Two options — three for a `layperson` requester — the step first, its label 
 
 **Only when `AskUserQuestion` is not callable:** do not start the step. End the closing message with the recommendation and its command — the same rule the archive offer applies ([validate-mode.md](validate-mode.md#headless)); a run's end is not a gate to take on the user's behalf.
 
-**One memory write precedes the question, when memory is available and the register is not empty.** Write the deviation register as one page at `epic/deviations/NNN-<slug>.md`: an H1 `# Deviations of story NNN — <title>` and then the register's entries — deviations and discoveries — as they stand in `.draft/deviations.yaml`, with no secret carried over. One page per story at a stable path, so a re-run of the story rewrites it instead of adding a second. An empty register writes nothing; unavailable memory calls nothing ([mcp-integration.md](mcp-integration.md#memory-mcp)).
+**One memory write precedes the question, when memory is available and the register is not empty.** Write the deviation register as one page at `epic/deviation/NNN-<slug>.md`: an H1 `# Deviations of story NNN — <title>` and then the register's entries — deviations and discoveries — as they stand in `.draft/deviations.yaml`, with no secret carried over. One page per story at a stable path, so a re-run of the story rewrites it instead of adding a second. An empty register writes nothing; unavailable memory calls nothing ([mcp-integration.md](mcp-integration.md#memory-mcp)).
 
 ### Assumptions under `--auto`
 
