@@ -56,7 +56,7 @@ while [ $# -gt 0 ]; do
     *) die "unknown argument: $1" ;;
   esac
 done
-[ -n "$STORY" ] && [ -d "$STORY" ] || die "--story <dir> is required and must exist"
+if [ -z "$STORY" ] || [ ! -d "$STORY" ]; then die "--story <dir> is required and must exist"; fi
 REG="$STORY/.draft/deviations.yaml"
 
 # parse — the register as {deviations: [...], discoveries: [...]}, or an
