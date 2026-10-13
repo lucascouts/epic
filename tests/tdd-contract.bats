@@ -26,3 +26,11 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/run-mode.md 'against a stub'
   has references/run-mode.md 'red_at: assertion'
 }
+
+@test "T2: setup repair touches fixtures, helpers, imports and paths, never an assertion, and re-runs Red" {
+  has agents/executor.md 'setup-repair exception'
+  has agents/executor.md 'fixtures, helpers, imports, file paths'
+  has agents/executor.md 'never an assertion line'
+  has agents/executor.md 're-run the repaired test'
+  has references/run-mode.md 'setup repair the frozen-test rule allows'
+}
