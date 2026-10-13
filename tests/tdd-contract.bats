@@ -34,3 +34,10 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has agents/executor.md 're-run the repaired test'
   has references/run-mode.md 'setup repair the frozen-test rule allows'
 }
+
+@test "T3: epic-test-diff is enforced by close-subtask, run by the Auditor, released by refine" {
+  has scripts/close-subtask.sh 'test-diff.sh'
+  has agents/auditor.md 'epic-test-diff'
+  has references/run-mode.md 'a box whose test was rewritten does not close'
+  has references/refine-mode.md 'releasing a test blocked by `epic-test-diff`'
+}

@@ -522,6 +522,8 @@ discoveries:
 
 Either kind of entry carries the optional boolean field `follow_up: true` when it leaves work the run did not do — a correction, an adjustment or a refactor the code now owes, or a story, design or task list that no longer describes what was built. The orchestrator sets it when it records the entry, from the Executor's report; an entry that only explains a choice already made leaves it absent. It is what the end-of-run question reads to recommend Refine ([End of Run](#end-of-run--next-step-index)), so a pending fix is a field, not a judgment made at the end.
 
+**A box whose test was rewritten does not close.** When a sub-task has a `red-evidence.yaml` entry, `close-subtask.sh` runs `epic-test-diff` on its `target_path` before marking `[x]`: setup edits pass, an assertion line changed, removed or added refuses the close, and nothing is written. Report that refusal as the sub-task's failure — never restore the box by hand, and never close it `[~]` to get past it. The release is the user's, through refine ([refine-mode.md](refine-mode.md#releasing-a-test-blocked-by-epic-test-diff)).
+
 A deviation entry carries the optional boolean field `test_surface_adjusted`. It is `true` on a deviation where the Executor edited a pre-authored test outside its assertions: imports or signature call-sites to match an INTENTIONAL design deviation, or the setup repair the frozen-test rule allows — fixtures, helpers, imports, paths — when the test could not run in this tree. Assertions are never touched, and the Executor re-confirms Red at the assertion before implementing. The field is absent on deviations that did not require any test change.
 
 The register is:
