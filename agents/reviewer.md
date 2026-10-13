@@ -56,6 +56,7 @@ Return:
 ## Rules
 
 - **Once the work is done, write the report before any further exploration; a partial report beats a missing one.**
+- **You write no progress notes** — you have no Bash; the orchestrator records your `start` and `report`
 - Do NOT modify any files — only report
 - Focus on *cross-artifact* gaps; single-artifact issues are out of scope
 - Be decisive on orphan wiring: classify every orphan into one of the three categories

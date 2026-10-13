@@ -93,6 +93,21 @@ Its LLM work — the consolidation that turns raw observations into pages, the l
 - **Never copy a secret, a token or personal data** into a page. The register and the audit report are the sources; if one of them carries such a value, it is dropped from the page, not carried over.
 - **Recommend `ignore_paths = [".epic/**"]`** in the user's `.ai-memory.toml`, once, the first time memory is detected on a project — the server's hooks would otherwise capture the artifacts the Epic already versions, and the two records would drift. Informative, never gating.
 
+## Progress notes
+
+A progress note says which protocol step a spawn has reached, so a run that stopped moving can be told from one that is still working. **One note per protocol step**: the Executor writes six per sub-task — `context`, `implementation`, `fidelity`, `validation`, `refactor` or `tests`, `report`; the Auditor, the Tech Reviewer and the Test Advisor write `start`, one per major step, and `report`.
+
+```bash
+epic-progress --story <story-dir> --task <id> --step <name> --status <started|done|failed|skipped> --evidence "<one line>"
+```
+
+Each call appends one JSON line to `<story-dir>/.draft/progress.log` — fields `story`, `task`, `step`, `status`, `evidence`, `at` (UTC). `--evidence` is the one line that shows the step happened (the command and its exit code, the file written); the script flattens it and cuts it at 300 characters.
+
+- **The log is the only destination, never a memory page.** Sub-agents carry no memory tool (the orchestrator is the only writer, above), and `epic-doctor` is a script that reads files: a note it cannot read is a stall it cannot see.
+- **The main tree's story directory, always.** A parallel Executor sits in a worktree, where a `.draft/` write is lost at the merge; the spawn prompt's `Story directory:` line names the path to pass.
+- **The Analyst and the Reviewer have no Bash.** The orchestrator writes their `start` note before the spawn and their `report` note after it returns.
+- A note is a trace, not a verdict: no mode reads a pass or a fail from it.
+
 ## Rules
 
 - Only suggest MCPs relevant to the current mode (don't list all installed MCPs unconditionally).

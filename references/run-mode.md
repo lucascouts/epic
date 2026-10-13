@@ -419,6 +419,7 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 > **Requirements:** [requirements field]
 > **Commit:** [the group's `Commit:` message, verbatim, when this sub-task is the group's last — your closing block reports it]
 > **Comment language:** [English only — or English plus <language> on the line below, when the user asked for it]
+> **Story directory:** [absolute path to .epic/stories/NNN-slug in the main tree — your progress notes go there, never into a worktree copy]
 >
 > ## Story Context
 >

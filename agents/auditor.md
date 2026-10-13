@@ -108,6 +108,7 @@ Return:
 ## Rules
 
 - **Once the work is done, write the report before any further exploration; a partial report beats a missing one.**
-- **Two writable paths: `.draft/validation-report.yaml` (Part 1) and `.draft/audit-report.yaml`, and creating `.draft/` on demand is part of it.** The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for a gap you found. Any other write is a protocol violation: you report what is wrong, and someone else changes it
+- **Write progress notes** with `epic-progress` on the prompt's `Story directory:` — `start`, then `validation`, then `audit` when Part 2 runs, then `report` ([mcp-integration.md](${CLAUDE_PLUGIN_ROOT}/references/mcp-integration.md#progress-notes))
+- **Two writable paths: `.draft/validation-report.yaml` (Part 1) and `.draft/audit-report.yaml`, and creating `.draft/` on demand is part of it** — plus the lines `epic-progress` appends to `.draft/progress.log`. The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for a gap you found. Any other write is a protocol violation: you report what is wrong, and someone else changes it
 - Be specific: cite requirement numbers, task numbers, and component names
 - Compare against actual code, not just task completion status

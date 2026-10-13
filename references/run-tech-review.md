@@ -30,6 +30,8 @@ The Tech Reviewer's focus areas, its measurement rule and its report format live
 >
 > [technology] — [the boundary, e.g. handler → template, app → SQL — or `none: single-tech review (Complexity High)`]
 >
+> Story directory: [absolute path to .epic/stories/NNN-slug in the main tree] · Sub-task: [number]
+>
 > ## Files to Review
 >
 > [Files the sub-task created or modified — from the Executor's report, or from the inline route's own closing block]
