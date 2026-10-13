@@ -237,6 +237,24 @@ load_roster() {
   refute_grep '010-mixed'
 }
 
+@test "doctor.sh — every box shape counts as a box, so an old planned story is never a dormant draft" {
+  # doctor only asks "does this story have any box?". [x], [~] terminal and
+  # [~] deferred are boxes exactly like [ ]: an old story whose boxes are all
+  # closed is finished, not a draft nobody started.
+  snapshot_fixture
+  sed -i 's/^- \[ \] 1.5/- [x] 1.5/' "$MIXED/tasks.md"
+  find "$WORK/proj/.epic" -exec touch -d '30 days ago' {} +
+  run bash "$PLUGIN_ROOT/scripts/doctor.sh" --epic-dir "$WORK/proj/.epic"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e 'all(.findings[]; .check != "dormant")'
+
+  # The same file with every box line gone is the dormant shape.
+  sed -i -E '/^[[:space:]]*- \[[ x~]\]/d' "$MIXED/tasks.md"
+  touch -d '30 days ago' "$MIXED/tasks.md"
+  run bash "$PLUGIN_ROOT/scripts/doctor.sh" --epic-dir "$WORK/proj/.epic"
+  echo "$output" | jq -e 'any(.findings[]; .check == "dormant" and (.target | endswith("010-mixed")))'
+}
+
 @test "hook-session-restore renders the census the other consumers parse" {
   cd "$WORK/proj"
   run bash -c "bash '$PLUGIN_ROOT/scripts/hook-session-restore.sh' > '$WORK/snapshot.md'"
