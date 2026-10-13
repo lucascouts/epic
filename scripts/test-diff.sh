@@ -44,7 +44,7 @@ while [ $# -gt 0 ]; do
     *) echo "test-diff.sh: unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
-[ -n "$STORY" ] && [ -d "$STORY" ] || { echo "test-diff.sh: --story <dir> is required and must exist" >&2; exit 2; }
+if [ -z "$STORY" ] || [ ! -d "$STORY" ]; then echo "test-diff.sh: --story <dir> is required and must exist" >&2; exit 2; fi
 STORY=$(cd "$STORY" && pwd)
 AUTH="$STORY/.draft/authored-tests"
 [ -n "$ROOT" ] || ROOT=$(cd "$STORY/../../.." && pwd)
