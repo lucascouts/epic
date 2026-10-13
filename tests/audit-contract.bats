@@ -43,7 +43,7 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/run-mode.md 'epic/decision/<nnn>-auto-assumptions'
   has references/run-mode.md '`--auto` is the one exception'
   has references/mcp-integration.md 'auto-assumptions'
-  has skills/epic/SKILL.md 'under `--auto` the recommended step is taken'
+  has skills/epic/SKILL.md '`--auto` takes the recommended step'
 }
 
 @test "A4: loss annotation in the audit and in every closing; bugfix intake keeps diagnosis apart from observation" {
@@ -55,4 +55,10 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/bugfix.md "reporter's diagnosis"
   has references/bugfix.md 'proposed fix'
   has references/triage.md 'split the report into four'
+}
+
+@test "A5: a layperson closing passes epic-jargon before it is sent" {
+  has references/plain-register.md 'the closing is checked, not trusted'
+  has references/plain-register.md 'epic-jargon'
+  has skills/epic/SKILL.md 'checked with `epic-jargon` first'
 }
