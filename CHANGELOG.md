@@ -10,6 +10,32 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+Tests stay honest under TDD, the Auditor reports claims it checked instead of trusting them, and `--auto` stops asking.
+
+**Minimum Claude Code:** 2.1.295, unchanged.
+
+### Added
+
+- `epic-test-diff`: compares each materialized pre-authored test with its authored copy. `close-subtask.sh` runs it before closing a sub-task that has Red evidence: setup edits pass, a changed, removed or added assertion line refuses the close. Only a refine that carries the delta into `.draft/authored-tests/` releases it.
+- `epic-jargon`: checks a layperson closing against a term list drawn from the plain register; the orchestrator rewrites until it passes.
+- The Auditor checks that a bugfix's regression test fails on the commit before the fix (check 11).
+- `fail-record`: an audit whose only problem is the register (an inaccurate or unrecorded deviation) lists the exact fixes in `record_issues[]`; the orchestrator applies them and treats the audit as a pass — no fix round, no second Auditor.
+- The audit report carries `claims[]` (Executor-report claims, `confirmed | partial | unsupported`, with evidence), `checks_run[]` (what was run for a check that found nothing) and `not_verified[]` (the loss annotation, never omitted).
+- Every run's closing has a `Not verified:` line.
+- `--auto` logs every assumption it made in `.draft/run-report.md` under `## Assumptions`, and as the memory page `epic/decision/NNN-auto-assumptions.md` when memory is available.
+- A bugfix report is split at triage into observed, expected, the reporter's diagnosis and the proposed fix; the last two are recorded as unverified.
+
+### Changed
+
+- Red counts only when the run reaches an assertion and fails there, against a stub of the API under test. An import, fixture, setup or runner failure is `setup`, not Red; `red-evidence.yaml` entries carry `red_at: assertion`.
+- The Executor may repair a pre-authored test's setup (fixtures, helpers, imports, paths), never an assertion; it re-confirms Red before implementing and reports the repair as `test_surface_adjusted`.
+- In Standard stories the Executor writes Unit tests first, at run time, with Red confirmed inline; the Test Advisor authors Integration and E2E only. Full is unchanged.
+- The Red scratch lives under `${TMPDIR:-/tmp}/epic-red/<story>/` and is removed at the end of the spawn — never under `.epic/`.
+- Three failures of the same command end a sub-task as `failed`, on the Executor and the inline route alike.
+- `--auto` asks only on failure: group gates, doubts and the end-of-run step take the recommended option. The end-of-run step is started when it is Validate or Run the rest; anything else is printed as a command. A Fast story without the flag still stops on a doubt the constitution does not cover.
+- The Auditor's reply is the verdict, what blocks it, what was not verified and a count of what stays in the file; Executor reports are kept in `.draft/executor-reports.md` and verified as claims. The spawn prompt states the review budget: one validation and at most two fix rounds.
+- CI recipes set `--permission-mode acceptEdits` and `--permission-prompts none`, name `Edit` and `mcp__ai-memory__*` in `--allowedTools`, and check that the six sub-agents loaded. `--bare` stays forbidden: it skips the hooks and the sub-agents and accepts only an API key.
+
 ## [0.14.0] — 2026-10-13
 
 Sub-agents report instead of being cut off, the guards hold from any directory and fail closed, and a run that stopped moving shows on disk.
