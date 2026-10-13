@@ -696,6 +696,10 @@ resolve_by_number() {
 # THE LIMIT IS INCLUSIVE: the guard blocks a file LARGER than 10 MB, so exactly
 # 10485760 bytes (10 MiB) passes and one byte more does not.
 GUARD_MAX_BYTES=10485760
+# A screenshot is evidence a story can keep: an image under a `proof/`
+# directory passes the binary check up to 2 MiB (2097152 bytes, inclusive).
+# Anywhere else, or larger, it is a binary like any other.
+GUARD_PROOF_IMAGE_MAX=2097152
 
 # The census convention: a manual integer counter, never ${#arr[@]} on an array
 # that may be empty. GUARD_OFFENDER_TEXT is the same list rendered as prose, for
@@ -891,6 +895,14 @@ scan_weight_binary() {
       add_violation "$display" "$size" "larger than the ${GUARD_MAX_BYTES}-byte (10 MB) limit"
       continue
     fi
+    case "$rel" in
+      */proof/*.png | */proof/*.jpg | */proof/*.jpeg | */proof/*.gif | */proof/*.webp | \
+      */proof/*.PNG | */proof/*.JPG | */proof/*.JPEG | */proof/*.GIF | */proof/*.WEBP)
+        if [[ "$size" -le "$GUARD_PROOF_IMAGE_MAX" ]]; then continue; fi
+        add_violation "$display" "$size" "an image under proof/ larger than the ${GUARD_PROOF_IMAGE_MAX}-byte (2 MB) limit for evidence images — shrink it or crop it"
+        continue
+        ;;
+    esac
     is_text "$f" "$size" && rc=0 || rc=$?
     case "$rc" in
       0) ;;

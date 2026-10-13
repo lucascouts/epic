@@ -362,7 +362,7 @@ The story number (`003`) resolves against the nearest `.epic/`; a directory path
 
 | Guard | Blocks on | Absent / skipped |
 |---|---|---|
-| **Weight and binary** (always on) | any file >10 MB, or any non-text file (NUL bytes) | `--allow-heavy` overrides, and the override is recorded |
+| **Weight and binary** (always on) | any file >10 MB, or any non-text file (NUL bytes) — except an image (`png`, `jpg`, `gif`, `webp`) of at most 2 MB under a `proof/` directory, which is evidence the story keeps | `--allow-heavy` overrides, and the override is recorded |
 | **Secrets** (`gitleaks`, when installed) | any finding — reports the count and the report path | Scanner **absent** → proceed with a note (`secrets.scanned: false`, `secrets.skipped` says why). Scanner **ran and failed** → block: a scan that errored proved nothing. `--skip-secrets` skips it, recorded |
 
 `guard.violations[]` holds **objects**, not sentences: `{file, size, reason}` per offender, with `size: null` when it could not be established — a size that was never measured must not read as a measurement that came back zero. `secrets{}` keeps one uniform shape on every path (`scanner`, `scanned`, `findings`, `unscanned_files`, `report`, `skipped`, `error`, `allowlist_root`), because "scanned and clean" and "nobody looked" must never be indistinguishable in a permanent record. `allowlist_root` names the project root the scan was anchored to, and is `null` when none was — on `--skip-secrets`, when no scanner ran, and on the fallback below. Branch on its **value**, never on the key being present: `jq -r` renders an absent key and a null key identically.

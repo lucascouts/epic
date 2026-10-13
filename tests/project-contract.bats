@@ -45,3 +45,10 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/triage.md 'init --repair'
   has references/engineering-level.md 'only `project` and `product` provision a runtime'
 }
+
+@test "P4: init offers a deny rule on the archive; the weight guard keeps proof images up to 2 MB" {
+  has references/init-mode.md 'Edit\(\.epic/archive/\*\*\)'
+  has references/init-mode.md 'the archive hook is best-effort and stays'
+  has scripts/archive-story.sh 'GUARD_PROOF_IMAGE_MAX=2097152'
+  has references/list-mode.md 'under a `proof/` directory'
+}

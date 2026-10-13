@@ -22,6 +22,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
    - Commit style? (auto-detect from git log if available)
 
    **Protected files:**
+   - The archive: offer `permissions.deny: ["Edit(.epic/archive/**)", "Write(.epic/archive/**)"]` in `.claude/settings.json` — [1] add it (default) [2] skip. Claude Code enforces a deny rule; the archive hook is best-effort and stays as a second line. `epic-archive` moves stories through Bash, which the rule does not cover, so archiving keeps working
    - Files or patterns Claude should never modify? When the user names any, offer to add one `Edit(<pattern>)` rule per pattern to `permissions.deny` in `.claude/settings.json` — a rule Claude Code enforces, where a line in `CLAUDE.md` is only advice. Write it only on the user's yes.
 
    **Defaults — decisions the requester is never asked** (written into `.epic/constitution.md` as a `## Defaults` block; triage, Clarify and Run read it, and the [plain register](plain-register.md#decisions-the-requester-is-not-asked) relies on it):
