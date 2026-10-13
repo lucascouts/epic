@@ -29,3 +29,18 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/run-mode.md 'epic/deviation/NNN'
   has references/validate-mode.md 'epic/finding/NNN'
 }
+
+@test "S3: stories from-memory and sync-docs — routed, verified against code, never code, ADRs superseded" {
+  has skills/epic/SKILL.md '"stories from-memory \[<page>\]"'
+  has skills/epic/SKILL.md '"sync-docs"'
+  has skills/epic/SKILL.md 'not starting with "stories", "init", "archive" or "sync-docs"'
+  has references/memory-modes.md 'source: memory:<page path>'
+  has references/memory-modes.md 'adrs are never edited'
+  has references/memory-modes.md 'supersedes: adr-<n>'
+  has references/memory-modes.md 'headless writes nothing'
+  has references/memory-modes.md 'never code'
+  # the from-memory arm sits before the bare "stories" arm
+  fm=$(command grep -n '^"stories from-memory' "$ROOT/skills/epic/SKILL.md" | cut -d: -f1)
+  bare=$(command grep -n '^"stories"$' "$ROOT/skills/epic/SKILL.md" | cut -d: -f1)
+  [ "$fm" -lt "$bare" ]
+}

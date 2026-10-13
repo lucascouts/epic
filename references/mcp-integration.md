@@ -98,7 +98,7 @@ links: causes epic/deviation/004-login · fixes epic/finding/002-report-guard ·
 - **`as_of`** is the date the facts were true. A reader trusts a page less the older it is, and checks it against the code either way.
 - **Links are typed** — `causes`, `fixes`, `contradicts`, `supersedes` — and point at page paths, so a chain can be followed without a search.
 - **Where a page goes.** `_global` (`memory_write_page` with `scope: "global"`) receives **only `gotcha` and `research` pages that carry a `tech:`** — knowledge about a technology, true in any project that uses it. Decisions, deviations, findings, progress and proposals are about one project and stay in it.
-- **`proposal`** pages are written by outside classifiers, not by a run: they are what `stories from-memory` drafts a story from.
+- **`proposal`** pages are written by outside classifiers, not by a run: they are what [`stories from-memory`](memory-modes.md#stories-from-memory) drafts a story from.
 
 **The orchestrator is the only writer.** Pages are composed from files that already exist — `.draft/deviations.yaml`, `.draft/audit-report.yaml` — so no sub-agent needs a memory tool in its grant, and none declares a memory store of its own.
 

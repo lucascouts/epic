@@ -10,8 +10,9 @@ description: >
   story; validate implementation against plan. It also routes the
   management modes: init, instant for disposable work that nobody will
   maintain, migrate a story to the current format,
-  create --batch to draft many stories from one document, archive and
-  supersede. Also trigger when the user says "create an epic
+  create --batch to draft many stories from one document, archive,
+  supersede, from-memory to draft a story from a memory proposal, and
+  sync-docs to turn memory findings into a doc diff. Also trigger when the user says "create an epic
   for X", "document this feature", "structure this sprint", "what
   needs to be done to implement X?", "list stories", "run story",
   "execute tasks", "validate implementation" — even without saying
@@ -157,7 +158,7 @@ When invoked via `/epic:epic`, parse `$ARGUMENTS` using this cascading routing t
 ```
 $ARGUMENTS parsing:
 
-(empty) or (free text not starting with "stories" or "init" or "archive")
+(empty) or (free text not starting with "stories", "init", "archive" or "sync-docs")
   → CREATE mode
 
 "init"
@@ -165,17 +166,20 @@ $ARGUMENTS parsing:
 
 "instant <description>"
   → CREATE mode, pinned: fast scale, `experiment` level, security floor only,
-    no technical question round. The disposable-work shortcut (see Instant).
+    no technical question round (see Instant).
 
 "stories migrate NNN [--apply]"
-  → MIGRATE mode (normalize a legacy story into the canonical shapes;
-    dry run by default — scripts/migrate-story.sh writes nothing without --apply)
+  → MIGRATE mode (legacy story → canonical shapes; writes only with --apply)
 
 "stories create --batch <doc>"
-  → BATCH-CREATE mode (one interview, N stories derived from a source document)
-    ORDER IS THE GUARD: this arm is matched BEFORE the bare "stories" arm below.
-    The cascade is prefix-loose, so placing it lower would let LIST claim the
-    invocation and the mode would be unreachable.
+  → BATCH-CREATE mode (N stories from one document)
+    Matched BEFORE the bare "stories" arm, or LIST would claim it.
+
+"stories from-memory [<page>]"
+  → FROM-MEMORY mode (a story drafted from a `proposal` memory page)
+
+"sync-docs"
+  → SYNC-DOCS mode (finding/decision pages → a doc diff, written only on yes)
 
 "stories"
   → LIST mode (summary)
@@ -196,11 +200,10 @@ $ARGUMENTS parsing:
   → REFINE mode (delta workflow on story NNN)
 
 "stories archive NNN[-MMM]|--done"
-  → ARCHIVE mode (delegates to scripts/archive-story.sh, one call per story;
-    a range or --done is expanded here — the script takes exactly one story)
+  → ARCHIVE mode (epic-archive, one call per story; ranges expanded here)
 
 "stories supersede NNN --by MMM"
-  → SUPERSEDE mode (replace story NNN with MMM: banner, status, index, archive offer)
+  → SUPERSEDE mode (replace story NNN with MMM)
 
 "stories NNN run all [--auto|--batch=N|--gate=commit|--serial]"
   → RUN mode (all pending tasks of story NNN)
@@ -231,7 +234,7 @@ When a command references `NNN`:
 |---|---|---|
 | **Create** | `/epic:epic` or `/epic:epic <description>` | Read [triage.md](../../references/triage.md), then [clarify.md](../../references/clarify.md) when a round runs, then [phase-execution.md](../../references/phase-execution.md) for Standard/Full |
 | **Instant** | `/epic:epic instant <description>` | Read [instant-mode.md](../../references/instant-mode.md), then [triage.md](../../references/triage.md) with its three pins set — no clarify round |
-| **Migrate** | `/epic:epic stories migrate NNN [--apply]` | Run `epic-migrate` — dry run by default; it reports the rewrites as JSON and the diff on stderr, and writes only with `--apply` |
+| **Migrate** | `/epic:epic stories migrate NNN [--apply]` | Run `epic-migrate`; it writes only with `--apply` |
 | **Batch Create** | `/epic:epic stories create --batch <doc>` | Load [batch-create.md](../../references/batch-create.md) — one interview, N stories; numbers come from `epic-next-number` |
 | **Init** | `/epic:epic init` | Load [init-mode.md](../../references/init-mode.md) |
 | **List** | `/epic:epic stories [full] [NNN]` | Load [list-mode.md](../../references/list-mode.md) |
@@ -239,6 +242,7 @@ When a command references `NNN`:
 | **Validate** | `/epic:epic stories validate NNN` | Load [validate-mode.md](../../references/validate-mode.md) |
 | **Refine** | `/epic:epic stories refine NNN` | Load [refine-mode.md](../../references/refine-mode.md) |
 | **Archive** | `/epic:epic stories archive NNN[-MMM]\|--done` | Load [list-mode.md](../../references/list-mode.md) (Archive Command) — the mode resolves which stories to archive and calls `epic-archive` once per story; it never moves a directory or writes a manifest entry itself |
+| **From memory · Sync docs** | `/epic:epic stories from-memory [<page>]` · `/epic:epic sync-docs` | Load [memory-modes.md](../../references/memory-modes.md) |
 | **Supersede** | `/epic:epic stories supersede NNN --by MMM` | Load [supersede-mode.md](../../references/supersede-mode.md) |
 | **Expand** | User says "based on", "extends" existing story | Create new story referencing source |
 | **CI/Headless** | Programmatic invocation via Agent SDK | Load [ci-mode.md](../../references/ci-mode.md) |
