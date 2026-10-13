@@ -42,7 +42,7 @@ Parse flags from `$ARGUMENTS` after the run command:
 | Flag | Behavior |
 |---|---|
 | (default) | Standard and Full: gate after every task group. **Fast runs as `--auto`**: it stops on a validation or test failure and on a doubt the constitution defaults do not cover, and nowhere else — a Fast story is small enough to see whole at the end, and a per-group gate would spend one round of the question budget on "go on" |
-| `--auto` | Only stop on a failure or an uncovered doubt — the Fast default, made explicit for Standard and Full |
+| `--auto` | Only stop on a failure. Group gates, doubts the constitution covers, doubts it does not, and the end-of-run question take the recommended option, each logged as an assumption (see [Assumptions under `--auto`](#assumptions-under---auto)) |
 | `--step` | Gate after every task group in a Fast run — the one way to ask a Fast story for its stops back |
 | `--batch=N` | Gate every N task groups |
 | `--gate=commit` | Gate only where a group's `Commit:` field is executed |
@@ -109,7 +109,7 @@ Read the sub-task's own body and take the **first** route that matches.
 
 **The route never relaxes the protocol.** Inline means the main agent runs the same six steps an Executor would (see Inline Route — Main Agent), gathers context whenever a Context field exists, and closes the box through `close-subtask.sh` like everyone else. It is the same work done in a cheaper place — never less work.
 
-For `--auto` flag: routing unchanged. Sub-agents still run wherever the table sends them, but gates between tasks are removed (only stop on failure).
+For `--auto` flag: routing unchanged. Sub-agents still run wherever the table sends them, but gates between tasks are removed (only stop on failure). A Fast story without the flag keeps its one extra stop — a doubt the constitution does not cover.
 
 ## Task Execution Flow
 
@@ -611,11 +611,20 @@ Two options — three for a `layperson` requester — the step first, its label 
 
 **A `layperson` requester is asked too** — the question comes after the closing three lines, never instead of them, and the three-line form rule does not remove it. Every label and description says what the option does for them, never the mode's name alone ([plain-register.md](plain-register.md)).
 
-**Ask whenever `AskUserQuestion` is callable** — listed among the tools, directly or as a deferred tool to load ([triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage)). That is the only test: `--auto`, a Fast default and a missing Task tool do not make the run's end headless, because `--auto` answers the run's gates, and this question comes after them. **Never write the step as prose while the tool is callable** — a recommendation in the closing text is the question lost.
+**Ask whenever `AskUserQuestion` is callable** — listed among the tools, directly or as a deferred tool to load ([triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage)). That is the only test: a Fast default and a missing Task tool do not make the run's end headless. **`--auto` is the one exception, and it is explicit**: the user asked not to be asked, so the recommended step is taken — started, when it is *Validate* or *Run the rest*; printed as a command, when it is *New session*, a fix round's revalidation or anything after a validation — and logged as an assumption. **Never write the step as prose while the tool is callable** — a recommendation in the closing text is the question lost.
 
 **Only when `AskUserQuestion` is not callable:** do not start the step. End the closing message with the recommendation and its command — the same rule the archive offer applies ([validate-mode.md](validate-mode.md#headless)); a run's end is not a gate to take on the user's behalf.
 
 **One memory write precedes the question, when memory is available and the register is not empty.** Write the deviation register as one page at `epic/deviations/NNN-<slug>.md`: an H1 `# Deviations of story NNN — <title>` and then the register's entries — deviations and discoveries — as they stand in `.draft/deviations.yaml`, with no secret carried over. One page per story at a stable path, so a re-run of the story rewrites it instead of adding a second. An empty register writes nothing; unavailable memory calls nothing ([mcp-integration.md](mcp-integration.md#memory-mcp)).
+
+### Assumptions under `--auto`
+
+Every point where `--auto` answered for the user is an assumption, and every assumption is written down — the user who said "do not ask me" still reads what was decided.
+
+- **What is logged:** each group gate passed, each doubt resolved (from the constitution, or from the recommended option when it covers nothing), and the end-of-run step taken. One line each: the point, the option taken, the alternatives, and why — `constitution: ## Defaults` or `recommended`.
+- **Where:** `.draft/run-report.md` under `## Assumptions`, in the order they were made; and, when memory is available, the same list as the page `epic/decision/<NNN>-auto-assumptions.md` (H1 `# --auto assumptions of story NNN`), rewritten at that stable path by a later `--auto` run of the story.
+- **What it is not:** a question. Nothing in this list waits for an answer; the closing message names how many assumptions were made and where they are.
+- **What still stops the run:** a validation or test failure, the three-failure breaker, a refused close (`epic-test-diff`), and a step that would leave the machine (push, merge, publish).
 
 ## Progress Tracking
 

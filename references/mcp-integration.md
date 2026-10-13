@@ -80,6 +80,7 @@ Its LLM work — the consolidation that turns raw observations into pages, the l
 |---|---|---|
 | Triage / Phase 1 — [context-discovery.md](context-discovery.md#prior-knowledge) | `memory_recent` (5) and one `memory_query` built from the request's own nouns | — |
 | Run — [run-mode.md](run-mode.md#procedure) | one `memory_query` per run for prior deviations, discoveries and gotchas on the detected techs, passed to every Executor as Project State | at End of Run, the deviation register as one page: `epic/deviations/NNN-<slug>.md` |
+| Run with `--auto` — [run-mode.md](run-mode.md#assumptions-under---auto) | — | the assumptions the run made, as one page: `epic/decision/NNN-auto-assumptions.md` |
 | Validate — [validate-mode.md](validate-mode.md#auditor-sub-agent) | prior structural audit findings, handed to the Auditor as things to verify | after the verdict, one page per structural finding: `epic/audit/<subject>.md` |
 
 **The orchestrator is the only writer.** Pages are composed from files that already exist — `.draft/deviations.yaml`, `.draft/audit-report.yaml` — so no sub-agent needs a memory tool in its grant, and none declares a memory store of its own.

@@ -36,3 +36,12 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/validate-mode.md 'executor-reports.md'
   has references/run-mode.md 'keep every executor report on disk'
 }
+
+@test "A3: --auto asks only on failure and logs every assumption, in the run report and in memory" {
+  has references/run-mode.md '### assumptions under `--auto`'
+  has references/run-mode.md '## assumptions'
+  has references/run-mode.md 'epic/decision/<nnn>-auto-assumptions'
+  has references/run-mode.md '`--auto` is the one exception'
+  has references/mcp-integration.md 'auto-assumptions'
+  has skills/epic/SKILL.md 'under `--auto` the recommended step is taken'
+}
