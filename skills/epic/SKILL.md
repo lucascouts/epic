@@ -39,7 +39,7 @@ allowed-tools:
 
 # Epic
 
-Scale-adaptive story framework for features and bugfixes. Invoked as `/epic:epic`.
+Scale-adaptive story framework for features and bugfixes. Invoked as `/epic:epic`. Links to `../../references/` mean `${CLAUDE_PLUGIN_ROOT}/references/`.
 
 ## Scope (MUST read first)
 
@@ -112,11 +112,11 @@ Its JSON `mapping` field gives the requirement → sub-tasks relation directly �
 - Claude Code **v2.1.295 or newer** — one floor for every feature.
 - Optional MCP servers for research. See [mcp-integration.md](../../references/mcp-integration.md) for the full priority order and cost policy. Default search MCP is `brave-search`; `perplexity` is **never** the default (premium/high-cost).
 
-## Runtime dependency precheck
+## Before triage
 
-**Before Standard or Full triage, run the precheck in [triage.md](../../references/triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage).**
+**Before Standard or Full triage, run the constitution gate and the precheck in [triage.md](../../references/triage.md#constitution-gate).**
 
-**Headless — `AskUserQuestion` is not callable, so nobody can answer:** take every gate and question inside the mode with its recommended option, record each as an assumption, and run the mode to its end; stop only on a failure. The step after the mode is never started: print its command.
+**Headless — `AskUserQuestion` is not callable:** take every gate and question inside the mode with its recommended option, record each as an assumption, and finish the mode; stop only on a failure. The step after the mode is never started: print its command.
 
 ## Project State
 

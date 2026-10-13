@@ -25,13 +25,23 @@
       "type": "string",
       "title": "Default scale",
       "description": "Default scale when triage cannot determine one (fast | standard | full | spike)",
-      "default": "standard"
+      "default": "standard",
+      "options": [
+        "fast",
+        "standard",
+        "full",
+        "spike"
+      ]
     },
     "aiMemory": {
       "type": "string",
       "title": "ai-memory integration",
       "description": "auto (default): detect the ai-memory MCP server with one local call at triage and, when it answers, recall prior knowledge at triage, prior deviations at run and prior audit findings at validate, and write deviation and audit pages. off: never call it. A server that is not there behaves like off, silently.",
-      "default": "auto"
+      "default": "auto",
+      "options": [
+        "auto",
+        "off"
+      ]
     },
     "staleThresholdDays": {
       "type": "number",

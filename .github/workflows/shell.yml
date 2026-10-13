@@ -16,6 +16,11 @@ on:
       - "bin/**"
       - "hooks/**"
       - "tests/**"
+      - "skills/**"
+      - "agents/**"
+      - "references/**"
+      - "settings.json"
+      - ".claude-plugin/**"
       - ".github/workflows/shell.yml"
   push:
     branches: [main]
@@ -72,3 +77,23 @@ jobs:
             bash scripts/validate-story.sh --help >/dev/null
             echo "::endgroup::"
           done
+
+  plugin-validate:
+    name: plugin-validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Claude Code (exact version)
+        # The schema Claude Code itself enforces — hooks (onFailure), settings,
+        # agents, userConfig — is only checkable by Claude Code. Pinned to an
+        # exact release no older than the plugin's floor (2.1.295) and at least
+        # seven days old when this workflow runs; bump it by hand, deliberately.
+        # `plugin validate` needs no login.
+        run: npm install -g @anthropic-ai/claude-code@2.1.296
+      - name: Validate plugin, marketplace, skills and agents
+        run: |
+          set -e
+          for p in .claude-plugin/plugin.json .claude-plugin/marketplace.json skills agents; do
+            claude plugin validate --strict "$p"
+          done
+

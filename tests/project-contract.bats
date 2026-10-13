@@ -67,3 +67,13 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/list-mode.md 'stories supersede NNN --by MMM'
   has references/list-mode.md 'a dormant draft is shown, never touched'
 }
+
+@test "P7: A7 — plugin root named once in SKILL.md, options on userConfig, README drift fixed, validate --strict in CI" {
+  has skills/epic/SKILL.md '\$\{CLAUDE_PLUGIN_ROOT\}/references/'
+  has skills/epic/SKILL.md 'triage.md#constitution-gate'
+  command jq -e '.userConfig.defaultScale.options == ["fast","standard","full","spike"] and .userConfig.aiMemory.options == ["auto","off"]' "$ROOT/.claude-plugin/plugin.json"
+  has README.md '6 sub-agents'
+  has README.md '4 hook events'
+  has README.md 'no output style changes how they respond'
+  has .github/workflows/shell.yml 'claude plugin validate --strict'
+}
