@@ -40,3 +40,10 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/validate-mode.md 'epic-deviation'
   has references/refine-mode.md 'epic-deviation add deviation'
 }
+
+@test "X4: the orchestrator greps and reads through epic-* scripts, never cats a whole report" {
+  has references/output-rules.md '## reading files back'
+  has references/output-rules.md 'never `cat` the file'
+  has references/output-rules.md 'epic-report --story'
+  has references/validate-mode.md 'epic-report --story <dir>'
+}
