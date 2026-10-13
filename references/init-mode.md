@@ -21,6 +21,11 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
    - Hard constraints? (e.g., "no ORMs", "integration tests hit real DB")
    - Commit style? (auto-detect from git log if available)
 
+   **Worktrees (Claude Code's defaults):**
+   - `.claude/worktrees/` goes into `.gitignore` — Claude Code creates sub-agent worktrees there, and they are never project files
+   - Offer `{"worktree": {"baseRef": "head"}}` in `.claude/settings.json` — [1] add it (default) [2] skip. Without it a worktree branches from the remote's default branch and misses local, unpushed work
+   - `.worktreeinclude` only for ignored files an Executor needs (`.env*`); never `.epic/`
+
    **Protected files:**
    - The archive: offer `permissions.deny: ["Edit(.epic/archive/**)", "Write(.epic/archive/**)"]` in `.claude/settings.json` — [1] add it (default) [2] skip. Claude Code enforces a deny rule; the archive hook is best-effort and stays as a second line. `epic-archive` moves stories through Bash, which the rule does not cover, so archiving keeps working
    - Files or patterns Claude should never modify? When the user names any, offer to add one `Edit(<pattern>)` rule per pattern to `permissions.deny` in `.claude/settings.json` — a rule Claude Code enforces, where a line in `CLAUDE.md` is only advice. Write it only on the user's yes.
