@@ -209,17 +209,23 @@ msg() {
   echo "$output" | jq -e '.context.at == "2026-09-16T10:05:00.000Z"' > /dev/null
 }
 
-@test "T13: a non-Haiku model gets a 1M window and the 200k/500k bands" {
+@test "T13: a non-Haiku model gets a 1M window and the 200k/400k bands" {
   msg m1 false 2026-09-16T10:00:00.000Z 0 0 200000 1
-  run --separate-stderr bash "$SCRIPT" --transcript "$T"
-  echo "$output" | jq -e '.context.family == "other" and .context.window == 1000000' > /dev/null
+  run --separate-stderr env -u CLAUDE_CODE_DISABLE_1M_CONTEXT bash "$SCRIPT" --transcript "$T"
+  echo "$output" | jq -e '.context.family == "other" and .context.window == 1000000 and .context.window_source == "model"' > /dev/null
   echo "$output" | jq -e '.context.used_pct == 20 and .context.band == "high"' > /dev/null
-  msg m2 false 2026-09-16T10:01:00.000Z 0 0 500000 1
-  run --separate-stderr bash "$SCRIPT" --transcript "$T"
+  msg m2 false 2026-09-16T10:01:00.000Z 0 0 400000 1
+  run --separate-stderr env -u CLAUDE_CODE_DISABLE_1M_CONTEXT bash "$SCRIPT" --transcript "$T"
   echo "$output" | jq -e '.context.band == "efficient"' > /dev/null
-  msg m3 false 2026-09-16T10:02:00.000Z 0 0 500001 1
-  run --separate-stderr bash "$SCRIPT" --transcript "$T"
-  echo "$output" | jq -e '.context.band == "degraded" and .context.thresholds == {"high":200000,"efficient":500000}' > /dev/null
+  msg m3 false 2026-09-16T10:02:00.000Z 0 0 400001 1
+  run --separate-stderr env -u CLAUDE_CODE_DISABLE_1M_CONTEXT bash "$SCRIPT" --transcript "$T"
+  echo "$output" | jq -e '.context.band == "degraded" and .context.thresholds == {"high":200000,"efficient":400000}' > /dev/null
+}
+
+@test "T13b: CLAUDE_CODE_DISABLE_1M_CONTEXT=1 puts every family on a 200k window with the Haiku bands" {
+  msg m1 false 2026-09-16T10:00:00.000Z 0 0 120000 1
+  run --separate-stderr env CLAUDE_CODE_DISABLE_1M_CONTEXT=1 bash "$SCRIPT" --transcript "$T"
+  echo "$output" | jq -e '.context.window == 200000 and .context.window_source == "disable-1m" and .context.band == "efficient" and .context.thresholds == {"high":100000,"efficient":150000}' > /dev/null
 }
 
 @test "T14: a Haiku model gets a 200k window and the 100k/150k bands" {
@@ -239,7 +245,7 @@ msg() {
   msg m1 false 2026-09-16T10:00:00.000Z 0 0 50000 1
   run --separate-stderr bash "$SCRIPT" --transcript "$T" --window 200000
   echo "$output" | jq -e '.context.window == 200000 and .context.used_pct == 25' > /dev/null
-  echo "$output" | jq -e '.context.thresholds == {"high":40000,"efficient":100000} and .context.band == "efficient"' > /dev/null
+  echo "$output" | jq -e '.context.thresholds == {"high":40000,"efficient":80000} and .context.band == "efficient"' > /dev/null
 }
 
 @test "T16: an empty window reports context null, and a bad --window exits 2" {

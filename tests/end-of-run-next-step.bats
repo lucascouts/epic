@@ -46,7 +46,7 @@ setup() {
 
 @test "N3: high recommended here, efficient allowed, degraded a new session" {
   printf '%s\n' "$END" | grep -q '^| `high` | ≤ 100k | ≤ 200k | offered in this session — \*\*strongly recommended here\*\*'
-  printf '%s\n' "$END" | grep -q '^| `efficient` | ≤ 150k | ≤ 500k | offered in this session'
+  printf '%s\n' "$END" | grep -q '^| `efficient` | ≤ 150k | ≤ 400k | offered in this session'
   printf '%s\n' "$END" | grep -q '^| `degraded` | above | above | \*\*not run in this session\*\*'
 }
 
