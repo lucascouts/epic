@@ -62,3 +62,16 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/plain-register.md 'epic-jargon'
   has skills/epic/SKILL.md 'checked with `epic-jargon` first'
 }
+
+@test "A6: CI recipes state permissions, name Edit and ai-memory, never --bare, and check the agents loaded" {
+  has references/ci-mode.md '--permission-prompts none'
+  has references/ci-mode.md '--permission-mode acceptEdits'
+  has references/ci-mode.md 'mcp__ai-memory__\*'
+  has references/ci-mode.md 'do not add `--bare`: it skips every hook'
+  has references/ci-mode.md 'without its six sub-agents'
+  has README.md '--permission-prompts none'
+  # every claude -p recipe in ci-mode.md carries both permission flags
+  n_p=$(command grep -c 'claude -p "' "$ROOT/references/ci-mode.md")
+  n_m=$(command grep -c -- '--permission-prompts none' "$ROOT/references/ci-mode.md")
+  [ "$n_m" -ge "$((n_p - 1))" ] || { echo "$n_p recipes, $n_m with --permission-prompts none"; return 1; }
+}
