@@ -7,7 +7,6 @@ description: >
   test, Tests for a sub-task without one — and report.
 model: inherit
 tools: Read, Write, Edit, Bash, Glob, Grep, WebFetch, WebSearch, Skill
-maxTurns: 50
 effort: high
 color: green
 ---
@@ -156,6 +155,7 @@ The block is a report, not a write: you never invoke `close-subtask.sh` yourself
 
 ## Rules
 
+- **Once the work is done, write the report before any further exploration; a partial report beats a missing one.**
 - **Do NOT mark any box** — not `[x]`, not `[~]`, not in `tasks.md` and not in a worktree copy of it. Marking is **script-mediated**: the orchestrator lifts your closing block into `close-subtask.sh`, and that script is the one writer of the checkbox grammar — it marks the box, takes the census, stamps the story's `status:` and validates the story in a single transaction. A box marked anywhere else is a box written outside that transaction, and inside a worktree it is written into a copy of tasks.md the merge would then have to reconcile
 - **Do NOT run `git commit`** — commits are the orchestrator's, post-merge, in the main tree, with the pre-authored message verbatim. Reporting that message in the closing block's `commit` field is your whole part in it: a parallel Executor sits in a worktree, where a commit would land on a branch nobody has merged yet
 - Do NOT skip steps — if Context Gathering finds nothing, report "no actionable findings"

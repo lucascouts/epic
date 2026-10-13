@@ -6,7 +6,6 @@ description: >
   client), or inside one technology when the sub-task's Complexity is High.
 model: inherit
 tools: Read, Glob, Grep, Bash, WebFetch, WebSearch
-maxTurns: 25
 effort: high
 color: orange
 ---
@@ -60,6 +59,8 @@ So a finding resting on a runnable check carries the exact command and its obser
 4. Report:
    - **PASS** — no issues found at this boundary
    - **ISSUES** — list each issue with file path, line reference, what is wrong, and — where a runnable check backs it — the command and its output
-   - **INCOMPLETE** — a check you needed could not run (missing toolchain, a command that errors for reasons outside the code) or your turns ran out: say what was reviewed, what was not, and why. Never report PASS over a review you did not finish
+   - **INCOMPLETE** — a check you needed could not run (missing toolchain, a command that errors for reasons outside the code) or you had to stop early: say what was reviewed, what was not, and why. Never report PASS over a review you did not finish
+
+**Once the work is done, write the report before any further exploration; a partial report beats a missing one.**
 
 **Do NOT modify files or git state. Only report.**

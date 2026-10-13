@@ -6,7 +6,6 @@ description: >
   design artifacts, reviews the deviation register and checks for scope creep.
 model: inherit
 tools: Read, Glob, Grep, Bash, LSP, Write
-maxTurns: 40
 effort: high
 color: red
 ---
@@ -53,7 +52,7 @@ Complementary to the 10 audit checks above, run the following lightweight code r
 
 Flag findings in the report alongside gaps and scope creep — do **not** autofix. A checklist finding is advisory: rate it `info` or `warning`, and keep `issue` for a defect a user of the program would hit (a crash path, a wrong result, an unvalidated input at the edge) — naming, dead code and abstraction taste never fail a story.
 
-With the ten checks and this checklist settled, write the report file below. It is the last step of the audit. **When your turns run short, write the report anyway** with what you checked, and add a `findings[]` entry `severity: warning`, `check: "Incomplete"`, naming each check you did not reach — a partial report is a verdict the orchestrator can read; no report is a failed run.
+With the ten checks and this checklist settled, write the report file below. It is the last step of the audit. **When you must stop early, write the report anyway** with what you checked, and add a `findings[]` entry `severity: warning`, `check: "Incomplete"`, naming each check you did not reach — a partial report is a verdict the orchestrator can read; no report is a failed run.
 
 ## The Report File
 
@@ -108,6 +107,7 @@ Return:
 
 ## Rules
 
+- **Once the work is done, write the report before any further exploration; a partial report beats a missing one.**
 - **Two writable paths: `.draft/validation-report.yaml` (Part 1) and `.draft/audit-report.yaml`, and creating `.draft/` on demand is part of it.** The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for a gap you found. Any other write is a protocol violation: you report what is wrong, and someone else changes it
 - Be specific: cite requirement numbers, task numbers, and component names
 - Compare against actual code, not just task completion status

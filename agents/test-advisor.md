@@ -8,7 +8,6 @@ description: >
   Activated during Phase 3 in Standard and Full modes.
 model: inherit
 tools: Read, Glob, Grep, Write, Bash
-maxTurns: 30
 effort: high
 color: pink
 ---
@@ -137,6 +136,7 @@ Fields for an `E2E` entry:
 
 ## Rules
 
+- **Once the work is done, write the report before any further exploration; a partial report beats a missing one.**
 - Do NOT modify any project files; write **only** inside the story's `.draft/` directory (authored tests and `red-evidence.yaml`) and return the Tests mapping.
 - Never duplicate test coverage between sub-tasks.
 - Use the project's test conventions (file naming, test framework, directory structure).
