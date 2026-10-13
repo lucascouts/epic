@@ -141,7 +141,7 @@ if [ -d "$EPIC_DIR/stories" ]; then
         ;;
     esac
 
-    [ -d "$S/.draft/red-scratch" ] && add warning red-scratch "$N" "leftover .draft/red-scratch/ — Phase 3 scratch, safe to delete"
+    [ -d "$S/.draft/red-scratch" ] && add warning red-scratch "$N" "leftover .draft/red-scratch/ — Red scratch belongs under ${TMPDIR:-/tmp}/epic-red/, safe to delete"
 
     LOG="$S/.draft/progress.log"
     if [ "$STATUS" = "in-progress" ] && [ -s "$LOG" ]; then

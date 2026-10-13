@@ -79,10 +79,20 @@ For example, a sub-task whose Tests field targets `tests/foo.test.ts` is authore
 
 After authoring each `Unit` or `Integration` test file:
 
-1. **Stub the API under test**, so the test can reach its assertions: the signatures the design names (function, method, type, route), each returning the zero value of its type — never the specified behaviour, and never a throw. The stub lives in the Red scratch directory, never in the project tree.
+1. **Stub the API under test**, so the test can reach its assertions: the signatures the design names (function, method, type, route), each returning the zero value of its type — never the specified behaviour, and never a throw. The stub lives in the Red scratch directory (below), never in the project tree.
 2. Run that test with the project's test runner (e.g. `npm test -- foo`, `pytest path/to/test`, `go test ./...`).
 3. **Red is a failed assertion, and nothing else.** The run must reach an assertion (`expect`, `assert`, `t.Error`, …) and fail there: the behaviour is absent, so the stub's zero value does not match. A failure before any assertion runs — an import or module-not-found error, a fixture or setup error, a syntax error, a misconfigured runner, a `ReferenceError` on the missing API — is **`setup`**, not Red: it proves the test cannot run, not that the behaviour is absent. Fix the test or the stub and run again; never record `setup` as Red.
 4. Record the result in `.draft/red-evidence.yaml` with `red_at: assertion`.
+
+### The Red scratch directory
+
+Red runs need the test at its real path beside a stub of the code, and neither may touch the project tree or `.epic/`. Run them in a scratch directory outside both: `${TMPDIR:-/tmp}/epic-red/<story-dir-name>/`.
+
+1. **Create it** once per spawn: in a git repository, `git worktree add --detach "$SCRATCH" HEAD`; otherwise copy the files the runner needs. Link the ignored dependency directories the runner reads (`node_modules`, `.venv`, `vendor`, `target`) from the project instead of installing them again.
+2. **Place** each authored test at its `target_path` and its stub at the path the implementation will occupy, inside the scratch only. The authored copy you keep is still the one under `.draft/authored-tests/`.
+3. **Remove it** when the spawn ends, whatever the outcome: `git worktree remove --force "$SCRATCH"` (or `rm -rf` on a copy), then `git worktree prune`. A scratch left behind is a second tree with a stub in it.
+
+Never create `.draft/red-scratch/` or any scratch under `.epic/`: the doctor flags it, and it diverges from the main tree the moment it exists.
 
 ### Deferred-Red verification (E2E)
 
