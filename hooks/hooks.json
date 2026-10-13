@@ -1,5 +1,5 @@
 {
-  "description": "Epic guards: archive is read-only, the Executor never commits or edits tasks.md, commits keep the identity git already has; validation after a write under .epic/; state restore after compaction; orphan-draft notice after /clear; a one-line epic-doctor summary at session start; report guard on the Auditor.",
+  "description": "Epic guards: archive is read-only, the Executor never commits or edits tasks.md, commits keep the identity git already has; validation after a write under .epic/; state restore after compaction; orphan-draft notice after /clear; a one-line epic-doctor summary at session start; supervisor messages relayed as untrusted claims after each close; report guard on the Auditor.",
   "hooks": {
     "PostToolUse": [
       {
@@ -9,6 +9,16 @@
             "type": "command",
             "if": "Write(**/.epic/**)",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-validate.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-inbox.sh\"",
+            "timeout": 15
           }
         ]
       }
