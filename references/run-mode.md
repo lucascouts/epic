@@ -459,6 +459,8 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 > - a **test-after** sub-task has step 2 Implementation and step 5 **Tests**;
 > - a **Standard Unit** sub-task (one that carries "Unit Test to Write First") makes step 2 author → Red → Green, and step 5 **Refactor**.
 
+**Keep every Executor report on disk.** After each Executor returns — and after each inline sub-task — append its claims to `.draft/executor-reports.md` under `## <sub-task>`: the Validation Result, the step 5 result, the files modified and the Warnings, verbatim, with no code. The Auditor reads that file as claims to verify, and the orchestrator's context keeps the closing block only.
+
 **Recording an Executor-authored Red.** When the Executor reports a Standard Unit sub-task's inline Red, append its entry to `.draft/red-evidence.yaml` before closing the box — `task`, `target_path`, `command`, `failed: true`, `red_at: assertion`, `reason`, `recorded`, and `recorded_by: executor` — taken from the report's **Red (inline)** section. A report with no such section, or one whose Red failed before an assertion, is a failed sub-task, not a box to close.
 
 ### Executor Rules

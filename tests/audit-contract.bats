@@ -26,3 +26,13 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/validate-mode.md 'no fix round, no task group, no second auditor'
   has references/validate-mode.md '## record fixes'
 }
+
+@test "A2: short hand-back, claims verified with evidence, checks_run beside empty arrays, review budget in the prompt" {
+  has agents/auditor.md 'never restate a finding'
+  has agents/auditor.md 'confirmed \| partial \| unsupported'
+  has agents/auditor.md 'checks_run'
+  has agents/auditor.md 'reviewed, no finding" carries what was run'
+  has references/validate-mode.md 'review budget: one validation and at most two fix rounds'
+  has references/validate-mode.md 'executor-reports.md'
+  has references/run-mode.md 'keep every executor report on disk'
+}

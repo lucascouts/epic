@@ -87,6 +87,14 @@ missing_red:
     kind: no-entry                      # a pre-authored test with no entry in .draft/red-evidence.yaml
   - task: "3.1"
     kind: no-test                       # a non-`None` Tests: field with no authored test at all
+claims:                                 # Executor-report claims your checks relied on
+  - task: "2.1"
+    claim: "validation exit 0"
+    status: confirmed                   # confirmed | partial | unsupported
+    evidence: "go test ./internal/parser → exit 0"
+checks_run:                             # what was run for each check that found nothing
+  - check: "Security"
+    ran: "read src/auth/*.go; gosec ./... → 0 issues"
 findings:
   - severity: issue                     # info | warning | issue
     check: "Dead code"                  # the checklist item it came from
@@ -98,17 +106,20 @@ Every array is present even when empty (`gaps: []`): an absent key and an empty 
 
 ## Report Format
 
-Only now, with the file written, summarize it in prose for the human reading along.
+Only now, with the file written, reply — and keep the reply to the verdict and what blocks it, because everything else is already in the file and the orchestrator reads it from there:
 
-Return:
-- List of gaps found (cite requirement numbers, component names, file paths)
-- List of quality gates not met
-- List of unverified or inaccurate deviations (if any)
-- List of scope creep items (if any)
-- List of sub-tasks with a pre-authored test missing a Red-evidence entry in `.draft/red-evidence.yaml` (if any)
-- List of sub-tasks whose `Tests:` field is not `None` but which have no pre-authored test at all (if any) — the refine-added case, reported separately because it is an absence rather than a gap
-- List of code review findings from the checklist (severity: info / warning / issue)
-- "All checks passed" if clean
+- line 1: `verdict: <pass | fail | fail-record>`
+- one line per gap, unmet gate, `missing_red` entry and `record_issues` entry, citing the requirement, gate, sub-task or file
+- one last line counting what stays in the file: `advisory: N findings, N scope-creep items, N claims not confirmed — see .draft/audit-report.yaml`
+- `All checks passed` when line 1 is `pass` and nothing else is owed
+
+Never restate a finding, a claim or a deviation review in the reply: a hand-back that repeats the report is the orchestrator reading it twice.
+
+## Claims, not facts
+
+The Executor reports in `.draft/executor-reports.md` (and the inline route's notes in the same file) are **claims**: "validation exit 0", "14 tests passing", "files modified: …", "no finding". Verify every claim that a check of yours depends on, and record each in `claims[]`: `confirmed` when you reproduced it (name the command or the file and line), `partial` when part of it holds (say which part), `unsupported` when nothing you ran or read bears it out. An `unsupported` claim that hides a gap is reported as that gap; on its own it is advisory.
+
+**"Reviewed, no finding" carries what was run.** For every check that produced nothing, add a `checks_run[]` entry naming the command you ran or the files you read for it. An empty array with no `checks_run` entry beside it is a check nobody can tell was done.
 
 ## Rules
 

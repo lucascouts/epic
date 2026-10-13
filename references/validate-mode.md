@@ -33,6 +33,8 @@ The first block of the one spawn prompt. The Auditor runs it before any audit ch
 > Tasks file: [path to tasks.md]
 > Story directory: [path to .epic/stories/NNN-slug]
 > Completed tasks: [list of tasks marked `[x]`]
+> Executor reports: [path to .draft/executor-reports.md, if it exists — claims to verify, not facts]
+> Review budget: one validation and at most two fix rounds for this story; this spawn is [the validation | fix round N's revalidation]
 > Closed without work: [list of tasks marked `[~]`, each with its qualifier — these have nothing to run]
 > Project root: [path]
 >
@@ -66,11 +68,7 @@ The first block of the one spawn prompt. The Auditor runs it before any audit ch
 >
 > One results[] entry per sub-task you were given, `[x]` and `[~]` alike, and one gates[] entry per Quality Gate. A SKIP never fails the run. A `[x]` sub-task with no runnable Validation command is FAIL, never SKIP; a command that hangs or waits for input is FAIL with its reason.
 >
-> Only then summarize in prose:
-> - PASS: task N.N — validation succeeded
-> - FAIL: task N.N — [what failed and why]
-> - SKIP: task N.N — nothing to run (a `[~]` box closed without the work being done — name its qualifier)
-> - each Quality Gate as PASS or FAIL with evidence
+> Only then reply, short: line 1 `verdict: <pass | fail | fail-record>`, then one line per gap, unmet gate, `missing_red` and `record_issues` entry, then one line counting what stays in the file (findings, scope creep, claims not confirmed). Never restate the file.
 >
 > Do NOT modify any other file: that report is your only write, and any other write is a protocol violation — report what is wrong, never fix it."
 
@@ -131,6 +129,14 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 >     kind: no-entry                      # a pre-authored test with no entry in .draft/red-evidence.yaml
 >   - task: "3.1"
 >     kind: no-test                       # a non-`None` Tests: field with no authored test at all
+> claims:                                 # Executor-report claims your checks relied on
+>   - task: "2.1"
+>     claim: "validation exit 0"
+>     status: confirmed                   # confirmed | partial | unsupported
+>     evidence: "go test ./internal/parser → exit 0"
+> checks_run:                             # what was run for each check that found nothing
+>   - check: "Security"
+>     ran: "read src/auth/*.go; gosec ./... → 0 issues"
 > findings:
 >   - severity: issue                     # info | warning | issue
 >     check: "Dead code"                  # the checklist item it came from
