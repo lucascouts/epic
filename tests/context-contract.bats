@@ -53,3 +53,7 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/run-mode.md 'this skill asks for the `effort` column'
   has references/run-mode.md 'never pass `model` on an executor spawn outside a declared a/b'
 }
+
+@test "X6: headless takes the mode's gates but never starts the step after it (prompt-audit finding)" {
+  has skills/epic/SKILL.md 'the step after the mode is never started'
+}
