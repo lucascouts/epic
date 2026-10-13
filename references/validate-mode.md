@@ -108,7 +108,7 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 > ```yaml
 > story: "NNN-slug"                       # the story directory name
 > generated_at: "<YYYY-MM-DD>T<hh:mm:ss>Z" # UTC, ISO 8601
-> verdict: pass                           # pass | fail — see below
+> verdict: pass                           # pass | fail | fail-record — see below
 > gaps:
 >   - requirement: "R2.3"                 # requirement number, component name or file path
 >     detail: "no recovery path when the report is unparseable"
@@ -119,6 +119,10 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 >   - deviation: "2.1 — parser inlined instead of extracted"
 >     accurate: false                     # is the deviation's stated impact accurate?
 >     detail: "claims no callers; src/cli.ts calls it"
+> record_issues:                          # the register is wrong or incomplete; the code is not
+>   - record: ".draft/deviations.yaml"
+>     entry: "2.1"                        # the entry, or `missing` for a deviation nobody recorded
+>     fix: "impact: two callers (src/cli.ts:40, src/api.ts:12), not none"
 > scope_creep:
 >   - item: "retry/backoff added to the HTTP client"
 >     detail: "not in story.md, not confirmed during clarify"
@@ -134,7 +138,7 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 >     detail: "import left behind by the refactor"
 > ```
 >
-> Every array is present even when empty (`gaps: []`) — only the empty one says checked and clean. `verdict` is `fail` when any gap, unmet gate, inaccurate deviation or `missing_red` entry exists, and `pass` otherwise; scope creep and checklist findings are advisory, never held against the run. `missing_red`'s `kind` keeps the two absences apart: `no-entry` for a pre-authored test with no Red evidence, `no-test` for a non-`None` `Tests:` field with no test at all.
+> Every array is present even when empty (`gaps: []`) — only the empty one says checked and clean. `verdict` is `fail` when any gap, unmet gate or `missing_red` entry exists; `fail-record` when none of those exists but a deviation is inaccurate or unrecorded — each also in `record_issues[]` with its exact `fix`; `pass` otherwise; scope creep and checklist findings are advisory, never held against the run. `missing_red`'s `kind` keeps the two absences apart: `no-entry` for a pre-authored test with no Red evidence, `no-test` for a non-`None` `Tests:` field with no test at all.
 >
 > Only then summarize in prose:
 > - List of gaps found (cite requirement numbers, component names, file paths)
@@ -155,6 +159,7 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 3. Delete the stale `.draft/validation-report.yaml` and `.draft/audit-report.yaml`, then spawn **one** Auditor sub-agent (`run_in_background: false`) and wait for its completion. It runs the validation first — each task's validation command, tests and gates, per [validation-protocol.md](validation-protocol.md) — and writes `.draft/validation-report.yaml`; on a validation pass it goes on to compare the code against story + design, review the deviation register, and write `.draft/audit-report.yaml`. The spawn prompt is the two blocks below, validation first. When memory is available, it carries prior structural findings recalled with one `memory_query` — `audit OR scope-creep OR false-positive OR recurring`, `limit: 10` — as things to verify ([mcp-integration.md](mcp-integration.md#memory-mcp))
 4. Take the validation verdict from the file `.draft/validation-report.yaml`. On `verdict: fail` the audit file is absent by design — the run is a validation failure. On `verdict: pass`, take the audit verdict from the file `.draft/audit-report.yaml` the same way
 5. Present the combined results to the user, composed from the two files: the validation's `results[]` and `gates[]`, the audit's `gaps[]`, `unmet_gates[]`, `deviations_reviewed[]`, `scope_creep[]`, `missing_red[]` and `findings[]`
+5a. **On `verdict: fail-record`, fix the record yourself.** Apply each `record_issues[]` fix to `.draft/deviations.yaml` (rewrite the entry, or add the missing one), list every fix in `.draft/run-report.md` under `## Record fixes` and in the presented results, and treat the audit as `pass` from here on. No fix round, no task group, no second Auditor: the code passed, and only the register was wrong
 6. If gaps found, offer to create new tasks to address them — **bounded to two fix rounds**, see [Fix loop bound](#fix-loop-bound)
 7. Apply the status transition for this verdict — see Status Transition (`validated`)
 7a. **Memory write (when memory is available)** — for each `findings[]` entry that is structural by the Auditor's own criterion (likely to recur in this codebase: a recurring scope-creep pattern, a false-positive deviation, a project-specific gate failure) and for each `deviations_reviewed[]` entry with `accurate: false`, write or rewrite one page at `epic/audit/<subject-slug>.md`: H1 = the subject, body = the finding, the story it came from and the file/line evidence. Same subject, same path — a finding seen again rewrites its page, and that rewrite is the supersession. A story-specific bug gets no page; it belongs to the tasks step 6 offers ([mcp-integration.md](mcp-integration.md#memory-mcp))
@@ -216,6 +221,8 @@ Validate mode owns exactly one of the six `status:` values — `validated` — a
 | 1 | Both files read `verdict: pass`, and no `[ ]` remains | write `validated` (nothing to do if the field already reads `validated`) |
 | 2 | Both files read `verdict: pass`, and at least one `[ ]` remains | write nothing — report the pass and state why the status was not advanced |
 | 3 | Either file reads `verdict: fail`, or no verdict was readable at all | write nothing — leave `status:` exactly as it was |
+
+`verdict: fail-record` in the audit file reads as `pass` in this table once step 5a has applied its fixes — the code passed and the register now matches it.
 
 **Rule 2 — a partial validation must not manufacture the lie.** `/epic:epic stories validate NNN` can be invoked at any time, including on a story that still has open `[ ]` boxes: the validation simply has fewer `[x]` sub-tasks to run, and it can still pass. Writing `validated` there would immediately trip `validate-story.sh`'s ahead-of-checkboxes warning — `done` or `validated` while a `[ ]` remains — so the engine would have written the exact claim that check exists to expose. Report the pass instead, and say why the status stayed where it is: **`validated` means "the finished story was verified", not "the part that exists so far looks fine".** When the remaining boxes close, Run mode writes its own transition, and the next passing verdict earns `validated`.
 

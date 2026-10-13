@@ -64,7 +64,7 @@ The head is the validation report's, key for key, so one reader parses both file
 ```yaml
 story: "NNN-slug"                       # the story directory name
 generated_at: "<YYYY-MM-DD>T<hh:mm:ss>Z" # UTC, ISO 8601
-verdict: pass                           # pass | fail — see below
+verdict: pass                           # pass | fail | fail-record — see below
 gaps:
   - requirement: "R2.3"                 # requirement number, component name or file path
     detail: "no recovery path when the report is unparseable"
@@ -75,6 +75,10 @@ deviations_reviewed:
   - deviation: "2.1 — parser inlined instead of extracted"
     accurate: false                     # is the deviation's stated impact accurate?
     detail: "claims no callers; src/cli.ts calls it"
+record_issues:                          # the register is wrong or incomplete; the code is not
+  - record: ".draft/deviations.yaml"
+    entry: "2.1"                        # the entry, or `missing` for a deviation nobody recorded
+    fix: "impact: two callers (src/cli.ts:40, src/api.ts:12), not none"
 scope_creep:
   - item: "retry/backoff added to the HTTP client"
     detail: "not in story.md, not confirmed during clarify"
@@ -90,7 +94,7 @@ findings:
     detail: "import left behind by the refactor"
 ```
 
-Every array is present even when empty (`gaps: []`): an absent key and an empty one are not the same claim, and only the empty one says *checked and clean*. `verdict` is `fail` when any gap, unmet gate, inaccurate deviation or `missing_red` entry exists, and `pass` otherwise. **Scope creep and checklist findings are advisory** — recorded and presented, never held against the run: a verdict of `fail` sends the story into a fix round, and a round spent removing code nobody proved was out of scope, or renaming a variable, is the loop the fix-round bound exists to stop. `missing_red`'s `kind` keeps the two absences apart: a test that exists but left no Red evidence is a different defect from a `Tests:` field with no test at all, and a single list would hide which of them you found.
+Every array is present even when empty (`gaps: []`): an absent key and an empty one are not the same claim, and only the empty one says *checked and clean*. `verdict` is `fail` when any gap, unmet gate or `missing_red` entry exists — the code or its tests fall short. It is **`fail-record`** when none of those exists but the record does not match the code: a deviation whose stated impact is wrong (`accurate: false`), or a deviation the code shows and the register never recorded — each one also listed in `record_issues[]` with the exact `fix`. It is `pass` otherwise. A wrong record never fails the code: the orchestrator applies the fixes itself. **Scope creep and checklist findings are advisory** — recorded and presented, never held against the run: a verdict of `fail` sends the story into a fix round, and a round spent removing code nobody proved was out of scope, or renaming a variable, is the loop the fix-round bound exists to stop. `missing_red`'s `kind` keeps the two absences apart: a test that exists but left no Red evidence is a different defect from a `Tests:` field with no test at all, and a single list would hide which of them you found.
 
 ## Report Format
 
