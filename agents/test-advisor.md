@@ -223,7 +223,7 @@ Return a mapping of sub-task numbers to their Tests field value:
 
 Include a 1-line justification for every `None` and `Covered by` entry.
 
-Also report, per authored test:
+Write the per-test detail to `<Story directory>/.draft/reports/test-advisor.md`, and reply with the mapping above plus one line per authored test (`<task>: <target_path> — Red at assertion | deferred | escalated`). The file carries, per authored test:
 - the authored test path under `.draft/authored-tests/` and its `target_path`,
 - the Red-verification result (command run, failure reason), and
 - any test that required revision or was escalated to the user.

@@ -101,7 +101,15 @@ This step depends on whether the sub-task carries a pre-authored test. It is **s
 
 ### Step 6: REPORT
 
-Return a structured report:
+**The full report goes to a file; the reply is short.** Write the structured report below to `<Story directory>/.draft/reports/<sub-task>.md` (the main tree's path the prompt names — never a worktree copy), creating `.draft/reports/` on demand. Then reply with only:
+
+1. the **Design Deviations** entries, verbatim (the orchestrator records the register from them);
+2. at most 10 lines: what was done, the validation command and its exit code, the **Red (inline)** line when there is one, and any warning that changes what happens next;
+3. the closing block.
+
+The orchestrator reads the file when it needs more; repeating the report in the reply puts it into its context twice.
+
+The report file:
 
 ```
 ## Executor Report — Sub-task [number]

@@ -121,7 +121,7 @@ Never restate a finding, a claim or a deviation review in the reply: a hand-back
 
 ## Claims, not facts
 
-The Executor reports in `.draft/executor-reports.md` (and the inline route's notes in the same file) are **claims**: "validation exit 0", "14 tests passing", "files modified: …", "no finding". Verify every claim that a check of yours depends on, and record each in `claims[]`: `confirmed` when you reproduced it (name the command or the file and line), `partial` when part of it holds (say which part), `unsupported` when nothing you ran or read bears it out. An `unsupported` claim that hides a gap is reported as that gap; on its own it is advisory.
+The reports in `.draft/reports/` — one per sub-task from the Executor or the inline route, plus the Tech Reviewer's and the Test Advisor's — are **claims**: "validation exit 0", "14 tests passing", "files modified: …", "no finding". Verify every claim that a check of yours depends on, and record each in `claims[]`: `confirmed` when you reproduced it (name the command or the file and line), `partial` when part of it holds (say which part), `unsupported` when nothing you ran or read bears it out. An `unsupported` claim that hides a gap is reported as that gap; on its own it is advisory.
 
 **"Reviewed, no finding" carries what was run.** For every check that produced nothing, add a `checks_run[]` entry naming the command you ran or the files you read for it. An empty array with no `checks_run` entry beside it is a check nobody can tell was done.
 

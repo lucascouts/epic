@@ -33,7 +33,7 @@ The first block of the one spawn prompt. The Auditor runs it before any audit ch
 > Tasks file: [path to tasks.md]
 > Story directory: [path to .epic/stories/NNN-slug]
 > Completed tasks: [list of tasks marked `[x]`]
-> Executor reports: [path to .draft/executor-reports.md, if it exists — claims to verify, not facts]
+> Reports: [path to .draft/reports/, if it exists — claims to verify, not facts]
 > Review budget: one validation and at most two fix rounds for this story; this spawn is [the validation | fix round N's revalidation]
 > Closed without work: [list of tasks marked `[~]`, each with its qualifier — these have nothing to run]
 > Project root: [path]

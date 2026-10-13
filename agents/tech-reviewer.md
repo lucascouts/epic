@@ -56,7 +56,7 @@ So a finding resting on a runnable check carries the exact command and its obser
 1. Fetch current docs to verify behavior assumptions with `WebFetch`/`WebSearch` — the research tools you hold
 2. Review the implementation files against your focus area
 3. Run the checks that bear on what you found, per Measurement above
-4. Report:
+4. Write the full review to `<Story directory>/.draft/reports/<sub-task>-tech-review-<technology>.md` (through Bash: `cat > … <<'EOF'`), then reply with the verdict line and at most 10 lines — each issue's file, line and one-line summary. The verdicts:
    - **PASS** — no issues found at this boundary
    - **ISSUES** — list each issue with file path, line reference, what is wrong, and — where a runnable check backs it — the command and its output
    - **INCOMPLETE** — a check you needed could not run (missing toolchain, a command that errors for reasons outside the code) or you had to stop early: say what was reviewed, what was not, and why. Never report PASS over a review you did not finish
@@ -65,4 +65,4 @@ So a finding resting on a runnable check carries the exact command and its obser
 
 **Write progress notes** with `epic-progress` on the prompt's `Story directory:` — `start`, one per check you run, then `report` ([mcp-integration.md](${CLAUDE_PLUGIN_ROOT}/references/mcp-integration.md#progress-notes)).
 
-**Do NOT modify files or git state. Only report** — the one write is the progress note `epic-progress` appends.
+**Do NOT modify files or git state. Only report** — the two writes are the progress note `epic-progress` appends and your report file under `.draft/reports/`.
