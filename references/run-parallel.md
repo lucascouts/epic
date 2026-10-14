@@ -29,7 +29,7 @@ For each parallel group, unless `--serial` was passed:
 
 ### Rules
 
-- **The parallel route is on trial.** It is rarely taken, and each group costs a worktree, a merge and a commit. It stays for one A/B on a real story; if that A/B does not favour it, the next release removes it and every run is serial.
+- **The trade is wall clock for cost.** A parallel group finishes sooner and costs a little more — a worktree, a merge and a commit per task — with the same results. It runs only when a group is proven independent; `--serial` declines it for a user who prefers the cheaper run.
 
 - **Boxes are closed only in the main tree, sequentially, after each merge — never inside a worktree copy of tasks.md.** A worktree branches from HEAD with its own copy of the file, so a box closed there is closed in a copy the merge then has to reconcile, and two Executors closing at once are two rewrites of one file. Serialising the closes behind the merges — which are already sequential — also makes each returned `census` a census of the file everyone else will read
 - A group's `Commit:` field is ALWAYS executed sequentially (post-merge), by the main agent, using the pre-authored message verbatim
