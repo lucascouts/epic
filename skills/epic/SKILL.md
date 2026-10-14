@@ -42,11 +42,11 @@ allowed-tools:
 
 Scale-adaptive story framework for features and bugfixes. Invoked as `/epic:epic`. Links to `../../references/` mean `${CLAUDE_PLUGIN_ROOT}/references/`.
 
-## Scope (MUST read first)
+## Scope
 
-Epic exists solely to **create, structure, and manage epics and their stories** (`story.md` + `design.md` + `tasks.md`). Before running any mode, verify the request fits this purpose.
+Epic exists solely to **create, structure, and manage epics and their stories** (`story.md` + `design.md` + `tasks.md`). Before running any mode, check that the request fits this purpose.
 
-**Refuse immediately** if the request is for any of the following — respond with a one-line refusal and the suggested alternative:
+Decline these requests with one line and the suggested alternative:
 
 | Request pattern | Refuse because | Tell the user |
 |---|---|---|
@@ -58,7 +58,7 @@ Epic exists solely to **create, structure, and manage epics and their stories** 
 | "Debug this incident / failing test" | Debug flow is out-of-scope | Plain chat |
 | "Architecture advice for existing code" | No design.md to validate against | Plain chat, or `/code-review` for a change |
 
-The refusal is hard. Do not partially engage, do not propose an Epic-wrapped version unless the user rewrites the request as story/task work. See [`../../PURPOSE.md`](../../PURPOSE.md) for the full boundary.
+Do not start the out-of-scope work, and offer an Epic-wrapped version only when the user rephrases it as story or task work. See [`../../PURPOSE.md`](../../PURPOSE.md) for the full boundary.
 
 ## Language
 
