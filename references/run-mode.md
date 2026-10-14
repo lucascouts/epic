@@ -100,14 +100,14 @@ Read the sub-task's own body and take the **first** route that matches.
 
 `Complexity` still governs the three columns the route does not decide. A sub-task carrying its own `Complexity` override uses that value; otherwise it inherits the parent's:
 
-| Task Complexity | Tech Review | Context Gathering | Executor `effort` |
-|-----------------|-------------|-------------------|-------------------|
-| Trivial | No | Optional | `low` |
-| Simple | Only if multi-tech boundary | Required if Context field exists | `medium` |
-| Moderate | Yes, if multi-tech boundary | Required | (omit — the agent's own `high`) |
-| High | Always (even single-tech) | Required + extra research | (omit — the agent's own `high`) |
+| Task Complexity | Tech Review | Context Gathering | Executor `effort` | Executor `model` under `by-complexity` |
+|-----------------|-------------|-------------------|-------------------|----------------------------------------|
+| Trivial | No | Optional | `low` | `haiku` |
+| Simple | Only if multi-tech boundary | Required if Context field exists | `medium` | `haiku` |
+| Moderate | Yes, if multi-tech boundary | Required | (omit — the agent's own `high`) | (omit — the session's model) |
+| High | Always (even single-tech) | Required + extra research | (omit — the agent's own `high`) | (omit — the session's model) |
 
-**This skill asks for the `effort` column**, so pass it as the Agent call's `effort` parameter when the row names one; omit the parameter otherwise, and the agent runs at its definition's `high`. A small sub-task does not need the depth of reasoning a design-level one does, and the per-spawn value is what lets one agent definition serve both. Never pass `model` on an Executor spawn outside a declared A/B — the model is the user's choice.
+**This skill asks for the `effort` column**, so pass it as the Agent call's `effort` parameter when the row names one; omit the parameter otherwise, and the agent runs at its definition's `high`. A small sub-task does not need the depth of reasoning a design-level one does, and the per-spawn value is what lets one agent definition serve both. **The Executor's model is the user's choice, read from the `executorModel` plugin option** (SKILL.md, *Plugin options*): `inherit` — omit `model`, the Executor runs on the session's model; `haiku` — pass `model: "haiku"` on every Executor spawn; `by-complexity` — pass it where the last column says `haiku`, omit it otherwise. A Haiku Executor costs about a third less and takes longer under a Sonnet session — a trade the user makes, so it is offered, never imposed. Never pass `model` on any other spawn.
 
 **The route never relaxes the protocol.** Inline means the main agent runs the same six steps an Executor would (see Inline Route — Main Agent), gathers context whenever a Context field exists, and closes the box through `close-subtask.sh` like everyone else. It is the same work done in a cheaper place — never less work.
 

@@ -132,10 +132,11 @@ Its JSON `mapping` field gives the requirement → sub-tasks relation directly �
 
 ## Plugin options
 
-The user's plugin settings, substituted by Claude Code when this skill loads. Only a saved value is substituted: a value that still reads `${user_config.…}` was never saved, so use the default in brackets.
+Substituted when this skill loads; a value still reading `${user_config.…}` was never saved — use the default in brackets.
 
-- `aiMemory`: `${user_config.aiMemory}` [`auto`] — `off` skips every ai-memory call ([mcp-integration.md](../../references/mcp-integration.md#memory-mcp))
+- `aiMemory`: `${user_config.aiMemory}` [`auto`] — `off` skips every ai-memory call (mcp-integration.md, Memory MCP)
 - `defaultScale`: `${user_config.defaultScale}` [`standard`] — the scale proposed when triage cannot settle one
+- `executorModel`: `${user_config.executorModel}` [`inherit`] — the Executor's model (run-mode.md, Execution Threshold)
 - `staleThresholdDays`: `${user_config.staleThresholdDays}` [`7`] — the story list flags pending work untouched this long
 - `spikeStaleThresholdDays`: `${user_config.spikeStaleThresholdDays}` [`14`] — the story list flags an open spike Verdict untouched this long
 
