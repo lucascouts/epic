@@ -137,6 +137,8 @@ Absent every one of them, a story is **Standard** however many files it touches:
 
 **Exploratory is a shape, not a size.** Propose Spike only when the request's own goal is to find something out, or when the user asks for one explicitly. A small feature is **Fast**, never Spike — the skill **never auto-downgrades a feature to a spike**: doing so would trade a deliverable for a question the user never asked.
 
+**The model is chosen where it is active: the session.** A plugin cannot switch the model a session runs on, and a skill's `model:` does not apply when the model itself invokes it — only when the user types the command. So Epic never tries to switch it: it **suggests**, before any work starts, continuing on the recommended model or starting a session already on it. For Fast and Spike, which create and run in this sitting, the suggestion is the proposal's `Model` line, shown only when the session is not on Sonnet, and the proposal's confirmation is where the user acts on it. Standard and Full ask at clarify which model runs the story and hand it off to a session on it ([clarify.md](clarify.md#the-run-model-standard-and-full)). Under `--auto` or headless nothing is suggested. The line names the model the session reports; when it cannot tell, the line is left out.
+
 Always explain trade-offs in the triage proposal. Include EARS primer on first story only (see [ears-notation.md](ears-notation.md)):
 
 > "This framework uses EARS notation for requirements:
@@ -153,6 +155,7 @@ Present as:
 > - **Requester:** level — persona (the evidence, in a few words)
 > - **Engineering:** experiment / tool / project / product — what it means for this request, and the multiple, in one line
 > - **Mode:** Fast / Standard / Full / Spike (the risk or signal that decided it + trade-offs)
+> - **Model:** (Fast and Spike, only when this session is not on Sonnet) this session runs on `<model>`; Sonnet does this work at the same quality for about a third of the cost — `/model sonnet` and continue, or start a new session already on it with `claude --model sonnet`
 > - **Workflow:** Requirements-First / Design-First (full mode only)
 > - **Context:** [files found and how they'll be used]
 > - **MCPs:** [verified MCPs and any substitutions]

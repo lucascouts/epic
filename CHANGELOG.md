@@ -66,6 +66,7 @@ Tests stay honest under TDD, the Auditor reports claims it checked instead of tr
 
 ### Added
 
+- The session model is suggested, never switched: a Fast or Spike triage proposal carries a `Model` line when the session is not on Sonnet (`/model sonnet` to continue, or `claude --model sonnet` for a new session), and `instant` says it in one line before the work. Nothing is suggested under `--auto` or headless.
 - The run model: clarify's last question for a Standard or Full story asks which model runs it (Sonnet recommended) and records `run-model:` in `tasks.md`. The closing names how to open a session on it (`/model` or `claude --model`), and the run start says so in one line when the session differs — informing, never blocking.
 - `hook-commit-guard.sh` (Stop): a finished group whose pre-authored commit is missing blocks the end of the turn once, naming the message. Fails open with no git identity, no work tree, no stories, or on the second stop.
 - `epic-test-diff`: compares each materialized pre-authored test with its authored copy. `close-subtask.sh` runs it before closing a sub-task that has Red evidence: setup edits pass, a changed, removed or added assertion line refuses the close. Only a refine that carries the delta into `.draft/authored-tests/` releases it.
