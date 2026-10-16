@@ -11,7 +11,7 @@
 # turn it asks for the legend in the closing (`*term* — what it means here`).
 # A term without its meaning is the defect, not the term (plain-register.md).
 #
-# Only for a layperson: the newest live story's tasks.md carries `requester:
+# Only for a layperson: the newest story's tasks.md (live or archived) carries `requester:
 # layperson` in its frontmatter (references/tasks.md). Fails open, so a guard
 # defect never traps a turn: unreadable input, a second stop attempt
 # (stop_hook_active, the documented loop guard), no transcript, no live story,
@@ -28,11 +28,12 @@ TRANSCRIPT="${TRANSCRIPT/#\~/$HOME}"
 [ -n "$TRANSCRIPT" ] && [ -r "$TRANSCRIPT" ] || exit 0
 CWD=${CWD:-$PWD}
 ROOT=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$CWD")
-[ -d "$ROOT/.epic/stories" ] || exit 0
+[ -d "$ROOT/.epic" ] || exit 0
 
-# The newest live story is the one this turn is about.
-NEWEST=$(find "$ROOT/.epic/stories" -mindepth 2 -maxdepth 2 -name tasks.md -printf '%T@ %p\n' 2>/dev/null \
-  | sort -rn | head -n 1 | cut -d' ' -f2- || true)
+# The newest story is the one this turn is about — live or just archived: a Fast
+# run can finish and archive its story in the same turn it leaked a word in.
+NEWEST=$(find "$ROOT/.epic/stories" "$ROOT/.epic/archive" -mindepth 2 -maxdepth 2 -name tasks.md \
+  -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n 1 | cut -d' ' -f2- || true)
 [ -n "$NEWEST" ] || exit 0
 LEVEL=$(awk 'NR == 1 && $0 != "---" { exit } NR > 1 && $0 == "---" { exit }
              /^requester:[[:space:]]*/ { sub(/^requester:[[:space:]]*/, ""); gsub(/["'"'"']/, ""); print; exit }' "$NEWEST")

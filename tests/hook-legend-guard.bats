@@ -99,3 +99,12 @@ run_hook() { run bash -c "jq -cn --arg tr '$TR' --arg cwd '$PROJ' --argjson a ${
   jq -e '.hooks.Stop[].hooks[] | select(.command | contains("hook-legend-guard.sh"))' "$PLUGIN_ROOT/hooks/hooks.json"
   grep -qF 'Commit silently' "$PLUGIN_ROOT/scripts/hook-commit-guard.sh"
 }
+
+@test "L8 a story archived in the same turn is still the one checked" {
+  story 'requester: layperson'
+  mkdir -p "$PROJ/.epic/archive"
+  mv "$PROJ/.epic/stories/001-demo" "$PROJ/.epic/archive/001-demo"
+  transcript 'Red confirmado.' 'Pronto, arquivei o plano.'
+  run_hook
+  echo "$output" | jq -e '.decision == "block"'
+}
