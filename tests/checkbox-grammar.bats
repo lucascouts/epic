@@ -565,6 +565,24 @@ LEGACY
   grep -qF -- '- Commit: "feat(010): the legacy shape"' "$MIXED/tasks.md"
 }
 
+@test "hook-commit-guard.sh — an open [ ] holds the group; once settled, its commit is owed" {
+  git -C "$WORK/proj" init -q
+  git -C "$WORK/proj" config user.email t@example.invalid
+  git -C "$WORK/proj" config user.name T
+  git -C "$WORK/proj" commit -q --allow-empty -m initial
+  # The mixed fixture: 1.5 is open, so the guard agrees with every reader that
+  # work remains — the group is not finished and no commit is owed yet.
+  run bash -c "printf '%s' '{\"cwd\": \"$WORK/proj\"}' | bash '$PLUGIN_ROOT/scripts/hook-commit-guard.sh'"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  # Closed through the one sanctioned writer, the group is settled — [x] and both
+  # [~] shapes — and its pre-authored message is now owed.
+  bash "$PLUGIN_ROOT/scripts/close-subtask.sh" "$MIXED" 1.5 > /dev/null
+  run bash -c "printf '%s' '{\"cwd\": \"$WORK/proj\"}' | bash '$PLUGIN_ROOT/scripts/hook-commit-guard.sh'"
+  echo "$output" | jq -e '.decision == "block"'
+  echo "$output" | jq -r .reason | grep -qF 'group 1: "feat(010): mixed"'
+}
+
 @test "every declared consumer is compared by a case in this harness" {
   # THE LOOP CLOSER. The roster derivation reddens when a script under
   # scripts/ reads the grammar and is not on the roster. This is the other

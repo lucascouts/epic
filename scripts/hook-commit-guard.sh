@@ -8,7 +8,8 @@
 # every live story (.epic/stories/*/tasks.md), a group is FINISHED when its
 # header is `[x]` or every sub-task it owns (by number prefix, N.M under N) is
 # settled — `[x]` or `[~]`. A finished group that carries a `- Commit: <msg>`
-# field owes a commit whose subject is that message, verbatim (the pre-authored
+# field — under its header or its sub-tasks, since a group may be written with
+# no header line — owes a commit whose subject is that message, verbatim (the pre-authored
 # message carries the story's anchor; references/run-mode.md, The Commit Field).
 # No such subject in `git log` → block, naming each missing message.
 #
@@ -47,7 +48,7 @@ missing_commits() {
       split(rest, w, " ")
       num = w[1]
       if (num ~ /\./) {
-        split(num, p, "."); g = p[1] + 0
+        split(num, p, "."); g = p[1] + 0; cur = g
         subs[g]++
         if (box == " ") open[g]++
       } else {
