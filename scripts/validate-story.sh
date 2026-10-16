@@ -227,6 +227,17 @@ for ENG_SRC in tasks.md story.md design.md; do
   [[ -n "$DECLARED_ENGINEERING" ]] || DECLARED_ENGINEERING="$ENG_VAL"
 done
 
+# --- Read the declared run model ---
+# `run-model:` is the model the user chose at clarify to run a Standard or Full
+# story (references/clarify.md, The run model). tasks.md only, fail-OPEN on
+# absence and fail-CLOSED on a value outside the three, the rule every field the
+# plugin added follows.
+RUN_MODEL_ENUM='sonnet|opus|haiku'
+RUN_MODEL_VAL=$(frontmatter_field "$STORY_DIR/tasks.md" run-model)
+if [[ -n "$RUN_MODEL_VAL" ]] && ! [[ "$RUN_MODEL_VAL" =~ ^($RUN_MODEL_ENUM)$ ]]; then
+  add_error "tasks.md frontmatter 'run-model' is not a run model: found '$RUN_MODEL_VAL' — must be one of: ${RUN_MODEL_ENUM//|/, }"
+fi
+
 # --- Artifacts disagreeing about the scale ---
 # One story, one scale, so artifacts declaring different values disagree about
 # the SHAPE OF THE WORK — the same defect the `status:` collector below reports

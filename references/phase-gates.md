@@ -196,6 +196,15 @@ The nine cross-artifact checks and the output format live in [reviewer.md](../ag
 - If clean, proceed to Traceability Check
 - Reviewer does NOT modify files — only reports
 
+## Handing Off to Run
+
+**When a Standard or Full story is written and carries `run-model:`, the closing ends with how to run it on that model** — because the choice only takes effect in a session running it. Two ways, both named with the story's number:
+
+- in this session: type `/model <run-model>`, then `/epic:epic stories run NNN`
+- in a new one: `claude --model <run-model>`, then `/epic:epic stories run NNN` — the cheaper of the two: it starts with an empty context, and the story's files already carry everything the run needs
+
+Neither is run on the user's behalf: a plugin cannot switch the session's model, so the closing gives the commands and stops. For a `layperson` the same two lines are given in their words, with `/model` and the model name legended.
+
 ## Traceability Check
 
 After the final phase approval (standard and full scales only), generate a traceability table. **Build it from `cross-reference.sh`, never by hand-counting** — manual tallying is error-prone at scale. Run:
