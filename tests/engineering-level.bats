@@ -362,7 +362,7 @@ hasF() { # hasF <label> <block> <fixed string>
 @test "E18: the README is in the floor — a program nobody can run is not usable as it is" {
   floor=$(section "$ROOT/references/quality-catalog.md" '^### The security floor' '^## ')
   has "E18 readme" "$floor" "README"
-  has "E18 count" "$floor" "four items no level drops"
+  has "E18 count" "$floor" "five items no level drops"
 }
 
 @test "E19: instant declares what it drops, and the report carries it" {

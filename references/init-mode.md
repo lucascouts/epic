@@ -45,7 +45,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 
    Unanswered items take the default. Activating an item never installs a tool — the [preferred-tooling policy](preferred-tooling.md) applies. Each command is the one the host can run: check it with `command -v` and write the tool that is there; a missing one is written with `(recommended — not installed)` on its line.
 
-   **Security floor, Reversibility, Invariants:** written from the template every time — the floor from [quality-catalog.md](quality-catalog.md#the-security-floor--four-items-no-level-drops) with this host's commands, the reversibility rule as written, and `## Invariants` empty until the project has one.
+   **Security floor, Reversibility, Invariants:** written from the template every time — the floor from [quality-catalog.md](quality-catalog.md#the-security-floor--five-items-no-level-drops) with this host's commands, the reversibility rule as written, and `## Invariants` empty until the project has one.
 
 4. **Generate files** — create all requested files with sensible defaults based on scan
 4a. **Write the managed `CLAUDE.md` block** — `epic-claude-md write`, after the constitution exists, since the block is built from it ([The managed CLAUDE.md block](#the-managed-claudemd-block)). Interactively, when a `CLAUDE.md` already exists, say in one line that the block is appended at its end and nothing else in it changes, and ask once; headless, append it

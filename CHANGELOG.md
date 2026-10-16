@@ -77,6 +77,7 @@ Tests stay honest under TDD, the Auditor reports claims it checked instead of tr
 
 ### Changed
 
+- Data integrity joins the security floor, so every level owes it: a file the program reads back is written through a temporary file and a rename, and a missing or corrupted one never crashes the program or gets overwritten. A program with no data file records `no persisted data` on the gate. `validate-story.sh` now names five floor items; the context-tier row keeps only the format version.
 - Red counts only when the run reaches an assertion and fails there, against a stub of the API under test. An import, fixture, setup or runner failure is `setup`, not Red; `red-evidence.yaml` entries carry `red_at: assertion`.
 - The Executor may repair a pre-authored test's setup (fixtures, helpers, imports, paths), never an assertion; it re-confirms Red before implementing and reports the repair as `test_surface_adjusted`.
 - In Standard stories the Executor writes Unit tests first, at run time, with Red confirmed inline; the Test Advisor authors Integration and E2E only. Full is unchanged.

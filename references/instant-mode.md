@@ -8,7 +8,7 @@ Loaded by `/epic:epic instant <description>`, together with [triage.md](triage.m
 |---|---|---|
 | `scale` | `fast` | the floor every story starts from ([engineering-level.md](engineering-level.md#how-the-level-is-read)) |
 | `engineering` | `experiment` | typing `instant` **is** the answer to the first cascade question — asking it again would be asking someone to repeat themselves |
-| Quality legend | the **security floor** only — supported and declared runtime, secrets, dependency CVEs, a README that says how to run it ([quality-catalog.md](quality-catalog.md#the-security-floor--four-items-no-level-drops)) | the floor is three commands, one file and no configuration file; anything dropped below it would be dropping the machine's safety, not the story's ceremony |
+| Quality legend | the **security floor** only — supported and declared runtime, secrets, dependency CVEs, a README that says how to run it, and data integrity when the program saves a file it reads back ([quality-catalog.md](quality-catalog.md#the-security-floor--five-items-no-level-drops)) | the floor is three commands, one file, two start-up tests and no configuration file; anything dropped below it would be dropping the machine's safety, not the story's ceremony |
 
 **No technical question round.** The intent cascade is already answered and does not run. A technical choice the request leaves open is taken as a recommended default and recorded on its line — never turned into a question. The requester asked for the short path; spending their turn on a menu is the one thing `instant` exists to avoid.
 

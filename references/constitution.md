@@ -46,6 +46,7 @@ The constitution is an optional governance file at `.epic/constitution.md` that 
 - Secrets — [`gitleaks detect`, or the scanner this host has]
 - Dependency vulnerabilities — [`trivy fs .` · `osv-scanner .` · the ecosystem's auditor]
 - README — how to run it and how to check it
+- Data integrity — a file the program reads back is written through a temporary file and a rename; a missing or corrupted one never crashes the program or gets overwritten (`no persisted data` when there is none)
 
 ## Reversibility
 - An irreversible step — deleting data, a migration without a down, a force push, a publish, a release — runs only with a way back recorded first (a backup, a down migration, a tag) or on the user's explicit yes
