@@ -155,7 +155,7 @@ Present as:
 > - **Requester:** level — persona (the evidence, in a few words)
 > - **Engineering:** experiment / tool / project / product — what it means for this request, and the multiple, in one line
 > - **Mode:** Fast / Standard / Full / Spike (the risk or signal that decided it + trade-offs)
-> - **Model:** (Fast and Spike, only when this session is not on Sonnet) this session runs on `<model>`; Sonnet does this work at the same quality for about a third of the cost — `/model sonnet` and continue, or start a new session already on it with `claude --model sonnet`
+> - **Model:** (Fast and Spike, only when this session is not on Sonnet) this session runs on `<model>`; Sonnet does this work at the same quality for about a third of the cost. Two ways: switch this session with `/model sonnet` — which also makes Sonnet the default for new sessions; for this session only, open `/model`, pick Sonnet and press `s` — or start a new session already on it with `claude --model sonnet`, which applies to that session alone
 > - **Workflow:** Requirements-First / Design-First (full mode only)
 > - **Context:** [files found and how they'll be used]
 > - **MCPs:** [verified MCPs and any substitutions]

@@ -7,7 +7,7 @@ ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
 
 @test "triage: Fast and Spike carry a Model line only when the session is not on Sonnet" {
   grep -qF '> - **Model:** (Fast and Spike, only when this session is not on Sonnet)' "$ROOT/references/triage.md"
-  grep -qF '`/model sonnet` and continue' "$ROOT/references/triage.md"
+  grep -qF 'switch this session with `/model sonnet`' "$ROOT/references/triage.md"
   grep -qF '`claude --model sonnet`' "$ROOT/references/triage.md"
 }
 
@@ -27,4 +27,11 @@ ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
 @test "no skill carries a model override" {
   run grep -rlE '^model:' "$ROOT/skills"
   [ "$status" -eq 1 ]
+}
+
+@test "every suggestion says /model also changes the default, and how to switch for this session only" {
+  for f in triage.md instant-mode.md phase-gates.md; do
+    grep -qF 'default' "$ROOT/references/$f" || { echo "$f: no default note"; return 1; }
+    grep -qF 'press `s`' "$ROOT/references/$f" || { echo "$f: no session-only path"; return 1; }
+  done
 }
