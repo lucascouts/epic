@@ -268,3 +268,10 @@ refute_mentions() {
   printf '%s' "$row" | grep -qF '.tool-versions` for a single script with no manifest'
   printf '%s' "$row" | grep -qF 'not what the project declares'
 }
+
+@test "the data-integrity row closes the three gaps the 1.1 validation measured" {
+  row=$(grep -F '| Data integrity |' "$PLUGIN_ROOT/references/quality-catalog.md" | head -1)
+  printf '%s' "$row" | grep -qF 'wrong shape counts as corrupted'
+  printf '%s' "$row" | grep -qF 'never replaces an earlier one'
+  printf '%s' "$row" | grep -qF 'a save that fails says so'
+}
