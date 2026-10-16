@@ -18,9 +18,9 @@ Process words — executor, framework, box, commit, story, checklist, Quality Ga
 | engineering level, experiment / tool / project / product, multiple ([engineering-level.md](engineering-level.md)) | how long it needs to last, and what that costs in time — the one price line of the proposal |
 | npm, lockfile, package manager, dependency, MCP, tool, hook, headless | name what it does, never what it is |
 
-**A word from the left column in visible text is a defect** — the same class as a typo in an identifier, and reported the same way.
+**A word from the left column in visible text is a defect unless the same message carries its legend** — the same class as a typo in an identifier, and reported the same way. The plain words on the right come first; when a term has to stay — the requester will meet it again, in a command, an error or a tutorial — the message carries its legend: a line below it, `*term* — what it means here`, in the requester's language and about this request. A term with no meaning attached is what loses a beginner, not the term itself.
 
-**The closing is checked, not trusted.** Before sending a `layperson` closing, pipe its text to `epic-jargon` (the term list is `assets/jargon-terms.txt`, drawn from the table above). Exit 1 names each word it found: rewrite those sentences with the right-column phrasing and run it again, until it exits 0 — then send. A command the requester is told to type goes in backticks, which the check skips. One tool call per rewrite is the price; a closing that leaks the process into the chat costs the requester the whole message.
+**The closing is checked, not trusted.** Before sending a `layperson` closing, pipe its text to `epic-jargon` (the term list is `assets/jargon-terms.txt`, drawn from the table above). Exit 1 names each word it found with no legend: rewrite those sentences with the right-column phrasing, or add the term's legend line, and run it again until it exits 0 — then send. A command the requester is told to type goes in backticks, which the check skips. One tool call per rewrite is the price; a closing that leaks the process into the chat costs the requester the whole message.
 
 ## Decisions the requester is not asked
 
@@ -62,7 +62,7 @@ Visible text per turn stays under **~1,500 characters** — about one phone scre
 ## What does not change
 
 - Every artifact is still written, in English, with every internal name — [SKILL.md](../skills/epic/SKILL.md#language)
-- Everything they read in the chat is in their language — every line, option label and recommended marker; a name or a popular term may stay as it is, a whole English sentence may not. The code and its comments stay English; a comment in their language is added on the line below the English one only when they ask ([SKILL.md](../skills/epic/SKILL.md#language))
+- Everything they read in the chat is in their language — every line, option label and recommended marker; a name or a popular term may stay as it is — with its legend below when the requester may not know it — a whole English sentence may not. The code and its comments stay English; a comment in their language is added on the line below the English one only when they ask ([SKILL.md](../skills/epic/SKILL.md#language))
 - Every sub-agent still runs its whole protocol. The register is the orchestrator's voice, never a protocol switch
 - A layperson who asks for more — "show me the plan", "I want to pick the library" — gets it, and the register stays plain around it
 - **The level never changes the scale.** A layperson who asks for something Full-shaped gets Full: the same files, with every gate in one line

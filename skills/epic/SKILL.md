@@ -67,7 +67,7 @@ Do not start the out-of-scope work, and offer an Epic-wrapped version only when 
 - **Spec artifacts** (story.md, design.md, tasks.md): always English
 - **EARS keywords**: always English and CAPS (SHALL, WHEN, WHILE, IF, WHERE)
 - **Communication with the user**: always in the user's language — the `language` setting when the user has set one, otherwise the language of their prompt — **every line they can see, including a note between two tool calls and the closing message**.
-- **No whole passage in another language in the chat** — names and popular terms are fine; an English status line, sentence or option label in a Portuguese chat is not, the recommended marker included (`(Recomendado)`).
+- **No whole passage in another language in the chat** — names and popular terms are fine, and for a `layperson` each one they may not know carries its legend line below (`*term* — what it means here`, [plain-register.md](../../references/plain-register.md)); an English status line, sentence or option label in a Portuguese chat is not, the recommended marker included (`(Recomendado)`).
 - **Code identifiers and comments the Epic writes**: English. A comment in the user's language only when they ask, on the line below the English one.
 - **What the requester's own users read**: the program's interface — menu, prompts, error messages — and the documentation of how to use it (its README). **This is the one thing the English rule does not cover**, and it is not the Epic's to decide: it belongs to whoever will read it.
 

@@ -3,9 +3,15 @@
 # Reads the text from --file or stdin; inline code spans and fenced blocks are
 # skipped, because the command a beginner is told to type is not jargon.
 #
-# Output: one JSON object {pass, hits: [{term, count}]}. Exit 0 when no term is
-# found, 1 when one is, 2 on bad usage. The orchestrator rewrites the closing in
-# plain words and runs this again until it exits 0.
+# A term is allowed when the same text carries its LEGEND: a line of the form
+# `*term* — what it means here` (also `**term**`, `:` or `-` instead of the dash,
+# optionally behind `>` or a list marker). The legend line itself is not
+# scanned. What reaches a beginner unexplained is the defect, not the word.
+#
+# Output: one JSON object {pass, hits: [{term, count}], explained: [term]}.
+# Exit 0 when every term found has a legend, 1 when one does not, 2 on bad
+# usage. The orchestrator rewrites the closing — plain words, or a legend under
+# the term — and runs this again until it exits 0.
 
 set -euo pipefail
 
@@ -32,23 +38,50 @@ fi
 # shellcheck disable=SC2016
 PROSE=$(printf '%s\n' "$TEXT" | awk '/^[[:space:]]*(```|~~~)/ { f = !f; next } !f' | sed -E 's/`[^`]*`//g')
 
+# Legend lines: the explained terms (lowercased), then the prose without them.
+LEGEND_RE='^[[:space:]]*(>[[:space:]]*)?([-*][[:space:]]+)?[*_]{1,2}([^*_]+)[*_]{1,2}[[:space:]]*(—|–|:|-)[[:space:]]+[^[:space:]]'
+EXPLAINED=$(printf '%s\n' "$PROSE" | sed -nE "s/${LEGEND_RE}.*/\\3/p" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | sort -u)
+PROSE=$(printf '%s\n' "$PROSE" | grep -vE "$LEGEND_RE" || true)
+
+# explained <found> — true when the found word, or its singular, has a legend.
+explained() {
+  local w; w=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  [ -n "$EXPLAINED" ] || return 1
+  printf '%s\n' "$EXPLAINED" | grep -qxF -- "$w" && return 0
+  printf '%s\n' "$EXPLAINED" | grep -qxF -- "${w%s}"
+}
+
 json_escape() { local s=$1; s=${s//\\/\\\\}; s=${s//\"/\\\"}; printf '%s' "$s"; }
 
-HITS=()
+HITS=() SEEN_EXPLAINED=()
 while IFS= read -r line; do
   case "$line" in ''|'#'*) continue ;; esac
   mode=${line%%:*} re=${line#*:}
   flag=-E; [ "$mode" = ci ] && flag=-Ei
   found=$( { printf '%s\n' "$PROSE" | grep -o "$flag" -- "$re" 2>/dev/null || true; } )
   [ -n "$found" ] || continue
+  kept=""
+  while IFS= read -r w; do
+    if explained "$w"; then SEEN_EXPLAINED+=("$w"); else kept+="$w"$'\n'; fi
+  done <<< "$found"
+  found=${kept%$'\n'}
+  [ -n "$found" ] || continue
   n=$(printf '%s\n' "$found" | wc -l | tr -d ' ')
   HITS+=("{\"term\": \"$(json_escape "$(printf '%s\n' "$found" | head -n 1)")\", \"count\": $n}")
 done < "$TERMS"
 
+EXPL_JSON=""
+if [ ${#SEEN_EXPLAINED[@]} -gt 0 ]; then
+  while IFS= read -r w; do
+    EXPL_JSON+="\"$(json_escape "$w")\", "
+  done < <(printf '%s\n' "${SEEN_EXPLAINED[@]}" | sort -u)
+  EXPL_JSON=${EXPL_JSON%, }
+fi
+
 if [ ${#HITS[@]} -eq 0 ]; then
-  printf '{"pass": true, "hits": []}\n'
+  printf '{"pass": true, "hits": [], "explained": [%s]}\n' "$EXPL_JSON"
   exit 0
 fi
 joined=$(printf '%s, ' "${HITS[@]}"); joined=${joined%, }
-printf '{"pass": false, "hits": [%s]}\n' "$joined"
+printf '{"pass": false, "hits": [%s], "explained": [%s]}\n' "$joined" "$EXPL_JSON"
 exit 1

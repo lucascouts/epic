@@ -40,3 +40,33 @@ setup() {
     command grep -qF -- "$t" "$PLUGIN_ROOT/assets/jargon-terms.txt" || { echo "term list lacks: $t"; return 1; }
   done
 }
+
+@test "a term with its legend in the same text passes, and is reported as explained" {
+  run bash -c "printf 'O teste ficou Red antes do código.\n*Red* — o teste foi escrito antes e falha de propósito.\n' | bash '$CHECK'"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.pass == true and .hits == [] and .explained == ["Red"]'
+}
+
+@test "a legend explains only its own term; the others are still hits" {
+  run bash -c "printf 'Ficou Red e fiz um commit.\n*Red* — o teste falha de propósito antes do código.\n' | bash '$CHECK'"
+  [ "$status" -eq 1 ]
+  echo "$output" | jq -e '[.hits[].term] == ["commit"] and .explained == ["Red"]'
+}
+
+@test "legend forms: bold, colon, hyphen, quote and list markers; a plural is covered by its singular" {
+  text='Salvei dois commits na worktree.\n> **commit**: uma cópia salva do projeto.\n- *worktree* - uma pasta separada para trabalhar.\n'
+  run bash -c "printf '$text' | bash '$CHECK'"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.explained | sort == ["commits","worktree"]'
+}
+
+@test "the legend line is not itself scanned as a use of the term" {
+  run bash -c "printf 'Tudo pronto.\n*commit* — uma cópia salva do projeto.\n' | bash '$CHECK'"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.hits == []'
+}
+
+@test "plain-register states the legend rule and its format" {
+  grep -qF 'carries its legend' "$PLUGIN_ROOT/references/plain-register.md"
+  grep -qF '*term* — what it means here' "$PLUGIN_ROOT/references/plain-register.md"
+}

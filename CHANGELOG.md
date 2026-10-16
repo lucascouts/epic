@@ -77,6 +77,7 @@ Tests stay honest under TDD, the Auditor reports claims it checked instead of tr
 
 ### Changed
 
+- A technical or English term may reach a layperson when the same message carries its legend (`*term* — what it means here`, in their language). `epic-jargon` passes legended terms, reports them under `explained`, and flags only the unexplained ones.
 - Triage has one scale: the four modes, read from risk and uncertainty. The story-level Trivial / Simple / Moderate / High labels are gone (file counts stay as examples on each mode); the sub-task Complexity field stays, since it routes the Executor model and the tech review.
 - The runtime floor gate checks the declaration where a tool reads it (`.tool-versions` for a single script with no manifest), not only the installed version.
 - Data integrity joins the security floor, so every level owes it: a file the program reads back is written through a temporary file and a rename, and a missing or corrupted one never crashes the program or gets overwritten. A program with no data file records `no persisted data` on the gate. `validate-story.sh` now names five floor items; the context-tier row keeps only the format version.
