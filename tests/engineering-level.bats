@@ -98,7 +98,7 @@ hasF() { # hasF <label> <block> <fixed string>
 }
 
 @test "E2: triage reads the engineering level from the request, asks when unsettled (tool only when nobody can answer), and the proposal carries an Engineering line" {
-  block=$(section "$ROOT/references/triage.md" '^## Triage Protocol' '^### Complexity')
+  block=$(section "$ROOT/references/triage.md" '^## Triage Protocol' '^### Mode Recommendation')
   [ -n "$block" ]
   has "E2 level" "$block" "engineering level"
   has "E2 reference" "$block" "engineering-level"

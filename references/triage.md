@@ -49,10 +49,12 @@ Standard and Full modes ask questions, so they need to know whether anyone can a
 
 | Mode | When | Phases | Artifacts |
 |---|---|---|---|
-| **Fast** | Simple change, 1-2 files, no architectural decisions | Tasks only | `tasks.md` |
-| **Standard** | Medium feature, 2-5 files, clear scope | Story + Tasks | `story.md` + `tasks.md` |
-| **Full** | Complex feature, 5+ files, design decisions, integrations | Story + Design + Tasks | `story.md` + `design.md` + `tasks.md` |
-| **Spike** | Time-boxed exploration — the deliverable is a decision, not a shipped change | Tasks only | `tasks.md` (with a mandatory `## Verdict`) |
+| **Fast** | Small and low-risk: a single concern, nothing worth tracing back to a requirement — typically 1-2 files | Tasks only | `tasks.md` |
+| **Standard** | A clear scope worth traceable requirements, with no architectural signal — typically 3-10 files | Story + Tasks | `story.md` + `tasks.md` |
+| **Full** | An architectural signal (below): a decision to record before the code exists | Story + Design + Tasks | `story.md` + `design.md` + `tasks.md` |
+| **Spike** | The request's own goal is to find something out — "probe", "spike", "experiment", "harness", "find out whether" or its equivalent in the requester's language; the deliverable is a decision, not a shipped change | Tasks only | `tasks.md` (with a mandatory `## Verdict`) |
+
+**The mode is read from risk and uncertainty, not from a file count.** The counts in the table are what each mode usually looks like, never the rule: a three-file change with a data migration is Full, a twelve-file rename is Standard. There is one scale — the four modes — and no complexity label in front of it.
 
 Fast mode is **test-first at run time**: a sub-task carrying a `Tests` field has its test authored and confirmed failing (Red) before implementation, then Green-then-Refactor. A sub-task with no testable logic carries an optional Fast-only `Acceptance` field instead — 1-3 observable-behavior statements. Every implementing (non-Commit) Fast sub-task carries one or the other (the test-or-Acceptance contract rule). Fast stays single-author: no Test Advisor sub-agent, no `.draft/`, no `story.md`, no gate.
 
@@ -89,7 +91,7 @@ requester:
 
 `level` is the switch the rules read. A **`developer`** names files, tools, patterns or a stack, and uses git / npm / test vocabulary. A **`layperson`** describes an outcome rather than a mechanism, self-describes as starting or learning, and shows no tool vocabulary — "the black window", "a program that stores things". When unsure, **`developer`**: a wrong `layperson` patronizes an expert, while a wrong `developer` costs one calibration question in Clarify. `persona` is one line and ends with the evidence the reading rests on, so a wrong reading can be challenged and re-read from the answers. `always` and `never` start as the level's register — [plain-register.md](plain-register.md) for a layperson, [developer-register.md](developer-register.md) for a developer — and grow from what the answers reveal about this person: "I don't know how to run a command" becomes a `never`.
 
-**The level changes four things and nothing else — the register the chat is written in, the question budget, the defaults taken silently, and the shape of a gate — and it never changes the scale.** The scale follows the request and the complexity table below, for every level. A layperson is never held at a lighter scale: what makes a heavier scale hard for a beginner — out-of-reach questions, document reviews, long turns — is handled by the register, the budget and the defaults, and a beginner who asks for something Full-shaped is owed Full, with its gates in one line. The files, the protocols and the sub-agents do not change.
+**The level changes four things and nothing else — the register the chat is written in, the question budget, the defaults taken silently, and the shape of a gate — and it never changes the scale.** The scale follows the request and the mode table above, for every level. A layperson is never held at a lighter scale: what makes a heavier scale hard for a beginner — out-of-reach questions, document reviews, long turns — is handled by the register, the budget and the defaults, and a beginner who asks for something Full-shaped is owed Full, with its gates in one line. The files, the protocols and the sub-agents do not change.
 
 **Read what it is for next — the engineering level — from the request, and propose it with its price.** Four levels, defined in [engineering-level.md](engineering-level.md): `experiment` (disposable, 1×), `tool` (kept and fixed when it breaks, 2–3×), `project` (maintained, others depend on it, 4–6×), `product` (may be published or sold, 8×+). Read it from the words the request carries — "for a class", "to see if it works", "my team", "customers" — record it in the proposal and, where a `.draft/` exists, in `meta.yaml` beside the `requester` block, and **ask when the request does not settle it** — round 0 of Clarify fishes for it, below. **Take `tool` only when nobody can answer** (`-p`, `--auto`, or a spent question budget) and say so on the proposal line: `experiment` and `product` are never assumed, since the first drops every check and the second buys every one. The proposal states the level in one line with its multiple, in the register's words, so the triage gate confirms it without spending a question; when triage was unsure, round 0 of Clarify fishes for it with the indirect questions that file lists — never "which level is this?" — and the line is restated once if the answer moves it. The level never changes the scale and never changes the requester level: the three are read and recorded independently.
 
@@ -112,15 +114,14 @@ requester:
 9. Propose output path in `NNN-kebab-case`
 10. If no existing stories in `.epic/stories/`: append EARS primer
 
-### Complexity & Mode Recommendation
+### Mode Recommendation
 
-| Complexity | Signals | Recommended Mode | Trade-off |
-|---|---|---|---|
-| **Trivial** | 1-2 files, single concern | Fast | No formal traceability or design docs |
-| **Simple** | 3-5 files, clear scope | Standard | No design docs; upgrade to Full if architectural decisions appear |
-| **Moderate** | 5-10 files, design decisions | Standard | Traceable requirements and a task breakdown, with no design doc to write and keep current; upgrade to Full only on an architectural signal (below) |
-| **High** | 10+ files, cross-cutting | Full | Highest upfront cost, but prevents scope drift and design mismatches |
-| **Exploratory** | "probe", "spike", "experiment", "harness", "find out whether" or its equivalent in the requester's language — the goal of the request is to learn something; no deliverable is committed to yet | Spike | Tasks-only and time-boxed: no requirements chain, no design doc; ends in a Verdict that promotes to a real story or closes the question |
+| Mode | What the user gives up | What it buys |
+|---|---|---|
+| **Fast** | formal traceability and design docs | the shortest path to a tested change |
+| **Standard** | the design doc | traceable requirements and a task breakdown, with no design doc to write and keep current |
+| **Full** | the most upfront time | the decision recorded before the code, which prevents scope drift and design mismatches |
+| **Spike** | a shipped change | a time-boxed answer: no requirements chain, no design doc; a Verdict that promotes to a real story or closes the question |
 
 **Full is opt-in on an architectural signal, not on file count.** A design doc earns its cost only when there is a decision to record *before* the code exists. Propose Full when the request carries at least one of:
 
@@ -130,9 +131,9 @@ requester:
 - **2+ independent tracks** that have to be designed to fit together
 - the user asking for Full explicitly
 
-Absent every one of them, a Moderate story is **Standard** however many files it touches: file count measures typing, not design risk.
+Absent every one of them, a story is **Standard** however many files it touches: file count measures typing, not design risk.
 
-**Downgrading is as legitimate as upgrading.** The upgrade rule on the Simple row has a mirror. WHEN the clarify phase resolves the open questions and no architectural signal survives, **propose dropping to the lighter mode** — Full to Standard, or Standard to Fast — and name what the user gives up: Full to Standard loses the design doc, Standard to Fast loses the requirements chain and its traceability. The proposal is a one-line gate with two answers — drop, or keep the mode — and the mode changes only on the answer; announcing the drop and proceeding is the silent downgrade this rule forbids. A request for speed is answered with fewer words and no waiting, never with fewer steps ([developer-register.md](developer-register.md)). One downgrade is forbidden outright, and it is the subject of the next note.
+**Downgrading is as legitimate as upgrading.** Upgrading on a signal has a mirror. WHEN the clarify phase resolves the open questions and no architectural signal survives, **propose dropping to the lighter mode** — Full to Standard, or Standard to Fast — and name what the user gives up: Full to Standard loses the design doc, Standard to Fast loses the requirements chain and its traceability. The proposal is a one-line gate with two answers — drop, or keep the mode — and the mode changes only on the answer; announcing the drop and proceeding is the silent downgrade this rule forbids. A request for speed is answered with fewer words and no waiting, never with fewer steps ([developer-register.md](developer-register.md)). One downgrade is forbidden outright, and it is the subject of the next note.
 
 **Exploratory is a shape, not a size.** Propose Spike only when the request's own goal is to find something out, or when the user asks for one explicitly. A small feature is **Fast**, never Spike — the skill **never auto-downgrades a feature to a spike**: doing so would trade a deliverable for a question the user never asked.
 
@@ -151,8 +152,7 @@ Present as:
 > - **Type:** Feature / Bugfix
 > - **Requester:** level — persona (the evidence, in a few words)
 > - **Engineering:** experiment / tool / project / product — what it means for this request, and the multiple, in one line
-> - **Complexity:** Trivial / Simple / Moderate / High (justification)
-> - **Mode:** Fast / Standard / Full (reason + trade-offs)
+> - **Mode:** Fast / Standard / Full / Spike (the risk or signal that decided it + trade-offs)
 > - **Workflow:** Requirements-First / Design-First (full mode only)
 > - **Context:** [files found and how they'll be used]
 > - **MCPs:** [verified MCPs and any substitutions]

@@ -50,7 +50,7 @@ user request │  triage ─► analyst ─► clarify ─► phases (main agent
              └───────────────────────────────────────────────────┘
 ```
 
-Scale (Fast / Standard / Full) controls which artifacts exist and which personas activate. The triage step emits a single proposal covering complexity, mode, workflow variant, MCPs, and output path — see [`skills/epic/SKILL.md`](references/triage.md#triage-protocol).
+Scale (Fast / Standard / Full) controls which artifacts exist and which personas activate. The triage step emits a single proposal covering mode, workflow variant, MCPs, and output path — see [`skills/epic/SKILL.md`](references/triage.md#triage-protocol).
 
 ---
 

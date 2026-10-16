@@ -77,6 +77,7 @@ Tests stay honest under TDD, the Auditor reports claims it checked instead of tr
 
 ### Changed
 
+- Triage has one scale: the four modes, read from risk and uncertainty. The story-level Trivial / Simple / Moderate / High labels are gone (file counts stay as examples on each mode); the sub-task Complexity field stays, since it routes the Executor model and the tech review.
 - The runtime floor gate checks the declaration where a tool reads it (`.tool-versions` for a single script with no manifest), not only the installed version.
 - Data integrity joins the security floor, so every level owes it: a file the program reads back is written through a temporary file and a rename, and a missing or corrupted one never crashes the program or gets overwritten. A program with no data file records `no persisted data` on the gate. `validate-story.sh` now names five floor items; the context-tier row keeps only the format version.
 - Red counts only when the run reaches an assertion and fails there, against a stub of the API under test. An import, fixture, setup or runner failure is `setup`, not Red; `red-evidence.yaml` entries carry `red_at: assertion`.
