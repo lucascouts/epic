@@ -66,6 +66,7 @@ Tests stay honest under TDD, the Auditor reports claims it checked instead of tr
 
 ### Added
 
+- `hook-commit-guard.sh` (Stop): a finished group whose pre-authored commit is missing blocks the end of the turn once, naming the message. Fails open with no git identity, no work tree, no stories, or on the second stop.
 - `epic-test-diff`: compares each materialized pre-authored test with its authored copy. `close-subtask.sh` runs it before closing a sub-task that has Red evidence: setup edits pass, a changed, removed or added assertion line refuses the close. Only a refine that carries the delta into `.draft/authored-tests/` releases it.
 - `epic-jargon`: checks a layperson closing against a term list drawn from the plain register; the orchestrator rewrites until it passes.
 - The Auditor checks that a bugfix's regression test fails on the commit before the fix (check 11).

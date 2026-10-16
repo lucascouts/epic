@@ -187,6 +187,7 @@ All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — 
 | `PreToolUse` | `Bash` (no filter) · `Edit`/`Write` of `**/.epic/stories/**/tasks.md` | `hook-executor-guard.sh` | Inside the Executor (`agent_type`), deny `git commit` and edits to `tasks.md` |
 | `PreToolUse` | `Bash` (no filter) | `hook-commit-identity-guard.sh` | Deny a commit that supplies its own identity, and any `git config user.*` write |
 | `SubagentStop` | `epic:auditor` | `hook-report-guard.sh` | Keep the agent running until its report file is on disk |
+| `Stop` | — | `hook-commit-guard.sh` | Block the end of a turn once while a finished group's pre-authored commit is missing, naming the message |
 | `SessionStart` | `compact` | `hook-session-restore.sh` | After a compaction, render the active story's state from disk into context |
 | `SessionStart` | `clear` | `hook-orphan-drafts.sh` | After `/clear`, list drafts untouched for 30+ days, one removal line each; deletes nothing |
 | `SessionStart` | `startup\|resume\|clear` | `doctor.sh --summary` | One line naming what is wrong with `.epic/`, nothing when healthy; read-only |

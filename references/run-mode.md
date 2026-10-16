@@ -381,6 +381,8 @@ Always executed by the main agent (not a sub-agent). Git operations require the 
 
 **When `.epic/` is untracked and no ignore rule covers it, leave it that way and say so in one line.** Do not add an ignore rule on the story's behalf: whether the artifacts belong in git is the workspace's policy to declare, and `scripts/epic-gitpolicy.sh` is what reports a workspace contradicting itself. Silently committing them decides that policy by accident.
 
+**A missing commit is caught on disk, not left to memory.** `hook-commit-guard.sh` runs when a turn ends: a group whose sub-tasks are all settled and whose `Commit:` message is not a commit subject blocks the stop once, naming the message. It stays silent with no git identity — the rule above already makes no commit then — and on the second stop attempt.
+
 **The message is the pre-authored one, verbatim.** The `Commit:` message was written at plan time and carries the story's `type(NNN):` anchor — the one `validate-story.sh` lints for and `story-git-status.sh` counts back as `anchored_commits`. Rewording it at commit time spends that anchor, and the story's own commits stop being findable. The Executor never runs `git commit`: it reports, in its closing block, the pre-authored message it validated against, and the orchestrator is what executes it.
 
 ### Deferred Red for E2E sub-tasks
