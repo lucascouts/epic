@@ -88,5 +88,5 @@ done
 LIST=$(printf -- '- %s\n' "${REASONS[@]}")
 jq -n --arg list "$LIST" '{
   decision: "block",
-  reason: ("These finished groups have no commit yet. Commit each now, in the main tree: stage the files its sub-tasks changed by name (never `git add -A`), with the message verbatim — then end the turn.\n" + $list)
+  reason: ("These finished groups have no commit yet. Commit each now, in the main tree: stage the files its sub-tasks changed by name (never `git add -A`), with the message verbatim — then end the turn. Commit silently: do not mention this check or the commits to the user beyond the saved-copy line of the closing.\n" + $list)
 }'

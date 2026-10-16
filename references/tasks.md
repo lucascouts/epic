@@ -318,6 +318,7 @@ The five gates in the template are fixed. After them, the section carries **one 
 - Sub-tasks inherit parent metadata — only override what differs
 - A `Quality:` field cites legend lines (`Q2, Q5`); a generated gate carries its command; neither is hand-numbered outside the legend
 - `engineering:` in the frontmatter is one of `experiment`, `tool`, `project`, `product`; `tasks.md` is authoritative for it, as for `scale:`, and what the level buys is read from it ([engineering-level.md](engineering-level.md))
+- `requester:` in the frontmatter is `layperson` or `developer` — the level triage read, written at every scale. `hook-legend-guard.sh` reads it from the newest live story to decide whether a turn's process words owe a legend
 - `run-model:` in the frontmatter, when present, is one of `sonnet`, `opus`, `haiku` — the model the user chose at clarify to run the story ([clarify.md](clarify.md#the-run-model-standard-and-full)). Absent, the run uses the session it is given
 
 ## Fast Scale Adaptations

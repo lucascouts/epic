@@ -227,6 +227,15 @@ for ENG_SRC in tasks.md story.md design.md; do
   [[ -n "$DECLARED_ENGINEERING" ]] || DECLARED_ENGINEERING="$ENG_VAL"
 done
 
+# --- Read the declared requester level ---
+# `requester:` is the level triage read (references/triage.md), written to
+# tasks.md at every scale for the legend guard. Fail-OPEN on absence,
+# fail-CLOSED on a value outside the two.
+REQUESTER_VAL=$(frontmatter_field "$STORY_DIR/tasks.md" requester)
+if [[ -n "$REQUESTER_VAL" ]] && ! [[ "$REQUESTER_VAL" =~ ^(layperson|developer)$ ]]; then
+  add_error "tasks.md frontmatter 'requester' is not a requester level: found '$REQUESTER_VAL' — must be one of: layperson, developer"
+fi
+
 # --- Read the declared run model ---
 # `run-model:` is the model the user chose at clarify to run a Standard or Full
 # story (references/clarify.md, The run model). tasks.md only, fail-OPEN on

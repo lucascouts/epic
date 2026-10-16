@@ -75,7 +75,7 @@ Bugfix always follows: P1: story.md (bug analysis) > P2: design.md (root cause) 
 
 Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a **single proposal** for confirmation. Never ask each decision separately.
 
-**Read who is asking first — from the request alone, never from a question.** The reading is recorded as a `requester` block with four fields, in the proposal and, where a `.draft/` exists, in `meta.yaml`:
+**Read who is asking first — from the request alone, never from a question.** The reading is recorded as a `requester` block with four fields, in the proposal and, where a `.draft/` exists, in `meta.yaml`; its `level` is also written to `tasks.md` as `requester: layperson | developer` at every scale, Fast included, because `tasks.md` is the one file every story has and the legend guard reads it ([tasks.md](tasks.md)):
 
 ```yaml
 requester:

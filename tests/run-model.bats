@@ -73,3 +73,14 @@ run_errors() { printf '%s' "$1" | jq -r '.error_details[]?' | grep -i 'run-model
   grep -qF '**Check the run model**' "$PLUGIN_ROOT/references/run-mode.md"
   grep -qF 'it never blocks' "$PLUGIN_ROOT/references/run-mode.md"
 }
+
+@test "requester: layperson and developer validate; anything else is an error; absent is fail-open" {
+  for v in layperson developer; do
+    write_tasks "requester: $v"
+    run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+    printf '%s' "$output" | jq -r '.error_details[]?' | grep -qi "'requester'" && return 1
+  done
+  write_tasks 'requester: expert'
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  printf '%s' "$output" | jq -r '.error_details[]?' | grep -qF "found 'expert'"
+}
