@@ -261,3 +261,10 @@ refute_mentions() {
     printf '%s' "$row" | grep -qF -- "$need" || { echo "data-integrity row does not name: $need" >&2; return 1; }
   done
 }
+
+@test "the runtime floor gate checks the declaration, not only the installed version" {
+  row=$(grep -F '| Supported and declared runtime |' "$PLUGIN_ROOT/references/quality-catalog.md" | sed -n 2p)
+  printf '%s' "$row" | grep -qF 'declaration'
+  printf '%s' "$row" | grep -qF '.tool-versions` for a single script with no manifest'
+  printf '%s' "$row" | grep -qF 'not what the project declares'
+}
