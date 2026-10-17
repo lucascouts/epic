@@ -70,3 +70,10 @@ setup() {
   grep -qF 'carries its legend' "$PLUGIN_ROOT/references/plain-register.md"
   grep -qF '*term* — what it means here' "$PLUGIN_ROOT/references/plain-register.md"
 }
+
+@test "the leaks the blind judge quoted in the 1.1 validation are caught" {
+  for t in 'Vou ler as referências do modo instant' 'Sigo as regras de triagem' 'Now the gates, run report' 'Agora fecho as caixas do plano' 'Fixing the stub'; do
+    run bash -c "printf '%s\n' '$t' | bash '$CHECK'"
+    [ "$status" -eq 1 ] || { echo "not caught: $t"; return 1; }
+  done
+}

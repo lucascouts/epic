@@ -17,6 +17,7 @@ Process words — executor, framework, box, commit, story, checklist, Quality Ga
 | Q1…Qn, quality requirement, legend, catalog ([quality-catalog.md](quality-catalog.md)) | "the checks I ran" — each named by what it checked, never by number |
 | engineering level, experiment / tool / project / product, multiple ([engineering-level.md](engineering-level.md)) | how long it needs to last, and what that costs in time — the one price line of the proposal |
 | npm, lockfile, package manager, dependency, MCP, tool, hook, headless | name what it does, never what it is |
+| triagem, referências do Epic / do fluxo, modo instant / fast, caixas do plano, run report, gate, stub, assertion / asserção, `/epic:epic` | nothing — the requester never needs the machinery's own words; say what was done ("I wrote the check first and saw it fail") |
 
 **A word from the left column in visible text is a defect unless the same message carries its legend** — the same class as a typo in an identifier, and reported the same way. The plain words on the right come first; when a term has to stay — the requester will meet it again, in a command, an error or a tutorial — the message carries its legend: a line below it, `*term* — what it means here`, in the requester's language and about this request. A term with no meaning attached is what loses a beginner, not the term itself.
 

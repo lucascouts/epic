@@ -66,6 +66,7 @@ Tests stay honest under TDD, the Auditor reports claims it checked instead of tr
 
 ### Added
 
+- The layperson term list also covers the internal words the blind judge quoted in the 1.1 validation: `triagem`, `referências do Epic`, `modo instant`, `caixas do plano`, `run report`, `gate`, `stub`, `assertion` and a bare `/epic:epic`.
 - `hook-legend-guard.sh` (Stop): for a `layperson` requester, a process word from any text of the turn — status lines between tool calls included — with no legend blocks the end of the turn once and asks for the legend in the closing. `tasks.md` records `requester: layperson | developer` at every scale for it; `validate-story.sh` checks the value. The commit guard now tells the model to commit silently.
 - The session model is suggested, never switched: a Fast or Spike triage proposal carries a `Model` line when the session is not on Sonnet (`/model sonnet` to continue, or `claude --model sonnet` for a new session), and `instant` says it in one line before the work. Nothing is suggested under `--auto` or headless.
 - The run model: clarify's last question for a Standard or Full story asks which model runs it (Sonnet recommended) and records `run-model:` in `tasks.md`. The closing names how to open a session on it (`/model` or `claude --model`), and the run start says so in one line when the session differs — informing, never blocking.
