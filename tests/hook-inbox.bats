@@ -58,12 +58,15 @@ hook() { jq -n --arg c "$1" '{tool_name: "Bash", tool_input: {command: $c}}' | b
   run hook "go test ./..."
   [ -z "$output" ]
   [ ! -e "$WORK/popped" ]
-  run env EPIC_SUPERVISION=off bash -c "jq -n '{tool_name:\"Bash\",tool_input:{command:\"epic-close 004 1\"}}' | bash '$PLUGIN_ROOT/scripts/hook-inbox.sh'"
+  # These two exits come before the hook reads stdin. Where SIGPIPE is ignored
+  # (the CI runner) the feeding jq prints "Broken pipe" — the producer's noise,
+  # not the hook's output — so its stderr is dropped.
+  run env EPIC_SUPERVISION=off bash -c "jq -n '{tool_name:\"Bash\",tool_input:{command:\"epic-close 004 1\"}}' 2>/dev/null | bash '$PLUGIN_ROOT/scripts/hook-inbox.sh'"
   [ -z "$output" ]
   echo '[]' > "$WORK/inbox.json"
   run hook "epic-close 004 1"
   [ -z "$output" ]
-  run env EPIC_AI_MEMORY_BIN=/nonexistent bash -c "jq -n '{tool_name:\"Bash\",tool_input:{command:\"epic-close 004 1\"}}' | bash '$PLUGIN_ROOT/scripts/hook-inbox.sh'"
+  run env EPIC_AI_MEMORY_BIN=/nonexistent bash -c "jq -n '{tool_name:\"Bash\",tool_input:{command:\"epic-close 004 1\"}}' 2>/dev/null | bash '$PLUGIN_ROOT/scripts/hook-inbox.sh'"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
