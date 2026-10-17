@@ -4,9 +4,8 @@
 #
 # The words leak in short status lines written between tool calls ("Red
 # confirmed, now the implementation") — never in the closing, which epic-jargon
-# already checks. Asking the model not to narrate did not work (a plain-register
-# rule and a PostToolUse hook both stayed within noise), so this hook does not
-# ask: it reads every assistant text block of the turn from the transcript, runs
+# already checks. Asking the model not to narrate is not reliable, so this hook
+# does not ask: it reads every assistant text block of the turn from the transcript, runs
 # jargon-check.sh over all of it, and when a term has no legend anywhere in the
 # turn it asks for the legend in the closing (`*term* — what it means here`).
 # A term without its meaning is the defect, not the term (plain-register.md).
