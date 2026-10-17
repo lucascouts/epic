@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Each release notes the **minimum Claude Code version** it requires. From 0.14.0
 on there is one floor for the whole plugin (see README "Prerequisites").
 
-## [1.1.0] — not yet released
+## [Unreleased]
+
+## [1.1.0] — 2026-10-17
 
 Every level protects the user's data, a finished group is always committed, a layperson never meets a word without its meaning, and the model is chosen where it runs.
 
@@ -29,8 +31,6 @@ Every level protects the user's data, a finished group is always committed, a la
 - The runtime floor gate checks the declaration where a tool reads it (`.tool-versions` for a single script with no manifest), not only the installed version.
 - The data-integrity floor item also covers a wrong-shaped file (treated as corrupted), never replaces an earlier set-aside copy, and makes a failed save say so.
 - Data integrity joins the security floor, so every level owes it: a file the program reads back is written through a temporary file and a rename, and a missing or corrupted one never crashes the program or gets overwritten. A program with no data file records `no persisted data` on the gate. `validate-story.sh` now names five floor items; the context-tier row keeps only the format version.
-
-## [Unreleased]
 
 ## [1.0.0] — 2026-10-17
 
@@ -1615,7 +1615,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/lucascouts/epic/releases/tag/v1.1.0
 [1.0.0]: https://github.com/lucascouts/epic/releases/tag/v1.0.0
 [0.16.0]: https://github.com/lucascouts/epic/releases/tag/v0.16.0
 [0.15.0]: https://github.com/lucascouts/epic/releases/tag/v0.15.0
