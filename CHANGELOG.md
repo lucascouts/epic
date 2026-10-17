@@ -10,7 +10,9 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
-## [1.0.0] — 2026-10-17
+## [0.17.0] — 2026-10-17
+
+First published as 1.0.0 the same day; renumbered, and the 1.x tags withdrawn.
 
 The memory pool becomes typed, a story can be drafted from it, documents can be synced from it, and an outside supervisor can talk to a run — always as claims the run verifies.
 
@@ -1593,8 +1595,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/lucascouts/epic/releases/tag/v1.0.0
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/lucascouts/epic/releases/tag/v0.17.0
 [0.16.0]: https://github.com/lucascouts/epic/releases/tag/v0.16.0
 [0.15.0]: https://github.com/lucascouts/epic/releases/tag/v0.15.0
 [0.14.0]: https://github.com/lucascouts/epic/releases/tag/v0.14.0
