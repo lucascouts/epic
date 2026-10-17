@@ -1,22 +1,24 @@
 #!/usr/bin/env bats
 # The security floor, checked as gates in scripts/validate-story.sh.
 #
-# The floor is the four items no engineering level drops
+# The floor is the five items no engineering level drops
 # (references/quality-catalog.md, The security floor): the supported and
-# declared runtime, secrets, the README, and the dependency-vulnerability scan
-# (SCA). Without this lint the whole chain that carries them is prose —
+# declared runtime, secrets, the README, the dependency-vulnerability scan
+# (SCA) and data integrity. Without this lint the whole chain that carries them is prose —
 # legend, generated gate, Validate running the command — so a story whose
 # legend omits the floor would produce no gate, give Validate nothing to run,
 # and pass.
 #
-#   F1  a declared level with no floor gates is an ERROR naming all four
-#   F2  a declared level with all four gates raises no floor error
+#   F1  a declared level with no floor gates is an ERROR naming all five
+#   F2  a declared level with all five gates raises no floor error
 #   F3  NO `engineering:` field is fail-OPEN — a legacy story is untouched
 #   F4  a partial floor names exactly the missing item, and only it
 #   F5  the scope is the gates section: a floor word in a sub-task is not a gate
 #   F6  a gate inside a fenced block is documentation, not a claim
 #   F7  `sca` is bounded by non-letters, so `scaffold` does not satisfy SCA
 #   F8  the floor is level-agnostic: `product` owes it exactly as `experiment`
+#   F9  a missing data-integrity gate is named, and only it
+#   F10 `no persisted data` on the gate satisfies the item
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -52,10 +54,11 @@ write_tasks() {
   } > "$STORY/tasks.md"
 }
 
-ALL_FOUR='- [ ] Q1 — Supported and declared runtime: `node --version`
+ALL_FIVE='- [ ] Q1 — Supported and declared runtime: `node --version`
 - [ ] Q2 — Secrets: `gitleaks detect`
 - [ ] Q3 — README: the two commands it names run
-- [ ] Q4 — Dependency vulnerabilities (SCA): `trivy fs .`'
+- [ ] Q4 — Dependency vulnerabilities (SCA): `trivy fs .`
+- [ ] Q5 — Data integrity: `no persisted data`'
 
 # errors <output> — the error messages, one per line. `.errors` is the COUNT;
 # `.error_details` is the array, and reading the wrong one silently yields a
@@ -77,26 +80,27 @@ refute_mentions() {
 
 # --- F1: declared level, no floor at all ---
 
-@test "F1 a declared engineering level with no floor gates is an error naming all four" {
+@test "F1 a declared engineering level with no floor gates is an error naming all five" {
   write_tasks 'engineering: experiment' '- [ ] All tests pass'
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   [ "$status" -eq 1 ]
   printf '%s' "$output" | jq -e . > /dev/null
   msg=$(floor_errors "$output")
   [ -n "$msg" ]
-  echo "$msg" | grep -q '4 of the four'
+  echo "$msg" | grep -q '5 of the five'
   echo "$msg" | grep -q 'Supported and declared runtime'
   echo "$msg" | grep -q 'Secrets'
   echo "$msg" | grep -q 'README'
   echo "$msg" | grep -q 'Dependency vulnerabilities'
+  echo "$msg" | grep -q 'Data integrity'
   # The message points at the rule rather than restating it.
   echo "$msg" | grep -q 'quality-catalog.md'
 }
 
 # --- F2: the floor honoured ---
 
-@test "F2 all four gates present raises no floor error" {
-  write_tasks 'engineering: experiment' "$ALL_FOUR"
+@test "F2 all five gates present raises no floor error" {
+  write_tasks 'engineering: experiment' "$ALL_FIVE"
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   [ -z "$(floor_errors "$output")" ]
 }
@@ -126,12 +130,13 @@ refute_mentions() {
 @test "F4 a partial floor names exactly the missing item and only it" {
   write_tasks 'engineering: tool' '- [ ] Q1 — Supported and declared runtime: `node --version`
 - [ ] Q2 — Secrets: `gitleaks detect`
-- [ ] Q3 — Dependency vulnerabilities (SCA): `trivy fs .`'
+- [ ] Q3 — Dependency vulnerabilities (SCA): `trivy fs .`
+- [ ] Q4 — Data integrity: `no persisted data`'
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   [ "$status" -eq 1 ]
   msg=$(floor_errors "$output")
   [ -n "$msg" ]
-  echo "$msg" | grep -q '1 of the four'
+  echo "$msg" | grep -q '1 of the five'
   echo "$msg" | grep -q 'README'
   refute_mentions "$msg" 'Secrets'
   refute_mentions "$msg" 'runtime'
@@ -156,11 +161,12 @@ refute_mentions() {
     echo
     echo '## Quality Gates'
     echo '- [ ] Q1 — Dependency vulnerabilities (SCA): `trivy fs .`'
+    echo '- [ ] Q2 — Data integrity: `no persisted data`'
   } > "$STORY/tasks.md"
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   msg=$(floor_errors "$output")
   [ -n "$msg" ]
-  echo "$msg" | grep -q '3 of the four'
+  echo "$msg" | grep -q '3 of the five'
   refute_mentions "$msg" 'Dependency vulnerabilities'
 }
 
@@ -172,11 +178,12 @@ refute_mentions() {
 - [ ] Q2 — Secrets: `gitleaks detect`
 - [ ] Q3 — README: it exists
 - [ ] Q4 — Dependency vulnerabilities (SCA): `trivy fs .`
+- [ ] Q5 — Data integrity: `no persisted data`
 ```'
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   msg=$(floor_errors "$output")
   [ -n "$msg" ]
-  echo "$msg" | grep -q '4 of the four'
+  echo "$msg" | grep -q '5 of the five'
 }
 
 # --- F7: `sca` is a word, not a substring ---
@@ -185,11 +192,12 @@ refute_mentions() {
   write_tasks 'engineering: experiment' '- [ ] Q1 — Supported and declared runtime: `node --version`
 - [ ] Q2 — Secrets: `gitleaks detect`
 - [ ] Q3 — README: it exists
-- [ ] Q4 — Scaffold generated: `ls src`'
+- [ ] Q4 — Scaffold generated: `ls src`
+- [ ] Q5 — Data integrity: `no persisted data`'
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   msg=$(floor_errors "$output")
   [ -n "$msg" ]
-  echo "$msg" | grep -q '1 of the four'
+  echo "$msg" | grep -q '1 of the five'
   echo "$msg" | grep -q 'Dependency vulnerabilities'
 }
 
@@ -197,7 +205,8 @@ refute_mentions() {
   write_tasks 'engineering: experiment' '- [ ] Q1 — Supported and declared runtime: `node --version`
 - [ ] Q2 — Secrets: `gitleaks detect`
 - [ ] Q3 — README: it exists
-- [ ] Q4 — SCA: `cargo audit`'
+- [ ] Q4 — SCA: `cargo audit`
+- [ ] Q5 — Data integrity: `no persisted data`'
   run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
   [ -z "$(floor_errors "$output")" ]
 }
@@ -222,4 +231,47 @@ refute_mentions() {
   # version stated only in the README.
   printf '%s' "$row" | grep -qi 'edition. is a language dialect'
   printf '%s' "$row" | grep -qi 'only in the README'
+}
+
+# --- F9 / F10: data integrity ---
+
+@test "F9 a missing data-integrity gate is named, and only it" {
+  write_tasks 'engineering: experiment' '- [ ] Q1 — Supported and declared runtime: `node --version`
+- [ ] Q2 — Secrets: `gitleaks detect`
+- [ ] Q3 — README: it exists
+- [ ] Q4 — Dependency vulnerabilities (SCA): `trivy fs .`'
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  [ "$status" -eq 1 ]
+  msg=$(floor_errors "$output")
+  echo "$msg" | grep -q '1 of the five'
+  echo "$msg" | grep -q 'Data integrity'
+  refute_mentions "$msg" 'README'
+}
+
+@test "F10 no persisted data on the gate satisfies the data-integrity item" {
+  write_tasks 'engineering: experiment' "$ALL_FIVE"
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$STORY"
+  [ -z "$(floor_errors "$output")" ]
+  grep -q 'Data integrity: `no persisted data`' "$STORY/tasks.md"
+}
+
+@test "the data-integrity row names the rename, both start-up cases and the empty verdict" {
+  row=$(grep -F '| Data integrity |' "$PLUGIN_ROOT/references/quality-catalog.md" | head -1)
+  for need in 'temporary file renamed' 'missing file' 'corrupted file' 'without overwriting' 'no persisted data'; do
+    printf '%s' "$row" | grep -qF -- "$need" || { echo "data-integrity row does not name: $need" >&2; return 1; }
+  done
+}
+
+@test "the runtime floor gate checks the declaration, not only the installed version" {
+  row=$(grep -F '| Supported and declared runtime |' "$PLUGIN_ROOT/references/quality-catalog.md" | sed -n 2p)
+  printf '%s' "$row" | grep -qF 'declaration'
+  printf '%s' "$row" | grep -qF '.tool-versions` for a single script with no manifest'
+  printf '%s' "$row" | grep -qF 'not what the project declares'
+}
+
+@test "the data-integrity row closes the three gaps the 1.1 validation measured" {
+  row=$(grep -F '| Data integrity |' "$PLUGIN_ROOT/references/quality-catalog.md" | head -1)
+  printf '%s' "$row" | grep -qF 'wrong shape counts as corrupted'
+  printf '%s' "$row" | grep -qF 'never replaces an earlier one'
+  printf '%s' "$row" | grep -qF 'a save that fails says so'
 }

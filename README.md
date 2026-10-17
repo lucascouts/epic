@@ -248,7 +248,7 @@ Configurable via the install wizard or directly through settings. Each option is
 
 | Option | Default | Purpose |
 |---|---|---|
-| `defaultScale` | `standard` | Fallback mode when triage cannot determine complexity |
+| `defaultScale` | `standard` | Fallback mode when triage cannot settle the mode |
 | `aiMemory` | `auto` | `auto` uses the ai-memory MCP server when it answers; `off` never calls it |
 | `staleThresholdDays` | `7` | Days of inactivity before the story list flags a story with pending tasks |
 | `spikeStaleThresholdDays` | `14` | Days of inactivity before a spike whose Verdict is still `open` is flagged — measured by its Verdict, not its checkboxes |
@@ -317,4 +317,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Version
 
-1.0.0 — see [CHANGELOG](./CHANGELOG.md).
+1.1.0 — see [CHANGELOG](./CHANGELOG.md).

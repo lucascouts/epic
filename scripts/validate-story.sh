@@ -227,6 +227,26 @@ for ENG_SRC in tasks.md story.md design.md; do
   [[ -n "$DECLARED_ENGINEERING" ]] || DECLARED_ENGINEERING="$ENG_VAL"
 done
 
+# --- Read the declared requester level ---
+# `requester:` is the level triage read (references/triage.md), written to
+# tasks.md at every scale for the legend guard. Fail-OPEN on absence,
+# fail-CLOSED on a value outside the two.
+REQUESTER_VAL=$(frontmatter_field "$STORY_DIR/tasks.md" requester)
+if [[ -n "$REQUESTER_VAL" ]] && ! [[ "$REQUESTER_VAL" =~ ^(layperson|developer)$ ]]; then
+  add_error "tasks.md frontmatter 'requester' is not a requester level: found '$REQUESTER_VAL' — must be one of: layperson, developer"
+fi
+
+# --- Read the declared run model ---
+# `run-model:` is the model the user chose at clarify to run a Standard or Full
+# story (references/clarify.md, The run model). tasks.md only, fail-OPEN on
+# absence and fail-CLOSED on a value outside the three, the rule every field the
+# plugin added follows.
+RUN_MODEL_ENUM='sonnet|opus|haiku'
+RUN_MODEL_VAL=$(frontmatter_field "$STORY_DIR/tasks.md" run-model)
+if [[ -n "$RUN_MODEL_VAL" ]] && ! [[ "$RUN_MODEL_VAL" =~ ^($RUN_MODEL_ENUM)$ ]]; then
+  add_error "tasks.md frontmatter 'run-model' is not a run model: found '$RUN_MODEL_VAL' — must be one of: ${RUN_MODEL_ENUM//|/, }"
+fi
+
 # --- Artifacts disagreeing about the scale ---
 # One story, one scale, so artifacts declaring different values disagree about
 # the SHAPE OF THE WORK — the same defect the `status:` collector below reports
@@ -772,9 +792,13 @@ if [[ "$HAS_TASKS" == true ]]; then
 
   # --- The security floor, checked as gates (references/quality-catalog.md) ---
   #
-  # The floor is the four items NO engineering level drops: the supported and
-  # declared runtime, secrets, the README, and the dependency-vulnerability scan
-  # (SCA). `experiment` activates nothing else and still activates these.
+  # The floor is the five items NO engineering level drops: the supported and
+  # declared runtime, secrets, the README, the dependency-vulnerability scan
+  # (SCA) and data integrity. `experiment` activates nothing else and still
+  # activates these. Data integrity is owed as a gate even by a program with no
+  # data file — the gate then records `no persisted data`, the same verdict SCA
+  # takes on an empty manifest — so the lint stays a presence check and never
+  # has to guess whether the program persists anything.
   #
   # WHY A LINT AND NOT PROSE. The chain that carries the floor is entirely
   # written down and entirely unexecuted: the story's `## Quality Requirements`
@@ -806,14 +830,16 @@ if [[ "$HAS_TASKS" == true ]]; then
     'Secrets'
     'README'
     'Dependency vulnerabilities (SCA)'
+    'Data integrity'
   )
   FLOOR_RE=(
     'runtime'
     'secret'
     'readme'
     'dependency vulnerabilit|(^|[^a-z])sca([^a-z]|$)'
+    'data integrit'
   )
-  FLOOR_SEEN=(false false false false)
+  FLOOR_SEEN=(false false false false false)
 
   while IFS= read -r line || [[ -n "$line" ]]; do
     LINE_NO=$((LINE_NO + 1))
@@ -953,10 +979,10 @@ if [[ "$HAS_TASKS" == true ]]; then
   #
   # AN ERROR, NOT A WARNING. A warning is just another sentence asking to be
   # honoured, and an unverified floor is exactly what this check catches. The story declares a level; the
-  # catalog says that level activates these four whatever else it drops; a gates
+  # catalog says that level activates these five whatever else it drops; a gates
   # section without them contradicts the story's own frontmatter. One message
   # names every missing item, because an author who lost the legend lost all of
-  # them at once and should fix them in one pass, not four.
+  # them at once and should fix them in one pass, not five.
   if [[ -n "$DECLARED_ENGINEERING" ]]; then
     FLOOR_MISSING=()
     for floor_i in "${!FLOOR_LABELS[@]}"; do
@@ -973,7 +999,7 @@ if [[ "$HAS_TASKS" == true ]]; then
         [[ -z "$FLOOR_LIST" ]] || FLOOR_LIST+="; "
         FLOOR_LIST+="${FLOOR_MISSING[floor_i]}"
       done
-      add_error "tasks.md declares engineering '$DECLARED_ENGINEERING' but its Quality Gates carry no gate for ${#FLOOR_MISSING[@]} of the four security-floor items: $FLOOR_LIST — the floor is the set no level drops (references/quality-catalog.md, The security floor), and an item with no gate is never run and never settled"
+      add_error "tasks.md declares engineering '$DECLARED_ENGINEERING' but its Quality Gates carry no gate for ${#FLOOR_MISSING[@]} of the five security-floor items: $FLOOR_LIST — the floor is the set no level drops (references/quality-catalog.md, The security floor), and an item with no gate is never run and never settled"
     fi
   fi
 

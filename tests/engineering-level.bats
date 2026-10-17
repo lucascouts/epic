@@ -98,7 +98,7 @@ hasF() { # hasF <label> <block> <fixed string>
 }
 
 @test "E2: triage reads the engineering level from the request, asks when unsettled (tool only when nobody can answer), and the proposal carries an Engineering line" {
-  block=$(section "$ROOT/references/triage.md" '^## Triage Protocol' '^### Complexity')
+  block=$(section "$ROOT/references/triage.md" '^## Triage Protocol' '^### Mode Recommendation')
   [ -n "$block" ]
   has "E2 level" "$block" "engineering level"
   has "E2 reference" "$block" "engineering-level"
@@ -362,7 +362,7 @@ hasF() { # hasF <label> <block> <fixed string>
 @test "E18: the README is in the floor — a program nobody can run is not usable as it is" {
   floor=$(section "$ROOT/references/quality-catalog.md" '^### The security floor' '^## ')
   has "E18 readme" "$floor" "README"
-  has "E18 count" "$floor" "four items no level drops"
+  has "E18 count" "$floor" "five items no level drops"
 }
 
 @test "E19: instant declares what it drops, and the report carries it" {

@@ -2,7 +2,7 @@
 
 Design-level view of the Epic plugin for contributors and integrators. The [README](README.md) covers *what* Epic is and how to install it; this document covers *how the pieces fit together* and *why*.
 
-- Last verified against: **v1.0.0** (`.claude-plugin/plugin.json`)
+- Last verified against: **v1.1.0** (`.claude-plugin/plugin.json`)
 - If you only want to add a new story mode or tweak an agent prompt, jump to [Extension points](#extension-points).
 
 ---
@@ -50,7 +50,7 @@ user request │  triage ─► analyst ─► clarify ─► phases (main agent
              └───────────────────────────────────────────────────┘
 ```
 
-Scale (Fast / Standard / Full) controls which artifacts exist and which personas activate. The triage step emits a single proposal covering complexity, mode, workflow variant, MCPs, and output path — see [`skills/epic/SKILL.md`](references/triage.md#triage-protocol).
+Scale (Fast / Standard / Full) controls which artifacts exist and which personas activate. The triage step emits a single proposal covering mode, workflow variant, MCPs, and output path — see [`skills/epic/SKILL.md`](references/triage.md#triage-protocol).
 
 ---
 
@@ -187,6 +187,8 @@ All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — 
 | `PreToolUse` | `Bash` (no filter) · `Edit`/`Write` of `**/.epic/stories/**/tasks.md` | `hook-executor-guard.sh` | Inside the Executor (`agent_type`), deny `git commit` and edits to `tasks.md` |
 | `PreToolUse` | `Bash` (no filter) | `hook-commit-identity-guard.sh` | Deny a commit that supplies its own identity, and any `git config user.*` write |
 | `SubagentStop` | `epic:auditor` | `hook-report-guard.sh` | Keep the agent running until its report file is on disk |
+| `Stop` | — | `hook-legend-guard.sh` | For a `layperson` requester, block the end of a turn once while a process word from any of its text has no legend, naming each word |
+| `Stop` | — | `hook-commit-guard.sh` | Block the end of a turn once while a finished group's pre-authored commit is missing, naming the message |
 | `SessionStart` | `compact` | `hook-session-restore.sh` | After a compaction, render the active story's state from disk into context |
 | `SessionStart` | `clear` | `hook-orphan-drafts.sh` | After `/clear`, list drafts untouched for 30+ days, one removal line each; deletes nothing |
 | `SessionStart` | `startup\|resume\|clear` | `doctor.sh --summary` | One line naming what is wrong with `.epic/`, nothing when healthy; read-only |

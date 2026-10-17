@@ -10,6 +10,28 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-10-17
+
+Every level protects the user's data, a finished group is always committed, a layperson never meets a word without its meaning, and the model is chosen where it runs.
+
+**Minimum Claude Code:** 2.1.295, unchanged.
+
+### Added
+
+- `hook-legend-guard.sh` (Stop): for a `layperson` requester, a process word from any text of the turn — status lines between tool calls included — with no legend blocks the end of the turn once and asks for the legend in the closing. `tasks.md` records `requester: layperson | developer` at every scale for it; `validate-story.sh` checks the value. The commit guard now tells the model to commit silently.
+- The session model is suggested, never switched: a Fast or Spike triage proposal carries a `Model` line when the session is not on Sonnet (`/model sonnet` to continue, or `claude --model sonnet` for a new session), and `instant` says it in one line before the work. Nothing is suggested under `--auto` or headless.
+- The run model: clarify's last question for a Standard or Full story asks which model runs it (Sonnet recommended) and records `run-model:` in `tasks.md`. The closing names how to open a session on it (`/model` or `claude --model`), and the run start says so in one line when the session differs — informing, never blocking.
+- `hook-commit-guard.sh` (Stop): a finished group whose pre-authored commit is missing blocks the end of the turn once, naming the message. Fails open with no git identity, no work tree, no stories, or on the second stop.
+
+### Changed
+
+- The layperson term list also covers the Epic's own internal words, in either language: `triagem`, `referências do Epic`, `modo instant`, `caixas do plano`, `run report`, `gate`, `stub`, `assertion` and a bare `/epic:epic`.
+- A technical or English term may reach a layperson when the same message carries its legend (`*term* — what it means here`, in their language). `epic-jargon` passes legended terms, reports them under `explained`, and flags only the unexplained ones.
+- Triage has one scale: the four modes, read from risk and uncertainty. The story-level Trivial / Simple / Moderate / High labels are gone (file counts stay as examples on each mode); the sub-task Complexity field stays, since it routes the Executor model and the tech review.
+- The runtime floor gate checks the declaration where a tool reads it (`.tool-versions` for a single script with no manifest), not only the installed version.
+- The data-integrity floor item also covers a wrong-shaped file (treated as corrupted), never replaces an earlier set-aside copy, and makes a failed save say so.
+- Data integrity joins the security floor, so every level owes it: a file the program reads back is written through a temporary file and a rename, and a missing or corrupted one never crashes the program or gets overwritten. A program with no data file records `no persisted data` on the gate. `validate-story.sh` now names five floor items; the context-tier row keeps only the format version.
+
 ## [1.0.0] — 2026-10-17
 
 The memory pool becomes typed, a story can be drafted from it, documents can be synced from it, and an outside supervisor can talk to a run — always as claims the run verifies.
@@ -1593,7 +1615,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/lucascouts/epic/releases/tag/v1.1.0
 [1.0.0]: https://github.com/lucascouts/epic/releases/tag/v1.0.0
 [0.16.0]: https://github.com/lucascouts/epic/releases/tag/v0.16.0
 [0.15.0]: https://github.com/lucascouts/epic/releases/tag/v0.15.0

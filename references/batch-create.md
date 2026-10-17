@@ -39,7 +39,7 @@ The document is read once and stays the batch's single source: every story deriv
 
 ## 2. Derivation
 
-Read the document for **story-shaped items**: a stated problem with a stated remedy that a person could implement and check. Each proposal carries the same four fields a single create's triage produces — event, type, complexity and scale — from the triage table in [SKILL.md](../skills/epic/SKILL.md). A batch may mix scales freely; scale is decided per proposal, never per batch.
+Read the document for **story-shaped items**: a stated problem with a stated remedy that a person could implement and check. Each proposal carries the same three fields a single create's triage produces — event, type and scale — from the triage table in [SKILL.md](../skills/epic/SKILL.md). A batch may mix scales freely; scale is decided per proposal, never per batch.
 
 **Zero story-shaped items is a result, not a failure to try harder.** Report that the document yielded none and stop. A batch is never padded with invented stories: the cost of a fabricated story is paid later, by whoever tries to implement it.
 
@@ -47,12 +47,12 @@ Read the document for **story-shaped items**: a stated problem with a stated rem
 
 One block, N rows, one confirmation:
 
-| # | Proposed story | Type | Complexity | Scale | Why this scale |
-|---|---|---|---|---|---|
-| 1 | `<slug>` | feature | Moderate | full | new contract between services — the architectural signal Full asks for |
-| 2 | `<slug>` | bugfix | Trivial | fast | — |
+| # | Proposed story | Type | Scale | Why this scale |
+|---|---|---|---|---|
+| 1 | `<slug>` | feature | full | new contract between services — the architectural signal Full asks for |
+| 2 | `<slug>` | bugfix | fast | — |
 
-**A Moderate row is `standard` unless it names an architectural signal.** Scale per row follows the same rule a single create follows ([triage.md](triage.md#complexity--mode-recommendation)): Full is opt-in on a signal, never on file count. Row 1 above earns its `full` in the last column — a row that cannot fill that column is a `standard`.
+**A row is `standard` unless it names an architectural signal.** Scale per row follows the same rule a single create follows ([triage.md](triage.md#mode-recommendation)): Full is opt-in on a signal, never on file count. Row 1 above earns its `full` in the last column — a row that cannot fill that column is a `standard`.
 
 Below the rows, the batch-wide context gathered once in step 2 — the runtime dependency check, the MCP health-check results and the resolved preferred tooling — then a single "Confirm or adjust?".
 

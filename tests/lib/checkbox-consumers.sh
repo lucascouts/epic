@@ -27,6 +27,7 @@ CHECKBOX_CONSUMERS=(
   cross-reference.sh
   doctor.sh
   epic-index.sh
+  hook-commit-guard.sh
   hook-session-restore.sh
   migrate-story.sh
   monitor-stale.sh

@@ -108,6 +108,24 @@ options:
     description: "Leave sessions as they are for this story"
 ```
 
+### The run model (Standard and Full)
+
+**The last question of the last round asks which model runs the story.** The session's model does most of a run's work — the orchestrator reads, plans, writes and coordinates — so it decides most of the cost; the Executor's model decides only its share. A plugin cannot change the session's model, so the answer is recorded and acted on at run time, in a session opened with it ([phase-gates.md](phase-gates.md#handing-off-to-run)):
+
+```
+header:   "Run model"
+question: "Which model should run this story? It takes effect in the session that runs it"
+options:
+  - label: "Sonnet (Recommended)"
+    description: "The quality of Opus on this kind of work at about a third of the cost"
+  - label: "Opus"
+    description: "The deepest reasoning, for a story whose design is the hard part; about three times the cost"
+  - label: "Haiku"
+    description: "The cheapest; writes fewer tests and skips more of the delivery details"
+```
+
+The answer is written to `tasks.md` as `run-model: sonnet | opus | haiku` ([tasks.md](tasks.md)). **Fast and spike do not ask**: they create and run in one sitting, with no session in between to open on another model. Under `--auto` or headless the question is not asked and no `run-model:` is written — the run uses whatever session runs it. For a `layperson`, the question is asked in the plain register: what each option costs and gets them, in their words, and the model names carry their legend.
+
 ### Fallback (headless or AskUserQuestion unavailable)
 
 When the tool is not callable (some `-p` modes, restricted permission scopes),

@@ -52,7 +52,7 @@ has() { # has <label> <block> <keyword>
 }
 
 @test "Q1: triage reads the requester as a four-field block, both registers, developer when unsure, and the level never changes the scale" {
-  block=$(section "$ROOT/references/triage.md" '^## Triage Protocol' '^### Complexity')
+  block=$(section "$ROOT/references/triage.md" '^## Triage Protocol' '^### Mode Recommendation')
   [ -n "$block" ]
   has "Q1" "$block" "developer"
   has "Q1" "$block" "layperson"

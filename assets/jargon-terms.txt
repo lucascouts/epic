@@ -40,3 +40,14 @@ ci:\bheadless\b
 ci:\bfrontmatter\b
 ci:\bdeviation register\b
 ci:\bepic-[a-z]+\b
+# Internal words of the Epic itself, in either language, that a beginner has no use for.
+ci:\btriagem\b
+ci:\brefer[eê]ncias do (epic|fluxo|modo)\b
+ci:\bmodo (instant|fast|standard|full|spike)\b
+ci:\bcaixas? do plano\b
+ci:\brun[- ]?report\b
+ci:\bgates?\b
+ci:\bstubs?\b
+ci:\bassertions?\b
+ci:\basser[cç](ão|ões)\b
+cs:/epic:epic
