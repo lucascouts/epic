@@ -1290,6 +1290,28 @@ if [[ "$LOC_COUNT" -gt 1 ]]; then
   refuse "box '$TASK_ID' names $LOC_COUNT lines of '$TASKS_FILE' (lines ${LOC_LINES// /, }) — which of them the caller meant is not something this script may guess, so it marks none of them; give the duplicates distinct numbers or gate texts. Nothing was modified"
 fi
 
+# --- 2b''. The pre-authored test (a plain close of a sub-task) ---------------
+# A sub-task whose Red was recorded in .draft/red-evidence.yaml closes `[x]` only
+# while its materialized test still asserts what was authored. test-diff.sh
+# compares the two; an assertion line changed, removed or added — or the test
+# gone — refuses the close, because the run would otherwise mark done against a
+# test it rewrote. Setup edits (fixtures, imports, paths) pass. Only a refine
+# that carries the delta into .draft/authored-tests/ releases the box. A story
+# with no red-evidence entry for the box (Fast, spike, experiment, tool, or a
+# sub-task with no test) is untouched.
+if [[ "$FLAGS_GIVEN" -eq 0 && "$TARGET_KIND" == sub && -f "$STORY_ABS/.draft/red-evidence.yaml" ]]; then
+  RED_TARGET=$(awk -v t="$TASK_ID" '
+    /^[[:space:]]*-[[:space:]]+task:/ { v=$0; sub(/^[^:]*:[[:space:]]*/, "", v); gsub(/["'"'"' ]/, "", v); cur=(v==t) ; next }
+    cur && /^[[:space:]]*target_path:/ { v=$0; sub(/^[^:]*:[[:space:]]*/, "", v); gsub(/^["'"'"']|["'"'"'][[:space:]]*$/, "", v); sub(/[[:space:]]+#.*$/, "", v); print v; exit }
+  ' "$STORY_ABS/.draft/red-evidence.yaml" 2> /dev/null || true)
+  _td_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" 2> /dev/null && pwd -P) || _td_dir=""
+  if [[ -n "$RED_TARGET" && -n "$_td_dir" && -f "$_td_dir/test-diff.sh" ]]; then
+    if ! bash "$_td_dir/test-diff.sh" --story "$STORY_ABS" --file "$RED_TARGET" > /dev/null 2>&1; then
+      refuse "box '$TASK_ID' of story '$STORY_ID' cannot close: its pre-authored test '$RED_TARGET' no longer asserts what was authored — epic-test-diff reports an assertion line changed, removed or added, or the test missing. Assertions are frozen; restore them, or refine the story to carry the change into .draft/authored-tests/. Nothing was modified"
+    fi
+  fi
+fi
+
 # --- 2a''. The new reason (--restate) ----------------------------------------
 # Judged here, in --fulfill's place and for its reason: it needs nothing from
 # disk, so a caller whose reason is unusable has to fix that whatever the box

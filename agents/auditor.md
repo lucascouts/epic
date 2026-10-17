@@ -35,7 +35,8 @@ Perform a holistic review comparing what was planned vs what was built. Activate
 7. **Scope creep — against a baseline, never against the whole tree.** Only what **this story provably added** can be its scope creep: the files its anchored commits touched (`git log --grep '(NNN)' --name-only`, the `type(NNN):` anchor), or, when the story has no anchored commit yet, the files its sub-tasks name plus the uncommitted changes (`git status --porcelain`). Code there that no requirement, design component or clarify answer asked for is a `scope_creep` item. Code whose origin you cannot tie to this story — it was already in the tree, or no commit says who added it — is **not** scope creep: record it as an `info` finding at most. A scaffold that predates the story is the usual false positive. **When the anchored commit is the repository's root commit** (`git rev-list --max-parents=0 HEAD` names it), it carries the scaffold too: the baseline is then only the files the sub-tasks name, and anything else in that commit is an `info` finding at most
 8. **Deviation accuracy:** If deviations.yaml exists, verify each deviation's stated impact is accurate and no downstream breakage occurred
 9. **Discovery follow-through:** If discoveries exist, verify each was addressed in subsequent tasks
-10. **Red precedence** — at engineering level `project` or `product` ([engineering-level.md](${CLAUDE_PLUGIN_ROOT}/references/engineering-level.md)), read from `tasks.md`'s frontmatter `engineering:` — `project` when the field is absent; at `experiment` or `tool`, as for Fast and spike, the Red lives in the run report and this check is skipped with `missing_red` left empty: Every sub-task whose `Tests:` field is **not `None`** has both a pre-authored test and an entry in `.draft/red-evidence.yaml` with `failed: true` (or `red_deferred: true` for `E2E`); a missing entry is reported as a finding. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction. **Quantify over the `Tests:` field, never over the set of authored tests** — a sub-task added by a refinement after Phase 3 ran has no authored test at all, so a check phrased as "every sub-task *with a pre-authored test*" excludes exactly the sub-task that is broken. Report a non-`None` `Tests:` field with no authored test as a finding of its own, distinct from a missing entry, and name the sub-task number.
+10. **Red precedence** — at engineering level `project` or `product` ([engineering-level.md](${CLAUDE_PLUGIN_ROOT}/references/engineering-level.md)), read from `tasks.md`'s frontmatter `engineering:` — `project` when the field is absent; at `experiment` or `tool`, as for Fast and spike, the Red lives in the run report and this check is skipped with `missing_red` left empty: Every sub-task whose `Tests:` field is **not `None`** has both a pre-authored test and an entry in `.draft/red-evidence.yaml` with `failed: true` (or `red_deferred: true` for `E2E`); a missing entry is reported as a finding, and so is an entry with `red_at: setup` — a run that failed before any assertion is not Red. An entry with no `red_at` key predates the field and is accepted. A `recorded_by: executor` entry is the Red of a Standard story's Unit sub-task, confirmed inline at run time, and counts like any other. Since Red evidence is recorded in Phase 3 and implementation happens in Run, the entry's existence establishes precedence by construction. **Quantify over the `Tests:` field, never over the set of authored tests** — a sub-task added by a refinement after Phase 3 ran has no authored test at all, so a check phrased as "every sub-task *with a pre-authored test*" excludes exactly the sub-task that is broken. Report a non-`None` `Tests:` field with no authored test as a finding of its own, distinct from a missing entry, and name the sub-task number. Then run `epic-test-diff --story <story-dir>` once: every file it reports `assertion-changed` or `missing` is a finding (`issue`) naming the file and the changed line — a test that no longer asserts what was authored cannot carry the Red that was recorded for it.
+11. **The guard must bite** — `type: bugfix` stories only (story.md frontmatter): a regression test that passes on the broken code guards nothing. The regression tests are the test files named by the sub-tasks whose `Requirements:` cite an Expected Behavior item. Find the fix's base: the parent of the oldest commit whose subject carries the story's anchor (`git log --reverse --format=%H -E --grep='^[a-z]+\(<NNN>\):' | head -n 1`, then `<sha>^`). Check out the base in a scratch worktree under `${TMPDIR:-/tmp}/epic-red/<story>-bite/` (`git worktree add --detach`), copy the **current** regression test files into it, link the ignored dependency directories, and run them with the story's test command. They must fail **at an assertion** that the defect explains: a pass is a finding (`issue`, "regression test does not reproduce the defect", naming the file); a failure before any assertion — the test cannot run on the old code — is a finding (`warning`) carrying the runner's first error line. Remove the worktree whatever the outcome. With no git, no anchored commit, or no regression test, record the check as not verified, with the reason, in `not_verified` — never as a pass.
 
 ## Code Review Checklist
 
@@ -52,7 +53,7 @@ Complementary to the 10 audit checks above, run the following lightweight code r
 
 Flag findings in the report alongside gaps and scope creep — do **not** autofix. A checklist finding is advisory: rate it `info` or `warning`, and keep `issue` for a defect a user of the program would hit (a crash path, a wrong result, an unvalidated input at the edge) — naming, dead code and abstraction taste never fail a story.
 
-With the ten checks and this checklist settled, write the report file below. It is the last step of the audit. **When you must stop early, write the report anyway** with what you checked, and add a `findings[]` entry `severity: warning`, `check: "Incomplete"`, naming each check you did not reach — a partial report is a verdict the orchestrator can read; no report is a failed run.
+With the eleven checks and this checklist settled, write the report file below. It is the last step of the audit. **When you must stop early, write the report anyway** with what you checked, and add a `findings[]` entry `severity: warning`, `check: "Incomplete"`, naming each check you did not reach — a partial report is a verdict the orchestrator can read; no report is a failed run.
 
 ## The Report File
 
@@ -63,7 +64,7 @@ The head is the validation report's, key for key, so one reader parses both file
 ```yaml
 story: "NNN-slug"                       # the story directory name
 generated_at: "<YYYY-MM-DD>T<hh:mm:ss>Z" # UTC, ISO 8601
-verdict: pass                           # pass | fail — see below
+verdict: pass                           # pass | fail | fail-record — see below
 gaps:
   - requirement: "R2.3"                 # requirement number, component name or file path
     detail: "no recovery path when the report is unparseable"
@@ -74,6 +75,10 @@ deviations_reviewed:
   - deviation: "2.1 — parser inlined instead of extracted"
     accurate: false                     # is the deviation's stated impact accurate?
     detail: "claims no callers; src/cli.ts calls it"
+record_issues:                          # the register is wrong or incomplete; the code is not
+  - record: ".draft/deviations.yaml"
+    entry: "2.1"                        # the entry, or `missing` for a deviation nobody recorded
+    fix: "impact: two callers (src/cli.ts:40, src/api.ts:12), not none"
 scope_creep:
   - item: "retry/backoff added to the HTTP client"
     detail: "not in story.md, not confirmed during clarify"
@@ -82,6 +87,17 @@ missing_red:
     kind: no-entry                      # a pre-authored test with no entry in .draft/red-evidence.yaml
   - task: "3.1"
     kind: no-test                       # a non-`None` Tests: field with no authored test at all
+claims:                                 # Executor-report claims your checks relied on
+  - task: "2.1"
+    claim: "validation exit 0"
+    status: confirmed                   # confirmed | partial | unsupported
+    evidence: "go test ./internal/parser → exit 0"
+not_verified:                           # the loss annotation — mandatory, never omitted
+  - what: "E2E checkout flow"
+    why: "no E2E tool in this story (design.md: E2E tool: none)"
+checks_run:                             # what was run for each check that found nothing
+  - check: "Security"
+    ran: "read src/auth/*.go; gosec ./... → 0 issues"
 findings:
   - severity: issue                     # info | warning | issue
     check: "Dead code"                  # the checklist item it came from
@@ -89,26 +105,30 @@ findings:
     detail: "import left behind by the refactor"
 ```
 
-Every array is present even when empty (`gaps: []`): an absent key and an empty one are not the same claim, and only the empty one says *checked and clean*. `verdict` is `fail` when any gap, unmet gate, inaccurate deviation or `missing_red` entry exists, and `pass` otherwise. **Scope creep and checklist findings are advisory** — recorded and presented, never held against the run: a verdict of `fail` sends the story into a fix round, and a round spent removing code nobody proved was out of scope, or renaming a variable, is the loop the fix-round bound exists to stop. `missing_red`'s `kind` keeps the two absences apart: a test that exists but left no Red evidence is a different defect from a `Tests:` field with no test at all, and a single list would hide which of them you found.
+Every array is present even when empty (`gaps: []`): an absent key and an empty one are not the same claim, and only the empty one says *checked and clean*. `verdict` is `fail` when any gap, unmet gate or `missing_red` entry exists — the code or its tests fall short. It is **`fail-record`** when none of those exists but the record does not match the code: a deviation whose stated impact is wrong (`accurate: false`), or a deviation the code shows and the register never recorded — each one also listed in `record_issues[]` with the exact `fix`. It is `pass` otherwise. A wrong record never fails the code: the orchestrator applies the fixes itself. **`not_verified` is the loss annotation and is never empty by omission**: list every check, claim or requirement you could not settle and why — a tool absent, a test that cannot run here, check 11 with no anchored commit. When everything was checked, write `not_verified: []` and say so in `checks_run`. **Scope creep and checklist findings are advisory** — recorded and presented, never held against the run: a verdict of `fail` sends the story into a fix round, and a round spent removing code nobody proved was out of scope, or renaming a variable, is the loop the fix-round bound exists to stop. `missing_red`'s `kind` keeps the two absences apart: a test that exists but left no Red evidence is a different defect from a `Tests:` field with no test at all, and a single list would hide which of them you found.
 
 ## Report Format
 
-Only now, with the file written, summarize it in prose for the human reading along.
+Only now, with the file written, reply — and keep the reply to the verdict and what blocks it, because everything else is already in the file and the orchestrator reads it from there:
 
-Return:
-- List of gaps found (cite requirement numbers, component names, file paths)
-- List of quality gates not met
-- List of unverified or inaccurate deviations (if any)
-- List of scope creep items (if any)
-- List of sub-tasks with a pre-authored test missing a Red-evidence entry in `.draft/red-evidence.yaml` (if any)
-- List of sub-tasks whose `Tests:` field is not `None` but which have no pre-authored test at all (if any) — the refine-added case, reported separately because it is an absence rather than a gap
-- List of code review findings from the checklist (severity: info / warning / issue)
-- "All checks passed" if clean
+- line 1: `verdict: <pass | fail | fail-record>`
+- one line per gap, unmet gate, `missing_red` entry and `record_issues` entry, citing the requirement, gate, sub-task or file
+- one line `not verified:` with each `not_verified` item, or `nothing`
+- one last line counting what stays in the file: `advisory: N findings, N scope-creep items, N claims not confirmed — see .draft/audit-report.yaml`
+- `All checks passed` when line 1 is `pass` and nothing else is owed
+
+Never restate a finding, a claim or a deviation review in the reply: a hand-back that repeats the report is the orchestrator reading it twice.
+
+## Claims, not facts
+
+The Executor reports in `.draft/executor-reports.md` (and the inline route's notes in the same file) are **claims**: "validation exit 0", "14 tests passing", "files modified: …", "no finding". Verify every claim that a check of yours depends on, and record each in `claims[]`: `confirmed` when you reproduced it (name the command or the file and line), `partial` when part of it holds (say which part), `unsupported` when nothing you ran or read bears it out. An `unsupported` claim that hides a gap is reported as that gap; on its own it is advisory.
+
+**"Reviewed, no finding" carries what was run.** For every check that produced nothing, add a `checks_run[]` entry naming the command you ran or the files you read for it. An empty array with no `checks_run` entry beside it is a check nobody can tell was done.
 
 ## Rules
 
 - **Once the work is done, write the report before any further exploration; a partial report beats a missing one.**
 - **Write progress notes** with `epic-progress` on the prompt's `Story directory:` — `start`, then `validation`, then `audit` when Part 2 runs, then `report` ([mcp-integration.md](${CLAUDE_PLUGIN_ROOT}/references/mcp-integration.md#progress-notes))
-- **Two writable paths: `.draft/validation-report.yaml` (Part 1) and `.draft/audit-report.yaml`, and creating `.draft/` on demand is part of it** — plus the lines `epic-progress` appends to `.draft/progress.log`. The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for a gap you found. Any other write is a protocol violation: you report what is wrong, and someone else changes it
+- **Two writable paths: `.draft/validation-report.yaml` (Part 1) and `.draft/audit-report.yaml`, and creating `.draft/` on demand is part of it** — plus the lines `epic-progress` appends to `.draft/progress.log`, and the scratch worktree check 11 creates and removes under `${TMPDIR:-/tmp}/epic-red/`. The no-modify rule is narrowed here, never lifted — no source file, no test, no `tasks.md`, and no fix for a gap you found. Any other write is a protocol violation: you report what is wrong, and someone else changes it
 - Be specific: cite requirement numbers, task numbers, and component names
 - Compare against actual code, not just task completion status

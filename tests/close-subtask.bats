@@ -290,3 +290,39 @@ close_group4_header() {
   # mark the writer chooses, the pair is consistent after one invocation.
   grep -qE '^- \[[x~]\] 1 - Build the widget' "$STORY/tasks.md"
 }
+
+# --- The pre-authored test must still assert what was authored ---------------
+
+seed_red() {  # an authored test for 1.1, materialized at tests/parser.test.js
+  mkdir -p "$STORY/.draft/authored-tests/tests" "$PROJ/tests"
+  printf "const { parse } = require('../src/parser')\ntest('parses', () => {\n  expect(parse('a')).toEqual(['a'])\n})\n" > "$STORY/.draft/authored-tests/tests/parser.test.js"
+  cp "$STORY/.draft/authored-tests/tests/parser.test.js" "$PROJ/tests/parser.test.js"
+  printf 'red-evidence:\n  - task: "1.1"\n    test_file: ".draft/authored-tests/tests/parser.test.js"\n    target_path: "tests/parser.test.js"\n    command: "npx jest parser"\n    failed: true\n    red_at: assertion\n    reason: "expected [a], got []"\n' > "$STORY/.draft/red-evidence.yaml"
+}
+
+@test "test-diff gate: an intact or setup-repaired pre-authored test closes the box" {
+  seed_red
+  sed -i "s#'../src/parser'#'../src/lib/parser'#" "$PROJ/tests/parser.test.js"
+  run bash "$SCRIPT" "$STORY" 1.1
+  [ "$status" -eq 0 ]
+  grep -q '^  - \[x\] 1.1 - Implement the parser' "$STORY/tasks.md"
+}
+
+@test "test-diff gate: a changed assertion refuses the close and writes nothing" {
+  seed_red
+  sed -i "s/toEqual(\['a'\])/toEqual([])/" "$PROJ/tests/parser.test.js"
+  before=$(cksum < "$STORY/tasks.md")
+  run bash "$SCRIPT" "$STORY" 1.1
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no longer asserts what was authored"* ]]
+  [ "$(cksum < "$STORY/tasks.md")" = "$before" ]
+}
+
+@test "test-diff gate: a sub-task with no Red entry, and a --tilde close, are untouched by it" {
+  seed_red
+  sed -i "s/toEqual(\['a'\])/toEqual([])/" "$PROJ/tests/parser.test.js"
+  run bash "$SCRIPT" "$STORY" 1.2
+  [ "$status" -eq 0 ]
+  run bash "$SCRIPT" "$STORY" 1.1 --tilde "deferred: needs the vendor feed"
+  [ "$status" -eq 0 ]
+}

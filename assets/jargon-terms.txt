@@ -1,0 +1,42 @@
+# Process words that must not reach a layperson's chat (references/plain-register.md,
+# "Never in the chat"). One extended regex per line, prefixed ci: (any case) or
+# cs: (case as written). Generic words that also mean something ordinary
+# ("close", "tool", "story") are left out: they would flag correct prose.
+# Inline code and fenced blocks are not checked — the command to type is not jargon.
+ci:\bstory\.md\b
+ci:\btasks\.md\b
+ci:\bdesign\.md\b
+ci:\.epic/
+ci:\.draft/
+ci:\bsub-?tasks?\b
+ci:\bsub-?agents?\b
+ci:\bexecutor\b
+ci:\bauditor\b
+ci:\bvalidator\b
+ci:\borchestrator\b
+ci:\btech reviewer\b
+ci:\bclosing block\b
+ci:\bcensus\b
+ci:\bcheckbox(es)?\b
+cs:\[x\]|\[~\]
+cs:\bRed\b
+cs:\bGreen\b
+ci:\btest-first\b
+ci:\brefactor(ing|ed)?\b
+ci:\bvalidation command\b
+ci:\bcommits?\b
+ci:\bworktrees?\b
+ci:\bquality gates?\b
+ci:\btriage\b
+ci:\bspike\b
+cs:\bEARS\b
+cs:\bSHALL\b
+cs:\bR[0-9]+\.[0-9]+\b
+cs:\bQ[0-9]+\b
+ci:\bengineering level\b
+ci:\blockfile\b
+cs:\bMCP\b
+ci:\bheadless\b
+ci:\bfrontmatter\b
+ci:\bdeviation register\b
+ci:\bepic-[a-z]+\b

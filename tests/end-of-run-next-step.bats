@@ -62,9 +62,11 @@ setup() {
   [ "$status" -eq 1 ]
 }
 
-@test "N5: prose only when AskUserQuestion is not callable; --auto does not make the end headless" {
+@test "N5: prose only when AskUserQuestion is not callable; under --auto the recommended step is taken and logged" {
   printf '%s\n' "$END" | grep -q '^\*\*Ask whenever `AskUserQuestion` is callable\*\*'
-  [[ "$END" == *'`--auto`, a Fast default and a missing Task tool do not make the run'* ]]
+  [[ "$END" == *'a Fast default and a missing Task tool do not make the run'* ]]
+  [[ "$END" == *'`--auto` is the one exception, and it is explicit'* ]]
+  [[ "$END" == *'logged as an assumption'* ]]
   printf '%s\n' "$END" | grep -q '^\*\*Only when `AskUserQuestion` is not callable:\*\* do not start the step'
   # The archive offer reads the same signal — the stale TaskCreate one is gone.
   run grep -n '`TaskCreate` present = interactive' "$ROOT/references/validate-mode.md"

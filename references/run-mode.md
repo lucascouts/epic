@@ -31,7 +31,7 @@ Triggered by `/epic:epic stories run NNN`, `/epic:epic stories NNN run all`, or 
 6a. **Recall prior deviations (when memory is available)** — one `memory_query` per run, `deviation OR discovery OR gotcha` plus the tech names from step 6, `limit: 10`. The hits go into every Executor's Project State beside this run's own register, as leads to verify. Absent memory, nothing is added ([mcp-integration.md](mcp-integration.md#memory-mcp))
 7. **Materialize pre-authored tests (Standard/Full at engineering level `project` or `product` only)** — before any task execution, copy every file under the story's `.draft/authored-tests/**` into the real test tree at its mirrored path. This step is **idempotent**: if a target test path already exists in the real tree, **skip that file and emit a warning** (it may already exist from a prior Run, a partial `run N.N`, or a manual executor edit — never overwrite it). Files that do not yet exist are copied. Materialization runs once per Run, ahead of step 8. This step applies to **Standard and Full scales at `project` or `product` level only** — they are the ones that stage Test Advisor-authored tests in `.draft/authored-tests/` ([engineering-level.md](engineering-level.md)). **Fast and spike have no `.draft/`, and an `experiment` or `tool` story at any scale stages no test in it**, so such a Run has nothing to materialize and skips this step: Fast writes its tests at run time straight into the real test tree (see Task Execution Flow), and a spike is tasks-only by contract — `tasks.md` and nothing else ([tasks.md](tasks.md#spike-scale-adaptations)). Materialization only **copies** files — it never runs them. A materialized E2E test whose `.draft/red-evidence.yaml` entry carries `red_deferred: true` has its Red confirmed at task-execution time, not here (see Deferred Red for E2E sub-tasks under Task Execution Flow).
 
-   **Materialization also checks the converse, because copying what exists cannot see what is absent.** Before copying, cross the pending task list against `.draft/`: a sub-task whose `Tests:` field is **not `None`** and which has **neither** a file under `.draft/authored-tests/` **nor** an entry in `.draft/red-evidence.yaml` never went through Phase 3. **Do not execute it — stop and report it by number**, then offer to author it now via the Test Advisor (the same one-sub-task flow [refine-mode.md](refine-mode.md#red-evidence-for-added-sub-tasks) defines) or to proceed with the sub-task's `Tests:` field explicitly waived and the waiver recorded in `.draft/deviations.yaml`. Running it as if it were test-first is the one option that is not available: the Executor would be handed a test-first sub-task with no test, and its conditional step 5 would branch on a premise that is false. **The usual cause is a refinement that added the sub-task after Phase 3 ran**, which is why the producing side is fixed there and this is the guard rather than the fix — one end of the wire is not a wire. **Fast and spike are exempt from this check exactly as they are from the copy** — and so is a Standard or Full story at engineering level `experiment` or `tool`, whose tests are written at run time by decision ([engineering-level.md](engineering-level.md)): none of them has authored tests for the cross to read, so the absence it hunts for is their normal state and never evidence of a skipped Phase 3. The exemption is load-bearing for a spike, whose `Tests` field is **optional but permitted** ([tasks.md](tasks.md#spike-scale-adaptations)) — a spike sub-task that does carry `Tests:` would otherwise be refused execution here by a guard about a phase a spike never runs.
+   **Materialization also checks the converse, because copying what exists cannot see what is absent.** Before copying, cross the pending task list against `.draft/`: a sub-task whose `Tests:` field is **not `None`** and which has **neither** a file under `.draft/authored-tests/` **nor** an entry in `.draft/red-evidence.yaml` never went through Phase 3 — except a `Unit` sub-task of a **Standard** story, whose test the Executor writes at run time by design. **Do not execute it — stop and report it by number**, then offer to author it now via the Test Advisor (the same one-sub-task flow [refine-mode.md](refine-mode.md#red-evidence-for-added-sub-tasks) defines) or to proceed with the sub-task's `Tests:` field explicitly waived and the waiver recorded in `.draft/deviations.yaml`. Running it as if it were test-first is the one option that is not available: the Executor would be handed a test-first sub-task with no test, and its conditional step 5 would branch on a premise that is false. **The usual cause is a refinement that added the sub-task after Phase 3 ran**, which is why the producing side is fixed there and this is the guard rather than the fix — one end of the wire is not a wire. **Fast and spike are exempt from this check exactly as they are from the copy** — and so is a Standard or Full story at engineering level `experiment` or `tool`, whose tests are written at run time by decision ([engineering-level.md](engineering-level.md)): none of them has authored tests for the cross to read, so the absence it hunts for is their normal state and never evidence of a skipped Phase 3. The exemption is load-bearing for a spike, whose `Tests` field is **optional but permitted** ([tasks.md](tasks.md#spike-scale-adaptations)) — a spike sub-task that does carry `Tests:` would otherwise be refused execution here by a guard about a phase a spike never runs.
 8. **Present execution plan** — open with **the recorded line** — scale, requester level, engineering level with its expected multiple, and the plan size in Task List boxes, e.g. `standard · developer · tool (2–3×) · 11 boxes` ([engineering-level.md](engineering-level.md#where-it-is-recorded)) — then show which tasks will be executed, in order, highlighting parallel groups and executor assignment. A parallel group is **stated, not asked**: it runs as a group unless `--serial` was passed (see Parallel Execution)
 9. **Wait for user confirmation** before executing
 
@@ -42,7 +42,7 @@ Parse flags from `$ARGUMENTS` after the run command:
 | Flag | Behavior |
 |---|---|
 | (default) | Standard and Full: gate after every task group. **Fast runs as `--auto`**: it stops on a validation or test failure and on a doubt the constitution defaults do not cover, and nowhere else — a Fast story is small enough to see whole at the end, and a per-group gate would spend one round of the question budget on "go on" |
-| `--auto` | Only stop on a failure or an uncovered doubt — the Fast default, made explicit for Standard and Full |
+| `--auto` | Only stop on a failure. Group gates, doubts the constitution covers, doubts it does not, and the end-of-run question take the recommended option, each logged as an assumption (see [Assumptions under `--auto`](#assumptions-under---auto)) |
 | `--step` | Gate after every task group in a Fast run — the one way to ask a Fast story for its stops back |
 | `--batch=N` | Gate every N task groups |
 | `--gate=commit` | Gate only where a group's `Commit:` field is executed |
@@ -109,7 +109,7 @@ Read the sub-task's own body and take the **first** route that matches.
 
 **The route never relaxes the protocol.** Inline means the main agent runs the same six steps an Executor would (see Inline Route — Main Agent), gathers context whenever a Context field exists, and closes the box through `close-subtask.sh` like everyone else. It is the same work done in a cheaper place — never less work.
 
-For `--auto` flag: routing unchanged. Sub-agents still run wherever the table sends them, but gates between tasks are removed (only stop on failure).
+For `--auto` flag: routing unchanged. Sub-agents still run wherever the table sends them, but gates between tasks are removed (only stop on failure). A Fast story without the flag keeps its one extra stop — a doubt the constitution does not cover.
 
 ## Task Execution Flow
 
@@ -122,7 +122,7 @@ For each pending sub-task, in order:
 For a sub-task of any of them carrying a `Tests` field, the test is authored, run, and confirmed failing **before** implementation begins — the order is **author → Red → Green → Refactor**:
 
 1. **Author** the test from the sub-task's `Tests` field, Objective, and Acceptance contract.
-2. **Run** it and confirm **Red** — it must fail, and fail **for the right reason**: the behavior under test is absent or not yet correct. A failure caused by a broken test (syntax error, wrong import, misconfigured runner) is **not** valid Red; correct the test, then re-run, before implementation proceeds.
+2. **Run** it against a stub and confirm **Red** — first write the API's signatures where the implementation will live, each returning its type's zero value, then run the test: it must reach an assertion and fail there. A failure before any assertion (syntax error, wrong import, missing module, misconfigured runner) is `setup`, **not** valid Red; correct the test or the stub, then re-run, before implementation proceeds.
 3. **Green** — implement until the test passes and the Validation command passes.
 4. **Refactor** — improve the code while keeping the test and Validation green; revert any refactor that breaks either.
 
@@ -136,7 +136,7 @@ The two routes below — inline and delegated — apply this ordering; Standard/
 
 ### Inline Route — Main Agent
 
-The main agent executes directly but MUST follow the same step sequence as the Executor. No step may be skipped. If a Context field exists, context MUST be gathered before implementation.
+The main agent executes directly but MUST follow the same step sequence as the Executor. No step may be skipped. The Executor's breaker holds here too: the same command failing three times ends the sub-task as failed, with the shared error as its reason. If a Context field exists, context MUST be gathered before implementation.
 
 **Tech review applies on this route too.** It is an orchestrator step, not an Executor step, so "the same step sequence" does not carry it: after the sub-task's validation passes and before the box is closed, run the Delegated Route's step 5 — spawn Tech Reviewers when the Complexity table in Execution Threshold calls for one. A closed spec that crosses a technology boundary is exactly where a generalist implementer misses what the reviewer catches, and routing it inline must not also drop its review.
 
@@ -387,7 +387,7 @@ Most Standard/Full pre-authored tests have their Red confirmed by the Test Advis
 
 For a sub-task whose pre-authored test's `red-evidence.yaml` entry carries `red_deferred: true`:
 
-1. **Before spawning the Executor**, the orchestrator runs the materialized E2E test and confirms it **FAILS (Red)** — the behavior under test is absent or not yet correct. This is the same "valid Red" bar used elsewhere: a failure caused by a broken test (syntax error, wrong import, misconfigured runner, missing driver) is **not** valid Red.
+1. **Before spawning the Executor**, the orchestrator runs the materialized E2E test and confirms it **FAILS (Red)** — the behavior under test is absent or not yet correct. This is the same "valid Red" bar used elsewhere: the run must reach an assertion and fail there (`red_at: assertion`); a failure before any assertion — syntax error, wrong import, misconfigured runner, missing driver — is `setup` and **not** valid Red. Record the confirmed Red on the entry: `failed: true`, `red_at: assertion`, `reason`, `command`.
 2. **If the deferred Red does not fail as expected** — it passes, errors out, or cannot be run — the orchestrator does **not** spawn the Executor. **STOP and escalate to the user**, describing the test, the sub-task, and the unexpected result.
 3. If Red is confirmed, the orchestrator spawns the Executor for the sub-task as normal.
 4. **After the Executor completes**, the orchestrator runs the same E2E test again and confirms it now **PASSES (Green)**. A still-failing test is a failed sub-task — report it and stop, as with any validation/test failure.
@@ -439,6 +439,10 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 >
 > [INCLUDED ONLY when this sub-task has a pre-authored failing test. Path to the materialized test file plus its contents. This is a **read-only input** — you implement against it to make it pass; you do NOT author, replace, or weaken it. If this section is absent, this is a test-after sub-task: author tests yourself in step 5.]
 >
+> ## Unit Test to Write First
+>
+> [INCLUDED ONLY for a `Unit` sub-task of a **Standard** story: the Tests field (file and scenarios). You write this test before the code, against a stub, and confirm Red at the assertion — see "Executor-authored Unit test" in your agent definition.]
+>
 > ## Docs already fetched
 >
 > [INCLUDED ONLY when the orchestrator already queried a docs or research MCP for this sub-task: the source and the passage. You hold `WebFetch`/`WebSearch`, not the MCPs themselves.]
@@ -452,7 +456,12 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 > **Only step 2 and step 5 change wording**, and only with what this prompt carries above:
 >
 > - a **test-first** sub-task (one that carries a "Pre-Authored Test" section) makes step 2 Implementation (**Green** — make that test pass, assertions frozen) and step 5 **Refactor**;
-> - a **test-after** sub-task has step 2 Implementation and step 5 **Tests**.
+> - a **test-after** sub-task has step 2 Implementation and step 5 **Tests**;
+> - a **Standard Unit** sub-task (one that carries "Unit Test to Write First") makes step 2 author → Red → Green, and step 5 **Refactor**.
+
+**Keep every Executor report on disk.** After each Executor returns — and after each inline sub-task — append its claims to `.draft/executor-reports.md` under `## <sub-task>`: the Validation Result, the step 5 result, the files modified and the Warnings, verbatim, with no code. The Auditor reads that file as claims to verify, and the orchestrator's context keeps the closing block only.
+
+**Recording an Executor-authored Red.** When the Executor reports a Standard Unit sub-task's inline Red, append its entry to `.draft/red-evidence.yaml` before closing the box — `task`, `target_path`, `command`, `failed: true`, `red_at: assertion`, `reason`, `recorded`, and `recorded_by: executor` — taken from the report's **Red (inline)** section. A report with no such section, or one whose Red failed before an assertion, is a failed sub-task, not a box to close.
 
 ### Executor Rules
 
@@ -522,7 +531,9 @@ discoveries:
 
 Either kind of entry carries the optional boolean field `follow_up: true` when it leaves work the run did not do — a correction, an adjustment or a refactor the code now owes, or a story, design or task list that no longer describes what was built. The orchestrator sets it when it records the entry, from the Executor's report; an entry that only explains a choice already made leaves it absent. It is what the end-of-run question reads to recommend Refine ([End of Run](#end-of-run--next-step-index)), so a pending fix is a field, not a judgment made at the end.
 
-A deviation entry carries the optional boolean field `test_surface_adjusted`. It is `true` on a deviation where the Executor adjusted a pre-authored test's imports or signature call-sites to match that INTENTIONAL deviation (the only test edit the frozen-test rule permits — assertions are never touched). The field is absent on deviations that did not require any test surface change.
+**A box whose test was rewritten does not close.** When a sub-task has a `red-evidence.yaml` entry, `close-subtask.sh` runs `epic-test-diff` on its `target_path` before marking `[x]`: setup edits pass, an assertion line changed, removed or added refuses the close, and nothing is written. Report that refusal as the sub-task's failure — never restore the box by hand, and never close it `[~]` to get past it. The release is the user's, through refine ([refine-mode.md](refine-mode.md#releasing-a-test-blocked-by-epic-test-diff)).
+
+A deviation entry carries the optional boolean field `test_surface_adjusted`. It is `true` on a deviation where the Executor edited a pre-authored test outside its assertions: imports or signature call-sites to match an INTENTIONAL design deviation, or the setup repair the frozen-test rule allows — fixtures, helpers, imports, paths — when the test could not run in this tree. Assertions are never touched, and the Executor re-confirms Red at the assertion before implementing. The field is absent on deviations that did not require any test change.
 
 The register is:
 - Updated after each Executor completes
@@ -562,6 +573,8 @@ A run that ends without a failure finishes with these steps, in this order:
 
 A run that stops on a failure makes neither: its FAIL path already asks how to proceed.
 
+**Every closing names what was not verified — the loss annotation.** Success or failure, the closing message carries one `Not verified:` line: what this run did not check and why (no E2E tool, a sub-task closed `[~]`, a test that could not run here, a platform not exercised, a claim nobody re-ran). `Not verified: nothing — every validation, test and gate ran` is a valid line; an absent one is not. For a `layperson` requester it is one plain sentence after the closing lines, in their words — "I did not try it on a phone." A closing that reports only what passed reads as a claim that everything did.
+
 #### Measure the context window first
 
 Validate and refine are whole modes — they re-read the story, spawn agents and write reports — so whether they fit in **this** session depends on how full its context window already is. Measure it, never estimate it:
@@ -600,11 +613,20 @@ Two options — three for a `layperson` requester — the step first, its label 
 
 **A `layperson` requester is asked too** — the question comes after the closing three lines, never instead of them, and the three-line form rule does not remove it. Every label and description says what the option does for them, never the mode's name alone ([plain-register.md](plain-register.md)).
 
-**Ask whenever `AskUserQuestion` is callable** — listed among the tools, directly or as a deferred tool to load ([triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage)). That is the only test: `--auto`, a Fast default and a missing Task tool do not make the run's end headless, because `--auto` answers the run's gates, and this question comes after them. **Never write the step as prose while the tool is callable** — a recommendation in the closing text is the question lost.
+**Ask whenever `AskUserQuestion` is callable** — listed among the tools, directly or as a deferred tool to load ([triage.md](triage.md#runtime-dependency-precheck-mandatory-before-standardfull-triage)). That is the only test: a Fast default and a missing Task tool do not make the run's end headless. **`--auto` is the one exception, and it is explicit**: the user asked not to be asked, so the recommended step is taken — started, when it is *Validate* or *Run the rest*; printed as a command, when it is *New session*, a fix round's revalidation or anything after a validation — and logged as an assumption. **Never write the step as prose while the tool is callable** — a recommendation in the closing text is the question lost.
 
 **Only when `AskUserQuestion` is not callable:** do not start the step. End the closing message with the recommendation and its command — the same rule the archive offer applies ([validate-mode.md](validate-mode.md#headless)); a run's end is not a gate to take on the user's behalf.
 
 **One memory write precedes the question, when memory is available and the register is not empty.** Write the deviation register as one page at `epic/deviations/NNN-<slug>.md`: an H1 `# Deviations of story NNN — <title>` and then the register's entries — deviations and discoveries — as they stand in `.draft/deviations.yaml`, with no secret carried over. One page per story at a stable path, so a re-run of the story rewrites it instead of adding a second. An empty register writes nothing; unavailable memory calls nothing ([mcp-integration.md](mcp-integration.md#memory-mcp)).
+
+### Assumptions under `--auto`
+
+Every point where `--auto` answered for the user is an assumption, and every assumption is written down — the user who said "do not ask me" still reads what was decided.
+
+- **What is logged:** each group gate passed, each doubt resolved (from the constitution, or from the recommended option when it covers nothing), and the end-of-run step taken. One line each: the point, the option taken, the alternatives, and why — `constitution: ## Defaults` or `recommended`.
+- **Where:** `.draft/run-report.md` under `## Assumptions`, in the order they were made; and, when memory is available, the same list as the page `epic/decision/<NNN>-auto-assumptions.md` (H1 `# --auto assumptions of story NNN`), rewritten at that stable path by a later `--auto` run of the story.
+- **What it is not:** a question. Nothing in this list waits for an answer; the closing message names how many assumptions were made and where they are.
+- **What still stops the run:** a validation or test failure, the three-failure breaker, a refused close (`epic-test-diff`), and a step that would leave the machine (push, merge, publish).
 
 ## Progress Tracking
 

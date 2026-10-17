@@ -197,7 +197,7 @@ Use `--strict` in CI gates for stories expected to be production-ready (promotes
 bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" .epic/stories/001-feature/ --cross-ref --strict
 ```
 
-When the plugin is active, the scripts are also on PATH as `epic-validate`, `epic-xref` and `epic-archive`.
+When the plugin is active, the scripts are also on PATH as `epic-validate`, `epic-xref`, `epic-archive`, `epic-doctor`, `epic-test-diff` and the other `epic-*` wrappers.
 
 ### What a story actually cost
 
@@ -221,13 +221,14 @@ Three things it deliberately does **not** do, each for a stated reason:
 Generate stories programmatically with the Agent SDK:
 
 ```bash
-claude -p "/epic:epic Add retry logic to the payment gateway" \
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic Add retry logic to the payment gateway" \
   --plugin-dir /path/to/epic \
-  --allowedTools "Read,Write,Glob,Grep,Bash,Agent" \
+  --permission-mode acceptEdits --permission-prompts none \
+  --allowedTools "Read,Write,Edit,Glob,Grep,Bash,Agent,mcp__ai-memory__*" \
   --output-format json
 ```
 
-See [references/ci-mode.md](references/ci-mode.md) for GitHub Actions examples.
+Never add `--bare`: it skips the plugin's hooks and sub-agents. See [references/ci-mode.md](references/ci-mode.md) for every recipe, the reason for each flag, and GitHub Actions examples.
 
 ### Running the eval suite
 
@@ -316,4 +317,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Version
 
-0.14.0 — see [CHANGELOG](./CHANGELOG.md).
+0.15.0 — see [CHANGELOG](./CHANGELOG.md).

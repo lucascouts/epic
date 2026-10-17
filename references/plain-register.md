@@ -20,6 +20,8 @@ Process words — executor, framework, box, commit, story, checklist, Quality Ga
 
 **A word from the left column in visible text is a defect** — the same class as a typo in an identifier, and reported the same way.
 
+**The closing is checked, not trusted.** Before sending a `layperson` closing, pipe its text to `epic-jargon` (the term list is `assets/jargon-terms.txt`, drawn from the table above). Exit 1 names each word it found: rewrite those sentences with the right-column phrasing and run it again, until it exits 0 — then send. A command the requester is told to type goes in backticks, which the check skips. One tool call per rewrite is the price; a closing that leaks the process into the chat costs the requester the whole message.
+
 ## Decisions the requester is not asked
 
 A layperson is asked none of these: how to commit on `master`, whether to version a data file, which libraries to use, whether to write tests. Each has an answer — in the constitution's `## Defaults` block ([init-mode.md](init-mode.md) writes it) or in this table — and the answer is **taken, and mentioned in one clause**. It is never asked.

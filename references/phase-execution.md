@@ -19,6 +19,15 @@ Before entering any phase, load the corresponding reference files:
 
 **Authoring ceiling at Phase 3.** When the generated `tasks.md` passes the size threshold defined once in [tasks.md](tasks.md) (Authoring Ceiling) — warn and make the two offers: **cut** the scope, or **split** the plan into waves. Interactively as a question, headless as a logged note that proceeds. It is a warning, never a block: a story that genuinely needs a large plan keeps it. **There is no ceiling on the number of tasks** — how many a story has follows from the work; what is bounded is the unit, and a sub-task that cannot be proved on its own by its `Validation:` command is too big whatever the total. In batch create the offer is not re-entered into the live interview; the warning surfaces in the approval block and the split happens post-batch (see [batch-create.md](batch-create.md)).
 
+**Who writes which test, by scale** (engineering level `project` or `product`; below it every test is written at run time — [engineering-level.md](engineering-level.md)):
+
+| Scale | `Unit` | `Integration`, `E2E` |
+|---|---|---|
+| Standard | the Executor, first, at run time, Red confirmed inline against a stub | the Test Advisor in Phase 3 |
+| Full | the Test Advisor in Phase 3 | the Test Advisor in Phase 3 |
+
+A Standard Unit test is small and lives beside the code it pins, so authoring it in the same context that writes the code removes a frequent cause of Executor failures — a test written against a guessed API. Full keeps Phase 3 authorship for everything, since its design contract fixes the signatures first.
+
 ## Persistence and Recovery
 
 ### Draft Saving (Standard and Full modes only)
