@@ -44,6 +44,8 @@ init|init
 instant <description>|instant
 stories migrate NNN [--apply]|migrate
 stories create --batch <doc>|batch
+stories from-memory [<page>]|from-memory
+sync-docs|sync-docs
 stories|stories,story
 stories full|stories,story
 stories NNN|stories,story

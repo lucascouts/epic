@@ -100,14 +100,14 @@ Read the sub-task's own body and take the **first** route that matches.
 
 `Complexity` still governs the three columns the route does not decide. A sub-task carrying its own `Complexity` override uses that value; otherwise it inherits the parent's:
 
-| Task Complexity | Tech Review | Context Gathering | Executor `effort` |
-|-----------------|-------------|-------------------|-------------------|
-| Trivial | No | Optional | `low` |
-| Simple | Only if multi-tech boundary | Required if Context field exists | `medium` |
-| Moderate | Yes, if multi-tech boundary | Required | (omit — the agent's own `high`) |
-| High | Always (even single-tech) | Required + extra research | (omit — the agent's own `high`) |
+| Task Complexity | Tech Review | Context Gathering | Executor `effort` | Executor `model` under `by-complexity` |
+|-----------------|-------------|-------------------|-------------------|----------------------------------------|
+| Trivial | No | Optional | `low` | `haiku` |
+| Simple | Only if multi-tech boundary | Required if Context field exists | `medium` | `haiku` |
+| Moderate | Yes, if multi-tech boundary | Required | (omit — the agent's own `high`) | (omit — the session's model) |
+| High | Always (even single-tech) | Required + extra research | (omit — the agent's own `high`) | (omit — the session's model) |
 
-**This skill asks for the `effort` column**, so pass it as the Agent call's `effort` parameter when the row names one; omit the parameter otherwise, and the agent runs at its definition's `high`. A small sub-task does not need the depth of reasoning a design-level one does, and the per-spawn value is what lets one agent definition serve both. Never pass `model` on an Executor spawn outside a declared A/B — the model is the user's choice.
+**This skill asks for the `effort` column**, so pass it as the Agent call's `effort` parameter when the row names one; omit the parameter otherwise, and the agent runs at its definition's `high`. A small sub-task does not need the depth of reasoning a design-level one does, and the per-spawn value is what lets one agent definition serve both. **The Executor's model is the user's choice, read from the `executorModel` plugin option** (SKILL.md, *Plugin options*): `inherit` — omit `model`, the Executor runs on the session's model; `haiku` — pass `model: "haiku"` on every Executor spawn; `by-complexity` — pass it where the last column says `haiku`, omit it otherwise. A Haiku Executor costs about a third less and takes longer under a Sonnet session — a trade the user makes, so it is offered, never imposed. Never pass `model` on any other spawn.
 
 **The route never relaxes the protocol.** Inline means the main agent runs the same six steps an Executor would (see Inline Route — Main Agent), gathers context whenever a Context field exists, and closes the box through `close-subtask.sh` like everyone else. It is the same work done in a cheaper place — never less work.
 
@@ -565,6 +565,7 @@ Two or more pending tasks whose dependencies are all satisfied may run at once, 
 - **Run-time questions count against the story's question budget** ([clarify.md](clarify.md#clarify-protocol)). A decision with a default in the constitution's `## Defaults` block or in the [plain register](plain-register.md#decisions-the-requester-is-not-asked) table is taken and mentioned, never asked
 - **For a `layperson` requester** ([plain-register.md](plain-register.md)): run and show — never ask them to run a command; a stop per group is promised only when `--step` was passed — under the Fast default the run goes to the end and shows the result once, and a doubt the defaults do not cover stops it like a failure would — and when it is promised, it is one group per turn; visible text per turn stays under ~1,500 characters, the rest goes to files. **A build turn writes nothing to the chat between tool calls**: the step-by-step is collected as it happens and written into `run-report.md` once at the end of the turn — one `Write`, never an `Edit` per step (Fast already writes that report) — and the turn's only visible text is its closing three lines — what to type, what it does, and one choice that was made for them. **The turn that finishes the run still ends with the next-step question**, after those three lines: a question is not text between tool calls, and the form rule never removes it ([End of Run](#end-of-run--next-step-index)) Notes written between tool calls are where jargon leaks into the chat, and what pushes a build turn over its character ceiling
 - **User gates** — controlled by execution flags (default: gate after every task group)
+- **Supervisor messages are read at every group gate**: `epic-inbox --story <dir>`. When it prints anything, follow [supervision.md](supervision.md) before the next group — verify each claim, adjust if it reproduces, reply either way. A box close relays them too, through a hook
 - **The context band is read after every task group**, gate or no gate: `epic-telemetry | jq -r '.context.band'` ([Measure the context window first](#measure-the-context-window-first)). `high` and `efficient` go on. **`degraded` stops the run at that group boundary**: the closed boxes stay closed, and the closing recommends a new session with the command to type after `/clear` — `/epic:epic stories NNN run all`, which resumes from the first open box. Under `--auto` too: a degraded context is not a gate `--auto` may answer, since the answers it would give get worse. A `null` band is unknown — go on, and say once that the context was not measured
 - **Context is fresh** — each Executor reads files directly. The orchestrator passes only metadata (paths, deviations, discoveries) between tasks.
 - **Commit granularity** — follow the Commit fields defined in tasks. Never commit in the middle of a task group.
@@ -631,7 +632,7 @@ Two options — three for a `layperson` requester — the step first, its label 
 
 **Only when `AskUserQuestion` is not callable:** do not start the step. End the closing message with the recommendation and its command — the same rule the archive offer applies ([validate-mode.md](validate-mode.md#headless)); a run's end is not a gate to take on the user's behalf.
 
-**One memory write precedes the question, when memory is available and the register is not empty.** Write the deviation register as one page at `epic/deviations/NNN-<slug>.md`: an H1 `# Deviations of story NNN — <title>` and then the register's entries — deviations and discoveries — as they stand in `.draft/deviations.yaml`, with no secret carried over. One page per story at a stable path, so a re-run of the story rewrites it instead of adding a second. An empty register writes nothing; unavailable memory calls nothing ([mcp-integration.md](mcp-integration.md#memory-mcp)).
+**One memory write precedes the question, when memory is available and the register is not empty.** Write the deviation register as one page at `epic/deviation/NNN-<slug>.md`: an H1 `# Deviations of story NNN — <title>` and then the register's entries — deviations and discoveries — as they stand in `.draft/deviations.yaml`, with no secret carried over. One page per story at a stable path, so a re-run of the story rewrites it instead of adding a second. An empty register writes nothing; unavailable memory calls nothing ([mcp-integration.md](mcp-integration.md#memory-mcp)).
 
 ### Assumptions under `--auto`
 

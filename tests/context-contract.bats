@@ -48,12 +48,19 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/validate-mode.md 'epic-report --story <dir>'
 }
 
-@test "X5: per-spawn effort for the Executor by complexity; model only in a declared A/B" {
+@test "X5: per-spawn effort for the Executor by complexity; model never passed on any other spawn" {
   has references/run-mode.md 'executor `effort`'
   has references/run-mode.md 'this skill asks for the `effort` column'
-  has references/run-mode.md 'never pass `model` on an executor spawn outside a declared a/b'
+  has references/run-mode.md 'never pass `model` on any other spawn'
 }
 
 @test "X6: headless takes the mode's gates but never starts the step after it (prompt-audit finding)" {
   has skills/epic/SKILL.md 'the step after the mode is never started'
+}
+
+@test "X7: the Executor's model is the user's executorModel option, inherit by default" {
+  command jq -e '.userConfig.executorModel.default == "inherit" and .userConfig.executorModel.options == ["inherit","haiku","by-complexity"]' "$ROOT/.claude-plugin/plugin.json"
+  has skills/epic/SKILL.md 'user_config.executorModel'
+  has references/run-mode.md 'read from the `executorModel` plugin option'
+  has references/run-mode.md 'executor `model` under `by-complexity`'
 }

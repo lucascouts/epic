@@ -1,6 +1,6 @@
 {
   "name": "epic",
-  "version": "0.16.0",
+  "version": "1.0.0",
   "description": "Scale-adaptive story framework for features and bugfixes: structured requirements (EARS), design, task breakdown, and execution with specialized sub-agents for codebase analysis, test authoring, review, implementation, and validation with audit.",
   "author": {
     "name": "Lucas CS",
@@ -54,6 +54,17 @@
       "title": "Spike stale threshold (days)",
       "description": "Days of inactivity before a spike whose Verdict is still open is flagged as stale. Separate from staleThresholdDays: a spike is measured by its Verdict, not by its checkboxes.",
       "default": 14
+    },
+    "executorModel": {
+      "type": "string",
+      "title": "Executor model",
+      "description": "inherit (default): the Executor runs on the session's model. haiku: every Executor spawn runs on Haiku — about a third cheaper, slower under a Sonnet session. by-complexity: Haiku for Trivial and Simple sub-tasks, the session's model for Moderate and High.",
+      "default": "inherit",
+      "options": [
+        "inherit",
+        "haiku",
+        "by-complexity"
+      ]
     }
   }
 }

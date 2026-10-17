@@ -10,6 +10,26 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-10-17
+
+The memory pool becomes typed, a story can be drafted from it, documents can be synced from it, and an outside supervisor can talk to a run — always as claims the run verifies.
+
+**Minimum Claude Code:** 2.1.295, unchanged.
+
+### Added
+
+- Supervisor relay: `hook-inbox.sh` claims `supervision:` messages from the project's ai-memory mailbox after every closed box (a hook) and at every group gate (`epic-inbox --story <dir>`), records them in the run report and hands them to the orchestrator as untrusted claims; `references/supervision.md` is the protocol — verify, adjust if it reproduces, reply with `epic/supervision/<NNN>/<check>-reply` either way. `EPIC_SUPERVISION=off` turns it off. Supervisors live in the separate `epic-supervisor` repository.
+- `stories from-memory [<page>]`: a story drafted through CREATE from a `proposal` page, verified against the code first, with `source: memory:<page>`.
+- `sync-docs`: `finding` and `decision` pages become a diff for ROADMAP, the PRD, the constitution's invariants and the ADRs — one document at a time, written only on yes; a changed ADR is a new ADR that supersedes it, never an edit.
+
+### Changed
+
+- `executorModel` plugin option: `inherit` (default — the session's model, as before), `haiku`, or `by-complexity` (Haiku for Trivial and Simple sub-tasks). A Haiku Executor costs about a third less and takes longer under a Sonnet session.
+- The scope block declines out-of-scope requests without pressure wording; refusals and engagements unchanged.
+- The parallel route stays: it runs only for a proven-independent group, finishes sooner and costs a little more; `--serial` declines it.
+- Memory pages are typed: `epic/<type>/<NNN>-<slug>` (`decision`, `gotcha`, `deviation`, `finding`, `research`, `progress`, `proposal`), with `as_of`, the story and typed links (`causes`, `fixes`, `contradicts`, `supersedes`). Only technology-tagged gotchas and research go to `_global`. Paths moved: `epic/deviations/` → `epic/deviation/`, `epic/audit/` → `epic/finding/`.
+- Triage also recalls `_global` gotchas and research for the detected stack, as pointers verified against the code.
+
 ## [0.16.0] — 2026-10-17
 
 The orchestrator keeps less in its context, and the project carries its own rules: a mandatory constitution and a managed `CLAUDE.md` block.
@@ -1573,7 +1593,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/lucascouts/epic/releases/tag/v1.0.0
 [0.16.0]: https://github.com/lucascouts/epic/releases/tag/v0.16.0
 [0.15.0]: https://github.com/lucascouts/epic/releases/tag/v0.15.0
 [0.14.0]: https://github.com/lucascouts/epic/releases/tag/v0.14.0

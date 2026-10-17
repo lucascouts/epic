@@ -53,10 +53,10 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/list-mode.md 'under a `proof/` directory'
 }
 
-@test "P5: worktrees on Claude Code defaults; materialized tests committed before a parallel spawn; parallel on trial" {
+@test "P5: worktrees on Claude Code defaults; materialized tests committed before a parallel spawn; the trade is stated" {
   has references/run-parallel.md 'materialized tests are committed before the spawn'
   has references/run-parallel.md 'never lists `\.epic/`'
-  has references/run-parallel.md 'the parallel route is on trial'
+  has references/run-parallel.md 'the trade is wall clock for cost'
   has references/init-mode.md '\.claude/worktrees/'
   has references/init-mode.md '"baseRef": "head"'
 }
