@@ -10,6 +10,8 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-10-17
+
 Tests stay honest under TDD, the Auditor reports claims it checked instead of trusting them, and `--auto` stops asking.
 
 **Minimum Claude Code:** 2.1.295, unchanged.
@@ -1543,7 +1545,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/lucascouts/epic/releases/tag/v0.15.0
 [0.14.0]: https://github.com/lucascouts/epic/releases/tag/v0.14.0
 [0.13.1]: https://github.com/lucascouts/epic/releases/tag/v0.13.1
 [0.13.0]: https://github.com/lucascouts/epic/releases/tag/v0.13.0
