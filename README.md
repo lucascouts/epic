@@ -317,4 +317,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Version
 
-1.1.0 — see [CHANGELOG](./CHANGELOG.md).
+0.18.0 — see [CHANGELOG](./CHANGELOG.md).
