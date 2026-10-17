@@ -24,7 +24,7 @@ Scale is chosen per request:
 | **Standard** | `story.md` + `tasks.md` | 2–5 files, clear scope |
 | **Full** | `story.md` + `design.md` + `tasks.md` | 5+ files, design decisions, integrations |
 
-All three modes are **test-first**. Standard and Full at engineering level `project` or `product` author tests at plan time — the Test Advisor writes one failing test per Unit/Integration/E2E sub-task in Phase 3; at `experiment` or `tool` they write them at run time, as Fast does. For an E2E sub-task the Test Advisor uses the story's selected E2E tool and **defers Red-phase verification to Run mode** (Run confirms the deferred Red before implementation and Green after). Fast mode is **test-first at run time and single-author**: a Fast sub-task carrying a `Tests` field has its test authored by the main agent and confirmed failing (Red) before implementation, then Green-then-Refactor — no Test Advisor sub-agent. A Fast sub-task with no testable logic carries an optional Fast-only `Acceptance` field instead — 1–3 observable-behavior statements; every implementing (non-Commit) Fast sub-task carries either a `Tests` field or an `Acceptance` field. Fast keeps its lightweight scale: no `story.md`, no design, no gate, no `.draft/`.
+All three modes are **test-first**. Standard and Full at engineering level `project` or `product` author tests at plan time — the Test Advisor writes one failing test per Integration/E2E sub-task in Phase 3, and per Unit sub-task in Full (in Standard the Executor writes Unit tests first, at run time); at `experiment` or `tool` they write them at run time, as Fast does. For an E2E sub-task the Test Advisor uses the story's selected E2E tool and **defers Red-phase verification to Run mode** (Run confirms the deferred Red before implementation and Green after). Fast mode is **test-first at run time and single-author**: a Fast sub-task carrying a `Tests` field has its test authored by the main agent and confirmed failing (Red) before implementation, then Green-then-Refactor — no Test Advisor sub-agent. A Fast sub-task with no testable logic carries an optional Fast-only `Acceptance` field instead — 1–3 observable-behavior statements; every implementing (non-Commit) Fast sub-task carries either a `Tests` field or an `Acceptance` field. Fast keeps its lightweight scale: no `story.md`, no design, no gate, no `.draft/`.
 
 **Scale is one axis; the engineering level is the other.** Triage also reads how long the thing must last — `experiment` (disposable, 1×), `tool` (kept and fixed, 2–3×), `project` (maintained, others depend on it, 4–6×), `product` (may be published or sold, 8×+) — proposes it with its price in one line, and from it sets which tier of the quality catalog the story activates, whether Phase 3 authors the tests or the run does, and the plan's box ceiling (5, 12, 24, 40 Task List boxes). The level never changes the scale. See [references/engineering-level.md](references/engineering-level.md).
 
@@ -141,16 +141,16 @@ epic/
 ├── .claude-plugin/plugin.json   # manifest (name, userConfig, homepage, repository)
 ├── settings.json                # plugin defaults (subagentStatusLine)
 ├── skills/epic/SKILL.md         # main skill (/epic:epic)
-├── agents/                      # 8 specialized sub-agents
-├── hooks/hooks.json             # 7 hook events, all if:-filtered or matcher-scoped
+├── agents/                      # 6 sub-agents: analyst, test-advisor, reviewer, executor, tech-reviewer, auditor
+├── hooks/hooks.json             # 4 hook events (PreToolUse, PostToolUse, SessionStart, SubagentStop); the guards fail closed
 ├── output-styles/epic.md        # optional structured output style
-├── bin/                         # PATH-exposed wrappers (epic-validate, epic-xref, epic-archive)
+├── bin/                         # epic-* wrappers on PATH — Claude Code CLI only; a surface without a shell (claude.ai, Cowork) has none
 ├── references/                  # mode-specific operational guides
-├── scripts/                     # bash validators + hook scripts + stale check + eval runner
+├── scripts/                     # bash validators, hook scripts and the epic-* tools
 ├── assets/examples/             # reference outputs for each scale
 ├── evals/                       # native eval suite (claude plugin eval)
 ├── tests/                       # bats unit tests for scripts
-└── .github/workflows/           # shell-ci (shellcheck + bats + example validation)
+└── .github/workflows/           # shell-ci (shellcheck + bats + example validation + plugin validate --strict)
 ```
 
 ---
@@ -269,7 +269,7 @@ Epic ships with a structured output style for Triage proposals, Phase Gates, Run
 /output-style epic
 ```
 
-This is opt-in — no default behaviour changes. Defined in `output-styles/epic.md`. Declares `keep-coding-instructions: true` so activating the style cannot override the skill's implementation directives.
+This is opt-in — no default behaviour changes. Defined in `output-styles/epic.md`. Declares `keep-coding-instructions: true`, so the style keeps Claude Code's own coding instructions in the main session. Sub-agents run their own system prompts, so no output style changes how they respond.
 
 ---
 
@@ -317,4 +317,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Version
 
-0.15.0 — see [CHANGELOG](./CHANGELOG.md).
+0.16.0 — see [CHANGELOG](./CHANGELOG.md).

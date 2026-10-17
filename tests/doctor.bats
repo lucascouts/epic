@@ -8,6 +8,7 @@ setup() {
   mkdir -p "$E/stories"
   printf '# Constitution\n\n## Defaults\n\n- x\n\n## Quality\n\n- y\n' > "$E/constitution.md"
   printf 'tracked-md\n' > "$E/.gitpolicy"
+  bash "$PLUGIN_ROOT/scripts/claude-md.sh" write --root "$WORK" >/dev/null
 }
 
 teardown() {
@@ -54,6 +55,7 @@ index() { bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$E" >/dev/null; 
 
 @test "project files: missing constitution sections are errors; no gitpolicy, no index, no manifest are warnings" {
   printf '# Constitution\n\n## Defaults\n' > "$E/constitution.md"
+  bash "$PLUGIN_ROOT/scripts/claude-md.sh" write --root "$WORK" >/dev/null
   rm "$E/.gitpolicy"
   mkdir -p "$E/archive/000-old"
   run doctor
@@ -126,7 +128,7 @@ index() { bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$E" >/dev/null; 
 }
 
 @test "summary: one line, the counts and at most three findings" {
-  rm "$E/constitution.md" "$E/.gitpolicy"
+  rm "$E/constitution.md" "$E/.gitpolicy" "$WORK/CLAUDE.md"
   for n in 1 2 3; do story "00$n-x" fast in-progress ' '; mkdir -p "$E/stories/00$n-x/.draft/red-scratch"; done
   index
   run doctor --summary
@@ -143,4 +145,17 @@ index() { bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$E" >/dev/null; 
   run doctor --summary
   after=$(cd "$WORK" && find . -exec stat -c '%n %s %Y' {} + | sort | cksum)
   [ "$before" = "$after" ]
+}
+
+@test "CLAUDE.md: a missing or stale Epic block is a warning naming init --repair" {
+  story 001-a fast in-progress ' '
+  index
+  run doctor
+  echo "$output" | jq -e 'all(.findings[]; .check != "claude-md")'
+  sed -i 's/## Quality/## Quality\n- Lint — `ruff check`/' "$E/constitution.md"
+  run doctor
+  echo "$output" | jq -e 'any(.findings[]; .check == "claude-md" and (.detail | test("stale.*init --repair")))'
+  rm "$WORK/CLAUDE.md"
+  run doctor
+  echo "$output" | jq -e 'any(.findings[]; .check == "claude-md" and (.detail | test("no Epic block")))'
 }

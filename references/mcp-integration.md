@@ -25,7 +25,7 @@ When multiple research MCPs are detected, pick the first one from this ordered l
 
 ## Docs source order
 
-For any library, framework or SDK API, stop at the first source that answers:
+The library-specific part of the [lookup order](lookup-order.md) (its steps 3 to 5). For any library, framework or SDK API, stop at the first source that answers:
 
 1. **The installed dependency, at the lockfile version** — its source and types (`node_modules/<pkg>`, `.venv/.../site-packages/<pkg>`, `$(go env GOMODCACHE)`, `~/.cargo/registry/src/*/<crate>-<version>`, `bundle show <gem>`, `vendor/<pkg>`), `go doc` / `cargo doc` / `ri` / `--help`, or the `LSP` tool. It is the only source guaranteed to match what will run.
 2. **The official docs for that version** — the project's docs or changelog at the matching tag, its `llms.txt`, or its versioned docs page, through `WebFetch`.

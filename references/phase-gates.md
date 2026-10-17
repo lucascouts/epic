@@ -65,7 +65,7 @@ When a user rejects Phase N, determine the cause:
 
 ## Section Progress
 
-During phase generation, save incremental progress so a **new** session can tell which sections are done. An interruption inside the same conversation needs none of this: `claude --continue` (or `--resume`) reopens it with the partial artifact already on disk. This ledger is not Claude Code's `/checkpoint` (an alias of `/rewind`).
+During phase generation, save incremental progress so a **new** session can tell which sections are done. An interruption inside the same conversation needs none of this: `claude --continue` (or `--resume`) reopens it with the partial artifact already on disk. This ledger is not Claude Code's checkpointing (`/rewind`).
 
 ### Progress File Format
 

@@ -50,3 +50,14 @@ Loaded before any story artifact is created or refined: where artifacts go, how 
 - All files in a story share the same version number
 
 The `status:` field, its six values and who writes each: [lifecycle-status.md](lifecycle-status.md).
+
+## Reading files back
+
+What the orchestrator reads stays in its context for the rest of the session, so it reads the part it acts on, never the whole file:
+
+- **A report or a log: `grep` the section, never `cat` the file.** `grep -n -A8 '^### Validation Result' .draft/reports/2.1.md`, not the report end to end.
+- **The Auditor's verdicts: `epic-report --story <dir>`** — both verdicts and the size of every list, as one line of JSON. `epic-report --story <dir> --list gaps` prints one list when its items are needed.
+- **The deviation register: `epic-deviation list --story <dir> [--open]`**, never the YAML.
+- **The task census: the JSON `close-subtask.sh` already returned**, never a re-read of `tasks.md`.
+- **Command output: the exit code and the last lines** (`| tail -n 20`); the full output only when the last lines do not explain a failure.
+

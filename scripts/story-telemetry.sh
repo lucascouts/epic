@@ -18,7 +18,8 @@
 #   --project-dir the project whose transcripts to search (default: cwd)
 #   --window      override the context window in tokens. Normally not needed:
 #                 the window is derived from the model the transcript records
-#                 (Haiku 200k, every other family 1M)
+#                 (Haiku 200k, every other family 1M; 200k for all when
+#                 CLAUDE_CODE_DISABLE_1M_CONTEXT=1)
 #
 # Output: one JSON object on stdout —
 #   {transcript, window: {since, until}, wall_clock_seconds,
@@ -41,7 +42,9 @@
 # the knee sits at a different size per family. `high` = highly efficient,
 # `efficient` = still efficient, `degraded` = move to a new session:
 #   Haiku (200k window)             high <= 100k (50%)   efficient <= 150k (75%)
-#   Sonnet, Opus, Fable (1M window) high <= 200k (20%)   efficient <= 500k (50%)
+#   Sonnet, Opus, Fable (1M window) high <= 200k (20%)   efficient <= 400k (40%)
+# With CLAUDE_CODE_DISABLE_1M_CONTEXT=1 in the environment every family runs on
+# a 200k window and takes the Haiku bands.
 # With --window, each threshold is the lower of its token figure and its
 # percentage of that window. Never pass --window from a guess: the window is
 # derived from the model the transcript records.
@@ -160,6 +163,7 @@ jq -R -s \
   --arg since "$SINCE" \
   --arg until "$UNTIL" \
   --arg window "$WINDOW" \
+  --arg no1m "${CLAUDE_CODE_DISABLE_1M_CONTEXT:-}" \
   '
   # `fromdateiso8601` refuses fractional seconds and a numeric offset, and a
   # transcript carries both (`2026-01-02T03:04:05.678Z`). Normalise before
@@ -219,8 +223,9 @@ jq -R -s \
     context: ( ($last.model // null) as $model
                | (if $model != null and ($model | test("haiku"; "i")) then "haiku"
                   elif $model == null then null else "other" end) as $family
-               | (if $family == "haiku" then {w: 200000, h: 100000, e: 150000, hp: 50, ep: 75}
-                  else {w: 1000000, h: 200000, e: 500000, hp: 20, ep: 50} end) as $f
+               | ($no1m == "1" or ($no1m | ascii_downcase) == "true") as $capped
+               | (if $family == "haiku" or $capped then {w: 200000, h: 100000, e: 150000, hp: 50, ep: 75}
+                  else {w: 1000000, h: 200000, e: 400000, hp: 20, ep: 40} end) as $f
                | (if $window == "" then $f.w else ($window | tonumber) end) as $w
                | ([$f.h, ($w * $f.hp / 100 | floor)] | min) as $hi
                | ([$f.e, ($w * $f.ep / 100 | floor)] | min) as $ef
@@ -228,6 +233,7 @@ jq -R -s \
                    model: $model,
                    family: $family,
                    window: (if $ctx == null then null else $w end),
+                   window_source: (if $window != "" then "flag" elif $capped and $family != "haiku" then "disable-1m" else "model" end),
                    used_pct: (if $ctx == null then null else ($ctx * 100 / $w | floor) end),
                    band: (if $ctx == null then null
                           elif $ctx <= $hi then "high"

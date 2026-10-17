@@ -10,6 +10,34 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-10-17
+
+The orchestrator keeps less in its context, and the project carries its own rules: a mandatory constitution and a managed `CLAUDE.md` block.
+
+**Minimum Claude Code:** 2.1.295, unchanged.
+
+### Added
+
+- `epic-deviation add|list|discharge|amend`: the one writer of `.draft/deviations.yaml` — stable ids, atomic writes under a lock, a hand-written register read and a malformed line refused by number.
+- `epic-report`: both Auditor verdicts and the size of every list, without the YAML; `--list <key>` for one list.
+- `epic-claude-md write|check|show`: a block at the end of the project's `CLAUDE.md`, between `<!-- epic:start -->` and `<!-- epic:end -->` — constitution pointer, project docs, lookup order, the Quality commands, code rules, invariants, examples; under 100 lines, nothing outside the markers touched, `@AGENTS.md` added once. Written by `init`, refreshed by `init --repair`, flagged by `epic-doctor` when missing or stale.
+- `references/lookup-order.md`: code, memory as a pointer, the installed dependency, LSP, versioned docs, issues, web.
+- `init --repair`; the constitution gate in triage.
+- CI: `claude plugin validate --strict` on the plugin, marketplace, skills and agents.
+
+### Changed
+
+- Sub-agents write their full report to `.draft/reports/` and hand back the closing block, deviation entries and at most ten lines.
+- The context band is read after every task group; `degraded` stops at the group boundary with `stories NNN run all`, `--auto` included. On 1M families `efficient` ends at 400k; `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` puts every family on the 200k bands.
+- The orchestrator reads files back by section (`grep`, `epic-report`, `epic-deviation list`), never a whole report.
+- Executor `effort` per spawn, by sub-task complexity (`low` Trivial, `medium` Simple).
+- The constitution is mandatory and complete: Defaults, Quality, Security floor, Reversibility, Runtime (isolated by default for a layperson), Invariants; tooling derived from the host, nothing installed without a yes. Triage refuses Standard and Full without it. Runtime provisioning only at `project` and `product`.
+- `init` offers `permissions.deny` on `.epic/archive/**`, ignores `.claude/worktrees/`, offers `worktree.baseRef: "head"`; materialized tests are committed before a parallel spawn; the parallel route is on trial.
+- The archive weight guard keeps images of at most 2 MB under `proof/`.
+- The story list marks dormant drafts with the archive and supersede commands.
+- `userConfig` offers `options` for `defaultScale` and `aiMemory`; README drift fixed (agent and hook counts, output-style claim, `bin/` on surfaces without a shell).
+- Headless never starts the step after a mode (a `/doctor prompt-audit` finding).
+
 ## [0.15.0] — 2026-10-17
 
 Tests stay honest under TDD, the Auditor reports claims it checked instead of trusting them, and `--auto` stops asking.
@@ -1545,7 +1573,8 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/lucascouts/epic/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/lucascouts/epic/releases/tag/v0.16.0
 [0.15.0]: https://github.com/lucascouts/epic/releases/tag/v0.15.0
 [0.14.0]: https://github.com/lucascouts/epic/releases/tag/v0.14.0
 [0.13.1]: https://github.com/lucascouts/epic/releases/tag/v0.13.1

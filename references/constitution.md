@@ -37,6 +37,24 @@ The constitution is an optional governance file at `.epic/constitution.md` that 
 ## Quality
 - [Always tier, one line per item with its command — see quality-catalog.md]
 - [Context items detected at init, each with its signal]
+
+## Defaults
+- [Each decision the requester is never asked, with its answer — see init-mode.md]
+
+## Security floor
+- Supported and declared runtime — [the runtime and version, LTS where there is one]
+- Secrets — [`gitleaks detect`, or the scanner this host has]
+- Dependency vulnerabilities — [`trivy fs .` · `osv-scanner .` · the ecosystem's auditor]
+- README — how to run it and how to check it
+
+## Reversibility
+- An irreversible step — deleting data, a migration without a down, a force push, a publish, a release — runs only with a way back recorded first (a backup, a down migration, a tag) or on the user's explicit yes
+
+## Runtime
+- [host | venv | container] — [why: a `layperson` requester defaults to an isolated runtime (a venv or a container), so a program never touches the system it runs on]
+
+## Invariants
+- Never [X] — [the incident or finding that made it a rule]
 ```
 
 ## Guidelines
@@ -74,6 +92,8 @@ The constitution is an optional governance file at `.epic/constitution.md` that 
 - Secrets — `gitleaks detect`
 - Pinned Actions — `.github/workflows/` present; `zizmor .github/workflows`
 ```
+
+**The constitution is mandatory.** `init` always writes it — every answer left unanswered takes its default — and triage refuses Standard and Full without one ([triage.md](triage.md#constitution-gate)). Tooling in `## Quality` and `## Security floor` is derived from what the host has (`command -v` per tool); a tool that is missing is recommended on its line, never installed without the user's yes.
 
 ## How It's Used
 

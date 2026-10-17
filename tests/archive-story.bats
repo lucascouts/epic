@@ -1102,6 +1102,30 @@ open(p, "wb").write(d)
   [ -d "$PROJ/.epic/archive/005-boundary" ]
 }
 
+@test "an image of at most 2 MB under proof/ passes; a larger one, or one outside proof/, blocks" {
+  make_story 005-proof complete
+  mkdir -p "$PROJ/.epic/stories/005-proof/proof"
+  { printf '\x89PNG\r\n\x1a\n\0'; head -c 2097143 /dev/zero; } > "$PROJ/.epic/stories/005-proof/proof/login.png"
+  [ "$(wc -c < "$PROJ/.epic/stories/005-proof/proof/login.png")" -eq 2097152 ]
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-proof
+  [ "$status" -eq 0 ]
+  [ -f "$PROJ/.epic/archive/005-proof/proof/login.png" ]
+
+  make_story 006-proof-big complete
+  mkdir -p "$PROJ/.epic/stories/006-proof-big/proof"
+  head -c 2097153 /dev/zero > "$PROJ/.epic/stories/006-proof-big/proof/big.jpg"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/006-proof-big
+  [ "$status" -eq 1 ]
+  echo "$output" | grep -q 'big.jpg'
+  echo "$output" | grep -q '2 MB'
+
+  make_story 007-loose complete
+  printf '\x89PNG\0' > "$PROJ/.epic/stories/007-loose/shot.png"
+  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/007-loose
+  [ "$status" -eq 1 ]
+  echo "$output" | grep -q 'shot.png'
+}
+
 @test "NUL-containing file blocks as non-text" {
   make_story 005-binary complete
   printf 'ab\0cd' > "$PROJ/.epic/stories/005-binary/blob.dat"
