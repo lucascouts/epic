@@ -65,3 +65,14 @@ md() { bash "$PLUGIN_ROOT/scripts/claude-md.sh" "$@" --root "$R"; }
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.present == true and .current == false'
 }
+
+@test "docs are found at the root and under docs/: ARCHITECTURE, ROADMAP, stages, OVERVIEW" {
+  mkdir -p "$R/docs/stages" "$R/docs/adr"
+  touch "$R/docs/ARCHITECTURE.md" "$R/docs/ROADMAP.md" "$R/docs/OVERVIEW.md" "$R/ROADMAP.md"
+  md write >/dev/null
+  line=$(command grep '^- Project docs:' "$R/CLAUDE.md")
+  for want in '`docs/ARCHITECTURE.md`' '`ROADMAP.md`' '`docs/ROADMAP.md`' '`docs/stages`' '`docs/OVERVIEW.md`' '`docs/adr`'; do
+    [[ "$line" == *"$want"* ]] || { echo "missing $want in: $line"; return 1; }
+  done
+  [[ "$line" != *'`ARCHITECTURE.md`'* ]] || { echo "listed a root ARCHITECTURE.md that does not exist"; return 1; }
+}
