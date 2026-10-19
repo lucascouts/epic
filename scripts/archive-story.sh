@@ -1923,6 +1923,22 @@ derive_entry_fields() {
   # directory it was read from. The gate above and this line must resolve the
   # scale identically or an archive refuses as a spike and files as a `full`.
   STORY_SCALE=$(story_scale)
+  # Two OPTIONAL fields, recorded only when the story has them (both arrived
+  # after the 16-key shape, so an entry written by an older release still reads
+  # as complete). `roadmap` is tasks.md's list of ROADMAP task IDs, copied only
+  # in the exact form validate-story.sh accepts — a malformed one is left out
+  # rather than made permanent. `validated_sha` is the commit epic-validated
+  # recorded before the Auditor's spawn.
+  STORY_ROADMAP=$(frontmatter_field "$STORY_PATH/tasks.md" roadmap | tr -d ' \t')
+  if [[ "$STORY_ROADMAP" =~ ^\[[0-9]+(\.[0-9]+)+(,[0-9]+(\.[0-9]+)+)*\]$ ]]; then
+    STORY_ROADMAP=${STORY_ROADMAP//,/, }   # one canonical spelling in the record
+  else
+    STORY_ROADMAP=""
+  fi
+  VALIDATED_SHA=""
+  if [[ -f "$STORY_PATH/.draft/validated.yaml" ]]; then
+    VALIDATED_SHA=$(sed -nE 's/^sha: ([0-9a-f]{7,64})$/\1/p' "$STORY_PATH/.draft/validated.yaml" | head -n 1)
+  fi
   if ! derive_archived_at; then
     DERIVE_ERR="cannot read the system clock ('date -Iseconds' and 'date -u +%Y-%m-%dT%H:%M:%SZ' both failed)"
     return 1
@@ -1981,6 +1997,10 @@ manifest_entry_yaml() {
   printf '    pruned:\n'
   printf '      logs_kb: %d\n' "$PRUNED_LOGS_KB"
   printf '      copies_removed: %d\n' "$PRUNED_COPIES"
+  # Optional keys go BEFORE overrides_used: epic-index treats overrides_used as
+  # the sentinel of a finished entry, so nothing it needs may follow it.
+  [[ -n "$STORY_ROADMAP" ]] && printf '    roadmap: %s\n' "$STORY_ROADMAP"
+  [[ -n "$VALIDATED_SHA" ]] && printf '    validated_sha: %s\n' "$(quote_scalar "$VALIDATED_SHA")"
   yaml_list '    ' 'overrides_used' ${OVERRIDES_USED[@]+"${OVERRIDES_USED[@]}"}
   if [[ "$FORCE" == true ]]; then
     printf '    forced_reason: %s\n' "$(quote_scalar "$FORCE_REASON")"
@@ -1999,12 +2019,19 @@ entry_json() {
   local story="$1" number="$2" slug="$3" type="$4" scale="$5" status="$6"
   local total="$7" closed="$8" deferred="$9" open="${10}"
   local ditems="${11}" archived_at="${12}" logs="${13}" copies="${14}"
-  local overrides="${15}" forced="${16:-}"
+  local overrides="${15}" forced="${16:-}" roadmap="${17:-}" vsha="${18:-}"
   printf '{ "story": %s, "number": %s, "slug": %s, "type": %s, "scale": %s, "status": %s, "tasks_total": %d, "tasks_closed": %d, "tasks_deferred": %d, "tasks_open": %d, "deferred_items": %s, "archived_at": %s, "pruned": { "logs_kb": %d, "copies_removed": %d }, "overrides_used": %s' \
     "$story" "$number" "$slug" "$type" "$scale" "$status" \
     "$total" "$closed" "$deferred" "$open" \
     "$ditems" "$archived_at" "$logs" "$copies" "$overrides"
   [[ -n "$forced" ]] && printf ', "forced_reason": %s' "$forced"
+  # roadmap arrives as the flow list (`[2.4.1, 2.4.2]`) and leaves as JSON strings.
+  if [[ -n "$roadmap" ]]; then
+    local ids=() id
+    for id in $(printf '%s' "$roadmap" | tr -d '[] ' | tr ',' ' '); do ids+=("\"$id\""); done
+    printf ', "roadmap": %s' "$(json_array_raw ${ids[@]+"${ids[@]}"})"
+  fi
+  [[ -n "$vsha" ]] && printf ', "validated_sha": %s' "$vsha"
   printf ' }'
 }
 
@@ -2032,7 +2059,8 @@ manifest_entry_json() {
     "$(quote_scalar "$STORY_SCALE")" "$(quote_scalar "$FM_STATUS")" \
     "$BOX_TOTAL" "$BOX_CLOSED" "$BOX_DEFERRED" "$BOX_OPEN" \
     "$deferred" "$(quote_scalar "$ARCHIVED_AT")" \
-    "$PRUNED_LOGS_KB" "$PRUNED_COPIES" "$overrides" "$forced"
+    "$PRUNED_LOGS_KB" "$PRUNED_COPIES" "$overrides" "$forced" \
+    "$STORY_ROADMAP" "$( [[ -n "$VALIDATED_SHA" ]] && quote_scalar "$VALIDATED_SHA" )"
 }
 
 # manifest_read_entry — the other half of append-before-move, and the only
@@ -2064,7 +2092,7 @@ manifest_read_entry() {
   local want
   want="  - story: $(quote_scalar "$STORY_ID")"
   local v_story="" v_number="" v_slug="" v_type="" v_scale="" v_status=""
-  local v_archived="" v_forced=""
+  local v_archived="" v_forced="" v_roadmap="" v_vsha=""
   local n_total=0 n_closed=0 n_deferred=0 n_open=0 n_logs=0 n_copies=0
   local d_items=() o_items=() k
   MANIFEST_ENTRY_STATE="absent"
@@ -2098,6 +2126,8 @@ manifest_read_entry() {
         "    status: "*) v_status=${line#"    status: "}; seen=$((seen + 1)) ;;
         "    archived_at: "*) v_archived=${line#"    archived_at: "}; seen=$((seen + 1)) ;;
         "    forced_reason: "*) v_forced=${line#"    forced_reason: "} ;;
+        "    roadmap: "*) v_roadmap=${line#"    roadmap: "} ;;
+        "    validated_sha: "*) v_vsha=${line#"    validated_sha: "} ;;
         "    tasks_total: "*) n_total=${line#"    tasks_total: "}; seen=$((seen + 1)) ;;
         "    tasks_closed: "*) n_closed=${line#"    tasks_closed: "}; seen=$((seen + 1)) ;;
         "    tasks_deferred: "*) n_deferred=${line#"    tasks_deferred: "}; seen=$((seen + 1)) ;;
@@ -2119,7 +2149,8 @@ manifest_read_entry() {
   [[ "$in_entry" == true ]] || return 0
   # 16 keys: story number slug type scale status tasks_total tasks_closed
   # tasks_deferred tasks_open deferred_items archived_at pruned logs_kb
-  # copies_removed overrides_used. forced_reason is optional by design.
+  # copies_removed overrides_used. forced_reason, roadmap and validated_sha are
+  # optional by design.
   if [[ "$seen" -ne 16 ]]; then
     MANIFEST_ENTRY_STATE="partial"
     MANIFEST_ENTRY_MISSING="$seen of 16 fields present"
@@ -2137,7 +2168,8 @@ manifest_read_entry() {
     "$n_total" "$n_closed" "$n_deferred" "$n_open" \
     "$(json_array_raw ${d_items[@]+"${d_items[@]}"})" "$v_archived" \
     "$n_logs" "$n_copies" \
-    "$(json_array_raw ${o_items[@]+"${o_items[@]}"})" "$v_forced")
+    "$(json_array_raw ${o_items[@]+"${o_items[@]}"})" "$v_forced" \
+    "$v_roadmap" "$v_vsha")
   MANIFEST_ENTRY_STATE="complete"
   return 0
 }
