@@ -10,6 +10,17 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-10-19
+
+A ROADMAP stage can be closed with Epic: the plan is reconciled with what the stories delivered, the user judges before Epic does, and the next stage is detailed.
+
+**Minimum Claude Code:** 2.1.295, unchanged.
+
+### Added
+
+- `checkpoint <N>`: closes stage N of the project's ROADMAP in six steps — reconcile, gate, decisions and rules, findings, documents, next stage. On judgment items the evidence comes first, then the user's verdict, then Epic's reading and where the two differ; those questions carry no recommended option, and `--auto` stops before them. Documents change only through the doc writer, a finding becomes a story only there, and the `stories create --batch` command for the next stage is printed, not run. Every answer is recorded in `.epic/checkpoints/<N>.yaml`.
+- `epic-checkpoint --stage <N>`: the mechanical step — each task of stage N, from a single-file ROADMAP or `docs/stages/`, as `closed`, `in-work`, `unmapped`, `mismatch` or `open`, from its checkbox and the `roadmap:` of archived and open stories; also the IDs a story names that no ROADMAP holds, and the stories with no `roadmap:`. Read-only.
+
 ## [0.19.0] — 2026-10-19
 
 Project documents start to live: a decision reaches a document as an amendment or a superseding ADR, a story names the ROADMAP tasks it works on, the archive records which commit was validated, and sync-docs writes documents without needing memory.
