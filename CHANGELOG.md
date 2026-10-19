@@ -10,6 +10,24 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-10-19
+
+Project documents start to live: a decision reaches a document as an amendment or a superseding ADR, a story names the ROADMAP tasks it works on, the archive records which commit was validated, and sync-docs writes documents without needing memory.
+
+**Minimum Claude Code:** 2.1.295, unchanged.
+
+### Added
+
+- `roadmap:` in `tasks.md`: the ROADMAP task IDs a story works on, as `roadmap: [2.4.1, 2.4.2]`. Clarify asks it only when a ROADMAP or stage file numbers its tasks (never at Fast scale, in instant mode, under `--auto` or headless), and a batch from such a file adds a `Roadmap` column. `validate-story.sh` warns — never blocks — on a malformed list or an ID no ROADMAP or stage file holds.
+- `epic-validated`: validate records the commit about to be audited, and whether the tree outside `.epic/` is dirty, in `.draft/validated.yaml`, right before the Auditor's spawn.
+- The archive manifest entry records `roadmap` and `validated_sha` when the story has them. Both are optional, so entries written by earlier releases still read as complete.
+
+### Changed
+
+- sync-docs works without memory: a collector gathers memory pages when they are there, the deviations of stories archived since the last sync, and decisions named in the request; the doc writer asks "write and commit `<file>` on `<branch>`", commits only that file with `Story:`, `Finding:`, `ADR:` and `Why:` trailers, refuses a document with uncommitted edits, leaves the file uncommitted when git has no identity or a hook refuses, and never pushes.
+- An ADR's text is never rewritten: a changed decision is a new ADR that supersedes it; the same decision with new detail is a dated amendment at the end, in the form the project already uses. Every new or superseding ADR carries `## Enforcement` as `- check:` or `- judgment-only:` bullets.
+- The managed `CLAUDE.md` block finds root documents under `docs/` too, and lists `docs/stages/` and `OVERVIEW.md` when present. `epic-doctor` reports the block stale once in projects that keep their documents under `docs/`; `epic-claude-md write` refreshes it.
+
 ## [0.18.0] — 2026-10-17
 
 First published as 1.1.0 the same day; renumbered, and the 1.x tags withdrawn.
