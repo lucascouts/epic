@@ -320,6 +320,7 @@ The five gates in the template are fixed. After them, the section carries **one 
 - `engineering:` in the frontmatter is one of `experiment`, `tool`, `project`, `product`; `tasks.md` is authoritative for it, as for `scale:`, and what the level buys is read from it ([engineering-level.md](engineering-level.md))
 - `requester:` in the frontmatter is `layperson` or `developer` — the level triage read, written at every scale. `hook-legend-guard.sh` reads it from the newest live story to decide whether a turn's process words owe a legend
 - `run-model:` in the frontmatter, when present, is one of `sonnet`, `opus`, `haiku` — the model the user chose at clarify to run the story ([clarify.md](clarify.md#the-run-model-standard-and-full)). Absent, the run uses the session it is given
+- `roadmap:` in the frontmatter, when present, lists the ROADMAP task IDs the story works on as a flow list, `roadmap: [2.4.1, 2.4.2]` ([clarify.md](clarify.md#the-roadmap-tasks-only-when-the-project-numbers-them)). `validate-story.sh` warns on a malformed list or an ID no ROADMAP or stage file holds; it never blocks
 
 ## Fast Scale Adaptations
 

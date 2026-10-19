@@ -247,6 +247,42 @@ if [[ -n "$RUN_MODEL_VAL" ]] && ! [[ "$RUN_MODEL_VAL" =~ ^($RUN_MODEL_ENUM)$ ]];
   add_error "tasks.md frontmatter 'run-model' is not a run model: found '$RUN_MODEL_VAL' — must be one of: ${RUN_MODEL_ENUM//|/, }"
 fi
 
+# --- Read the declared roadmap tasks ---
+# `roadmap:` lists the ROADMAP task IDs this story works on, as a flow list
+# (`roadmap: [2.4.1, 2.4.2]`), in tasks.md like every field the plugin added.
+# A WARNING, NEVER AN ERROR: this validator runs on every artifact write, and a
+# typo in a cross-reference to a document the plugin does not own must not block
+# the story. Fail-open on absence. When the project has a ROADMAP or stage files,
+# an ID they do not hold is named too — the checkpoint reconciles stories against
+# those IDs, so an ID nobody can find is a closure nobody will record.
+ROADMAP_VAL=$(frontmatter_field "$STORY_DIR/tasks.md" roadmap)
+if [[ -n "$ROADMAP_VAL" ]]; then
+  ROADMAP_ID_RE='[0-9]+(\.[0-9]+)+'
+  if ! [[ "$ROADMAP_VAL" =~ ^\[[[:space:]]*(${ROADMAP_ID_RE}([[:space:]]*,[[:space:]]*${ROADMAP_ID_RE})*)?[[:space:]]*\]$ ]]; then
+    add_warning "tasks.md frontmatter 'roadmap' is not a list of task IDs: found '$ROADMAP_VAL' — write it as roadmap: [2.4.1, 2.4.2]"
+  else
+    # The project root is the parent of the .epic/ directory the story sits in.
+    PROJECT_ROOT=""
+    case "$STORY_DIR" in */.epic/*) PROJECT_ROOT="${STORY_DIR%%/.epic/*}" ;; esac
+    if [[ -n "$PROJECT_ROOT" ]]; then
+      ROADMAP_DOCS=()
+      for f in "$PROJECT_ROOT/ROADMAP.md" "$PROJECT_ROOT/docs/ROADMAP.md" "$PROJECT_ROOT"/docs/stages/*.md; do
+        [[ -f "$f" ]] && ROADMAP_DOCS+=("$f")
+      done
+      if [[ ${#ROADMAP_DOCS[@]} -gt 0 ]]; then
+        # Task IDs as the ROADMAP writes them: a task line `- [ ] **2.4.1 …` or a table row `| 2.4.1 |`.
+        KNOWN_IDS=$(sed -nE 's/^[[:space:]]*- \[.\] \*\*([0-9]+(\.[0-9]+)+) .*/\1/p; s/^\| ([0-9]+(\.[0-9]+)+) \|.*/\1/p' "${ROADMAP_DOCS[@]}" | sort -u)
+        if [[ -n "$KNOWN_IDS" ]]; then
+          for id in $(printf '%s' "$ROADMAP_VAL" | tr -d '[] ' | tr ',' ' '); do
+            printf '%s\n' "$KNOWN_IDS" | command grep -qxF "$id" \
+              || add_warning "tasks.md frontmatter 'roadmap' names task $id, which no ROADMAP or stage file holds"
+          done
+        fi
+      fi
+    fi
+  fi
+fi
+
 # --- Artifacts disagreeing about the scale ---
 # One story, one scale, so artifacts declaring different values disagree about
 # the SHAPE OF THE WORK — the same defect the `status:` collector below reports
