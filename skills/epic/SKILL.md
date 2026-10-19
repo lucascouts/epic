@@ -12,7 +12,7 @@ description: >
   maintain, migrate a story to the current format,
   create --batch to draft many stories from one document, archive,
   supersede, from-memory to draft a story from a memory proposal, and
-  sync-docs to turn memory findings into a doc diff. Also trigger when the user says "create an epic
+  sync-docs to turn findings into a doc diff. Also trigger when the user says "create an epic
   for X", "document this feature", "structure this sprint", "what
   needs to be done to implement X?", "list stories", "run story",
   "execute tasks", "validate implementation" — even without saying

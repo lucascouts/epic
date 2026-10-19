@@ -126,6 +126,19 @@ options:
 
 The answer is written to `tasks.md` as `run-model: sonnet | opus | haiku` ([tasks.md](tasks.md)). **Fast and spike do not ask**: they create and run in one sitting, with no session in between to open on another model. Under `--auto` or headless the question is not asked and no `run-model:` is written — the run uses whatever session runs it. For a `layperson`, the question is asked in the plain register: what each option costs and gets them, in their words, and the model names carry their legend.
 
+### The ROADMAP tasks (only when the project numbers them)
+
+**Asked only when a ROADMAP or stage file holds numbered tasks** — a task line `- [ ] **2.4.1 …` or a table row `| 2.4.1 |` in `ROADMAP.md`, `docs/ROADMAP.md` or `docs/stages/*.md`. A project without one never sees the question. Ask which tasks the story works on, offering the open tasks whose titles match the request:
+
+```
+header:   "Roadmap"
+question: "Which ROADMAP tasks does this story work on?"
+multiSelect: true
+options:  the matching open tasks, as "2.4.1 — <title>", at most four
+```
+
+The answer is written to `tasks.md` as `roadmap: [2.4.1, 2.4.2]` ([tasks.md](tasks.md)); a task the story covers only in part is still listed — the stage checkpoint asks whether it is fully covered. **Not asked at Fast scale, in instant mode, under `--auto` or headless**: no question, no `roadmap:` written, and the checkpoint maps the story from its title instead. An answer of none writes nothing.
+
 ### Fallback (headless or AskUserQuestion unavailable)
 
 When the tool is not callable (some `-p` modes, restricted permission scopes),

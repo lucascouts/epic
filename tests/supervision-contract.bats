@@ -35,9 +35,21 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has skills/epic/SKILL.md '"sync-docs"'
   has skills/epic/SKILL.md 'not starting with "stories", "init", "archive" or "sync-docs"'
   has references/memory-modes.md 'source: memory:<page path>'
-  has references/memory-modes.md 'adrs are never edited'
+  has references/memory-modes.md "an adr's text is never rewritten"
+  has references/memory-modes.md 'same decision, new detail'
+  has references/memory-modes.md '## enforcement'
+  has references/memory-modes.md '- check:'
+  has references/memory-modes.md '- judgment-only:'
   has references/memory-modes.md 'supersedes: adr-<n>'
   has references/memory-modes.md 'headless writes nothing'
+  # the doc writer: works without memory, commits one document at a time with trailers, never pushes
+  has references/memory-modes.md 'sync docs reads memory when it is there and works without it'
+  has references/memory-modes.md 'the only thing in epic that writes a project'
+  has references/memory-modes.md 'git commit --only -- <file>'
+  has references/memory-modes.md 'write \*\*and commit\*\*'
+  has references/memory-modes.md 'story: <nnn> <title>'
+  has references/memory-modes.md 'uncommitted edits of its own is refused'
+  has references/memory-modes.md 'never a push'
   has references/memory-modes.md 'never code'
   # the from-memory arm sits before the bare "stories" arm
   fm=$(command grep -n '^"stories from-memory' "$ROOT/skills/epic/SKILL.md" | cut -d: -f1)

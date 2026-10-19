@@ -13,8 +13,9 @@
 # it points at the rules and holds only what every session needs.
 #
 # Built from what the project already has: .epic/constitution.md (its
-# ## Quality commands and ## Invariants), the docs found at the root
-# (ARCHITECTURE, ROADMAP, PRD, docs/adr/, versions.env) and the examples
+# ## Quality commands and ## Invariants), the docs found at the root or
+# under docs/ (ARCHITECTURE, ROADMAP, docs/stages/, PRD, OVERVIEW, adr/,
+# versions.env) and the examples
 # directories. Nothing is invented: a section with no source is left out.
 #
 # Output: JSON. Exit 0 done (check: current), 1 check found it absent or stale,
@@ -56,8 +57,11 @@ block() {
     echo "- Project rules: \`.epic/constitution.md\` — Defaults, Quality, Security floor. Read it before deciding anything it covers."
   fi
   echo "- Stories and their plans: \`.epic/stories/\`; the index: \`.epic/EPIC.md\`."
+  # Each root doc is looked for at the root and under docs/; both are listed
+  # when both exist, since the project then has two and the reader must know.
   local docs=() d
-  for d in ARCHITECTURE.md ROADMAP.md PRD.md docs/PRD.md docs/adr versions.env; do
+  for d in ARCHITECTURE.md docs/ARCHITECTURE.md ROADMAP.md docs/ROADMAP.md docs/stages \
+    PRD.md docs/PRD.md OVERVIEW.md docs/OVERVIEW.md adr docs/adr versions.env; do
     [ -e "$ROOT/$d" ] && docs+=("\`$d\`")
   done
   if [ ${#docs[@]} -gt 0 ]; then
