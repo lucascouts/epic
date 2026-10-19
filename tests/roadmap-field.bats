@@ -69,7 +69,7 @@ roadmap_errors() { printf '%s' "$1" | jq -r '.error_details[]?' | grep -i 'roadm
   run validate
   msg=$(roadmap_warnings "$output")
   echo "$msg" | grep -qF 'task 9.9.9'
-  ! echo "$msg" | grep -qF 'task 2.4.1'
+  if echo "$msg" | grep -qF 'task 2.4.1'; then echo 'warned about a known ID'; return 1; fi
   [ -z "$(roadmap_errors "$output")" ]
 }
 
