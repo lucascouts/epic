@@ -12,7 +12,7 @@ description: >
   maintain, migrate a story to the current format,
   create --batch to draft many stories from one document, archive,
   supersede, from-memory to draft a story from a memory proposal, and
-  sync-docs to turn findings into a doc diff. Also trigger when the user says "create an epic
+  sync-docs to turn findings into a doc diff, checkpoint to close a ROADMAP stage. Also trigger when the user says "create an epic
   for X", "document this feature", "structure this sprint", "what
   needs to be done to implement X?", "list stories", "run story",
   "execute tasks", "validate implementation" — even without saying
@@ -71,7 +71,7 @@ Do not start the out-of-scope work, and offer an Epic-wrapped version only when 
 - **Code identifiers and comments the Epic writes**: English. A comment in the user's language only when they ask, on the line below the English one.
 - **What the requester's own users read**: the program's interface — menu, prompts, error messages — and the documentation of how to use it (its README). **This is the one thing the English rule does not cover**, and it is not the Epic's to decide: it belongs to whoever will read it.
 
-**The interface language is asked, not assumed.** A request written in a language other than English carries no instruction about the program's own text, and the English rule above is about artifacts — reading it as a rule about the interface ships a menu the requester cannot read, decided by a rule that was never about them. So:
+**The interface language is asked, not assumed.** A request written in a language other than English carries no instruction about the program's own text, and the English rule above is about artifacts. So:
 
 - **Asked once, in the requester's own language**, as an ordinary clarify question: English · the language you wrote to me in · another one. It is a `what` question, not a `how` — the requester is the one who reads the result.
 - **Not asked when the request is already in English** — the answer is not in doubt, and a question whose answer is known is a defect in either register ([Clarify Protocol](#clarify-protocol)).
@@ -159,7 +159,7 @@ When invoked via `/epic:epic`, parse `$ARGUMENTS` using this cascading routing t
 ```
 $ARGUMENTS parsing:
 
-(empty) or (free text not starting with "stories", "init", "archive" or "sync-docs")
+(empty) or (free text not starting with "stories", "init", "archive", "sync-docs" or "checkpoint")
   → CREATE mode
 
 "init"
@@ -181,6 +181,9 @@ $ARGUMENTS parsing:
 
 "sync-docs"
   → SYNC-DOCS mode (finding/decision pages → a doc diff, written only on yes)
+
+"checkpoint <N>"
+  → CHECKPOINT mode (close ROADMAP stage N)
 
 "stories"
   → LIST mode (summary)
@@ -242,13 +245,14 @@ When a command references `NNN`:
 | **Run** | `/epic:epic stories run NNN` or `NNN run N\|all` | Load [run-mode.md](../../references/run-mode.md) |
 | **Validate** | `/epic:epic stories validate NNN` | Load [validate-mode.md](../../references/validate-mode.md) |
 | **Refine** | `/epic:epic stories refine NNN` | Load [refine-mode.md](../../references/refine-mode.md) |
-| **Archive** | `/epic:epic stories archive NNN[-MMM]\|--done` | Load [list-mode.md](../../references/list-mode.md) (Archive Command) — the mode resolves which stories to archive and calls `epic-archive` once per story; it never moves a directory or writes a manifest entry itself |
+| **Archive** | `/epic:epic stories archive NNN[-MMM]\|--done` | Load [list-mode.md](../../references/list-mode.md) (Archive Command) — one `epic-archive` call per story, never a manual move |
 | **From memory · Sync docs** | `/epic:epic stories from-memory [<page>]` · `/epic:epic sync-docs` | Load [memory-modes.md](../../references/memory-modes.md) |
+| **Checkpoint** | `/epic:epic checkpoint <N>` | Load [checkpoint-mode.md](../../references/checkpoint-mode.md) |
 | **Supersede** | `/epic:epic stories supersede NNN --by MMM` | Load [supersede-mode.md](../../references/supersede-mode.md) |
 | **Expand** | User says "based on", "extends" existing story | Create new story referencing source |
 | **CI/Headless** | Programmatic invocation via Agent SDK | Load [ci-mode.md](../../references/ci-mode.md) |
 
-**Every mode loads its reference first.** Any mode that writes a story artifact also reads [output-rules.md](../../references/output-rules.md). Other references are loaded from these: [constitution.md](../../references/constitution.md) (the project constitution's format), [personas.md](../../references/personas.md) (before any sub-agent), [mcp-integration.md](../../references/mcp-integration.md) (research and memory servers).
+**Every mode loads its reference first.** Any mode that writes a story artifact also reads [output-rules.md](../../references/output-rules.md). Other references are loaded from these: [constitution.md](../../references/constitution.md) (the project constitution's format), [mcp-integration.md](../../references/mcp-integration.md) (research and memory servers).
 
 ## Instant — the disposable-work shortcut
 

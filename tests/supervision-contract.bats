@@ -33,7 +33,7 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
 @test "S3: stories from-memory and sync-docs — routed, verified against code, never code, ADRs superseded" {
   has skills/epic/SKILL.md '"stories from-memory \[<page>\]"'
   has skills/epic/SKILL.md '"sync-docs"'
-  has skills/epic/SKILL.md 'not starting with "stories", "init", "archive" or "sync-docs"'
+  has skills/epic/SKILL.md 'not starting with "stories", "init", "archive", "sync-docs" or "checkpoint"'
   has references/memory-modes.md 'source: memory:<page path>'
   has references/memory-modes.md "an adr's text is never rewritten"
   has references/memory-modes.md 'same decision, new detail'
