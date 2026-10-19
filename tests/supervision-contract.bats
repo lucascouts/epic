@@ -35,7 +35,11 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has skills/epic/SKILL.md '"sync-docs"'
   has skills/epic/SKILL.md 'not starting with "stories", "init", "archive" or "sync-docs"'
   has references/memory-modes.md 'source: memory:<page path>'
-  has references/memory-modes.md 'adrs are never edited'
+  has references/memory-modes.md "an adr's text is never rewritten"
+  has references/memory-modes.md 'same decision, new detail'
+  has references/memory-modes.md '## enforcement'
+  has references/memory-modes.md '- check:'
+  has references/memory-modes.md '- judgment-only:'
   has references/memory-modes.md 'supersedes: adr-<n>'
   has references/memory-modes.md 'headless writes nothing'
   has references/memory-modes.md 'never code'

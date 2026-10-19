@@ -23,7 +23,10 @@ The story then runs like any other. Nothing in the proposal is executed, and not
    - the PRD (`PRD.md`, `docs/PRD.md`) — a decision that changes a requirement or its scope
    - `.epic/constitution.md` `## Invariants` — a finding that became a rule, as `- Never <X> — <the incident>`; `epic-claude-md write` then carries it into `CLAUDE.md`
    - `docs/adr/` — an architectural decision
-3. **ADRs are never edited.** A decision that changes an existing ADR is a **new** ADR with the next number, `Supersedes: ADR-<n>` and the reason; the old file is left exactly as it is. A decision with no ADR yet is a new ADR too.
+3. **An ADR's text is never rewritten.** What changes decides the form:
+   - **The decision changes** → a **new** ADR with the next number, `Supersedes: ADR-<n>` and the reason; the old file is left exactly as it is. A decision with no ADR yet is a new ADR too.
+   - **Same decision, new detail** (a check that enforces it, a measured value, a clarification) → an **amendment**: a dated entry appended at the end, never an edit of the text above it. Follow the form the project's ADRs already use for amendments; with none, use `## Amendments` holding one `### Amendment <YYYY-MM-DD> — <title>` per entry, so links to an entry stay stable.
+   - **Every new or superseding ADR carries `## Enforcement`**, typed bullets only: `- check: \`<command>\`` — the command that fails when the decision is broken (a lint rule, a test, a make target), optionally followed by `(warn-only: <switch>)` — or `- judgment-only: <reason>` when nothing can check it. An existing ADR gets the section as an amendment the next time a sync touches it.
 4. **Show the diff, one document at a time, and ask** with `AskUserQuestion` — each document is accepted or declined on its own. Write only what was accepted; headless writes nothing and prints the diff.
 5. **Record the sync**: today's date in `.epic/.sync-docs`, and the pages each written document took, in the closing.
 
