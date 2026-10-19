@@ -10,6 +10,19 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-10-19
+
+The supervisors from `epic-supervisor` plug into the run: a claims check at validate, the project's own checks at the checkpoint, and one store for what they find.
+
+**Minimum Claude Code:** 2.1.295, unchanged.
+
+### Changed
+
+- Validate runs `epic-supervise claims` after the Auditor when the command is on PATH and `EPIC_SUPERVISION` is not `off`: it compares what the run claimed with the exit codes and commits recorded elsewhere, writes `.draft/reports/claims.md` and adds each divergence to the findings store. It never blocks the verdict; without the command, one line says so.
+- The checkpoint's findings step offers `epic-supervise sense --stage <N>` — the project's own checks on a fresh clone — and triages the findings store (`epic-finding list`, decisions recorded with `epic-finding decide`) alongside memory pages, deviations and open boxes.
+- A proposal marked `priority: urgent` is listed first by `stories from-memory` and drafted only after its own acknowledgement; headless never drafts it.
+- The supervision mailbox carries claims about a run still in progress only; everything after the run goes to the findings store, `.epic/findings/`.
+
 ## [0.20.0] — 2026-10-19
 
 A ROADMAP stage can be closed with Epic: the plan is reconciled with what the stories delivered, the user judges before Epic does, and the next stage is detailed.
