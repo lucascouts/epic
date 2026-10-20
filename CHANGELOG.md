@@ -13,6 +13,7 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 ### Fixed
 
 - The commit guard no longer reports commits that exist: it piped the whole `git log` into `grep -q` under `pipefail`, and once the history outgrew the pipe buffer the writer's SIGPIPE read as a miss — every finished group was flagged. It now matches through a here-string.
+- `epic-jargon` no longer flags an explained term once the legend list outgrows the pipe buffer — the same SIGPIPE-under-`pipefail` miss, fixed the same way.
 
 ## [0.21.0] — 2026-10-19
 
