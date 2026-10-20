@@ -77,3 +77,16 @@ setup() {
     [ "$status" -eq 1 ] || { echo "not caught: $t"; return 1; }
   done
 }
+
+@test "a legend list larger than a pipe buffer still finds the explained term (no SIGPIPE false miss)" {
+  # The explained term sorts first, then ~90 KiB of other legends: grep -q
+  # matches on line one and exits while the writer is mid-stream — under
+  # pipefail that SIGPIPE read as "not explained".
+  f=$(mktemp)
+  { printf 'Fiz o commit.\n*commit* — uma versão salva\n'
+    for i in $(seq 1 6000); do printf '*zzz%05d* — x\n' "$i"; done; } > "$f"
+  run bash "$CHECK" --file "$f"
+  rm -f "$f"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.pass == true'
+}

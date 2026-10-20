@@ -47,8 +47,11 @@ PROSE=$(printf '%s\n' "$PROSE" | grep -vE "$LEGEND_RE" || true)
 explained() {
   local w; w=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
   [ -n "$EXPLAINED" ] || return 1
-  printf '%s\n' "$EXPLAINED" | grep -qxF -- "$w" && return 0
-  printf '%s\n' "$EXPLAINED" | grep -qxF -- "${w%s}"
+  # Here-strings, not pipes: grep -q exits on the first match, and under
+  # pipefail the writer's SIGPIPE (141) would read as "not explained" once the
+  # legend list outgrows the pipe buffer.
+  grep -qxF -- "$w" <<<"$EXPLAINED" && return 0
+  grep -qxF -- "${w%s}" <<<"$EXPLAINED"
 }
 
 json_escape() { local s=$1; s=${s//\\/\\\\}; s=${s//\"/\\\"}; printf '%s' "$s"; }
