@@ -10,6 +10,10 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Fixed
+
+- The commit guard no longer reports commits that exist: it piped the whole `git log` into `grep -q` under `pipefail`, and once the history outgrew the pipe buffer the writer's SIGPIPE read as a miss — every finished group was flagged. It now matches through a here-string.
+
 ## [0.21.0] — 2026-10-19
 
 The supervisors from `epic-supervisor` plug into the run: a claims check at validate, the project's own checks at the checkpoint, and one store for what they find.

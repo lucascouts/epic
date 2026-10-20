@@ -77,7 +77,10 @@ for tasks in "$ROOT"/.epic/stories/*/tasks.md; do
   story=$(basename "$(dirname "$tasks")")
   while IFS=$'\t' read -r group msg; do
     [ -n "$msg" ] || continue
-    if ! printf '%s\n' "$SUBJECTS" | grep -qxF -- "$msg"; then
+    # A here-string, not a pipe: grep -q exits on the first match, and under
+    # pipefail the writer's SIGPIPE (141) would read as "missing" once the log
+    # outgrows the pipe buffer.
+    if ! grep -qxF -- "$msg" <<<"$SUBJECTS"; then
       REASONS+=("story $story, group $group: \"$msg\"")
     fi
   done < <(missing_commits "$tasks")
