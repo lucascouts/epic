@@ -11,6 +11,7 @@
 #   G7  not a git work tree, or no .epic/stories → allow
 #   G8  a fenced example and a Quality Gates section are not groups
 #   G9  hooks.json registers the guard on Stop
+#   G10 a history larger than a pipe buffer still finds the subject (no SIGPIPE false miss)
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -121,4 +122,17 @@ EOF
 
 @test "G9 hooks.json registers the guard on Stop" {
   jq -e '.hooks.Stop[].hooks[] | select(.command | contains("hook-commit-guard.sh"))' "$PLUGIN_ROOT/hooks/hooks.json"
+}
+
+@test "G10 a history larger than a pipe buffer still finds the verbatim subject" {
+  write_tasks x x
+  # One old commit whose subject alone exceeds the 64 KiB pipe buffer, then the
+  # owed commit on top: grep -q matches on the first line and exits while the
+  # writer is still mid-stream — under pipefail that SIGPIPE read as a miss.
+  head -c 200000 /dev/zero | tr '\0' a > "$REPO/.big-subject"
+  git -C "$REPO" commit -q --allow-empty -F "$REPO/.big-subject"
+  git -C "$REPO" commit -q --allow-empty -m "feat(001): implement the store"
+  run_hook "{\"cwd\": \"$REPO\", \"stop_hook_active\": false}"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
 }
