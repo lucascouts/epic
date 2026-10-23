@@ -127,3 +127,26 @@ has() { # has <label> <block> <extended regex> — case-insensitive
   [ -n "$(row "$req" "Repo posture score (OpenSSF Scorecard)")" ]
   [ -n "$(row "$req" "Behavioural malware scan (Socket)")" ]
 }
+
+# --- R1.4: the CI mirror gate without a container runtime --------------------
+
+ci_mirror_rule() { # ci_mirror_rule <label> <block> — the rule sits on one line
+  line=$(printf '%s\n' "$2" | command grep -F 'CI mirror' | command grep -F 'not run — no container runtime' | head -1)
+  if [ -z "$line" ]; then
+    echo "$1: no line names the CI mirror gate as 'not run — no container runtime'" >&2
+    return 1
+  fi
+  has "$1 docker" "$line" 'docker'
+  has "$1 podman" "$line" 'podman'
+  has "$1 not a failure" "$line" 'never (a )?FAIL|not a failure'
+}
+
+@test "S13: validate-mode.md settles the CI mirror gate as not run without Docker or Podman" {
+  part1=$(section "$ROOT/references/validate-mode.md" '^## Validation — Part 1' '^## ')
+  ci_mirror_rule "S13" "$part1"
+}
+
+@test "S14: the validation protocol the Auditor runs carries the same rule" {
+  proto=$(section "$ROOT/references/validation-protocol.md" '^Then settle the' '^Then write')
+  ci_mirror_rule "S14" "$proto"
+}
