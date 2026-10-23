@@ -273,8 +273,8 @@ EOF
 # --- Errors fail validation, warnings never do ---
 
 write_hook_project() { # $1 = Acceptance Criteria block for the story
-  mkdir -p "$WORK/proj/.epic/stories/001-hook"
-  cat > "$WORK/proj/.epic/stories/001-hook/story.md" <<EOF
+  mkdir -p "$WORK/proj/.epico/stories/001-hook"
+  cat > "$WORK/proj/.epico/stories/001-hook/story.md" <<EOF
 ---
 story: hook-fixture
 type: feature
@@ -292,7 +292,7 @@ Hook fixture.
 
 $1
 EOF
-  cat > "$WORK/proj/.epic/stories/001-hook/tasks.md" <<'EOF'
+  cat > "$WORK/proj/.epico/stories/001-hook/tasks.md" <<'EOF'
 ---
 version: 1
 created: 2026-08-16
@@ -311,13 +311,13 @@ EOF
 @test "the unlabeled-criterion error fails validation (exit 1)" {
   write_hook_project '- R1.1: WHEN x THE SYSTEM SHALL y.
 - WHEN the user saves THE SYSTEM SHALL persist the draft.'
-  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$WORK/proj/.epic/stories/001-hook"
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$WORK/proj/.epico/stories/001-hook"
   [ "$status" -eq 1 ]
 }
 
 @test "PIN the compound and trigger-less warnings never fail validation (exit 0)" {
   write_hook_project '- R1.1: WHEN the form is submitted THE SYSTEM SHALL validate the fields and SHALL persist the record.
 - R1.2: The exporter SHALL write the report to disk.'
-  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$WORK/proj/.epic/stories/001-hook"
+  run bash "$PLUGIN_ROOT/scripts/validate-story.sh" "$WORK/proj/.epico/stories/001-hook"
   [ "$status" -eq 0 ]
 }

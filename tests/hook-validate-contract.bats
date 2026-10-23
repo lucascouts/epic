@@ -6,14 +6,14 @@
 # else goes to the debug log. So:
 #   - a story that fails validation prints exactly that object, naming the errors;
 #   - a story that passes prints nothing;
-#   - a write outside .epic/stories/ prints nothing;
+#   - a write outside .epico/stories/ prints nothing;
 #   - the hook always exits 0, so it never blocks the write.
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   export CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT"
   WORK=$(mktemp -d)
-  STORY="$WORK/.epic/stories/001-sample"
+  STORY="$WORK/.epico/stories/001-sample"
   mkdir -p "$STORY"
 }
 
@@ -65,7 +65,7 @@ EOF
   [ -z "$output" ]
 }
 
-@test "write outside .epic/stories: prints nothing and exits 0" {
+@test "write outside .epico/stories: prints nothing and exits 0" {
   run bash -c "$(declare -f payload); payload '$WORK/README.md' | bash '$PLUGIN_ROOT/scripts/hook-validate.sh'"
   [ "$status" -eq 0 ]
   [ -z "$output" ]

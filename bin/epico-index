@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-# Wrapper over scripts/epic-index.sh, on PATH while the Epico plugin is enabled.
+# Wrapper over scripts/epico-index.sh, on PATH while the Epico plugin is enabled.
 # Usage is identical to the underlying script.
-exec bash "$(dirname "$0")/../scripts/epic-index.sh" "$@"
+exec bash "$(dirname "$0")/../scripts/epico-index.sh" "$@"

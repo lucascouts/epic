@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
-# Contract tests for scripts/epic-index.sh.
+# Contract tests for scripts/epico-index.sh.
 #
 # Contract under test:
-#   epic-index.sh scans .epic/stories/ + .epic/archive/ and rewrites ONLY the
-#   block between <!-- epic:index:start --> / <!-- epic:index:end --> in
-#   .epic/EPIC.md - one row per story (number, slug, status, progress, link
+#   epico-index.sh scans .epico/stories/ + .epico/archive/ and rewrites ONLY the
+#   block between <!-- epico:index:start --> / <!-- epico:index:end --> in
+#   .epico/EPICO.md - one row per story (number, slug, status, progress, link
 #   resolving to the story's current location). Idempotent, stable ordering.
 #   File absent -> created with markers when the project has >= 1 story.
 #
@@ -16,12 +16,12 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  INDEX_SH="$PLUGIN_ROOT/scripts/epic-index.sh"
+  INDEX_SH="$PLUGIN_ROOT/scripts/epico-index.sh"
   ARCHIVE_SH="$PLUGIN_ROOT/scripts/archive-story.sh"
   WORK=$(mktemp -d)
   PROJ="$WORK/proj"
-  EPIC_MD="$PROJ/.epic/EPIC.md"
-  mkdir -p "$PROJ/.epic/stories"
+  EPICO_MD="$PROJ/.epico/EPICO.md"
+  mkdir -p "$PROJ/.epico/stories"
   cd "$PROJ"
 }
 
@@ -36,11 +36,11 @@ teardown() {
 # mark_validated <story-dir-name> — archive-story.sh archives only a story a
 # passing VALIDATE left reading `validated`; the index fixtures read `done`.
 mark_validated() {
-  sed -i 's/^status: done$/status: validated/' "$PROJ/.epic/stories/$1/story.md"
+  sed -i 's/^status: done$/status: validated/' "$PROJ/.epico/stories/$1/story.md"
 }
 
 make_story() {
-  local dir="$PROJ/.epic/$1/$2"
+  local dir="$PROJ/.epico/$1/$2"
   mkdir -p "$dir"
   cat > "$dir/story.md" <<EOF
 ---
@@ -77,41 +77,41 @@ EOF
   make_story archive 002-beta
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  [ -f "$EPIC_MD" ]
-  grep -q 'epic:index:start' "$EPIC_MD"
-  grep -q 'epic:index:end' "$EPIC_MD"
+  [ -f "$EPICO_MD" ]
+  grep -q 'epico:index:start' "$EPICO_MD"
+  grep -q 'epico:index:end' "$EPICO_MD"
   # Every story present, link resolving to its current area.
-  grep -q 'stories/001-alpha' "$EPIC_MD"
-  grep -q 'archive/002-beta' "$EPIC_MD"
+  grep -q 'stories/001-alpha' "$EPICO_MD"
+  grep -q 'archive/002-beta' "$EPICO_MD"
 }
 
 @test "content outside the generated markers is preserved unchanged" {
   make_story stories 001-alpha
-  cat > "$EPIC_MD" <<'EOF'
+  cat > "$EPICO_MD" <<'EOF'
 # Hand-written program context
 
 keep-me-above the block, byte for byte.
 
-<!-- epic:index:start -->
+<!-- epico:index:start -->
 | old stale row that must be regenerated away |
-<!-- epic:index:end -->
+<!-- epico:index:end -->
 
 keep-me-below the block, byte for byte.
 EOF
-  awk '/epic:index:start/{exit} {print}' "$EPIC_MD" > "$WORK/head.before"
-  awk 'f{print} /epic:index:end/{f=1}' "$EPIC_MD" > "$WORK/tail.before"
+  awk '/epico:index:start/{exit} {print}' "$EPICO_MD" > "$WORK/head.before"
+  awk 'f{print} /epico:index:end/{f=1}' "$EPICO_MD" > "$WORK/tail.before"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   # Everything outside the markers is byte-preserved...
-  awk '/epic:index:start/{exit} {print}' "$EPIC_MD" > "$WORK/head.after"
-  awk 'f{print} /epic:index:end/{f=1}' "$EPIC_MD" > "$WORK/tail.after"
+  awk '/epico:index:start/{exit} {print}' "$EPICO_MD" > "$WORK/head.after"
+  awk 'f{print} /epico:index:end/{f=1}' "$EPICO_MD" > "$WORK/tail.after"
   cmp -s "$WORK/head.before" "$WORK/head.after"
   cmp -s "$WORK/tail.before" "$WORK/tail.after"
   # ...while the block itself is regenerated.
   # NOT `! grep -q`: bash's set -e exempts an inverted command, so a non-last
   # line `!` is a no-op assertion.
-  [[ "$(cat "$EPIC_MD")" != *"old stale row"* ]]
-  grep -q 'stories/001-alpha' "$EPIC_MD"
+  [[ "$(cat "$EPICO_MD")" != *"old stale row"* ]]
+  grep -q 'stories/001-alpha' "$EPICO_MD"
 }
 
 @test "double regeneration with no state change produces no diff" {
@@ -119,27 +119,27 @@ EOF
   make_story archive 002-beta
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  cp "$EPIC_MD" "$WORK/epic.snapshot"
+  cp "$EPICO_MD" "$WORK/epic.snapshot"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   # Second run is a byte-for-byte no-op.
-  cmp -s "$EPIC_MD" "$WORK/epic.snapshot"
+  cmp -s "$EPICO_MD" "$WORK/epic.snapshot"
 }
 
 @test "absent index file is created with markers when a story exists" {
   make_story stories 001-alpha
-  [ ! -e "$EPIC_MD" ]
+  [ ! -e "$EPICO_MD" ]
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  [ -f "$EPIC_MD" ]
-  grep -q 'epic:index:start' "$EPIC_MD"
-  grep -q 'epic:index:end' "$EPIC_MD"
+  [ -f "$EPICO_MD" ]
+  grep -q 'epico:index:start' "$EPICO_MD"
+  grep -q 'epico:index:end' "$EPICO_MD"
 }
 
 @test "no index file is created in a project with zero stories" {
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  [ ! -e "$EPIC_MD" ]
+  [ ! -e "$EPICO_MD" ]
 }
 
 # --- Generator, edge cases ---
@@ -147,7 +147,7 @@ EOF
 
 # mk_story <area> <dir> [status] [extra-frontmatter-line] - story.md only.
 mk_story() {
-  local dir="$PROJ/.epic/$1/$2"
+  local dir="$PROJ/.epico/$1/$2"
   mkdir -p "$dir"
   {
     echo '---'
@@ -166,7 +166,7 @@ mk_story() {
 
 # mk_tasks <area> <dir> - tasks.md body read from stdin.
 mk_tasks() {
-  local dir="$PROJ/.epic/$1/$2"
+  local dir="$PROJ/.epico/$1/$2"
   mkdir -p "$dir"
   cat > "$dir/tasks.md"
 }
@@ -179,7 +179,7 @@ row_for() {
     case "$line" in
       *"/$1/"*) printf '%s' "$line"; return 0 ;;
     esac
-  done < "$EPIC_MD"
+  done < "$EPICO_MD"
   return 1
 }
 
@@ -194,7 +194,7 @@ link_order() {
     t="${line#*](}"
     t="${t%%)*}"
     out="$out$t "
-  done < "$EPIC_MD"
+  done < "$EPICO_MD"
   printf '%s' "$out"
 }
 
@@ -205,7 +205,7 @@ count_marker() {
     case "$line" in
       *"$1"*) n=$((n + 1)) ;;
     esac
-  done < "$EPIC_MD"
+  done < "$EPICO_MD"
   printf '%s' "$n"
 }
 
@@ -231,8 +231,8 @@ EOF
   mk_tasks stories 001-legacy <<'EOF'
 - [x] 1 - done
 EOF
-  mkdir -p "$PROJ/.epic/stories/002-nofront"
-  printf '# heading only, no frontmatter at all\n' > "$PROJ/.epic/stories/002-nofront/story.md"
+  mkdir -p "$PROJ/.epico/stories/002-nofront"
+  printf '# heading only, no frontmatter at all\n' > "$PROJ/.epico/stories/002-nofront/story.md"
   mk_tasks stories 002-nofront <<'EOF'
 - [ ] 1 - open
 EOF
@@ -267,7 +267,7 @@ EOF
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   [ "$(row_for 001-tasksonly)" = "| 001 | [tasksonly](stories/001-tasksonly/) | done | 1/1 | active |" ]
-  [[ "$(cat "$EPIC_MD")" != *"| — |"* ]]
+  [[ "$(cat "$EPICO_MD")" != *"| — |"* ]]
 }
 
 @test "story.md still outranks tasks.md when both declare a status" {
@@ -356,8 +356,8 @@ EOF
 @test "a non-NNN directory and a story without tasks.md still get a row" {
   # Neither may crash the generator, and neither may silently vanish: an index
   # that disagrees with the filesystem is the failure this generator ends.
-  mkdir -p "$PROJ/.epic/stories/notes-scratch"
-  printf 'scratch\n' > "$PROJ/.epic/stories/notes-scratch/README.md"
+  mkdir -p "$PROJ/.epico/stories/notes-scratch"
+  printf 'scratch\n' > "$PROJ/.epico/stories/notes-scratch/README.md"
   mk_story stories 005-seed draft
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
@@ -371,19 +371,19 @@ EOF
   make_story stories 001-alpha
   head_txt='context line, nothing blank follows'$'\n'
   tail_txt='no blank line above, and no final newline'
-  printf '%s<!-- epic:index:start -->\n| stale |\n<!-- epic:index:end -->\n%s' \
-    "$head_txt" "$tail_txt" > "$EPIC_MD"
+  printf '%s<!-- epico:index:start -->\n| stale |\n<!-- epico:index:end -->\n%s' \
+    "$head_txt" "$tail_txt" > "$EPICO_MD"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   printf '%s' "$head_txt" > "$WORK/head.expect"
-  head -c "${#head_txt}" "$EPIC_MD" > "$WORK/head.after"
+  head -c "${#head_txt}" "$EPICO_MD" > "$WORK/head.after"
   cmp -s "$WORK/head.expect" "$WORK/head.after"
   printf '%s' "$tail_txt" > "$WORK/tail.expect"
-  tail -c "${#tail_txt}" "$EPIC_MD" > "$WORK/tail.after"
+  tail -c "${#tail_txt}" "$EPICO_MD" > "$WORK/tail.after"
   cmp -s "$WORK/tail.expect" "$WORK/tail.after"
   # An off-by-one in either offset duplicates the marker it mis-attributes.
-  [ "$(count_marker 'epic:index:start')" -eq 1 ]
-  [ "$(count_marker 'epic:index:end')" -eq 1 ]
+  [ "$(count_marker 'epico:index:start')" -eq 1 ]
+  [ "$(count_marker 'epico:index:end')" -eq 1 ]
   [ "$(row_for 001-alpha)" = "| 001 | [alpha](stories/001-alpha/story.md) | done | 2/3 | active |" ]
 }
 
@@ -393,43 +393,43 @@ EOF
   # of the document; inserting the missing marker would reinterpret
   # hand-written text as generated output. Both clobber, so neither is done.
   make_story stories 001-alpha
-  cat > "$EPIC_MD" <<'EOF'
+  cat > "$EPICO_MD" <<'EOF'
 # Program notes
-<!-- epic:index:start -->
+<!-- epico:index:start -->
 | stale row |
 
 Everything below here is hand-written and must survive.
 EOF
-  cp "$EPIC_MD" "$WORK/before"
+  cp "$EPICO_MD" "$WORK/before"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 1 ]
-  cmp -s "$WORK/before" "$EPIC_MD"
+  cmp -s "$WORK/before" "$EPICO_MD"
   [[ "$stderr" == *"malformed"* ]]
-  [[ "$stderr" == *"epic:index:end"* ]]
+  [[ "$stderr" == *"epico:index:end"* ]]
 }
 
 @test "an index with no markers gains the block and keeps its content" {
-  # The adoption path for a project whose EPIC.md predates this script.
+  # The adoption path for a project whose EPICO.md predates this script.
   make_story stories 001-alpha
-  printf '# Program\n\nhand-written, keep me.\n' > "$EPIC_MD"
-  cp "$EPIC_MD" "$WORK/before"
+  printf '# Program\n\nhand-written, keep me.\n' > "$EPICO_MD"
+  cp "$EPICO_MD" "$WORK/before"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  head -c "$(wc -c < "$WORK/before")" "$EPIC_MD" > "$WORK/head.after"
+  head -c "$(wc -c < "$WORK/before")" "$EPICO_MD" > "$WORK/head.after"
   cmp -s "$WORK/before" "$WORK/head.after"
-  [ "$(count_marker 'epic:index:start')" -eq 1 ]
-  [ "$(count_marker 'epic:index:end')" -eq 1 ]
+  [ "$(count_marker 'epico:index:start')" -eq 1 ]
+  [ "$(count_marker 'epico:index:end')" -eq 1 ]
   [ -n "$(row_for 001-alpha)" ]
   # ...and adopting it is idempotent, so it never appends a second block.
-  cp "$EPIC_MD" "$WORK/snap"
+  cp "$EPICO_MD" "$WORK/snap"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  cmp -s "$WORK/snap" "$EPIC_MD"
+  cmp -s "$WORK/snap" "$EPICO_MD"
 }
 
 @test "a changed checkbox updates the row, outside bytes untouched" {
   make_story stories 001-alpha
-  printf 'ABOVE\n' > "$EPIC_MD"
+  printf 'ABOVE\n' > "$EPICO_MD"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   [ "$(row_for 001-alpha)" = "| 001 | [alpha](stories/001-alpha/story.md) | done | 2/3 | active |" ]
@@ -443,7 +443,7 @@ EOF
   # The block is a function of CURRENT disk state, not an append-once.
   [ "$(row_for 001-alpha)" = "| 001 | [alpha](stories/001-alpha/story.md) | done | 1/3 | active |" ]
   printf 'ABOVE\n' > "$WORK/above.expect"
-  head -c 6 "$EPIC_MD" > "$WORK/above.after"
+  head -c 6 "$EPICO_MD" > "$WORK/above.after"
   cmp -s "$WORK/above.expect" "$WORK/above.after"
 }
 
@@ -451,11 +451,11 @@ EOF
   make_story stories 001-alpha
   run --separate-stderr bash "$INDEX_SH" --help
   [ "$status" -eq 0 ]
-  [[ "$output" == *"epic:index:start"* ]]
-  [ ! -e "$EPIC_MD" ]
+  [[ "$output" == *"epico:index:start"* ]]
+  [ ! -e "$EPICO_MD" ]
   run --separate-stderr bash "$INDEX_SH" --bogus
   [ "$status" -eq 2 ]
-  [ ! -e "$EPIC_MD" ]
+  [ ! -e "$EPICO_MD" ]
 }
 
 # --- Archive integration - real archive-story.sh, no stub ---
@@ -464,51 +464,51 @@ EOF
   make_story stories 005-gamma
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  grep -q 'stories/005-gamma' "$EPIC_MD"
+  grep -q 'stories/005-gamma' "$EPICO_MD"
   mark_validated 005-gamma
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-gamma
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-gamma
   [ "$status" -eq 0 ]
-  [ -d "$PROJ/.epic/archive/005-gamma" ]
-  # The regenerated row now resolves into .epic/archive/.
-  grep -q 'archive/005-gamma' "$EPIC_MD"
-  [[ "$(cat "$EPIC_MD")" != *"stories/005-gamma"* ]]
+  [ -d "$PROJ/.epico/archive/005-gamma" ]
+  # The regenerated row now resolves into .epico/archive/.
+  grep -q 'archive/005-gamma' "$EPICO_MD"
+  [[ "$(cat "$EPICO_MD")" != *"stories/005-gamma"* ]]
 }
 
 @test "index regen failure warns but the move stands" {
   make_story stories 005-delta
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  cp "$EPIC_MD" "$WORK/epic.snapshot"
-  # Make EPIC.md unwritable for both write strategies (in-place and tmp+mv),
+  cp "$EPICO_MD" "$WORK/epic.snapshot"
+  # Make EPICO.md unwritable for both write strategies (in-place and tmp+mv),
   # while stories/, archive/ and the manifest stay fully writable.
-  mkdir -p "$PROJ/.epic/archive"
-  chmod 444 "$EPIC_MD"
-  chmod 555 "$PROJ/.epic"
+  mkdir -p "$PROJ/.epico/archive"
+  chmod 444 "$EPICO_MD"
+  chmod 555 "$PROJ/.epico"
   mark_validated 005-delta
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-delta
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-delta
   # Design: regen failure warns, never rolls back - the move completed.
   [ "$status" -eq 0 ]
-  [ -d "$PROJ/.epic/archive/005-delta" ]
-  [ ! -d "$PROJ/.epic/stories/005-delta" ]
-  cmp -s "$EPIC_MD" "$WORK/epic.snapshot"
+  [ -d "$PROJ/.epico/archive/005-delta" ]
+  [ ! -d "$PROJ/.epico/stories/005-delta" ]
+  cmp -s "$EPICO_MD" "$WORK/epic.snapshot"
 }
 
 # --- Archive integration, edge cases ---
 # The failure case above is GREEN FOR THE WRONG REASON on its own: its
-# fixture chmods EPIC.md read-only, so `cmp -s` against the snapshot is
+# fixture chmods EPICO.md read-only, so `cmp -s` against the snapshot is
 # satisfied just as well by a step 8 that DOES NOT EXIST as by one that ran and
 # failed. These cases close that gap and pin the decisions step 8 makes.
 
 @test "archiving really regenerates the index and reports index ok" {
   # THE REPAIR of the false green: the same archive with EVERYTHING WRITABLE,
-  # where the only way for EPIC.md's bytes to move is a regeneration that
+  # where the only way for EPICO.md's bytes to move is a regeneration that
   # actually happened. No absent step 8 can satisfy this.
   make_story stories 005-gamma
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  cp "$EPIC_MD" "$WORK/epic.before"
+  cp "$EPICO_MD" "$WORK/epic.before"
   mark_validated 005-gamma
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-gamma
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-gamma
   [ "$status" -eq 0 ]
   json="$output"
   # Reported STRUCTURALLY, where the orchestrator's jq can see it — a note only
@@ -517,9 +517,9 @@ EOF
   echo "$json" | jq -e '.status == "archived" and .moved == true' > /dev/null
   # ...and the file really moved. `run` + status, never a bare `! cmp`: an
   # inverted command is exempt from set -e and would assert nothing at all.
-  run cmp -s "$WORK/epic.before" "$EPIC_MD"
+  run cmp -s "$WORK/epic.before" "$EPICO_MD"
   [ "$status" -ne 0 ]
-  idx=$(cat "$EPIC_MD")
+  idx=$(cat "$EPICO_MD")
   [[ "$idx" == *"archive/005-gamma"* ]]
   [[ "$idx" != *"stories/005-gamma"* ]]
 }
@@ -528,7 +528,7 @@ EOF
   # Proven from OUTSIDE the script, two independent ways.
   make_story stories 005-gamma
   mark_validated 005-gamma
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-gamma
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-gamma
   [ "$status" -eq 0 ]
   # (1) THE ROW'S OWN CONTENT. Its link resolves into archive/, which is only
   # true after step 6 moved the directory; and its Status cell reads `archived`,
@@ -552,18 +552,18 @@ EOF
   make_story stories 005-delta
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  mkdir -p "$PROJ/.epic/archive"
-  chmod 444 "$EPIC_MD"
-  chmod 555 "$PROJ/.epic"
+  mkdir -p "$PROJ/.epico/archive"
+  chmod 444 "$EPICO_MD"
+  chmod 555 "$PROJ/.epico"
   mark_validated 005-delta
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-delta
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-delta
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.index == "regen-failed"' > /dev/null
   # The archive itself COMPLETED — the index never rolls a move back.
   echo "$output" | jq -e '.status == "archived" and .moved == true' > /dev/null
   # The warning reaches stdout too, not only the human on stderr.
   echo "$output" | jq -e '.reason | contains("NOTHING WAS ROLLED BACK")' > /dev/null
-  [ -d "$PROJ/.epic/archive/005-delta" ]
+  [ -d "$PROJ/.epico/archive/005-delta" ]
   [[ "$stderr" == *"index=regen-failed"* ]]
 }
 
@@ -575,32 +575,32 @@ EOF
   mk_tasks stories 001-open <<'EOF'
 - [ ] 1 - still open
 EOF
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/001-open
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/001-open
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused" and .index == "skipped"' > /dev/null
   # ...and a guard block, which exits from further down the same pipeline. A NUL
   # byte is what makes a file non-text for step 2's heuristic.
   make_story stories 002-blob
-  printf 'a\000b' > "$PROJ/.epic/stories/002-blob/blob.bin"
+  printf 'a\000b' > "$PROJ/.epico/stories/002-blob/blob.bin"
   mark_validated 002-blob
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/002-blob
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/002-blob
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .index == "skipped"' > /dev/null
-  [ ! -d "$PROJ/.epic/archive/002-blob" ]
+  [ ! -d "$PROJ/.epico/archive/002-blob" ]
 }
 
-@test "a project with no EPIC.md has one created by the archive" {
+@test "a project with no EPICO.md has one created by the archive" {
   # After the move the project still holds exactly one story — the archived one
   # — so the generator's "no stories, stay quiet" branch is unreachable from
   # here and the file IS created. Pinned so the verdict is not re-litigated:
   # index reports `ok`, and the one row points into archive/.
   make_story stories 005-gamma
-  [ ! -e "$EPIC_MD" ]
+  [ ! -e "$EPICO_MD" ]
   mark_validated 005-gamma
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-gamma
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-gamma
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.index == "ok"' > /dev/null
-  [ -f "$EPIC_MD" ]
+  [ -f "$EPICO_MD" ]
   [ "$(row_for 005-gamma)" = "| 005 | [gamma](archive/005-gamma/story.md) | archived | 2/3 | archived |" ]
 }
 
@@ -612,27 +612,27 @@ EOF
   make_story stories 005-gamma
   head_txt='# Program context'$'\n''keep me, byte for byte.'$'\n'
   tail_txt='and me, with no final newline'
-  printf '%s<!-- epic:index:start -->\n| stale row |\n<!-- epic:index:end -->\n%s' \
-    "$head_txt" "$tail_txt" > "$EPIC_MD"
+  printf '%s<!-- epico:index:start -->\n| stale row |\n<!-- epico:index:end -->\n%s' \
+    "$head_txt" "$tail_txt" > "$EPICO_MD"
   mark_validated 005-gamma
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-gamma
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-gamma
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.index == "ok"' > /dev/null
   printf '%s' "$head_txt" > "$WORK/head.expect"
-  head -c "${#head_txt}" "$EPIC_MD" > "$WORK/head.after"
+  head -c "${#head_txt}" "$EPICO_MD" > "$WORK/head.after"
   cmp -s "$WORK/head.expect" "$WORK/head.after"
   printf '%s' "$tail_txt" > "$WORK/tail.expect"
-  tail -c "${#tail_txt}" "$EPIC_MD" > "$WORK/tail.after"
+  tail -c "${#tail_txt}" "$EPICO_MD" > "$WORK/tail.after"
   cmp -s "$WORK/tail.expect" "$WORK/tail.after"
   # An off-by-one in either offset duplicates the marker it mis-attributes.
-  [ "$(count_marker 'epic:index:start')" -eq 1 ]
-  [ "$(count_marker 'epic:index:end')" -eq 1 ]
-  idx=$(cat "$EPIC_MD")
+  [ "$(count_marker 'epico:index:start')" -eq 1 ]
+  [ "$(count_marker 'epico:index:end')" -eq 1 ]
+  idx=$(cat "$EPICO_MD")
   [[ "$idx" != *"stale row"* ]]
   [[ "$idx" == *"archive/005-gamma"* ]]
 }
 
-@test "a missing epic-index.sh is regen-failed, and the archive completes" {
+@test "a missing epico-index.sh is regen-failed, and the archive completes" {
   # An older install, or someone deleted the generator. Two things must hold:
   # the archive must NOT die with an empty stdout (every consumer pipes it into
   # jq), and it must NOT report `skipped` — the move completed, so the index is
@@ -641,26 +641,26 @@ EOF
   make_story stories 005-gamma
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  cp "$EPIC_MD" "$WORK/epic.before"
+  cp "$EPICO_MD" "$WORK/epic.before"
   # A copy of the script with NO sibling generator; the repo is never touched.
   mkdir -p "$WORK/bin"
   cp "$ARCHIVE_SH" "$WORK/bin/archive-story.sh"
-  [ ! -e "$WORK/bin/epic-index.sh" ]
+  [ ! -e "$WORK/bin/epico-index.sh" ]
   mark_validated 005-gamma
-  run --separate-stderr bash "$WORK/bin/archive-story.sh" .epic/stories/005-gamma
+  run --separate-stderr bash "$WORK/bin/archive-story.sh" .epico/stories/005-gamma
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.index == "regen-failed"' > /dev/null
   echo "$output" | jq -e '.status == "archived" and .moved == true' > /dev/null
   echo "$output" | jq -e '.reason | contains("not there")' > /dev/null
-  [ -d "$PROJ/.epic/archive/005-gamma" ]
+  [ -d "$PROJ/.epico/archive/005-gamma" ]
   # Nothing regenerated it, so the row IS stale — and the report says so rather
   # than pretending the index is current.
-  cmp -s "$WORK/epic.before" "$EPIC_MD"
+  cmp -s "$WORK/epic.before" "$EPICO_MD"
   [[ "$stderr" == *"index=regen-failed"* ]]
 }
 
 # --- Manifest-backed rows for stories no longer on disk ---
-# The generator scans stories/ + archive/ + THE MANIFEST. `.epic/archive/` can be
+# The generator scans stories/ + archive/ + THE MANIFEST. `.epico/archive/` can be
 # pruned — the manifest is the permanent record that outlives it, so a story
 # recorded there and gone from disk must still get a row, from the numbers
 # archive-story.sh DERIVED at move time, and with no link to a directory that
@@ -675,7 +675,7 @@ row_with() {
     case "$line" in
       '| '*"| $1 |"*) printf '%s' "$line"; return 0 ;;
     esac
-  done < "$EPIC_MD"
+  done < "$EPICO_MD"
   return 1
 }
 
@@ -693,15 +693,15 @@ story_order() {
     s="${s#*| }"
     s="${s%% |*}"
     out="$out$s "
-  done < "$EPIC_MD"
+  done < "$EPICO_MD"
   printf '%s' "$out"
 }
 
 # man_start - the manifest, with the header archive-story.sh writes. The comment
 # block is reproduced because the parser has to walk past it.
 man_start() {
-  mkdir -p "$PROJ/.epic/archive"
-  cat > "$PROJ/.epic/archive/manifest.yaml" <<'EOF'
+  mkdir -p "$PROJ/.epico/archive"
+  cat > "$PROJ/.epico/archive/manifest.yaml" <<'EOF'
 # Epico archive manifest — one entry per archived story, appended by
 # scripts/archive-story.sh at the moment of the move.
 #
@@ -714,7 +714,7 @@ EOF
 # man_entry <story> <number> <slug> <status> <total> <closed> <deferred>
 # One COMPLETE entry in manifest_entry_yaml's exact 16-key shape and indentation.
 man_entry() {
-  cat >> "$PROJ/.epic/archive/manifest.yaml" <<EOF
+  cat >> "$PROJ/.epico/archive/manifest.yaml" <<EOF
   - story: "$1"
     number: "$2"
     slug: "$3"
@@ -745,7 +745,7 @@ EOF
 # is thrown out by the digits check on tasks_deferred instead, and the case
 # would then pass with the completeness rule deleted.
 man_torn() {
-  cat >> "$PROJ/.epic/archive/manifest.yaml" <<EOF
+  cat >> "$PROJ/.epico/archive/manifest.yaml" <<EOF
   - story: "$1"
     number: "$2"
     slug: "$3"
@@ -768,13 +768,13 @@ EOF
   # list are all whatever the writer actually emits.
   make_story stories 003-webhooks
   mark_validated 003-webhooks
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/003-webhooks
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/003-webhooks
   [ "$status" -eq 0 ]
-  [ -f "$PROJ/.epic/archive/manifest.yaml" ]
+  [ -f "$PROJ/.epico/archive/manifest.yaml" ]
   # ...and then the archived directory is pruned, which is the situation this
   # case exists for. Only the record survives.
-  rm -rf "$PROJ/.epic/archive/003-webhooks"
-  [ ! -e "$PROJ/.epic/archive/003-webhooks" ]
+  rm -rf "$PROJ/.epico/archive/003-webhooks"
+  [ ! -e "$PROJ/.epico/archive/003-webhooks" ]
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   # Number, slug, status and progress are the RECORDED ones. `validated` is the
@@ -785,7 +785,7 @@ EOF
   [ "$(row_with webhooks)" = "| 003 | webhooks | validated | 2/3 (+1 deferred) | archived (directory removed) |" ]
   # NO href: a row links to the story's CURRENT location, and this story has
   # none - a href here would 404 by construction.
-  idx=$(cat "$EPIC_MD")
+  idx=$(cat "$EPICO_MD")
   [[ "$idx" != *"archive/003-webhooks"* ]]
   [[ "$idx" != *"stories/003-webhooks"* ]]
   [[ "$(row_with webhooks)" != *"]("* ]]
@@ -806,7 +806,7 @@ EOF
   [ "$(row_for 001-alpha)" = "| 001 | [alpha](stories/001-alpha/story.md) | done | 2/3 | active |" ]
   # The torn entry contributes nothing - not a row, not a partial row, not a
   # cell built from the fields that did arrive.
-  idx=$(cat "$EPIC_MD")
+  idx=$(cat "$EPICO_MD")
   [[ "$idx" != *"003-cut"* ]]
   [[ "$idx" != *"| cut |"* ]]
   [[ "$idx" != *"4/4"* ]]
@@ -820,18 +820,18 @@ EOF
   # with no entries in it.
   make_story stories 001-alpha
   make_story archive 002-beta
-  [ ! -e "$PROJ/.epic/archive/manifest.yaml" ]
+  [ ! -e "$PROJ/.epico/archive/manifest.yaml" ]
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   [ "$(row_for 001-alpha)" = "| 001 | [alpha](stories/001-alpha/story.md) | done | 2/3 | active |" ]
   [ "$(row_for 002-beta)" = "| 002 | [beta](archive/002-beta/story.md) | done | 2/3 | archived |" ]
-  [[ "$(cat "$EPIC_MD")" != *"directory removed"* ]]
-  cp "$EPIC_MD" "$WORK/no-manifest"
+  [[ "$(cat "$EPICO_MD")" != *"directory removed"* ]]
+  cp "$EPICO_MD" "$WORK/no-manifest"
   # An entry-less manifest is byte-for-byte the same index.
   man_start
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  cmp -s "$WORK/no-manifest" "$EPIC_MD"
+  cmp -s "$WORK/no-manifest" "$EPICO_MD"
 }
 
 @test "an unreadable manifest renders every other row and exits 0" {
@@ -841,11 +841,11 @@ EOF
   make_story stories 001-alpha
   man_start
   man_entry 002-beta 002 beta validated 5 5 0
-  chmod 000 "$PROJ/.epic/archive/manifest.yaml"
+  chmod 000 "$PROJ/.epico/archive/manifest.yaml"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   [ "$(row_for 001-alpha)" = "| 001 | [alpha](stories/001-alpha/story.md) | done | 2/3 | active |" ]
-  [[ "$(cat "$EPIC_MD")" != *"| beta |"* ]]
+  [[ "$(cat "$EPICO_MD")" != *"| beta |"* ]]
 }
 
 @test "a story still on disk always wins over its manifest entry" {
@@ -859,7 +859,7 @@ EOF
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   [ "$(row_for 004-delta)" = "| 004 | [delta](stories/004-delta/story.md) | done | 2/3 | active |" ]
-  idx=$(cat "$EPIC_MD")
+  idx=$(cat "$EPICO_MD")
   [[ "$idx" != *"directory removed"* ]]
   [[ "$idx" != *"9/9"* ]]
   # Identity is checked by NUMBER as well as by directory name: an archived
@@ -872,19 +872,19 @@ EOF
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   [ "$(row_for 005-renamed)" = "| 005 | [renamed](archive/005-renamed/story.md) | done | 2/3 | archived |" ]
-  [[ "$(cat "$EPIC_MD")" != *"| original |"* ]]
+  [[ "$(cat "$EPICO_MD")" != *"| original |"* ]]
   # ...and by NAME as well as by number, which is the half a numbered fixture
   # cannot show: with the name check deleted, the two cases above stay green
   # because the number catches them. A directory that is not NNN-slug is
   # recorded with an EMPTY number - archive-story.sh's derive_entry_fields leaves
   # it empty rather than guessing one - so its name is the only identity there is.
-  mkdir -p "$PROJ/.epic/stories/notes-scratch"
-  printf 'scratch\n' > "$PROJ/.epic/stories/notes-scratch/README.md"
+  mkdir -p "$PROJ/.epico/stories/notes-scratch"
+  printf 'scratch\n' > "$PROJ/.epico/stories/notes-scratch/README.md"
   man_entry notes-scratch "" notes-scratch done 2 2 0
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   [ "$(row_for notes-scratch)" = "| — | [notes-scratch](stories/notes-scratch/) | — | — | active |" ]
-  idx=$(cat "$EPIC_MD")
+  idx=$(cat "$EPICO_MD")
   [[ "$idx" != *"| notes-scratch |"* ]]
   [[ "$idx" != *"2/2"* ]]
 }
@@ -898,12 +898,12 @@ EOF
   mk_tasks stories 006-quoted <<'EOF'
 - [x] 1 - done
 EOF
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/006-quoted --force "fixture: escaping under test"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/006-quoted --force "fixture: escaping under test"
   [ "$status" -eq 0 ]
   # The writer really did escape it - without this guard the case would pin
   # nothing whenever the fixture stopped producing an escape at all.
-  grep -qF 'status: "he said \"hi\" and a back\\slash"' "$PROJ/.epic/archive/manifest.yaml"
-  rm -rf "$PROJ/.epic/archive/006-quoted"
+  grep -qF 'status: "he said \"hi\" and a back\\slash"' "$PROJ/.epico/archive/manifest.yaml"
+  rm -rf "$PROJ/.epico/archive/006-quoted"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   # Decoded back to the source text, then re-escaped by md_cell for the table
@@ -931,11 +931,11 @@ EOF
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   [ "$(story_order)" = "two india [jay](stories/010-jay/story.md) nines [century](archive/100-century/story.md) " ]
-  cp "$EPIC_MD" "$WORK/snap"
+  cp "$EPICO_MD" "$WORK/snap"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
   # Second regeneration with no state change: zero diff.
-  cmp -s "$WORK/snap" "$EPIC_MD"
+  cmp -s "$WORK/snap" "$EPICO_MD"
 }
 
 # --- Spike rows render the Verdict status ---
@@ -947,7 +947,7 @@ EOF
 # spike_story <area> <dir> [status] - story.md for a `scale: spike` story,
 # carrying a lifecycle status on purpose: the verdict must win over it.
 spike_story() {
-  local dir="$PROJ/.epic/$1/$2"
+  local dir="$PROJ/.epico/$1/$2"
   mkdir -p "$dir"
   {
     echo '---'
@@ -968,11 +968,11 @@ spike_story() {
 # wants one, is read from stdin. A spike commonly has no story.md at all, so the
 # scale has to be readable from here: status_cell reads the row's story.md and
 # falls back to tasks.md, which is its own registered exception to the shared
-# scale rule - see scripts/epic-index.sh at status_cell for why it keeps that
+# scale rule - see scripts/epico-index.sh at status_cell for why it keeps that
 # precedence while every reader that GATES something resolves scale from
 # tasks.md.
 spike_tasks() {
-  local dir="$PROJ/.epic/$1/$2"
+  local dir="$PROJ/.epico/$1/$2"
   mkdir -p "$dir"
   {
     echo '---'
@@ -1002,7 +1002,7 @@ EOF
   [ "$status" -eq 0 ]
   [ "$(row_for 001-probe)" = "| 001 | [probe](stories/001-probe/story.md) | wont-do | 1/1 | active |" ]
   # The lifecycle status is not rendered anywhere - not appended, not a fallback.
-  [[ "$(cat "$EPIC_MD")" != *"in-progress"* ]]
+  [[ "$(cat "$EPICO_MD")" != *"in-progress"* ]]
 }
 
 @test "a promote verdict names the story it was promoted to" {
@@ -1043,12 +1043,12 @@ EOF
   [ "$(row_for 002-oauth)" = "| 002 | [oauth](stories/002-oauth/) | promote to 012 | 1/1 | active |" ]
   [ "$(row_for 003-mesh)" = "| 003 | [mesh](stories/003-mesh/) | promote to 042 (missing) | 1/1 | active |" ]
   [ "$(row_for 004-bare)" = "| 004 | [bare](stories/004-bare/) | promote | 1/1 | active |" ]
-  [[ "$(cat "$EPIC_MD")" != *"NNN"* ]]
+  [[ "$(cat "$EPICO_MD")" != *"NNN"* ]]
   # Regeneration stays a no-op with spike rows in play.
-  cp "$EPIC_MD" "$WORK/snap"
+  cp "$EPICO_MD" "$WORK/snap"
   run --separate-stderr bash "$INDEX_SH"
   [ "$status" -eq 0 ]
-  cmp -s "$WORK/snap" "$EPIC_MD"
+  cmp -s "$WORK/snap" "$EPICO_MD"
 }
 
 @test "a spike with no readable Verdict renders the em dash" {
@@ -1080,7 +1080,7 @@ EOF
   [ "$(row_for 001-running)" = "| 001 | [running](stories/001-running/story.md) | — | 1/1 | active |" ]
   [ "$(row_for 002-empty)" = "| 002 | [empty](stories/002-empty/story.md) | — | 1/1 | active |" ]
   [ "$(row_for 003-scoped)" = "| 003 | [scoped](stories/003-scoped/story.md) | — | 1/1 | active |" ]
-  idx=$(cat "$EPIC_MD")
+  idx=$(cat "$EPICO_MD")
   [[ "$idx" != *"in-progress"* ]]
   [[ "$idx" != *"promote"* ]]
 }
@@ -1124,7 +1124,7 @@ EOF
   # The pair in tasks.md's own frontmatter leaks nowhere: no deferred count,
   # and the op's 3.1 closure REPLACED any `deferred:` (a line carrying both
   # would stay owed, because deferred: wins the census).
-  [[ "$(cat "$EPIC_MD")" != *"deferred"* ]]
+  [[ "$(cat "$EPICO_MD")" != *"deferred"* ]]
 }
 
 @test "a superseded story whose successor left the project renders missing" {
@@ -1159,7 +1159,7 @@ EOF
 - promoted-to: 012
 EOF
   # No `scale:` key at all - a legacy story that predates the field.
-  mkdir -p "$PROJ/.epic/stories/002-legacy"
+  mkdir -p "$PROJ/.epico/stories/002-legacy"
   {
     echo '---'
     echo 'story: legacy'
@@ -1167,7 +1167,7 @@ EOF
     echo '---'
     echo
     echo '# Story'
-  } > "$PROJ/.epic/stories/002-legacy/story.md"
+  } > "$PROJ/.epico/stories/002-legacy/story.md"
   mk_tasks stories 002-legacy <<'EOF'
 - [x] 1 - done
 ## Verdict
@@ -1177,7 +1177,7 @@ EOF
   # status_cell keeps its own precedence: the row's story.md decides the scale
   # lookup and tasks.md is a FALLBACK for the tasks-only scales, not an override
   # that can turn a standard story into a spike. That is a deliberate, registered
-  # exception to the shared scale rule - see scripts/epic-index.sh at status_cell.
+  # exception to the shared scale rule - see scripts/epico-index.sh at status_cell.
   mk_story stories 003-precedence done
   spike_tasks stories 003-precedence <<'EOF'
 
@@ -1189,7 +1189,7 @@ EOF
   [ "$(row_for 001-alpha)" = "| 001 | [alpha](stories/001-alpha/story.md) | done | 1/1 | active |" ]
   [ "$(row_for 002-legacy)" = "| 002 | [legacy](stories/002-legacy/story.md) | validated | 1/1 | active |" ]
   [ "$(row_for 003-precedence)" = "| 003 | [precedence](stories/003-precedence/story.md) | done | 1/1 | active |" ]
-  idx=$(cat "$EPIC_MD")
+  idx=$(cat "$EPICO_MD")
   [[ "$idx" != *"wont-do"* ]]
   [[ "$idx" != *"promote"* ]]
 }

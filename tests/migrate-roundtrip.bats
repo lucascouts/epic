@@ -19,7 +19,7 @@ setup() {
   ARCHIVE_SH="$PLUGIN_ROOT/scripts/archive-story.sh"
   WORK=$(mktemp -d)
   PROJ="$WORK/proj"
-  mkdir -p "$PROJ/.epic/stories" "$PROJ/.epic/archive"
+  mkdir -p "$PROJ/.epico/stories" "$PROJ/.epico/archive"
   cd "$PROJ"
 }
 
@@ -44,7 +44,7 @@ box_count() {
 #               `satisfied-by:` suffix that must survive byte-for-byte
 #   variant 5 — `[x] 3.2 - Commit` sub-task
 make_all_variants_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   cat > "$dir/tasks.md" <<'EOF'
 ---
@@ -97,7 +97,7 @@ EOF
 # Standard, complete, archivable story whose only legacy shape is a CLOSED
 # Commit checkbox — the counter fixture.
 make_complete_commit_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   cat > "$dir/story.md" <<'EOF'
 ---
@@ -152,14 +152,14 @@ EOF
 
 @test "one --apply migrates all five variants and embeds a clean validate" {
   make_all_variants_story 090-all-variants
-  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/090-all-variants --apply
+  run --separate-stderr bash "$MIGRATE_SH" .epico/stories/090-all-variants --apply
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.applied == true' > /dev/null
   # every one of the six counters fired — all five variants were seen
   echo "$output" | jq -e '.rewrites | (.t1_headers > 0) and (.covers_fields > 0) and (.boxes_added > 0) and (.wrapper_tags > 0) and (.fast_requirements > 0) and (.commit_subtasks > 0)' > /dev/null
   # the migration is proven by the validator it triggers
   echo "$output" | jq -e '.validate.errors == 0 and .validate.status == "pass"' > /dev/null
-  local f="$PROJ/.epic/stories/090-all-variants/tasks.md"
+  local f="$PROJ/.epico/stories/090-all-variants/tasks.md"
   # immunity lines, all honored in the same pass
   run ! grep -qF '</content>' "$f"
   grep -qF '</invoke>' "$f"
@@ -172,10 +172,10 @@ EOF
 
 @test "the second apply reports zero rewrites and no diff — the tree does not move" {
   make_all_variants_story 090-all-variants
-  bash "$MIGRATE_SH" .epic/stories/090-all-variants --apply > /dev/null 2>&1
+  bash "$MIGRATE_SH" .epico/stories/090-all-variants --apply > /dev/null 2>&1
   local mid
   mid=$(tree_hash "$PROJ")
-  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/090-all-variants --apply
+  run --separate-stderr bash "$MIGRATE_SH" .epico/stories/090-all-variants --apply
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '[.rewrites[]] | add == 0' > /dev/null
   [[ "$stderr" != *'@@'* ]]
@@ -184,16 +184,16 @@ EOF
 
 @test "a migrated field-form story archives with counters derived from the boxes that exist" {
   make_complete_commit_story 091-field-form
-  local f="$PROJ/.epic/stories/091-field-form/tasks.md"
+  local f="$PROJ/.epico/stories/091-field-form/tasks.md"
   local pre post
   pre=$(box_count "$f")
-  bash "$MIGRATE_SH" .epic/stories/091-field-form --apply > /dev/null 2>&1
+  bash "$MIGRATE_SH" .epico/stories/091-field-form --apply > /dev/null 2>&1
   post=$(box_count "$f")
   # exactly the Commit box left the census — and only it
   [ "$post" -eq $((pre - 1)) ]
   # Archive follows validation: a passing VALIDATE is what writes this.
-  sed -i 's/^status: done$/status: validated/' "$PROJ/.epic/stories/091-field-form/story.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/091-field-form
+  sed -i 's/^status: done$/status: validated/' "$PROJ/.epico/stories/091-field-form/story.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/091-field-form
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "archived"' > /dev/null
   # manifest counters derive from the boxes that exist, not from ritual

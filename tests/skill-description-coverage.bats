@@ -16,13 +16,13 @@
 # table checking only the first half goes stale silently, in the direction
 # nobody is looking.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so the suite can run against a
+# EPICO_PLUGIN_ROOT overrides root resolution so the suite can run against a
 # plugin tree other than its parent directory.
 
 bats_require_minimum_version 1.5.0
 
 setup() {
-  PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+  PLUGIN_ROOT="${EPICO_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   SKILL="$PLUGIN_ROOT/skills/epico/SKILL.md"
   WORK=$(mktemp -d)
 }

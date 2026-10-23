@@ -4,7 +4,7 @@
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   WORK=$(mktemp -d)
-  S="$WORK/.epic/stories/004-login"
+  S="$WORK/.epico/stories/004-login"
   mkdir -p "$S/.draft/authored-tests/tests" "$WORK/tests"
   cat > "$S/.draft/authored-tests/tests/login.test.ts" <<'EOF'
 import { describe, it, expect } from 'vitest'

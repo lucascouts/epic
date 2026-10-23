@@ -12,7 +12,7 @@
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   WORK=$(mktemp -d)
-  STORY_DIR="$WORK/proj/.epic/stories/010-census"
+  STORY_DIR="$WORK/proj/.epico/stories/010-census"
   mkdir -p "$STORY_DIR"
 }
 
@@ -115,7 +115,7 @@ EOF
   [ "$output" = "- Tasks: 1/3 completed" ]
 }
 
-@test "no .epic directory: the hook exits 0 and writes nothing" {
+@test "no .epico directory: the hook exits 0 and writes nothing" {
   mkdir -p "$WORK/bare"
   cd "$WORK/bare"
   run bash "$PLUGIN_ROOT/scripts/hook-session-restore.sh"

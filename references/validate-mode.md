@@ -31,7 +31,7 @@ The first block of the one spawn prompt. The Auditor runs it before any audit ch
 > "Validate the implementation of these completed tasks.
 >
 > Tasks file: [path to tasks.md]
-> Story directory: [path to .epic/stories/NNN-slug]
+> Story directory: [path to .epico/stories/NNN-slug]
 > Completed tasks: [list of tasks marked `[x]`]
 > Reports: [path to .draft/reports/, if it exists — claims to verify, not facts]
 > Review budget: one validation and at most two fix rounds for this story; this spawn is [the validation | fix round N's revalidation]
@@ -78,7 +78,7 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 
 > "Review the implementation against the story and design artifacts.
 >
-> Story directory: [path to .epic/stories/NNN-slug]
+> Story directory: [path to .epico/stories/NNN-slug]
 >
 > Files to read:
 > - [path to story.md]
@@ -165,9 +165,9 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 
 1. Resolve story directory from NNN
 2. Read tasks.md and take the checkbox census. A story is **complete** when **no `[ ]` remains**: it is **`done`** when every box is `[x]` or terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), and **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`. `done-except-external` is computed at read time, never written to a file. Only `[x]` sub-tasks have an implementation to validate — see [tasks.md](tasks.md#completion)
-3. Delete the stale `.draft/validation-report.yaml` and `.draft/audit-report.yaml`, run `epico-validated <story-dir>` — it records the commit about to be checked, and whether the tree outside `.epic/` is dirty, in `.draft/validated.yaml`, which archive carries into the manifest (exit 2 outside git: carry on without it) — then spawn **one** Auditor sub-agent (`run_in_background: false`) and wait for its completion. It runs the validation first — each task's validation command, tests and gates, per [validation-protocol.md](validation-protocol.md) — and writes `.draft/validation-report.yaml`; on a validation pass it goes on to compare the code against story + design, review the deviation register, and write `.draft/audit-report.yaml`. The spawn prompt is the two blocks below, validation first. When memory is available, it carries prior structural findings recalled with one `memory_query` — `audit OR scope-creep OR false-positive OR recurring`, `limit: 10` — as things to verify ([mcp-integration.md](mcp-integration.md#memory-mcp))
+3. Delete the stale `.draft/validation-report.yaml` and `.draft/audit-report.yaml`, run `epico-validated <story-dir>` — it records the commit about to be checked, and whether the tree outside `.epico/` is dirty, in `.draft/validated.yaml`, which archive carries into the manifest (exit 2 outside git: carry on without it) — then spawn **one** Auditor sub-agent (`run_in_background: false`) and wait for its completion. It runs the validation first — each task's validation command, tests and gates, per [validation-protocol.md](validation-protocol.md) — and writes `.draft/validation-report.yaml`; on a validation pass it goes on to compare the code against story + design, review the deviation register, and write `.draft/audit-report.yaml`. The spawn prompt is the two blocks below, validation first. When memory is available, it carries prior structural findings recalled with one `memory_query` — `audit OR scope-creep OR false-positive OR recurring`, `limit: 10` — as things to verify ([mcp-integration.md](mcp-integration.md#memory-mcp))
 4. Read both verdicts with `epico-report --story <dir>` — never the whole YAML ([output-rules.md](output-rules.md#reading-files-back)). Take the validation verdict from the file `.draft/validation-report.yaml`. On `verdict: fail` the audit file is absent by design — the run is a validation failure. On `verdict: pass`, take the audit verdict from the file `.draft/audit-report.yaml` the same way
-4a. **The claims check**, when `epic-supervise` is on PATH and `EPIC_SUPERVISION` is not `off`: run `epic-supervise claims --root <project> --story <NNN> --workspace <ws> --project <proj>` (the ai-memory scope triage resolved) and wait for it. It compares what the run claimed — progress notes, reports, closed boxes — with the exit codes and commits recorded elsewhere, writes `.draft/reports/claims.md`, and adds one finding per divergence to the project's findings store. It never blocks the verdict: its divergences join the results below as claims to verify. Without the command, say so in one line and go on.
+4a. **The claims check**, when `epic-supervise` is on PATH and `EPICO_SUPERVISION` is not `off`: run `epic-supervise claims --root <project> --story <NNN> --workspace <ws> --project <proj>` (the ai-memory scope triage resolved) and wait for it. It compares what the run claimed — progress notes, reports, closed boxes — with the exit codes and commits recorded elsewhere, writes `.draft/reports/claims.md`, and adds one finding per divergence to the project's findings store. It never blocks the verdict: its divergences join the results below as claims to verify. Without the command, say so in one line and go on.
 5. Present the combined results to the user, composed from the two files: the validation's `results[]` and `gates[]`, the audit's `gaps[]`, `unmet_gates[]`, `deviations_reviewed[]`, `scope_creep[]`, `missing_red[]` and `findings[]` — and always its `not_verified[]`, as the last line, even on a pass
 5a. **On `verdict: fail-record`, fix the record yourself.** Apply each `record_issues[]` fix with `epico-deviation` — `amend --id N --<field> …` for a wrong entry, `add deviation …` for a missing one — list every fix in `.draft/run-report.md` under `## Record fixes` and in the presented results, and treat the audit as `pass` from here on. No fix round, no task group, no second Auditor: the code passed, and only the register was wrong
 6. If gaps found, offer to create new tasks to address them — **bounded to two fix rounds**, see [Fix loop bound](#fix-loop-bound)
@@ -249,7 +249,7 @@ Validate mode owns exactly one of the six `status:` values — `validated` — a
 | 1 | Integration warning — validation passed but the story's work is not integrated into the main branch, or carries no anchor for the detection to find | Integration Warning, below | The caveat reaches the user before anything acts on the verdict |
 | 2 | The status write above (`validated`) | this section | — |
 | 3 | Archive offer, gated on a status of `validated` | Archive Offer, below | Its gate is true only once step 2 has written the value, and `validated` is the one status `archive-story.sh` accepts without `--force` |
-| 4 | Index refresh — regenerate the managed block in `.epic/EPIC.md` | Index Refresh, below | It renders what steps 2 and 3 changed: the new status, and the story's new location when the archive was accepted |
+| 4 | Index refresh — regenerate the managed block in `.epico/EPICO.md` | Index Refresh, below | It renders what steps 2 and 3 changed: the new status, and the story's new location when the archive was accepted |
 
 This section fixes the order and the reason for it — each step's behavior is defined where its Owner column points.
 
@@ -367,7 +367,7 @@ Render each line as `N.N — title (qualifier: reason)` — the exact shape `arc
 epico-archive <story-dir>
 ```
 
-The story number (`005`) works in place of the directory — it resolves against the nearest `.epic/`. Pass **no flags**. `--allow-heavy`, `--skip-secrets`, `--keep-logs`, `--keep-copies` and `--force <reason>` are the user's decisions and each is recorded in the manifest entry as an override: an override the engine chose for itself is an override nobody agreed to. The one `--force` an offer passes is supersede's, and only because its question names the flag and the reason before the user accepts ([supersede-mode.md](supersede-mode.md#the-archive-offer)). Never re-run a blocked archive with a guard flag on your own initiative — report the verdict and let the user ask for the override by name.
+The story number (`005`) works in place of the directory — it resolves against the nearest `.epico/`. Pass **no flags**. `--allow-heavy`, `--skip-secrets`, `--keep-logs`, `--keep-copies` and `--force <reason>` are the user's decisions and each is recorded in the manifest entry as an override: an override the engine chose for itself is an override nobody agreed to. The one `--force` an offer passes is supersede's, and only because its question names the flag and the reason before the user accepts ([supersede-mode.md](supersede-mode.md#the-archive-offer)). Never re-run a blocked archive with a guard flag on your own initiative — report the verdict and let the user ask for the override by name.
 
 The script prints **one JSON object on stdout**, diagnostics on stderr. Surface the verdict by its `status`:
 
@@ -382,7 +382,7 @@ The script prints **one JSON object on stdout**, diagnostics on stderr. Surface 
 
 ### On `[n]`
 
-One line, no argument, no second ask: the story stays in `.epic/stories/`. The offer returns on the next passing verdict, and `/epico:epico stories archive NNN` runs the same script at any time.
+One line, no argument, no second ask: the story stays in `.epico/stories/`. The offer returns on the next passing verdict, and `/epico:epico stories archive NNN` runs the same script at any time.
 
 ### Headless
 
@@ -404,7 +404,7 @@ Step 4 of the pass point, and **the single definition of the completion-time ref
 epico-index
 ```
 
-It regenerates the managed block between the `<!-- epic:index:start -->` / `<!-- epic:index:end -->` markers in `.epic/EPIC.md` and preserves every byte outside them.
+It regenerates the managed block between the `<!-- epico:index:start -->` / `<!-- epico:index:end -->` markers in `.epico/EPICO.md` and preserves every byte outside them.
 
 **Why it runs last.** It renders state, so it must run after the state changes: after step 2's `status:` write, and after step 3 resolves. An accepted archive moved the directory and `archive-story.sh` already regenerated the block as its own final step — the refresh is then a zero-diff no-op, which is exactly what idempotent buys here. A declined offer leaves only the new status to render.
 

@@ -2,8 +2,8 @@
 # Read-only git integration status for a single epic story.
 #
 # Usage: story-git-status.sh <NNN|story-dir>
-#   <story-dir>  a story directory path (e.g. .epic/stories/006-widget-flow)
-#   <NNN>        a bare story number, resolved as .epic/stories/NNN-* relative
+#   <story-dir>  a story directory path (e.g. .epico/stories/006-widget-flow)
+#   <NNN>        a bare story number, resolved as .epico/stories/NNN-* relative
 #                to the current working directory
 #
 # Output: one JSON object on stdout —
@@ -519,9 +519,9 @@ STORY_DIR=""
 if [[ -d "$STORY_ARG" ]]; then
   STORY_DIR="$STORY_ARG"
 elif [[ "$STORY_ARG" =~ ^[0-9]+$ ]]; then
-  # Bare number: first match of .epic/stories/NNN-* under the cwd. Without
+  # Bare number: first match of .epico/stories/NNN-* under the cwd. Without
   # nullglob an unmatched pattern stays literal and fails the -d test below.
-  for CANDIDATE in .epic/stories/"$STORY_ARG"-*/; do
+  for CANDIDATE in .epico/stories/"$STORY_ARG"-*/; do
     if [[ -d "$CANDIDATE" ]]; then
       STORY_DIR="${CANDIDATE%/}"
       break

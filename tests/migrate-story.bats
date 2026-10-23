@@ -10,7 +10,7 @@
 #     written. stdout stays pure JSON — the house contract.
 #   - --apply: atomic rewrite, CRLF preserved, then validate-story.sh
 #     runs and its verdict {errors, warnings, status} is embedded.
-#   - Refusals: .epic/archive/** target -> exit 1, reason on stderr,
+#   - Refusals: .epico/archive/** target -> exit 1, reason on stderr,
 #     applied:false JSON intact. Exit 2 = usage.
 #   - Idempotency by grammar: second --apply reports zero rewrites and
 #     produces no diff. Never a marker file.
@@ -23,7 +23,7 @@ setup() {
   MIGRATE_SH="$PLUGIN_ROOT/scripts/migrate-story.sh"
   WORK=$(mktemp -d)
   PROJ="$WORK/proj"
-  mkdir -p "$PROJ/.epic/stories" "$PROJ/.epic/archive"
+  mkdir -p "$PROJ/.epico/stories" "$PROJ/.epico/archive"
   cd "$PROJ"
 }
 
@@ -42,7 +42,7 @@ tree_hash() {
 # The legacy shape lives in tasks.md ONLY; story.md is canonical, so the
 # version-bump scoping (changed vs untouched artifact) is observable.
 make_t1_story() {
-  local dir="${2:-$PROJ/.epic/stories}/$1"
+  local dir="${2:-$PROJ/.epico/stories}/$1"
   mkdir -p "$dir"
   cat > "$dir/story.md" <<'EOF'
 ---
@@ -97,7 +97,7 @@ EOF
 # (variant 3), so a rewrite MUST happen and the surviving bytes prove
 # line-ending preservation.
 make_crlf_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   printf '%s\r\n' \
     '---' \
@@ -127,7 +127,7 @@ make_crlf_story() {
 
 @test "dry-run stdout is one JSON object — applied:false, validate:null, all six rewrite counters" {
   make_t1_story 090-t1-fixture
-  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/090-t1-fixture
+  run --separate-stderr bash "$MIGRATE_SH" .epico/stories/090-t1-fixture
   [ "$status" -eq 0 ]
   echo "$output" | jq -e 'type == "object" and .applied == false and .validate == null' > /dev/null
   echo "$output" | jq -e '.rewrites | has("t1_headers") and has("covers_fields") and has("boxes_added") and has("wrapper_tags") and has("fast_requirements") and has("commit_subtasks")' > /dev/null
@@ -137,7 +137,7 @@ make_crlf_story() {
   make_t1_story 090-t1-fixture
   local before
   before=$(tree_hash "$PROJ")
-  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/090-t1-fixture
+  run --separate-stderr bash "$MIGRATE_SH" .epico/stories/090-t1-fixture
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '(.rewrites.t1_headers + .rewrites.covers_fields) > 0' > /dev/null
   echo "$output" | jq -e '.changed_files | length > 0' > /dev/null
@@ -145,11 +145,11 @@ make_crlf_story() {
   [ "$(tree_hash "$PROJ")" = "$before" ]
 }
 
-@test "a story under .epic/archive/ is refused — exit 1, reason on stderr, applied:false JSON intact, nothing written" {
-  make_t1_story 090-t1-fixture "$PROJ/.epic/archive"
+@test "a story under .epico/archive/ is refused — exit 1, reason on stderr, applied:false JSON intact, nothing written" {
+  make_t1_story 090-t1-fixture "$PROJ/.epico/archive"
   local before
   before=$(tree_hash "$PROJ")
-  run --separate-stderr bash "$MIGRATE_SH" .epic/archive/090-t1-fixture
+  run --separate-stderr bash "$MIGRATE_SH" .epico/archive/090-t1-fixture
   [ "$status" -eq 1 ]
   [[ "$stderr" == *archive* ]]
   echo "$output" | jq -e '.applied == false' > /dev/null
@@ -165,19 +165,19 @@ make_crlf_story() {
 
 @test "--apply rewrites and embeds the validate-story verdict" {
   make_t1_story 090-t1-fixture
-  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/090-t1-fixture --apply
+  run --separate-stderr bash "$MIGRATE_SH" .epico/stories/090-t1-fixture --apply
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.applied == true' > /dev/null
   echo "$output" | jq -e '.validate | type == "object" and has("errors") and has("warnings") and has("status")' > /dev/null
-  run ! grep -q '^## T1' "$PROJ/.epic/stories/090-t1-fixture/tasks.md"
+  run ! grep -q '^## T1' "$PROJ/.epico/stories/090-t1-fixture/tasks.md"
 }
 
 @test "a second --apply reports zero rewrites and produces no diff — idempotency by grammar" {
   make_t1_story 090-t1-fixture
-  bash "$MIGRATE_SH" .epic/stories/090-t1-fixture --apply > /dev/null 2>&1
+  bash "$MIGRATE_SH" .epico/stories/090-t1-fixture --apply > /dev/null 2>&1
   local mid
   mid=$(tree_hash "$PROJ")
-  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/090-t1-fixture --apply
+  run --separate-stderr bash "$MIGRATE_SH" .epico/stories/090-t1-fixture --apply
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '[.rewrites[]] | add == 0' > /dev/null
   [[ "$stderr" != *'@@'* ]]
@@ -186,8 +186,8 @@ make_crlf_story() {
 
 @test "CRLF line endings round-trip through --apply" {
   make_crlf_story 091-crlf
-  bash "$MIGRATE_SH" .epic/stories/091-crlf --apply > /dev/null 2>&1
-  local f="$PROJ/.epic/stories/091-crlf/tasks.md"
+  bash "$MIGRATE_SH" .epico/stories/091-crlf --apply > /dev/null 2>&1
+  local f="$PROJ/.epico/stories/091-crlf/tasks.md"
   run ! grep -qF '</content>' "$f"
   # every surviving line still ends CRLF — zero lines without a trailing \r
   [ "$(awk '!/\r$/' "$f" | wc -l)" -eq 0 ]
@@ -195,9 +195,9 @@ make_crlf_story() {
 
 @test "version: bumps only in the changed artifact — the untouched sibling keeps its version" {
   make_t1_story 090-t1-fixture
-  bash "$MIGRATE_SH" .epic/stories/090-t1-fixture --apply > /dev/null 2>&1
-  grep -q '^version: 2' "$PROJ/.epic/stories/090-t1-fixture/tasks.md"
-  grep -q '^version: 1' "$PROJ/.epic/stories/090-t1-fixture/story.md"
+  bash "$MIGRATE_SH" .epico/stories/090-t1-fixture --apply > /dev/null 2>&1
+  grep -q '^version: 2' "$PROJ/.epico/stories/090-t1-fixture/tasks.md"
+  grep -q '^version: 1' "$PROJ/.epico/stories/090-t1-fixture/story.md"
 }
 
 # --- Refusal arms + exit-0 pin ---
@@ -206,7 +206,7 @@ make_crlf_story() {
 # Covers: field interleaved INSIDE a canonical group, so no detector can
 # classify the lines without guessing ownership: migrate never guesses.
 make_mixture_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   cat > "$dir/tasks.md" <<'EOF'
 ---
@@ -237,7 +237,7 @@ EOF
 # and must not fix: a status value outside the lifecycle enum
 # (`status: bogus`).
 make_badstatus_wrapper_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   cat > "$dir/story.md" <<'EOF'
 ---
@@ -287,7 +287,7 @@ EOF
   make_mixture_story 092-mixture
   local before
   before=$(tree_hash "$PROJ")
-  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/092-mixture --apply
+  run --separate-stderr bash "$MIGRATE_SH" .epico/stories/092-mixture --apply
   [ "$status" -eq 1 ]
   # the refusal NAMES the offending lines — migrate never guesses
   [[ "$stderr" =~ [Ll]ine|:[0-9]+ ]]
@@ -307,8 +307,8 @@ EOF
     skip "root reads through chmod 000"
   fi
   make_t1_story 093-unreadable
-  chmod 000 "$PROJ/.epic/stories/093-unreadable/tasks.md"
-  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/093-unreadable
+  chmod 000 "$PROJ/.epico/stories/093-unreadable/tasks.md"
+  run --separate-stderr bash "$MIGRATE_SH" .epico/stories/093-unreadable
   [ "$status" -eq 1 ]
   [ -n "$stderr" ]
   # the refusal is the whole story: no truncated diff sneaks out first
@@ -317,10 +317,10 @@ EOF
 
 @test "a failing embedded validate keeps exit 0 — the verdict is the channel, never the exit code" {
   make_badstatus_wrapper_story 094-badstatus
-  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/094-badstatus --apply
+  run --separate-stderr bash "$MIGRATE_SH" .epico/stories/094-badstatus --apply
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.applied == true and ([.rewrites[]] | add >= 1)' > /dev/null
   echo "$output" | jq -e '.validate.errors >= 1' > /dev/null
   # the rewrite stands — no rollback because the validator complained
-  run ! grep -qF '</content>' "$PROJ/.epic/stories/094-badstatus/tasks.md"
+  run ! grep -qF '</content>' "$PROJ/.epico/stories/094-badstatus/tasks.md"
 }

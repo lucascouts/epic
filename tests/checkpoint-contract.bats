@@ -38,9 +38,9 @@ has() {  # <extended regex> — case-insensitive, names the miss
 }
 
 @test "the record keeps the user's verdict, Epico's reading and the final answer" {
-  has '\.epic/checkpoints/<N>\.yaml'
+  has '\.epico/checkpoints/<N>\.yaml'
   has '^    user: '
-  has '^    epic: '
+  has '^    epico: '
   has '^    final: '
-  has 'follows the project.s `\.epic/\.gitpolicy`'
+  has 'follows the project.s `\.epico/\.gitpolicy`'
 }

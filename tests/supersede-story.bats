@@ -16,7 +16,7 @@ setup() {
   SUPERSEDE="$PLUGIN_ROOT/scripts/supersede-story.sh"
   WORK=$(mktemp -d)
   PROJ="$WORK/proj"
-  mkdir -p "$PROJ/.epic/stories"
+  mkdir -p "$PROJ/.epico/stories"
   cd "$PROJ"
 }
 
@@ -27,7 +27,7 @@ teardown() {
 
 # mk_story <dir-name> [status]  — a story with three artifacts carrying frontmatter
 mk_story() {
-  local name="$1" status="${2:-in-progress}" d="$PROJ/.epic/stories/$1"
+  local name="$1" status="${2:-in-progress}" d="$PROJ/.epico/stories/$1"
   mkdir -p "$d"
   local f
   for f in story.md design.md tasks.md; do
@@ -49,7 +49,7 @@ EOF
 # mk_tasks <dir-name> — replace tasks.md's body with the piped task list,
 # keeping its frontmatter.
 mk_tasks() {
-  local d="$PROJ/.epic/stories/$1" body
+  local d="$PROJ/.epico/stories/$1" body
   body=$(cat)
   local fm
   fm=$(sed -n '1,/^---$/p' "$d/tasks.md" | head -1)
@@ -61,7 +61,7 @@ mk_tasks() {
 run_supersede() { run bash "$SUPERSEDE" "$@"; }
 
 banner_count() {
-  grep -c '⛔ SUPERSEDED' "$PROJ/.epic/stories/$1/story.md" || true
+  grep -c '⛔ SUPERSEDED' "$PROJ/.epico/stories/$1/story.md" || true
 }
 
 # --- The refusal matrix, all four arms ---------------------------------------
@@ -146,7 +146,7 @@ T
   # Rewind to the *Incomplete* row: banner present, no status written anywhere,
   # closures undone. That is the only shape step 3's close-then-flip order can
   # leave, and it is exactly what recovery is written to finish.
-  local d="$PROJ/.epic/stories/006-widget-flow"
+  local d="$PROJ/.epico/stories/006-widget-flow"
   sed -i 's/^status: superseded$/status: in-progress/' "$d"/*.md
   sed -i '/^superseded-by:/d' "$d"/*.md
   sed -i 's/^  - \[~\] 1\.\(.\) - \(.*\) (superseded-by: 012)$/  - [ ] 1.\1 - \2/' "$d/tasks.md"
@@ -181,7 +181,7 @@ T
   run_supersede 006 --by 012 --rationale "first run"
   [ "$status" -eq 0 ]
 
-  local d="$PROJ/.epic/stories/006-widget-flow"
+  local d="$PROJ/.epico/stories/006-widget-flow"
   sed -i 's/^status: superseded$/status: in-progress/' "$d"/*.md
   sed -i '/^superseded-by:/d' "$d"/*.md
   sed -i 's/^  - \[~\] 1\.\(.\) - \(.*\) (superseded-by: 012)$/  - [ ] 1.\1 - \2/' "$d/tasks.md"
@@ -242,7 +242,7 @@ T
 
   # Hand-edit into the shape this command cannot produce: status written AND a
   # box still open. Only a human or a half-applied sweep gets here.
-  local d="$PROJ/.epic/stories/006-widget-flow"
+  local d="$PROJ/.epico/stories/006-widget-flow"
   sed -i 's/^  - \[~\] 1\.2 - \(.*\) (superseded-by: 012)$/  - [ ] 1.2 - \1/' "$d/tasks.md"
   grep -q '^status: superseded$' "$d/story.md"
   [ "$(grep -c '^  - \[ \]' "$d/tasks.md")" -eq 1 ]
@@ -269,7 +269,7 @@ T
     esac
   for st in none some all; do
     for box in yes no; do
-      rm -rf "$PROJ/.epic/stories/006-widget-flow"
+      rm -rf "$PROJ/.epico/stories/006-widget-flow"
       mk_story 006-widget-flow
       mk_tasks 006-widget-flow <<'T'
 - [ ] 1 - Group
@@ -278,7 +278,7 @@ T
 T
       run_supersede 006 --by 012 --rationale "seed"
       [ "$status" -eq 0 ]
-      d="$PROJ/.epic/stories/006-widget-flow"
+      d="$PROJ/.epico/stories/006-widget-flow"
 
       case "$st" in
         none) sed -i 's/^status: superseded$/status: in-progress/' "$d"/*.md
@@ -319,7 +319,7 @@ T
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "superseded"' > /dev/null
 
-  local d="$PROJ/.epic/stories/006-widget-flow" f
+  local d="$PROJ/.epico/stories/006-widget-flow" f
   # Prepended: the banner is the FIRST line after the frontmatter's closing
   # delimiter, and above everything else. Derived, not hard-coded — the op adds
   # a frontmatter key, so any literal line number here is wrong the moment the
@@ -349,7 +349,7 @@ T
   run_supersede 006 --by 012 --rationale "replaced by the v2 flow"
   [ "$status" -eq 0 ]
 
-  local d="$PROJ/.epic/stories/006-widget-flow"
+  local d="$PROJ/.epico/stories/006-widget-flow"
   grep -q "⛔ SUPERSEDED ($(date +%Y-%m-%d)) — by story 012" "$d/story.md"
   grep -q 'replaced by the v2 flow' "$d/story.md"
 
@@ -389,7 +389,7 @@ T
   run_supersede 006 --by 012 --rationale "x"
   [ "$status" -eq 0 ]
 
-  local d="$PROJ/.epic/stories/006-widget-flow"
+  local d="$PROJ/.epico/stories/006-widget-flow"
   grep -q '^  - \[x\] 1\.1 - already done$' "$d/tasks.md"
   grep -q '^  - \[~\] 1\.2 - still open (superseded-by: 012)$' "$d/tasks.md"
   # On a deferred box the qualifier is REPLACED, never joined: a line carrying
@@ -422,7 +422,7 @@ T
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.remap_rows == 0' > /dev/null
   echo "$output" | jq -e '.closed_subtasks == 0' > /dev/null
-  local d="$PROJ/.epic/stories/006-widget-flow"
+  local d="$PROJ/.epico/stories/006-widget-flow"
   grep -q '^  - \[x\] 1\.1 - done$' "$d/tasks.md"
   [ "$(banner_count 006-widget-flow)" -eq 1 ]
 }
@@ -433,7 +433,7 @@ T
   # key and re-emits it beside `status:`; without it the artifact ends up with
   # two.
   #
-  # The damage is silent, which is why it needs a case. `epic-index.sh`'s
+  # The damage is silent, which is why it needs a case. `epico-index.sh`'s
   # `front_value` reads the FIRST match, so the index rendering still looks right
   # while the artifact it read is malformed — nothing downstream complains and
   # nothing upstream notices.
@@ -451,7 +451,7 @@ T
   # two lost theirs. This is the only state that exercises the guard, and it is
   # a state the *Incomplete* row explicitly admits ("the writes reached only
   # some artifacts").
-  local d="$PROJ/.epic/stories/006-widget-flow"
+  local d="$PROJ/.epico/stories/006-widget-flow"
   sed -i 's/^status: superseded$/status: in-progress/' "$d"/*.md
   sed -i '/^superseded-by:/d' "$d/design.md" "$d/tasks.md"
   [ "$(grep -c '^superseded-by:' "$d/story.md")" -eq 1 ]
@@ -462,7 +462,7 @@ T
   for f in story.md design.md tasks.md; do
     [ "$(grep -c '^superseded-by: 012$' "$d/$f")" -eq 1 ]
     # And it sits inside the frontmatter, which is the only place
-    # epic-index.sh's front_value looks.
+    # epico-index.sh's front_value looks.
     [ "$(grep -n '^superseded-by: 012$' "$d/$f" | cut -d: -f1)" -lt "$(grep -n '^---$' "$d/$f" | sed -n '2p' | cut -d: -f1)" ]
   done
 }
@@ -514,5 +514,5 @@ T
   run_supersede 006 --by 012 --rationale 'he said "no" — and a backslash \ too'
   [ "$status" -eq 0 ]
   echo "$output" | jq -e . > /dev/null
-  grep -q 'he said "no"' "$PROJ/.epic/stories/006-widget-flow/story.md"
+  grep -q 'he said "no"' "$PROJ/.epico/stories/006-widget-flow/story.md"
 }

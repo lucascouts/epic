@@ -17,7 +17,7 @@
 # frontmatter rather than by a number nobody updated.
 
 setup() {
-  PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+  PLUGIN_ROOT="${EPICO_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   AGENTS="$PLUGIN_ROOT/agents"
 }
 

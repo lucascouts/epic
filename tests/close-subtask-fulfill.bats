@@ -21,7 +21,7 @@
 # `done`. The case below asserts the rewritten line does NOT match that regex,
 # and it is the case that goes red against the obvious spelling.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so a copy of this file outside
+# EPICO_PLUGIN_ROOT overrides root resolution so a copy of this file outside
 # tests/ can run against the plugin.
 
 bats_require_minimum_version 1.5.0
@@ -29,11 +29,11 @@ bats_require_minimum_version 1.5.0
 QUALIFIER_RE='(^|[^[:alnum:]_-])deferred:'
 
 setup() {
-  PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+  PLUGIN_ROOT="${EPICO_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   SCRIPT="$PLUGIN_ROOT/scripts/close-subtask.sh"
   WORK=$(mktemp -d)
   PROJ="$WORK/proj"
-  STORY="$PROJ/.epic/stories/021-fixture"
+  STORY="$PROJ/.epico/stories/021-fixture"
   mkdir -p "$STORY"
   write_fixture
 }
@@ -252,7 +252,7 @@ line_of() { grep -n -- "$1" "$STORY/tasks.md" | head -1; }
 
 # A REASON WITH PARENTHESES OF ITS OWN COMES BACK WHOLE. A deferral reason can
 # carry a parenthesised aside and then keep going, so a cut at the first `)`
-# would destroy the tail of a reason that an untracked `.epic/` does not hold
+# would destroy the tail of a reason that an untracked `.epico/` does not hold
 # anywhere else.
 # Failability: making the reason capture non-greedy (`[^)]*`) fails to match at
 # all and the close is refused; cutting at the first `)` drops "and it is owed".

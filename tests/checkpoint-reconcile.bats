@@ -5,7 +5,7 @@
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   P=$(mktemp -d)
-  mkdir -p "$P/.epic/archive" "$P/.epic/stories" "$P/docs"
+  mkdir -p "$P/.epico/archive" "$P/.epico/stories" "$P/docs"
   # Stage 1 in a single-file ROADMAP: a table row plus task lines.
   cat > "$P/docs/ROADMAP.md" <<'EOF'
 | 1.1.1 | Set up the repository | Trivial | done |
@@ -23,7 +23,7 @@ setup() {
 
 - [ ] **2.1.1 The schema** · Medium · `todo`
 EOF
-  cat > "$P/.epic/archive/manifest.yaml" <<'EOF'
+  cat > "$P/.epico/archive/manifest.yaml" <<'EOF'
 archived:
   - story: "001-repo"
     number: "001"
@@ -37,8 +37,8 @@ archived:
     roadmap: [1.1.4, 1.9.9]
     overrides_used: []
 EOF
-  mkdir -p "$P/.epic/stories/004-dash"
-  printf -- '---\nversion: 1\nroadmap: [1.1.6]\n---\n\n## Task List\n' > "$P/.epic/stories/004-dash/tasks.md"
+  mkdir -p "$P/.epico/stories/004-dash"
+  printf -- '---\nversion: 1\nroadmap: [1.1.6]\n---\n\n## Task List\n' > "$P/.epico/stories/004-dash/tasks.md"
 }
 
 teardown() { rm -rf "$P"; }

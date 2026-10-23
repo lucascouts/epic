@@ -21,7 +21,7 @@ After the main agent generates the task list structure (with Objective, ToDo, Va
 1. **Determine** which sub-tasks need tests, what type, and what to cover, then return a mapping of sub-task numbers to Tests field values. The main agent merges this into the task list before writing `tasks.md` to disk.
 2. **Author** one test file for each sub-task whose Tests field type is `Integration` or `E2E` — and, in a **Full** story only, `Unit` too — and write it under the story's `.draft/authored-tests/` directory. For `Unit` and `Integration` sub-tasks, run the test to confirm it fails (Red) and record the failure as Red evidence in `.draft/red-evidence.yaml`. For an `E2E` sub-task, author the test with the story's selected E2E tool but DEFER Red-phase verification to Run mode — do not run the test during Phase 3 — and record a deferred-Red entry in `.draft/red-evidence.yaml`.
 
-**Language.** Tests, their names and comments are English, and so is your report — it is read by the orchestrator and stored under `.epic/`.
+**Language.** Tests, their names and comments are English, and so is your report — it is read by the orchestrator and stored under `.epico/`.
 
 You are spawned only for a Standard or Full story at engineering level `project` or `product` ([engineering-level.md](${CLAUDE_PLUGIN_ROOT}/references/engineering-level.md)). An `experiment` or `tool` story decides its mapping inline with the Lite checklist and writes its tests at run time; you never see it.
 
@@ -72,10 +72,10 @@ WHERE the story scale is **Standard** and **no `design.md` exists**, derive the 
 Write each authored test under the story's `.draft/authored-tests/` directory, **mirroring the target test path** in the real test tree:
 
 ```
-.epic/stories/NNN-name/.draft/authored-tests/<mirror of target test path>
+.epico/stories/NNN-name/.draft/authored-tests/<mirror of target test path>
 ```
 
-For example, a sub-task whose Tests field targets `tests/foo.test.ts` is authored at `.epic/stories/NNN-name/.draft/authored-tests/tests/foo.test.ts`. Do **not** write into the project's real test tree — materialization into the real tree happens later, in Run mode.
+For example, a sub-task whose Tests field targets `tests/foo.test.ts` is authored at `.epico/stories/NNN-name/.draft/authored-tests/tests/foo.test.ts`. Do **not** write into the project's real test tree — materialization into the real tree happens later, in Run mode.
 
 ### Red-phase verification (Unit and Integration)
 
@@ -88,13 +88,13 @@ After authoring each `Unit` or `Integration` test file:
 
 ### The Red scratch directory
 
-Red runs need the test at its real path beside a stub of the code, and neither may touch the project tree or `.epic/`. Run them in a scratch directory outside both: `${TMPDIR:-/tmp}/epic-red/<story-dir-name>/`.
+Red runs need the test at its real path beside a stub of the code, and neither may touch the project tree or `.epico/`. Run them in a scratch directory outside both: `${TMPDIR:-/tmp}/epic-red/<story-dir-name>/`.
 
 1. **Create it** once per spawn: in a git repository, `git worktree add --detach "$SCRATCH" HEAD`; otherwise copy the files the runner needs. Link the ignored dependency directories the runner reads (`node_modules`, `.venv`, `vendor`, `target`) from the project instead of installing them again.
 2. **Place** each authored test at its `target_path` and its stub at the path the implementation will occupy, inside the scratch only. The authored copy you keep is still the one under `.draft/authored-tests/`.
 3. **Remove it** when the spawn ends, whatever the outcome: `git worktree remove --force "$SCRATCH"` (or `rm -rf` on a copy), then `git worktree prune`. A scratch left behind is a second tree with a stub in it.
 
-Never create `.draft/red-scratch/` or any scratch under `.epic/`: the doctor flags it, and it diverges from the main tree the moment it exists.
+Never create `.draft/red-scratch/` or any scratch under `.epico/`: the doctor flags it, and it diverges from the main tree the moment it exists.
 
 ### Deferred-Red verification (E2E)
 

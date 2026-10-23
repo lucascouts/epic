@@ -11,7 +11,7 @@ Every feature of this plugin exists to serve that purpose. Anything outside it i
 Epico is responsible for:
 
 - **Epico/story creation** — turn a request into EARS-notation requirements, an optional design document, and a hierarchical task breakdown (`tasks.md`).
-- **Story management** — list, refine, archive, and version stories under `.epic/stories/`.
+- **Story management** — list, refine, archive, and version stories under `.epico/stories/`.
 - **Task orchestration** — drive the Executor sub-agent through the 6-step protocol (context → implementation → design fidelity → validation → refactor-or-tests → report; step 5 is conditional) for each sub-task in `tasks.md`.
 - **Planned validation & audit** — run the Auditor's validation and audit *against the story artifacts the plugin produced*, to verify implementation matches the planned scope.
 - **Traceability** — enforce the R-number → design-component → sub-task chain via `scripts/cross-reference.sh` and the archive immutability guard.
@@ -48,7 +48,7 @@ The refusal is not soft-fail; the skill surfaces a one-line rejection explaining
 ## How this is enforced
 
 - The skill body (`skills/epico/SKILL.md`) opens with a scope check. Out-of-scope requests short-circuit to the refusal table.
-- The skill refuses to write to paths outside `.epic/`, source files not listed in an approved sub-task's `Context:`, or archived stories (`.epic/archive/**`, blocked by `hook-archive-guard.sh`).
+- The skill refuses to write to paths outside `.epico/`, source files not listed in an approved sub-task's `Context:`, or archived stories (`.epico/archive/**`, blocked by `hook-archive-guard.sh`).
 - `references/` files are only loaded when the relevant mode is active — there is no "free-form" mode.
 
 ---
@@ -66,4 +66,4 @@ Adding a new mode (`/epico:epico <verb>`) is allowed only if the verb still serv
 - No code review of existing code.
 - No refactor suggestions outside a story's tasks.
 - No runtime dependencies beyond `bash`, `git`, `jq`.
-- No version-controlled drafts (`.epic/` is `.gitignored`).
+- No version-controlled drafts (`.epico/` is `.gitignored`).

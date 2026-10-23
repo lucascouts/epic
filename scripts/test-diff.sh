@@ -25,9 +25,9 @@ usage() {
   cat <<'USAGE'
 Usage: test-diff.sh --story <story-dir> [--root <project-root>] [--file <target-path>]...
 
-  --story <dir>   The story directory (.epic/stories/NNN-slug).
+  --story <dir>   The story directory (.epico/stories/NNN-slug).
   --root <dir>    The project root the tests were materialized into.
-                  Default: the directory that holds .epic/.
+                  Default: the directory that holds .epico/.
   --file <path>   Only this materialized test (path relative to the root, as
                   in red-evidence.yaml's target_path). Repeatable. Default:
                   every file under .draft/authored-tests/.

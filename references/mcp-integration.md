@@ -109,7 +109,7 @@ links: causes epic/deviation/004-login · fixes epic/finding/002-report-guard ·
 - **Memory is never evidence.** A recalled page says where to look; a finding still needs the file and the line that show it. An audit gap, a deviation verdict or a coverage claim resting on memory alone is a protocol violation — memory is an input to verify, not a source to quote. A recalled page can describe code that has since changed, so a finding that rests on it alone can report a defect the code does not have.
 - **Never call `memory_feedback`**, and never write a handoff by hand — the server's own lifecycle hooks capture sessions and hand off between them. The Epico writes durable pages and nothing else.
 - **Never copy a secret, a token or personal data** into a page. The register and the audit report are the sources; if one of them carries such a value, it is dropped from the page, not carried over.
-- **Recommend `ignore_paths = [".epic/**"]`** in the user's `.ai-memory.toml`, once, the first time memory is detected on a project — the server's hooks would otherwise capture the artifacts the Epico already versions, and the two records would drift. Informative, never gating.
+- **Recommend `ignore_paths = [".epico/**"]`** in the user's `.ai-memory.toml`, once, the first time memory is detected on a project — the server's hooks would otherwise capture the artifacts the Epico already versions, and the two records would drift. Informative, never gating.
 
 ## Progress notes
 

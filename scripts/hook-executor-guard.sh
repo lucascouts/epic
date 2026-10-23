@@ -28,7 +28,7 @@ case "$TOOL" in
   Edit | Write)
     FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty')
     case "$FILE" in
-      *".epic/stories/"*"/tasks.md")
+      *".epico/stories/"*"/tasks.md")
         REASON="The Executor never edits tasks.md: report the outcome in the closing block, and the orchestrator closes the box with epic-close."
         ;;
     esac

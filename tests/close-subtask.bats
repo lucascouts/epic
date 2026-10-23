@@ -8,19 +8,19 @@
 #   Exit 0 done · 1 refused (nothing written) · 2 usage.
 #   Refusals: box not found; box already [x]/[~]; qualifier outside the
 #   four-form grammar (deferred: / waived: / n-a: / superseded-by: NNN);
-#   story under .epic/archive/.
+#   story under .epico/archive/.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so a copy of this file outside
+# EPICO_PLUGIN_ROOT overrides root resolution so a copy of this file outside
 # tests/ can run against the plugin.
 
 bats_require_minimum_version 1.5.0
 
 setup() {
-  PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+  PLUGIN_ROOT="${EPICO_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   SCRIPT="$PLUGIN_ROOT/scripts/close-subtask.sh"
   WORK=$(mktemp -d)
   PROJ="$WORK/proj"
-  STORY="$PROJ/.epic/stories/012-widget"
+  STORY="$PROJ/.epico/stories/012-widget"
   mkdir -p "$STORY"
   write_story_fixture
 }
@@ -89,10 +89,10 @@ created: 2026-08-16
 EOF
 }
 
-# make_archived: the same story shape parked under .epic/archive/.
+# make_archived: the same story shape parked under .epico/archive/.
 make_archived() {
-  mkdir -p "$PROJ/.epic/archive/007-old"
-  cp "$STORY/tasks.md" "$PROJ/.epic/archive/007-old/tasks.md"
+  mkdir -p "$PROJ/.epico/archive/007-old"
+  cp "$STORY/tasks.md" "$PROJ/.epico/archive/007-old/tasks.md"
 }
 
 # snapshot <file>: keep a pristine copy for unchanged-on-refusal assertions.
@@ -122,7 +122,7 @@ run_close() {
 }
 
 @test "missing task argument: exit 2 (usage)" {
-  run_close .epic/stories/012-widget
+  run_close .epico/stories/012-widget
   [ "$status" -eq 2 ]
 }
 
@@ -138,16 +138,16 @@ run_close() {
 
 @test "archived story: exit 1 and tasks.md byte-identical" {
   make_archived
-  snapshot "$PROJ/.epic/archive/007-old/tasks.md"
-  run_close .epic/archive/007-old 1.1
+  snapshot "$PROJ/.epico/archive/007-old/tasks.md"
+  run_close .epico/archive/007-old 1.1
   [ "$status" -eq 1 ]
-  assert_unchanged "$PROJ/.epic/archive/007-old/tasks.md"
+  assert_unchanged "$PROJ/.epico/archive/007-old/tasks.md"
 }
 
 @test "refusal leaves no file behind — not even a tmp" {
   make_archived
   find "$PROJ" -type f | sort > "$WORK/before.txt"
-  run_close .epic/archive/007-old 1.1
+  run_close .epico/archive/007-old 1.1
   [ "$status" -eq 1 ]
   find "$PROJ" -type f | sort > "$WORK/after.txt"
   cmp -s "$WORK/before.txt" "$WORK/after.txt"
@@ -158,7 +158,7 @@ run_close() {
 # =====================================================================
 
 @test "marks [x] on an open sub-task and reports it" {
-  run_close .epic/stories/012-widget 1.1
+  run_close .epico/stories/012-widget 1.1
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.task == "1.1" and .box == "x"'
   grep -qE '^[[:space:]]*- \[x\] 1\.1 - Implement the parser' "$STORY/tasks.md"
@@ -179,7 +179,7 @@ run_close() {
            "n-a: covered by construction" \
            "superseded-by: 011"; do
     write_story_fixture
-    run_close .epic/stories/012-widget 1.1 --tilde "$q"
+    run_close .epico/stories/012-widget 1.1 --tilde "$q"
     [ "$status" -eq 0 ]
     echo "$output" | jq -e '.box == "~"'
     echo "$output" | jq -e --arg q "${q%%:*}" '.qualifier == $q'
@@ -189,14 +189,14 @@ run_close() {
 
 @test "refuses an unknown box and writes nothing" {
   snapshot "$STORY/tasks.md"
-  run_close .epic/stories/012-widget 9.9
+  run_close .epico/stories/012-widget 9.9
   [ "$status" -eq 1 ]
   assert_unchanged "$STORY/tasks.md"
 }
 
 @test "refuses a box already [x], naming it" {
   snapshot "$STORY/tasks.md"
-  run_close .epic/stories/012-widget 2.1
+  run_close .epico/stories/012-widget 2.1
   [ "$status" -eq 1 ]
   grep -qF '2.1' <<< "$stderr"
   assert_unchanged "$STORY/tasks.md"
@@ -204,20 +204,20 @@ run_close() {
 
 @test "refuses a box already [~]" {
   snapshot "$STORY/tasks.md"
-  run_close .epic/stories/012-widget 3
+  run_close .epico/stories/012-widget 3
   [ "$status" -eq 1 ]
   assert_unchanged "$STORY/tasks.md"
 }
 
 @test "refuses a qualifier outside the four-form grammar" {
   snapshot "$STORY/tasks.md"
-  run_close .epic/stories/012-widget 1.1 --tilde "blocked: waiting on review"
+  run_close .epico/stories/012-widget 1.1 --tilde "blocked: waiting on review"
   [ "$status" -eq 1 ]
   assert_unchanged "$STORY/tasks.md"
 }
 
 @test "marks a group box by bare N without touching N.N" {
-  run_close .epic/stories/012-widget 4
+  run_close .epico/stories/012-widget 4
   [ "$status" -eq 0 ]
   grep -qE '^- \[x\] 4 - Wrap-up' "$STORY/tasks.md"
   # 4.1 keeps exactly its one pre-existing [x]; group 1 stays open.
@@ -226,7 +226,7 @@ run_close() {
 }
 
 @test "marks a Quality Gate box by gate: text-prefix" {
-  run_close .epic/stories/012-widget "gate:All task validations"
+  run_close .epico/stories/012-widget "gate:All task validations"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.box == "x"'
   grep -qE '^- \[x\] All task validations pass' "$STORY/tasks.md"
@@ -236,7 +236,7 @@ run_close() {
   sed -i 's/$/\r/' "$STORY/tasks.md"
   TOTAL_LINES=$(wc -l < "$STORY/tasks.md")
   snapshot "$STORY/tasks.md"
-  run_close .epic/stories/012-widget 1.1
+  run_close .epico/stories/012-widget 1.1
   [ "$status" -eq 0 ]
   # Every line still ends CRLF — the marked one included.
   [ "$(grep -c $'\r$' "$STORY/tasks.md")" -eq "$TOTAL_LINES" ]
@@ -265,7 +265,7 @@ close_group4_header() {
   close_group4_header
   sed -i 's/^  - \[ \] 1\.1 - Implement the parser/  - [x] 1.1 - Implement the parser/' "$STORY/tasks.md"
   snapshot "$STORY/tasks.md"
-  run_close .epic/stories/012-widget 1.2
+  run_close .epico/stories/012-widget 1.2
   [ "$status" -eq 0 ]
   grep -qE '^[[:space:]]*- \[x\] 1\.2 - Implement the emitter' "$STORY/tasks.md"
   grep -qE '^- \[x\] 1 - Build the widget' "$STORY/tasks.md"
@@ -274,7 +274,7 @@ close_group4_header() {
 }
 
 @test "a close leaving an open sibling leaves the group header open" {
-  run_close .epic/stories/012-widget 1.1
+  run_close .epico/stories/012-widget 1.1
   [ "$status" -eq 0 ]
   grep -qE '^[[:space:]]*- \[x\] 1\.1 - Implement the parser' "$STORY/tasks.md"
   grep -qE '^[[:space:]]*- \[ \] 1\.2 - Implement the emitter' "$STORY/tasks.md"
@@ -284,7 +284,7 @@ close_group4_header() {
 @test "children closed via terminal [~] close their group header too" {
   close_group4_header
   sed -i 's/^  - \[ \] 1\.1 - Implement the parser/  - [~] 1.1 - Implement the parser (waived: tool absent)/' "$STORY/tasks.md"
-  run_close .epic/stories/012-widget 1.2 --tilde "n-a: covered by construction"
+  run_close .epico/stories/012-widget 1.2 --tilde "n-a: covered by construction"
   [ "$status" -eq 0 ]
   # No open child remains: the header must not stay [ ]. Whichever closed
   # mark the writer chooses, the pair is consistent after one invocation.

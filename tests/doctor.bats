@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
-# epico-doctor: read-only health check of .epic/, JSON or one summary line.
+# epico-doctor: read-only health check of .epico/, JSON or one summary line.
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   WORK=$(mktemp -d)
-  E="$WORK/.epic"
+  E="$WORK/.epico"
   mkdir -p "$E/stories"
   printf '# Constitution\n\n## Defaults\n\n- x\n\n## Quality\n\n- y\n' > "$E/constitution.md"
   printf 'tracked-md\n' > "$E/.gitpolicy"
@@ -15,13 +15,13 @@ teardown() {
   rm -rf "$WORK"
 }
 
-doctor() { bash "$PLUGIN_ROOT/scripts/doctor.sh" --epic-dir "$E" "$@"; }
+doctor() { bash "$PLUGIN_ROOT/scripts/doctor.sh" --epico-dir "$E" "$@"; }
 story() {  # <dir> <scale> <status> <boxes...>
   mkdir -p "$E/stories/$1"
   { printf -- '---\nstory: %s\nscale: %s\nstatus: %s\n---\n## Task List\n' "$1" "$2" "$3"; shift 3; for b in "$@"; do printf -- '- [%s] 1 - Step\n' "$b"; done; } > "$E/stories/$1/tasks.md"
 }
 checks() { jq -r '[.findings[].check] | sort | join(",")' <<< "$output"; }
-index() { bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$E" >/dev/null; }
+index() { bash "$PLUGIN_ROOT/scripts/epico-index.sh" --epico-dir "$E" >/dev/null; }
 
 @test "a healthy tree: status ok, no findings, and --summary prints nothing" {
   story 001-a fast in-progress x ' '
@@ -34,7 +34,7 @@ index() { bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$E" >/dev/null; 
   [ -z "$output" ]
 }
 
-@test "no .epic/ at or above the cwd: silent summary, absent status" {
+@test "no .epico/ at or above the cwd: silent summary, absent status" {
   mkdir -p "$WORK/elsewhere"
   rm -rf "$E"
   cd "$WORK/elsewhere"
@@ -50,7 +50,7 @@ index() { bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$E" >/dev/null; 
   rm "$E/.gitpolicy"
   cd "$WORK/src/deep"
   run bash "$PLUGIN_ROOT/scripts/doctor.sh"
-  echo "$output" | jq -e --arg e "$E" '.epic_dir == $e and any(.findings[]; .check == "gitpolicy")'
+  echo "$output" | jq -e --arg e "$E" '.epico_dir == $e and any(.findings[]; .check == "gitpolicy")'
 }
 
 @test "project files: missing constitution sections are errors; no gitpolicy, no index, no manifest are warnings" {
@@ -64,14 +64,14 @@ index() { bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$E" >/dev/null; 
   echo "$output" | jq -e 'any(.findings[]; .check == "constitution" and (.detail | test("Quality")))'
 }
 
-@test "an EPIC.md behind the disk is flagged, and the check leaves EPIC.md untouched" {
+@test "an EPICO.md behind the disk is flagged, and the check leaves EPICO.md untouched" {
   story 001-a fast in-progress ' '
   index
   story 002-b fast draft ' '
-  before=$(cksum < "$E/EPIC.md")
+  before=$(cksum < "$E/EPICO.md")
   run doctor
   [ "$(checks)" = "index" ]
-  [ "$(cksum < "$E/EPIC.md")" = "$before" ]
+  [ "$(cksum < "$E/EPICO.md")" = "$before" ]
 }
 
 @test "stories: no tasks.md is an error unless a planning draft exists; standard without story.md is an error" {
@@ -81,7 +81,7 @@ index() { bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$E" >/dev/null; 
   story 003-std standard in-progress ' '
   index
   run doctor
-  echo "$output" | jq -e '[.findings[] | select(.severity == "error") | .target] | sort == [".epic/stories/001-empty", ".epic/stories/003-std"]'
+  echo "$output" | jq -e '[.findings[] | select(.severity == "error") | .target] | sort == [".epico/stories/001-empty", ".epico/stories/003-std"]'
 }
 
 @test "red-scratch leftovers and dormant drafts are warnings" {
@@ -92,7 +92,7 @@ index() { bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$E" >/dev/null; 
   story 003-fresh fast draft
   index
   run doctor
-  echo "$output" | jq -e '[.findings[] | select(.check == "red-scratch" or .check == "dormant") | .target] | sort == [".epic/stories/001-a", ".epic/stories/002-dormant"]'
+  echo "$output" | jq -e '[.findings[] | select(.check == "red-scratch" or .check == "dormant") | .target] | sort == [".epico/stories/001-a", ".epico/stories/002-dormant"]'
   run doctor --stale-days 30
   echo "$output" | jq -e 'all(.findings[]; .check != "dormant")'
 }
@@ -109,18 +109,18 @@ index() { bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$E" >/dev/null; 
   bash "$PLUGIN_ROOT/scripts/progress-note.sh" --story "$E/stories/002-live" --task 1 --step context --status done
   index
   run doctor
-  echo "$output" | jq -e '[.findings[] | select(.check == "stall")] | length == 1 and .[0].target == ".epic/stories/001-stuck" and (.[0].detail | test("task 2, step validation \\(started\\)"))'
+  echo "$output" | jq -e '[.findings[] | select(.check == "stall")] | length == 1 and .[0].target == ".epico/stories/001-stuck" and (.[0].detail | test("task 2, step validation \\(started\\)"))'
   run doctor --stall-minutes 60
   echo "$output" | jq -e 'all(.findings[]; .check != "stall")'
 }
 
-@test "an untracked .epic/ copy inside a git worktree is a warning; the main tree is not" {
+@test "an untracked .epico/ copy inside a git worktree is a warning; the main tree is not" {
   git -C "$WORK" init -q
   git -C "$WORK" config user.email test@example.com
   git -C "$WORK" config user.name test
   git -C "$WORK" commit -q --allow-empty -m init
   git -C "$WORK" worktree add -q "$WORK/wt" 2>/dev/null
-  mkdir -p "$WORK/wt/.epic/stories"
+  mkdir -p "$WORK/wt/.epico/stories"
   story 001-a fast in-progress ' '
   index
   run doctor

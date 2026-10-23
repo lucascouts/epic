@@ -21,7 +21,7 @@ every user who installs it. Reports we care about most:
 
 - command or path injection through story artifacts, fixtures or frontmatter
   processed by `scripts/`, `bin/` or `hooks/`;
-- the archive flow deleting or overwriting data outside `.epic/`;
+- the archive flow deleting or overwriting data outside `.epico/`;
 - bypasses of the secrets guard (content that should be blocked but passes);
 - anything that makes a validation gate report success without running.
 

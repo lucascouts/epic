@@ -14,11 +14,11 @@
 # Cases marked PIN assert behaviour that must not change: no false positive
 # from the lint, and the existing story-git-status fields intact.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so the suite can run against a
+# EPICO_PLUGIN_ROOT overrides root resolution so the suite can run against a
 # plugin tree other than its parent directory.
 
 setup() {
-  PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+  PLUGIN_ROOT="${EPICO_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   VALIDATE="$PLUGIN_ROOT/scripts/validate-story.sh"
   GITSTATUS="$PLUGIN_ROOT/scripts/story-git-status.sh"
   WORK=$(mktemp -d)
@@ -163,8 +163,8 @@ make_repo() { # make_repo <dir> <initial-branch>
   git -C "$dir" config user.name "Test"
   git -C "$dir" config commit.gpgsign false
   git -C "$dir" commit --allow-empty -q -m "chore: initial scaffold"
-  mkdir -p "$dir/.epic/stories/010-widget-flow"
-  printf -- '---\nstatus: done\n---\n' > "$dir/.epic/stories/010-widget-flow/story.md"
+  mkdir -p "$dir/.epico/stories/010-widget-flow"
+  printf -- '---\nstatus: done\n---\n' > "$dir/.epico/stories/010-widget-flow/story.md"
 }
 
 commit_msg() {
@@ -173,7 +173,7 @@ commit_msg() {
 
 run_status() {
   cd "$1"
-  run bash "$GITSTATUS" .epic/stories/010-widget-flow
+  run bash "$GITSTATUS" .epico/stories/010-widget-flow
 }
 
 # =====================================================================

@@ -5,7 +5,7 @@
 # touches, so it is read now rather than saved before compaction.
 #
 # Active story: the one whose tasks.md was modified most recently. No
-# .epic/stories, or no tasks.md yet: exit 0 silently — nothing to restore.
+# .epico/stories, or no tasks.md yet: exit 0 silently — nothing to restore.
 #
 # Claude Code shows a hook's context in full only up to 10,000 characters;
 # past that Claude gets a short preview. Progress and the next pending item
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
-STORIES_ROOT="$ROOT/.epic/stories"
+STORIES_ROOT="$ROOT/.epico/stories"
 [ -d "$STORIES_ROOT" ] || exit 0
 
 ACTIVE_STORY=""

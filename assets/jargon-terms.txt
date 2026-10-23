@@ -6,7 +6,7 @@
 ci:\bstory\.md\b
 ci:\btasks\.md\b
 ci:\bdesign\.md\b
-ci:\.epic/
+ci:\.epico/
 ci:\.draft/
 ci:\bsub-?tasks?\b
 ci:\bsub-?agents?\b

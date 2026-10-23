@@ -157,7 +157,7 @@ SCALE_VALUES=()
 # an exception from an oversight:
 #   4. monitor-stale.sh `declares_spike_scale` — already reads tasks.md and
 #      nothing else.
-#   5. epic-index.sh `status_cell` — deliberately keeps its own precedence, and
+#   5. epico-index.sh `status_cell` — deliberately keeps its own precedence, and
 #      it says so at its own definition. It
 #      renders a row, it gates nothing, and a renderer that disagrees costs a
 #      wrong cell, not a wrong archive.
@@ -261,9 +261,9 @@ if [[ -n "$ROADMAP_VAL" ]]; then
   if ! [[ "$ROADMAP_VAL" =~ ^\[[[:space:]]*(${ROADMAP_ID_RE}([[:space:]]*,[[:space:]]*${ROADMAP_ID_RE})*)?[[:space:]]*\]$ ]]; then
     add_warning "tasks.md frontmatter 'roadmap' is not a list of task IDs: found '$ROADMAP_VAL' — write it as roadmap: [2.4.1, 2.4.2]"
   else
-    # The project root is the parent of the .epic/ directory the story sits in.
+    # The project root is the parent of the .epico/ directory the story sits in.
     PROJECT_ROOT=""
-    case "$STORY_DIR" in */.epic/*) PROJECT_ROOT="${STORY_DIR%%/.epic/*}" ;; esac
+    case "$STORY_DIR" in */.epico/*) PROJECT_ROOT="${STORY_DIR%%/.epico/*}" ;; esac
     if [[ -n "$PROJECT_ROOT" ]]; then
       ROADMAP_DOCS=()
       for f in "$PROJECT_ROOT/ROADMAP.md" "$PROJECT_ROOT/docs/ROADMAP.md" "$PROJECT_ROOT"/docs/stages/*.md; do
@@ -1281,14 +1281,14 @@ fi
 # template.
 #
 # The GRAMMAR — these four regexes — is shared VERBATIM with the parse_verdict
-# of archive-story.sh AND of epic-index.sh, exactly as the checkbox census above
-# shares its grammar with epic-index.sh and hook-session-restore.sh. THREE full
+# of archive-story.sh AND of epico-index.sh, exactly as the checkbox census above
+# shares its grammar with epico-index.sh and hook-session-restore.sh. THREE full
 # consumers, plus a PARTIAL fourth — monitor-stale.sh's verdict_status,
 # which copies the first three regexes verbatim and deliberately omits
 # `promoted-to` (staleness keys on the status alone). If the grammar is ever
 # amended, all four move together. The AGGREGATION is per-consumer and differs
 # on purpose: archive-story.sh turns the verdict into a completion verdict (may
-# this story be archived?), epic-index.sh RENDERS it for a human,
+# this story be archived?), epico-index.sh RENDERS it for a human,
 # monitor-stale.sh turns it into a deadline (has this probe concluded yet?), and
 # this script turns it into validation errors.
 VERDICT_STATUS=""

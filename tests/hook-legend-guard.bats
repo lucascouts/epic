@@ -14,7 +14,7 @@ setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   HOOK="$PLUGIN_ROOT/scripts/hook-legend-guard.sh"
   PROJ=$(mktemp -d)
-  mkdir -p "$PROJ/.epic/stories/001-demo"
+  mkdir -p "$PROJ/.epico/stories/001-demo"
   TR="$PROJ/transcript.jsonl"
 }
 
@@ -24,7 +24,7 @@ story() { # story <requester line or "">
   {
     echo '---'; echo 'scale: fast'; [[ -z "$1" ]] || echo "$1"; echo '---'
     echo '## Task List'; echo '- [ ] 1 - Do it'
-  } > "$PROJ/.epic/stories/001-demo/tasks.md"
+  } > "$PROJ/.epico/stories/001-demo/tasks.md"
 }
 
 # transcript <assistant text of this turn...> — one prior turn mentioning Green,
@@ -89,7 +89,7 @@ run_hook() { run bash -c "jq -cn --arg tr '$TR' --arg cwd '$PROJ' --argjson a ${
   rm -f "$TR"
   run_hook
   [ -z "$output" ]
-  rm -rf "$PROJ/.epic"
+  rm -rf "$PROJ/.epico"
   transcript 'Red confirmado.'
   run_hook
   [ -z "$output" ]
@@ -102,8 +102,8 @@ run_hook() { run bash -c "jq -cn --arg tr '$TR' --arg cwd '$PROJ' --argjson a ${
 
 @test "L8 a story archived in the same turn is still the one checked" {
   story 'requester: layperson'
-  mkdir -p "$PROJ/.epic/archive"
-  mv "$PROJ/.epic/stories/001-demo" "$PROJ/.epic/archive/001-demo"
+  mkdir -p "$PROJ/.epico/archive"
+  mv "$PROJ/.epico/stories/001-demo" "$PROJ/.epico/archive/001-demo"
   transcript 'Red confirmado.' 'Pronto, arquivei o plano.'
   run_hook
   echo "$output" | jq -e '.decision == "block"'

@@ -91,7 +91,7 @@ Run `/reload-plugins` after updating plugin files.
 /epico:epico stories archive 001
 ```
 
-Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an explicit choice the `init` wizard asks for once, per project — see [Versioning policy for `.epic/`](#versioning-policy-for-epic).
+Artifacts live in `.epico/stories/NNN-kebab-case/`. Whether git tracks them is an explicit choice the `init` wizard asks for once, per project — see [Versioning policy for `.epico/`](#versioning-policy-for-epic).
 
 ---
 
@@ -100,7 +100,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 | Command | Purpose |
 |---|---|
 | `/epico:epico` | Create story from free-text description (triage + clarify + phases) |
-| `/epico:epico init` | Set up `.epic/constitution.md`, offer deny rules for files Claude must not edit, ask the [versioning policy](#versioning-policy-for-epic) question (for `CLAUDE.md`, use the built-in `/init`) |
+| `/epico:epico init` | Set up `.epico/constitution.md`, offer deny rules for files Claude must not edit, ask the [versioning policy](#versioning-policy-for-epic) question (for `CLAUDE.md`, use the built-in `/init`) |
 | `/epico:epico stories` | List all stories (summary) |
 | `/epico:epico stories full` | List all stories with tasks |
 | `/epico:epico stories NNN` | Show one story in detail |
@@ -130,7 +130,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 
 ### Automatic validation
 
-When a story artifact is written to `.epic/stories/*/`, a PostToolUse hook runs `scripts/validate-story.sh` to check frontmatter, structure, and cross-references (R-numbers traceability). Archive directories are read-only — edits are blocked by a PreToolUse hook.
+When a story artifact is written to `.epico/stories/*/`, a PostToolUse hook runs `scripts/validate-story.sh` to check frontmatter, structure, and cross-references (R-numbers traceability). Archive directories are read-only — edits are blocked by a PreToolUse hook.
 
 ---
 
@@ -155,27 +155,27 @@ epic/
 
 ---
 
-## Versioning policy for `.epic/`
+## Versioning policy for `.epico/`
 
 **`/epico:epico init` asks once, per project, and records the answer.** There is no silent default in an interactive session — the question offers exactly two options and writes the state each one implies.
 
-| Option | What init writes | Recorded in `.epic/.gitpolicy` |
+| Option | What init writes | Recorded in `.epico/.gitpolicy` |
 |---|---|---|
-| **Versioned artifacts** (recommended) | `.epic/.gitignore` with `.draft/`, `*.wip` and `node_modules/`; offers to remove a root-`.gitignore` rule that ignores `.epic/` — quoting the line, never silently | `tracked-md` |
-| **Local-only** | `.epic/` appended to the root `.gitignore` | `local-only` |
+| **Versioned artifacts** (recommended) | `.epico/.gitignore` with `.draft/`, `*.wip` and `node_modules/`; offers to remove a root-`.gitignore` rule that ignores `.epico/` — quoting the line, never silently | `tracked-md` |
+| **Local-only** | `.epico/` appended to the root `.gitignore` | `local-only` |
 
-Versioned tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `archive/manifest.yaml`. **`.draft/` is never versioned under either policy** — it is scratch space: run logs, authored tests, phase snapshots, `*.wip`, and the story's evidence files (`deviations.yaml`, `red-evidence.yaml`, the validation and audit reports) — the last because their durable forms are the archive's summary and, where `ai-memory` is detected, the pages the orchestrator writes.
+Versioned tracks exactly `story.md`, `design.md`, `tasks.md`, `EPICO.md` and `archive/manifest.yaml`. **`.draft/` is never versioned under either policy** — it is scratch space: run logs, authored tests, phase snapshots, `*.wip`, and the story's evidence files (`deviations.yaml`, `red-evidence.yaml`, the validation and audit reports) — the last because their durable forms are the archive's summary and, where `ai-memory` is detected, the pages the orchestrator writes.
 
 **Why it is a question and not a default.** Without a declared policy, lifecycle history gets lost: a track→untrack transition deletes stories from history, a squash leaves duplicates split across `stories/` and `archive/`, and a `.gitignore` stops matching what is actually committed. Versioning the `.md` artifacts and ignoring `.draft/` gives the most auditable lifecycle, so versioned is *recommended*; it is still *asked*, because each of those failures comes from a policy nobody said out loud.
 
-**Non-interactive runs get local-only, without prompting.** A headless or Agent SDK `init` applies the conservative status quo and never starts committing `.epic` behind your back. It also never overrides a policy already recorded: a workspace that declares `tracked-md` is left exactly as it is.
+**Non-interactive runs get local-only, without prompting.** A headless or Agent SDK `init` applies the conservative status quo and never starts committing `.epico` behind your back. It also never overrides a policy already recorded: a workspace that declares `tracked-md` is left exactly as it is.
 
-**A per-project choice — init asks, and it supersedes any global doctrine.** If your global `CLAUDE.md` or personal convention says "never commit `.epic`", the answer recorded for *this* project wins here. Epico never reads or edits your global configuration.
+**A per-project choice — init asks, and it supersedes any global doctrine.** If your global `CLAUDE.md` or personal convention says "never commit `.epico`", the answer recorded for *this* project wins here. Epico never reads or edits your global configuration.
 
-**Checking the state:** `scripts/epic-gitpolicy.sh` is a read-only lint that prints one JSON object comparing the declared policy against what git actually does — `{git, policy, gitignore_ignores_epic, gitignore_source, tracked_md, tracked_draft, verdict}`, where `verdict` is `consistent`, `contradiction` or `partial`. Init runs it before asking, to show you the state you are choosing from.
+**Checking the state:** `scripts/epico-gitpolicy.sh` is a read-only lint that prints one JSON object comparing the declared policy against what git actually does — `{git, policy, gitignore_ignores_epico, gitignore_source, tracked_md, tracked_draft, verdict}`, where `verdict` is `consistent`, `contradiction` or `partial`. Init runs it before asking, to show you the state you are choosing from.
 
 ```bash
-bash "$EPIC_PLUGIN_ROOT/scripts/epic-gitpolicy.sh"   # from the workspace root
+bash "$EPICO_PLUGIN_ROOT/scripts/epico-gitpolicy.sh"   # from the workspace root
 ```
 
 Full walkthrough of both branches: [references/init-mode.md](references/init-mode.md#versioning-policy).
@@ -187,14 +187,14 @@ Full walkthrough of both branches: [references/init-mode.md](references/init-mod
 Run validation as a CI step without launching an interactive session:
 
 ```bash
-EPIC_PLUGIN_ROOT=./epic  # path to cloned plugin
-bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" .epic/stories/001-feature/ --cross-ref
+EPICO_PLUGIN_ROOT=./epic  # path to cloned plugin
+bash "$EPICO_PLUGIN_ROOT/scripts/validate-story.sh" .epico/stories/001-feature/ --cross-ref
 ```
 
 Use `--strict` in CI gates for stories expected to be production-ready (promotes warnings to errors, exit 1 on any warning):
 
 ```bash
-bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" .epic/stories/001-feature/ --cross-ref --strict
+bash "$EPICO_PLUGIN_ROOT/scripts/validate-story.sh" .epico/stories/001-feature/ --cross-ref --strict
 ```
 
 When the plugin is active, the scripts are also on PATH as `epico-validate`, `epico-xref`, `epico-archive`, `epico-doctor`, `epico-test-diff` and the other `epic-*` wrappers.
@@ -206,8 +206,8 @@ Prefer Claude Code's own numbers. `/usage` shows the session's spend; a `claude 
 For a session recorded without telemetry, `scripts/story-telemetry.sh` reads the transcript (and the sub-agent transcripts beside it) and reports what was spent — **in tokens and wall clock, never in money**. It writes no files and makes no network call. The transcript format is internal to Claude Code, so treat this as a fallback.
 
 ```bash
-bash "$EPIC_PLUGIN_ROOT/scripts/story-telemetry.sh"                      # this project's latest session
-bash "$EPIC_PLUGIN_ROOT/scripts/story-telemetry.sh" --since 2026-01-01T18:00:00Z   # one phase, by window
+bash "$EPICO_PLUGIN_ROOT/scripts/story-telemetry.sh"                      # this project's latest session
+bash "$EPICO_PLUGIN_ROOT/scripts/story-telemetry.sh" --since 2026-01-01T18:00:00Z   # one phase, by window
 ```
 
 One JSON object on stdout: tokens split `main` / `subagent` (input, cache creation, cache read, output), models seen, wall clock, and `events` beside `unique_messages`.

@@ -17,16 +17,16 @@ The story then runs like any other. Nothing in the proposal is executed, and not
 
 `/epico:epico sync-docs` turns what the project learned into a diff for its own documents, and writes only what the user accepts. Two parts: a **collector** that gathers the items, and the **doc writer** — the only thing in Epico that writes a project's root documents.
 
-1. **Collect** the items since the last sync — the date in `.epic/.sync-docs` (absent: everything):
+1. **Collect** the items since the last sync — the date in `.epico/.sync-docs` (absent: everything):
    - **From memory, when it is available:** this project's `epic/finding/` and `epic/decision/` pages with a later `as_of`. Without memory, say so in one line and use the other sources.
-   - **From the archive:** the deviations of the stories archived since that date (their `archived_at` in `.epic/archive/manifest.yaml`) that changed a decision, a requirement or a rule.
+   - **From the archive:** the deviations of the stories archived since that date (their `archived_at` in `.epico/archive/manifest.yaml`) that changed a decision, a requirement or a rule.
    - **From the user:** a decision named in the request itself.
 
    Verify each item against the code; one the code contradicts is listed as stale and synced nowhere. Nothing collected: say so in one line and stop.
 2. **Map each item to its document**, the ones the project has — each looked for at the root and under `docs/`:
    - `ROADMAP.md` — a decision that adds, drops or reorders planned work
    - the PRD (`PRD.md`) — a decision that changes a requirement or its scope
-   - `.epic/constitution.md` `## Invariants` — a finding that became a rule, as `- Never <X> — <the incident>`; `epico-claude-md write` then carries it into `CLAUDE.md`
+   - `.epico/constitution.md` `## Invariants` — a finding that became a rule, as `- Never <X> — <the incident>`; `epico-claude-md write` then carries it into `CLAUDE.md`
    - `adr/` — an architectural decision
 3. **An ADR's text is never rewritten.** What changes decides the form:
    - **The decision changes** → a **new** ADR with the next number, `Supersedes: ADR-<n>` and the reason; the old file is left exactly as it is. A decision with no ADR yet is a new ADR too.
@@ -38,6 +38,6 @@ The story then runs like any other. Nothing in the proposal is executed, and not
    - the message carries trailers for what the change came from — `Story: <NNN> <title>`, `Finding: <page>`, `ADR: <NNNN>`, `Why: <one line>`, each only when it applies — the record a document's change log is built from;
    - no git identity, or a commit hook that refuses: the file stays written and uncommitted; say so, and name it in the closing;
    - never a push.
-6. **Record the sync**: today's date in `.epic/.sync-docs`, and the items each written document took, in the closing.
+6. **Record the sync**: today's date in `.epico/.sync-docs`, and the items each written document took, in the closing.
 
-Sync docs writes documents, never code, never `.epic/stories/`, and never a page back into memory except the `drafted:`-style markers this file names.
+Sync docs writes documents, never code, never `.epico/stories/`, and never a page back into memory except the `drafted:`-style markers this file names.

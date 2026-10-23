@@ -42,7 +42,7 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/refine-mode.md 'releasing a test blocked by `epico-test-diff`'
 }
 
-@test "T4: the Red scratch lives under TMPDIR/epic-red, outside .epic, and is removed" {
+@test "T4: the Red scratch lives under TMPDIR/epic-red, outside .epico, and is removed" {
   has agents/test-advisor.md '\$\{TMPDIR:-/tmp\}/epic-red/'
   has agents/test-advisor.md 'git worktree remove --force'
   has agents/test-advisor.md 'never create `\.draft/red-scratch/`'

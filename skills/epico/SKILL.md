@@ -62,7 +62,7 @@ Do not start the out-of-scope work, and offer an Epico-wrapped version only when
 
 ## Language
 
-**Everything the Epico writes under `.epic/` is written in English — stories, design, tasks, backlog, reports and every other document.** This is not an option and no setting changes it: these files are read later by sub-agents, and Claude models perform best on English technical content.
+**Everything the Epico writes under `.epico/` is written in English — stories, design, tasks, backlog, reports and every other document.** This is not an option and no setting changes it: these files are read later by sub-agents, and Claude models perform best on English technical content.
 
 - **Spec artifacts** (story.md, design.md, tasks.md): always English
 - **EARS keywords**: always English and CAPS (SHALL, WHEN, WHILE, IF, WHERE)
@@ -79,7 +79,7 @@ Do not start the out-of-scope work, and offer an Epico-wrapped version only when
 
 ## Validation
 
-Validation runs automatically via a PostToolUse hook when a story artifact under `.epic/stories/` is written with the Write tool; its errors come back to you as hook context. Manual validation is also available:
+Validation runs automatically via a PostToolUse hook when a story artifact under `.epico/stories/` is written with the Write tool; its errors come back to you as hook context. Manual validation is also available:
 
 ```bash
 epico-validate <story-directory>
@@ -122,10 +122,10 @@ Its JSON `mapping` field gives the requirement → sub-tasks relation directly �
 ## Project State
 
 ### Existing stories
-!`ls -1d "${CLAUDE_PROJECT_DIR:-.}"/.epic/stories/*/ 2>/dev/null | sed 's|.*/\(.*\)/|\1|' | head -20 | grep . || echo "(none)"`
+!`ls -1d "${CLAUDE_PROJECT_DIR:-.}"/.epico/stories/*/ 2>/dev/null | sed 's|.*/\(.*\)/|\1|' | head -20 | grep . || echo "(none)"`
 
 ### Constitution
-!`f="${CLAUDE_PROJECT_DIR:-.}/.epic/constitution.md"; if [ -f "$f" ]; then head -30 "$f"; else echo "(none)"; fi`
+!`f="${CLAUDE_PROJECT_DIR:-.}/.epico/constitution.md"; if [ -f "$f" ]; then head -30 "$f"; else echo "(none)"; fi`
 
 ### Git state
 !`cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null; if ! git rev-parse --git-dir >/dev/null 2>&1; then echo "(not a git repo)"; elif ! git rev-parse -q --verify HEAD >/dev/null; then echo "(no commits yet)"; else git rev-parse --short HEAD; git diff --stat HEAD | tail -1; fi`
@@ -222,13 +222,13 @@ $ARGUMENTS parsing:
   → ARCHIVE LIST mode (show archived stories)
 ```
 
-**NNN** = story number (001, 002...) — matches directory prefix in `.epic/stories/`.
+**NNN** = story number (001, 002...) — matches directory prefix in `.epico/stories/`.
 **N** = task number, **N.N** = sub-task number.
 
 ### Story Resolution
 
 When a command references `NNN`:
-1. Glob `.epic/stories/NNN-*/` to find the matching directory
+1. Glob `.epico/stories/NNN-*/` to find the matching directory
 2. If not found: "Story NNN not found. Available stories:" + list
 3. If multiple matches (shouldn't happen with zero-padded numbers): show options
 

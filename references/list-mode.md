@@ -17,26 +17,26 @@ Triggered by `/epico:epico stories`, `/epico:epico stories full`, or `/epico:epi
 
 ## Procedure
 
-1. Glob `.epic/stories/*/tasks.md` to find all stories (exclude `.epic/archive/`)
+1. Glob `.epico/stories/*/tasks.md` to find all stories (exclude `.epico/archive/`)
 2. Run the workspace policy lint — `epico-gitpolicy` from the workspace root — and render the header notice it decides, before the first story row (see Policy Notice). **One invocation for the whole listing, before the per-story loop below**: it measures the workspace, not a story, so its cost is the same at 4 stories and at 400 and there is no gate to apply
 3. For each story, read the frontmatter (type, scale, version, status) and parse task checkboxes
 4. Take the checkbox census — `total`, `closed` and `deferred` are defined once, in [tasks.md](tasks.md#completion). Census the task list and the Quality Gates separately: each renders its own pair
 5. Derive the story's computed condition from the census (see Status and Progress) — except for a `scale: spike` story, whose condition comes from its `## Verdict` plus one staleness pass for the whole listing (see Spike Lifecycle)
 6. For each story, ask `epico-integration --should-annotate <status> <story-count> <is-stories-full>` whether this story is annotated at all — exit 0 evaluates, exit 1 skips — and on exit 0 pipe `story-git-status.sh` into the same script's `--list` mode and append what it writes (see Integration Annotation). That one decision holds both gates: only `done`/`validated` stories are annotated, and more than 50 stories skips unless the command is `stories full`
 7. Refresh the managed index block opportunistically — `epico-index`; a non-zero exit warns and never blocks the listing (defined once, in [validate-mode.md](validate-mode.md#index-refresh))
-8. Run `epico-doctor --stale-days <staleThresholdDays>` once, after the index refresh: mark its `dormant` stories in their rows (see Status and Progress), then render its summary — `epico-doctor --summary` prints the same findings as one line (so a stale `EPIC.md` it just fixed is not reported), and render the line it prints, if any, verbatim under the last story row. It prints nothing when the tree is healthy; `epico-doctor` without `--summary` gives every finding as JSON when the user asks what the line means. Read-only, never a gate
+8. Run `epico-doctor --stale-days <staleThresholdDays>` once, after the index refresh: mark its `dormant` stories in their rows (see Status and Progress), then render its summary — `epico-doctor --summary` prints the same findings as one line (so a stale `EPICO.md` it just fixed is not reported), and render the line it prints, if any, verbatim under the last story row. It prints nothing when the tree is healthy; `epico-doctor` without `--summary` gives every finding as JSON when the user asks what the line means. Read-only, never a gate
 
 ## Policy Notice
 
-**One line, and only when the workspace contradicts itself.** A project's declared `.epic` versioning policy and what git actually does can disagree for months without git ever mentioning it — `.epic` files committed through a `.gitignore` that says they are never committed, for instance. Nothing is broken in any way a git command reports — the workspace is merely arguing with itself. This is the line that says so, in the one place the user is already looking.
+**One line, and only when the workspace contradicts itself.** A project's declared `.epico` versioning policy and what git actually does can disagree for months without git ever mentioning it — `.epico` files committed through a `.gitignore` that says they are never committed, for instance. Nothing is broken in any way a git command reports — the workspace is merely arguing with itself. This is the line that says so, in the one place the user is already looking.
 
-**The decision is the script's; only the wording is this mode's.** [`scripts/epic-gitpolicy.sh`](../scripts/epic-gitpolicy.sh) measures and prints `{git, policy, gitignore_ignores_epic, gitignore_source, tracked_md, tracked_draft, verdict}`, and **the notice fires on exactly one condition — `verdict != "consistent"` — which is read from that JSON and never re-derived here.** No `grep` over `.gitignore` to decide whether `.epic` is ignored, no `git ls-files` to decide whether anything is tracked, no reading of the index at all: the script already asked git, with `--no-index`, which is the only way "tracked *through* an ignoring `.gitignore`" answers truthfully, and a second reading of the same facts would be a second thing to keep in step. Unlike the Integration Annotation below there is no rendering script, so the *sentences* here are this mode's own — which is exactly why the *trigger* must not be.
+**The decision is the script's; only the wording is this mode's.** [`scripts/epico-gitpolicy.sh`](../scripts/epico-gitpolicy.sh) measures and prints `{git, policy, gitignore_ignores_epico, gitignore_source, tracked_md, tracked_draft, verdict}`, and **the notice fires on exactly one condition — `verdict != "consistent"` — which is read from that JSON and never re-derived here.** No `grep` over `.gitignore` to decide whether `.epico` is ignored, no `git ls-files` to decide whether anything is tracked, no reading of the index at all: the script already asked git, with `--no-index`, which is the only way "tracked *through* an ignoring `.gitignore`" answers truthfully, and a second reading of the same facts would be a second thing to keep in step. Unlike the Integration Annotation below there is no rendering script, so the *sentences* here are this mode's own — which is exactly why the *trigger* must not be.
 
 ```
 epico-gitpolicy
 ```
 
-Run it from the **workspace root** — it resolves `.epic/` against `$PWD`. Every measurement path exits 0; exit 2 is a usage error only (the script takes no arguments), so a non-zero exit is a bug in the call and never a finding about the workspace. **A failed call, absent `jq`, or output that does not parse all render nothing and never block the listing** — the same silent degradation the annotation takes. "Not computable" must not dress up as a finding.
+Run it from the **workspace root** — it resolves `.epico/` against `$PWD`. Every measurement path exits 0; exit 2 is a usage error only (the script takes no arguments), so a non-zero exit is a bug in the call and never a finding about the workspace. **A failed call, absent `jq`, or output that does not parse all render nothing and never block the listing** — the same silent degradation the annotation takes. "Not computable" must not dress up as a finding.
 
 **One invocation per listing, never one per story.** The Cost rule below exists because each *annotation* is a git evaluation and a 400-story project would otherwise pay for 400 of them. This lint has no such gate and needs none: it answers a question about the workspace, not about a story, so it is one call whatever the story count. Procedure step 2 is where it runs — **before** the per-story loop, so the header can be printed before the first row. Read its JSON once and hold it; re-running it per story would be exactly the cost the rule below forbids.
 
@@ -49,12 +49,12 @@ Run it from the **workspace root** — it resolves `.epic/` against `$PWD`. Ever
 | `/epico:epico stories NNN` | yes | no |
 | `/epico:epico archive` | no | no |
 
-It is the **first line of the output**, followed by a blank line, above `Stories in .epic/stories/:` — a state line printed under the story rows is a footnote, and the notice exists so the state is seen before the list is read. `/epico:epico archive` renders the archive manifest rather than the workspace's stories and carries neither line.
+It is the **first line of the output**, followed by a blank line, above `Stories in .epico/stories/:` — a state line printed under the story rows is a footnote, and the notice exists so the state is seen before the list is read. `/epico:epico archive` renders the archive manifest rather than the workspace's stories and carries neither line.
 
 ```
-⚠ .epic git state is self-contradictory (contradiction: 47 files tracked while .gitignore ignores .epic/)
+⚠ .epico git state is self-contradictory (contradiction: 47 files tracked while .gitignore ignores .epico/)
 
-Stories in .epic/stories/:
+Stories in .epico/stories/:
 
   001-fruit-management-api
      full | feature | v1 | done · integrated | Tasks: 11/11 | Gates: 5/5
@@ -62,9 +62,9 @@ Stories in .epic/stories/:
 
 ### Read order is a contract, and getting it wrong aborts the listing
 
-`git`, `policy` and `verdict` are **total** — present on every path the script takes, safe to read unconditionally. The other four (`gitignore_ignores_epic`, `gitignore_source`, `tracked_md`, `tracked_draft`) are **absent when `git` is `false`**, and `jq -r` renders an absent key as the literal text `null`, not as `false`, `""` or `0`. Under `set -u` a `-gt` against that word aborts with `null: unbound variable`. **Read a measurement key only inside the `verdict != "consistent"` branch**, which is where every arm of the table below already lives.
+`git`, `policy` and `verdict` are **total** — present on every path the script takes, safe to read unconditionally. The other four (`gitignore_ignores_epico`, `gitignore_source`, `tracked_md`, `tracked_draft`) are **absent when `git` is `false`**, and `jq -r` renders an absent key as the literal text `null`, not as `false`, `""` or `0`. Under `set -u` a `-gt` against that word aborts with `null: unbound variable`. **Read a measurement key only inside the `verdict != "consistent"` branch**, which is where every arm of the table below already lives.
 
-That is safe today by an invariant of the *script* rather than of the JSON, and it holds because the non-git object always reports `verdict: "consistent"`, so the gate is never open on the one path where those four keys are missing. **If a future line ever needs a measurement key outside that branch, gate it on `git == true` instead** — the script's own stated consumer requirement, in [`scripts/epic-gitpolicy.sh`](../scripts/epic-gitpolicy.sh)'s header, and the same contract [init-mode.md](init-mode.md#step-51--measure-before-asking) reads it under.
+That is safe today by an invariant of the *script* rather than of the JSON, and it holds because the non-git object always reports `verdict: "consistent"`, so the gate is never open on the one path where those four keys are missing. **If a future line ever needs a measurement key outside that branch, gate it on `git == true` instead** — the script's own stated consumer requirement, in [`scripts/epico-gitpolicy.sh`](../scripts/epico-gitpolicy.sh)'s header, and the same contract [init-mode.md](init-mode.md#step-51--measure-before-asking) reads it under.
 
 ```bash
 lint=$(epico-gitpolicy 2>/dev/null) || lint=''
@@ -87,29 +87,29 @@ Reached **only** when `verdict != "consistent"`. The five rows are the script's 
 
 | The lint says | This mode renders, verbatim |
 |---|---|
-| `contradiction`, `tracked_md + tracked_draft > 0` | `⚠ .epic git state is self-contradictory (contradiction: <N> files tracked while <source> ignores .epic/)` |
-| `contradiction`, `tracked_md + tracked_draft == 0` | `⚠ .epic git state is self-contradictory (contradiction: tracked-md declared, but <source> ignores .epic/ — no artifact can be committed)` |
-| `partial`, `tracked_draft > 0` | `⚠ .epic tracks scratch space (partial: <tracked_draft> .draft/ files tracked — .draft/ is in no policy's tracked set)` |
-| `partial`, `tracked_draft == 0` and `policy: tracked-md` | `→ .epic artifacts are declared tracked-md but not committed yet (partial: 0 tracked) — git add .epic && git commit` |
-| `partial`, `tracked_draft == 0` and `policy: local-only` | `⚠ .epic tracking does not match declared policy (partial: local-only declared, <tracked_md> artifacts tracked)` |
+| `contradiction`, `tracked_md + tracked_draft > 0` | `⚠ .epico git state is self-contradictory (contradiction: <N> files tracked while <source> ignores .epico/)` |
+| `contradiction`, `tracked_md + tracked_draft == 0` | `⚠ .epico git state is self-contradictory (contradiction: tracked-md declared, but <source> ignores .epico/ — no artifact can be committed)` |
+| `partial`, `tracked_draft > 0` | `⚠ .epico tracks scratch space (partial: <tracked_draft> .draft/ files tracked — .draft/ is in no policy's tracked set)` |
+| `partial`, `tracked_draft == 0` and `policy: tracked-md` | `→ .epico artifacts are declared tracked-md but not committed yet (partial: 0 tracked) — git add .epico && git commit` |
+| `partial`, `tracked_draft == 0` and `policy: local-only` | `⚠ .epico tracking does not match declared policy (partial: local-only declared, <tracked_md> artifacts tracked)` |
 
 `<N>` is `tracked_md + tracked_draft`; `<source>` is the `gitignore_source` field — the `ignore_source` capture above, sanitised as the next section requires. Filled in, they read:
 
 ```
-⚠ .epic git state is self-contradictory (contradiction: 47 files tracked while .gitignore ignores .epic/)
-⚠ .epic git state is self-contradictory (contradiction: tracked-md declared, but .git/info/exclude ignores .epic/ — no artifact can be committed)
-⚠ .epic tracks scratch space (partial: 3 .draft/ files tracked — .draft/ is in no policy's tracked set)
-→ .epic artifacts are declared tracked-md but not committed yet (partial: 0 tracked) — git add .epic && git commit
-⚠ .epic tracking does not match declared policy (partial: local-only declared, 12 artifacts tracked)
+⚠ .epico git state is self-contradictory (contradiction: 47 files tracked while .gitignore ignores .epico/)
+⚠ .epico git state is self-contradictory (contradiction: tracked-md declared, but .git/info/exclude ignores .epico/ — no artifact can be committed)
+⚠ .epico tracks scratch space (partial: 3 .draft/ files tracked — .draft/ is in no policy's tracked set)
+→ .epico artifacts are declared tracked-md but not committed yet (partial: 0 tracked) — git add .epico && git commit
+⚠ .epico tracking does not match declared policy (partial: local-only declared, 12 artifacts tracked)
 ```
 
-**No head claims a declaration that may not exist.** `undeclared` is not a quiet verdict — files can be tracked through an ignoring `.gitignore` with no `.gitpolicy` at all — and a `.draft/` file in the index is wrong under every policy and under none. So rows 1–3 name the measured facts and nothing else; only rows 4 and 5, whose arms require a declaration, mention one. **If some future arm produces a combination no row matches, render the generic form** — `⚠ .epic tracking does not match declared policy (<verdict>: policy=<policy>, tracked_md=<n>, tracked_draft=<n>)` — rather than inventing a sentence. Naming the numbers is always true; a guessed diagnosis is not.
+**No head claims a declaration that may not exist.** `undeclared` is not a quiet verdict — files can be tracked through an ignoring `.gitignore` with no `.gitpolicy` at all — and a `.draft/` file in the index is wrong under every policy and under none. So rows 1–3 name the measured facts and nothing else; only rows 4 and 5, whose arms require a declaration, mention one. **If some future arm produces a combination no row matches, render the generic form** — `⚠ .epico tracking does not match declared policy (<verdict>: policy=<policy>, tracked_md=<n>, tracked_draft=<n>)` — rather than inventing a sentence. Naming the numbers is always true; a guessed diagnosis is not.
 
 **Two markers, and the difference is load-bearing.** `⚠` (U+26A0, bare — no U+FE0F variation selector) means the workspace state is wrong: two settings fighting each other, or files where no policy puts them. `→` (U+2192) means nothing is wrong and there is a next step. Row 4 is the whole reason the distinction exists: it is what a project reports on its **very next listing after choosing the recommended option at init** — `tracked-md` declared, first commit not made yet — and [init-mode.md](init-mode.md#after-init--making-a-tracked-md-declaration-real) already documents that state as *correct*, with this same command to close it. Do not invent a second explanation for it, and do not warn a user about the correct choice they just made: a true signal that fires on healthy workspaces is how people learn to skip the line. Row 3 is the damaging partial it must never be confused with — run logs, phase snapshots and authored tests in the index, travelling with the repository forever.
 
 ### Naming the real ignore source, never assuming `.gitignore`
 
-Both `contradiction` rows print `<source>` = the `gitignore_source` field **verbatim**. Git consults three exclude sources and the verdict fires for any of them: the root `.gitignore`, `.git/info/exclude` (local to this clone, and it travels with nothing), or the user's global `core.excludesFile` (an absolute path anywhere on the machine, and a common place for an `.epic` entry). Writing "gitignore" for the second and third would send the user to open a file that has nothing in it, which is worse than saying nothing. The script guarantees the field is non-null exactly when `gitignore_ignores_epic` is `true`, which both rows require; if it ever arrives `null` anyway, write the words `an exclude rule` — never the text `null`, and never `.gitignore` on a guess.
+Both `contradiction` rows print `<source>` = the `gitignore_source` field **verbatim**. Git consults three exclude sources and the verdict fires for any of them: the root `.gitignore`, `.git/info/exclude` (local to this clone, and it travels with nothing), or the user's global `core.excludesFile` (an absolute path anywhere on the machine, and a common place for an `.epico` entry). Writing "gitignore" for the second and third would send the user to open a file that has nothing in it, which is worse than saying nothing. The script guarantees the field is non-null exactly when `gitignore_ignores_epico` is `true`, which both rows require; if it ever arrives `null` anyway, write the words `an exclude rule` — never the text `null`, and never `.gitignore` on a guess.
 
 **`gitignore_source` is untrusted text.** It is the one externally-authored string in the object: a filesystem path git hands over, which may be absolute, may point outside the workspace, and may legitimately contain control bytes (the script escapes them for JSON transport; `jq -r` hands them back raw). Before printing, **replace every character below U+0020 and U+007F with a single space.** The notice is exactly one line, and a raw newline in a directory name would split it in two — the second half reading like a finding of its own. Print it as plain text; never as a link, and never as anything a renderer would interpret.
 
@@ -118,7 +118,7 @@ Both `contradiction` rows print `<source>` = the `gitignore_source` field **verb
 A workspace that never answered init's question reports `policy: "undeclared"`, and with nothing tracked its `verdict` is **`consistent`** — the ordinary state of a fresh workspace. It therefore produces no notice at all by the rule above. That is deliberate: a line on every listing of every undeclared project is precisely the noise the lint was weighed against. Under `/epico:epico stories full`, and there only, add one further line:
 
 ```
-→ No .epic versioning policy declared — run /epico:epico init to choose one (tracked-md or local-only).
+→ No .epico versioning policy declared — run /epico:epico init to choose one (tracked-md or local-only).
 ```
 
 Its condition is `policy == "undeclared"` read on its own; it does not consult `verdict`, and it is **not** the verdict notice. When a verdict notice is showing too, the two are separate lines and the verdict comes first — the verdict notice is one line naming the contradiction, and this is a different sentence about a different fact. `policy` is total, so this line needs no `git` gate: a declaration is valid before `git init` and takes effect the moment the directory becomes a repository ([init-mode.md](init-mode.md#versioning-policy)).
@@ -144,7 +144,7 @@ So `in-progress · done-except-external (2 deferred)` reads: the file says `in-p
 
 **A spike's status is its Verdict.** A `scale: spike` story is a time-boxed probe whose deliverable is an answer, and the answer lives in the `## Verdict` section of its `tasks.md` — template and grammar defined once, in [tasks.md](tasks.md#spike-scale-adaptations). The status column therefore carries the Verdict **instead of** the frontmatter status, never beside it: a spike's `in-progress` tells a reader nothing they came for, and printing both would put two competing claims in one column.
 
-The arms below **document what [`scripts/epic-index.sh`](../scripts/epic-index.sh)'s `verdict_cell` renders** — the managed index and this listing are two views of one fact, and a second spelling here would be a second thing to keep in step:
+The arms below **document what [`scripts/epico-index.sh`](../scripts/epico-index.sh)'s `verdict_cell` renders** — the managed index and this listing are two views of one fact, and a second spelling here would be a second thing to keep in step:
 
 | Verdict | Rendered as |
 |---|---|
@@ -220,7 +220,7 @@ epico-integration --should-annotate <status> <story-count> <is-stories-full>
 ## Summary View (`/epico:epico stories`)
 
 ```
-Stories in .epic/stories/:
+Stories in .epico/stories/:
 
   001-fruit-management-api
      full | feature | v1 | done · integrated | Tasks: 11/11 | Gates: 5/5
@@ -290,7 +290,7 @@ Same as detailed view but for one story only. Additionally show:
 
 ## Archive View (`/epico:epico archive`)
 
-List archived stories from `.epic/archive/manifest.yaml` — the append-only record `archive-story.sh` writes at the moment of each move. Render each row **from the entry's own fields**; never re-derive them by re-reading the archived story. The entry is what the boxes said when the story left `stories/`, and re-deriving it is how a rendering starts disagreeing with the record it claims to render.
+List archived stories from `.epico/archive/manifest.yaml` — the append-only record `archive-story.sh` writes at the moment of each move. Render each row **from the entry's own fields**; never re-derive them by re-reading the archived story. The entry is what the boxes said when the story left `stories/`, and re-deriving it is how a rendering starts disagreeing with the record it claims to render.
 
 ```
 Archived stories:
@@ -323,7 +323,7 @@ Archived stories:
 |---|---|
 | `NNN` | that one story |
 | `NNN-MMM` | every existing story in the inclusive range; a number with no directory is skipped, not an error |
-| `--done` | every story in `.epic/stories/` that is **validated and complete** — `status: validated` and no `[ ]` box remains, in the task list or in the Quality Gates. `[x]` and terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`) both close a box; see [tasks.md](tasks.md#completion). A `scale: spike` story is complete by its **Verdict** instead, never by its boxes (see Spike Lifecycle) |
+| `--done` | every story in `.epico/stories/` that is **validated and complete** — `status: validated` and no `[ ]` box remains, in the task list or in the Quality Gates. `[x]` and terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`) both close a box; see [tasks.md](tasks.md#completion). A `scale: spike` story is complete by its **Verdict** instead, never by its boxes (see Spike Lifecycle) |
 
 A validated `done-except-external` story clears that gate — nothing is open — and is reported with its deferred count, so work owed outside this repo is stated rather than buried. **Archive follows validation**: a story reading `done`, `superseded` or `in-progress` is not `--done`, and `archive-story.sh` refuses it by name — validate it first, or archive it anyway with the user's explicit `--force <reason>`, a decision that is never this mode's.
 
@@ -335,7 +335,7 @@ A validated `done-except-external` story clears that gate — nothing is open �
 epico-archive <NNN|story-dir> [flags]
 ```
 
-The story number (`003`) resolves against the nearest `.epic/`; a directory path also works.
+The story number (`003`) resolves against the nearest `.epico/`; a directory path also works.
 
 | Flag | Effect | Recorded as |
 |---|---|---|
@@ -370,7 +370,7 @@ The story number (`003`) resolves against the nearest `.epic/`; a directory path
 
 `guard.violations[]` holds **objects**, not sentences: `{file, size, reason}` per offender, with `size: null` when it could not be established — a size that was never measured must not read as a measurement that came back zero. `secrets{}` keeps one uniform shape on every path (`scanner`, `scanned`, `findings`, `unscanned_files`, `report`, `skipped`, `error`, `allowlist_root`), because "scanned and clean" and "nobody looked" must never be indistinguishable in a permanent record. `allowlist_root` names the project root the scan was anchored to, and is `null` when none was — on `--skip-secrets`, when no scanner ran, and on the fallback below. Branch on its **value**, never on the key being present: `jq -r` renders an absent key and a null key identically.
 
-**The repository's `.gitleaksignore` is part of the guard's configuration, and the guard names it.** The scan is anchored at the project root — git's top level, or the nearest directory owning `.epic/` when the project is not a git repository — and the story is passed relative to it, so every fingerprint gitleaks emits is project-root-relative and a committed allowlist entry can match it. The allowlist is located from that same root and passed explicitly, rather than inherited from wherever the caller happened to be standing.
+**The repository's `.gitleaksignore` is part of the guard's configuration, and the guard names it.** The scan is anchored at the project root — git's top level, or the nearest directory owning `.epico/` when the project is not a git repository — and the story is passed relative to it, so every fingerprint gitleaks emits is project-root-relative and a committed allowlist entry can match it. The allowlist is located from that same root and passed explicitly, rather than inherited from wherever the caller happened to be standing.
 
 So `secrets.scanned: true, findings: 0` still means *"the scanner found nothing it was configured to report"*, not *"there is nothing there"* — and `allowlist_root` is how you find the file that did the configuring. Review it like configuration, because it is: an entry there suppresses one `file:rule:line` and nothing else, but it suppresses it on every future run.
 
@@ -383,11 +383,11 @@ So `secrets.scanned: true, findings: 0` still means *"the scanner found nothing 
 
 Both are default-on because archived evidence is kept forever, so run logs and byte-identical copies of already-promoted files would otherwise accumulate in the archive permanently.
 
-**The summary is written after the secrets scan, so it is never scanned.** Pruning runs at step 4 and the scan at step 3, so `.draft/logs-summary.md` — which carries `tail -40` of the newest log — enters `.epic/archive/` without any guard having read it. This is deliberate (blocking would put a verdict after a destructive step, and every byte of that tail was already in the story when the scanner read it) and every generated summary states its own coverage in a `secrets_scan:` line. But on the three paths where nothing scanned the source either — `--skip-secrets`, no `gitleaks` installed, or a log above the scanner's 15,000,000-byte limit, which it skips *without reporting the skip* — that tail reaches the archive unread. The real defences are upstream: run the scan, and keep credentials out of logs.
+**The summary is written after the secrets scan, so it is never scanned.** Pruning runs at step 4 and the scan at step 3, so `.draft/logs-summary.md` — which carries `tail -40` of the newest log — enters `.epico/archive/` without any guard having read it. This is deliberate (blocking would put a verdict after a destructive step, and every byte of that tail was already in the story when the scanner read it) and every generated summary states its own coverage in a `secrets_scan:` line. But on the three paths where nothing scanned the source either — `--skip-secrets`, no `gitleaks` installed, or a log above the scanner's 15,000,000-byte limit, which it skips *without reporting the skip* — that tail reaches the archive unread. The real defences are upstream: run the scan, and keep credentials out of logs.
 
 ### The manifest entry — derived, never declared
 
-`.epic/archive/manifest.yaml` is created on first use with a comment header carrying the never-recycle policy, then appended to — one entry per archived story, written by this script only. Every field is derived from the story's own artifacts at move time:
+`.epico/archive/manifest.yaml` is created on first use with a comment header carrying the never-recycle policy, then appended to — one entry per archived story, written by this script only. Every field is derived from the story's own artifacts at move time:
 
 ```yaml
 archived:
@@ -421,4 +421,4 @@ archived:
 
 ### After the move
 
-The script sets `status: archived` in the moved artifacts' frontmatter and regenerates the managed index block as its final step, so the story's row retargets into `.epic/archive/` automatically ([validate-mode.md](validate-mode.md#index-refresh)). Everything under `.epic/archive/` is read-only for the `Edit` and `Write` tools — `scripts/hook-archive-guard.sh` blocks them — and this script is the one sanctioned path in.
+The script sets `status: archived` in the moved artifacts' frontmatter and regenerates the managed index block as its final step, so the story's row retargets into `.epico/archive/` automatically ([validate-mode.md](validate-mode.md#index-refresh)). Everything under `.epico/archive/` is read-only for the `Edit` and `Write` tools — `scripts/hook-archive-guard.sh` blocks them — and this script is the one sanctioned path in.

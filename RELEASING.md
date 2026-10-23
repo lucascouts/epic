@@ -38,7 +38,7 @@ Scale choice is a property of the model's judgement, not of a script, so the tes
 for i in 1 2 3 4 5; do
   d=$(mktemp -d) && (cd "$d" && git init -q && claude -p --plugin-dir <this repo> \
        --allowedTools Skill Bash Write Edit Agent -- '<request>')
-  grep -h '^scale:' "$d"/.epic/stories/*/tasks.md
+  grep -h '^scale:' "$d"/.epico/stories/*/tasks.md
 done
 ```
 

@@ -10,17 +10,17 @@
 # re-read of tasks.md for the census, the file is checked only for the final
 # box states and status stamp.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so a copy of this file outside
+# EPICO_PLUGIN_ROOT overrides root resolution so a copy of this file outside
 # tests/ can run against the plugin.
 
 bats_require_minimum_version 1.5.0
 
 setup() {
-  PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+  PLUGIN_ROOT="${EPICO_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   SCRIPT="$PLUGIN_ROOT/scripts/close-subtask.sh"
   WORK=$(mktemp -d)
   PROJ="$WORK/proj"
-  STORY="$PROJ/.epic/stories/011-roundtrip"
+  STORY="$PROJ/.epico/stories/011-roundtrip"
   mkdir -p "$STORY"
   write_fixture_story
 }
@@ -89,10 +89,10 @@ close_from_block() {
   if [ "$outcome" = "close-tilde" ]; then
     qualifier=$(jq -r '.qualifier' <<< "$block")
     reason=$(jq -r '.reason' <<< "$block")
-    run --separate-stderr bash "$SCRIPT" .epic/stories/011-roundtrip "$task" \
+    run --separate-stderr bash "$SCRIPT" .epico/stories/011-roundtrip "$task" \
       --tilde "$qualifier: $reason"
   else
-    run --separate-stderr bash "$SCRIPT" .epic/stories/011-roundtrip "$task"
+    run --separate-stderr bash "$SCRIPT" .epico/stories/011-roundtrip "$task"
   fi
 }
 

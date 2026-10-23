@@ -76,7 +76,7 @@ first, status writes last.
 
 Arguments:
   <NNN|story-dir>   Story being superseded: number (006) or directory
-                    (.epic/stories/006-slug)
+                    (.epico/stories/006-slug)
 
 Flags:
   --by <MMM>        REQUIRED. The replacement story, which must already exist —
@@ -334,12 +334,12 @@ trim() {
   printf '%s' "$s"
 }
 
-find_epic_dir() {
+find_epico_dir() {
   local dir
   dir=$(pwd -P)
   while :; do
-    if [[ -d "$dir/.epic" ]]; then
-      printf '%s' "$dir/.epic"
+    if [[ -d "$dir/.epico" ]]; then
+      printf '%s' "$dir/.epico"
       return 0
     fi
     [[ "$dir" == "/" ]] && return 1
@@ -347,7 +347,7 @@ find_epic_dir() {
   done
 }
 
-# resolve_by_number <NNN> <epic-dir> — <NNN>-<slug> under stories/ first, then
+# resolve_by_number <NNN> <epico-dir> — <NNN>-<slug> under stories/ first, then
 # archive/ (an already-archived number must resolve so it can be REFUSED with
 # its real reason instead of "not found"). Accepts 6 for 006.
 resolve_by_number() {
@@ -372,7 +372,7 @@ story_number() {
 }
 
 # --- The task list ----------------------------------------------------------
-# ONE grammar, shared with validate-story.sh / archive-story.sh / epic-index.sh
+# ONE grammar, shared with validate-story.sh / archive-story.sh / epico-index.sh
 # (references/tasks.md#checkbox-grammar):
 #   - [ ] open   - [x] done   - [~] closed without doing the work, qualified
 # Matching of the `[~]` qualifier is TOKEN-ANCHORED, so `man-a:` inside a title
@@ -461,7 +461,7 @@ rewrite_file() {
   # the just-declared (still unset) local and the run aborts under `set -u`.
   local f="$1"
   local emitter="$2"
-  local tmp="$f.epic-supersede.tmp"
+  local tmp="$f.epico-supersede.tmp"
   REWRITE_EOL=$(eol_of "$f")
   { "$emitter"; :; } 2> /dev/null < "$f" > "$tmp" || {
     rm -f "$tmp"
@@ -715,7 +715,7 @@ close_subtasks() {
 
 # --- The status pair (step 3, second half) ----------------------------------
 # `status: superseded` plus the machine-readable companion `superseded-by: MMM`,
-# in every artifact that HAS frontmatter. The companion is what epic-index.sh
+# in every artifact that HAS frontmatter. The companion is what epico-index.sh
 # reads to render the supersede target, and its reader stops at the
 # closing `---` — so the key has to be inside the block, next to the status it
 # qualifies, not merely somewhere in the file.
@@ -804,7 +804,7 @@ flip_all() {
 }
 
 # --- Index regeneration (step 4) --------------------------------------------
-# NNN renders as `superseded by MMM` because epic-index.sh REGENERATES the whole
+# NNN renders as `superseded by MMM` because epico-index.sh REGENERATES the whole
 # managed block from disk state — the row is never rewritten in place,
 # which is what makes it correct by construction.
 #
@@ -819,7 +819,7 @@ flip_all() {
 # from wherever the operator happens to be.
 INDEX_SCRIPT=""
 _epic_script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" 2> /dev/null && pwd -P) || _epic_script_dir=""
-[[ -n "$_epic_script_dir" ]] && INDEX_SCRIPT="$_epic_script_dir/epic-index.sh"
+[[ -n "$_epic_script_dir" ]] && INDEX_SCRIPT="$_epic_script_dir/epico-index.sh"
 unset _epic_script_dir
 
 # regenerate_index — always returns 0: this step reaches no verdict of its own,
@@ -832,10 +832,10 @@ regenerate_index() {
   INDEX_ERR=""
   if [[ -z "$INDEX_SCRIPT" || ! -f "$INDEX_SCRIPT" ]]; then
     INDEX_STATE="regen-failed"
-    INDEX_ERR="the index generator is not there (looked for '${INDEX_SCRIPT:-<the sibling epic-index.sh of this script>}')"
+    INDEX_ERR="the index generator is not there (looked for '${INDEX_SCRIPT:-<the sibling epico-index.sh of this script>}')"
     return 0
   fi
-  out=$("${BASH:-bash}" "$INDEX_SCRIPT" --epic-dir "$EPIC_DIR" 2>&1) && rc=0 || rc=$?
+  out=$("${BASH:-bash}" "$INDEX_SCRIPT" --epico-dir "$EPICO_DIR" 2>&1) && rc=0 || rc=$?
   if [[ $rc -eq 0 ]]; then
     INDEX_STATE="ok"
     return 0
@@ -933,14 +933,14 @@ BY_NUM="$BY_RAW"
 # NNN is resolved FIRST and its failure is exit 2, not a refusal: an
 # unresolvable story is bad input, and there is nothing to report on yet. Only
 # once NNN is a real directory does the refusal matrix get to speak (exit 1).
-EPIC_DIR=""
+EPICO_DIR=""
 if [[ -d "$TARGET" ]]; then
   STORY_PATH="${TARGET%/}"
 elif [[ "$TARGET" =~ ^[0-9]+$ ]]; then
-  EPIC_DIR=$(find_epic_dir) ||
-    usage_error "no .epic/ directory found from $(pwd) — run inside an Epico project or pass the story directory"
-  STORY_PATH=$(resolve_by_number "$TARGET" "$EPIC_DIR") ||
-    usage_error "story '$TARGET' not found under $EPIC_DIR/stories or $EPIC_DIR/archive"
+  EPICO_DIR=$(find_epico_dir) ||
+    usage_error "no .epico/ directory found from $(pwd) — run inside an Epico project or pass the story directory"
+  STORY_PATH=$(resolve_by_number "$TARGET" "$EPICO_DIR") ||
+    usage_error "story '$TARGET' not found under $EPICO_DIR/stories or $EPICO_DIR/archive"
 else
   usage_error "story '$TARGET' not found — pass a story number (006) or its directory"
 fi
@@ -951,7 +951,7 @@ STORY_ID=$(basename "$STORY_ABS")
 STORY_PARENT=$(basename "$(dirname "$STORY_ABS")")
 # EVERY path is re-derived from the story's PHYSICAL location, so a symlinked
 # story cannot make this operation write outside the project it was aimed at.
-EPIC_DIR=$(dirname "$(dirname "$STORY_ABS")")
+EPICO_DIR=$(dirname "$(dirname "$STORY_ABS")")
 
 STORY_LOGICAL_PARENT=$(cd "$(dirname "$STORY_PATH")" 2> /dev/null && pwd -P) ||
   usage_error "cannot resolve the parent of story directory '$STORY_PATH'"
@@ -959,8 +959,8 @@ if [[ "$STORY_LOGICAL_PARENT" != "$(dirname "$STORY_ABS")" ]]; then
   refuse "'$STORY_PATH' is a symlink to '$STORY_ABS', outside '$STORY_LOGICAL_PARENT' — supersede rewrites the story in place and regenerates the index from its real location, so it would write outside this project; nothing was modified"
 fi
 
-if [[ "$(basename "$EPIC_DIR")" != ".epic" ]]; then
-  usage_error "'$STORY_PATH' does not live in a .epic/ directory (resolved to '$STORY_ABS') — expected <project>/.epic/stories/<NNN>-<slug>"
+if [[ "$(basename "$EPICO_DIR")" != ".epico" ]]; then
+  usage_error "'$STORY_PATH' does not live in a .epico/ directory (resolved to '$STORY_ABS') — expected <project>/.epico/stories/<NNN>-<slug>"
 fi
 
 if [[ ! -f "$STORY_PATH/story.md" && ! -f "$STORY_PATH/tasks.md" ]]; then
@@ -1010,9 +1010,9 @@ fi
 # operation, which is what keeps a typo in --by from minting a story.
 BY_PATH=""
 if [[ "$BY_RAW" =~ ^[0-9]+$ ]]; then
-  BY_PATH=$(resolve_by_number "$BY_RAW" "$EPIC_DIR") || BY_PATH=""
+  BY_PATH=$(resolve_by_number "$BY_RAW" "$EPICO_DIR") || BY_PATH=""
 else
-  for _cand in "$EPIC_DIR/stories/$BY_RAW" "$EPIC_DIR/archive/$BY_RAW"; do
+  for _cand in "$EPICO_DIR/stories/$BY_RAW" "$EPICO_DIR/archive/$BY_RAW"; do
     if [[ -d "$_cand" ]]; then
       BY_PATH="$_cand"
       break
@@ -1027,7 +1027,7 @@ fi
 
 BY_ID=$(basename "$BY_PATH")
 # What lands in `superseded-by:` is the NUMBER, because that is what
-# epic-index.sh resolves against and what the checkbox qualifier grammar spells.
+# epico-index.sh resolves against and what the checkbox qualifier grammar spells.
 # The operator's own spelling already stands in BY_NUM when they gave a number
 # (`012` stays `012`); a directory name is reduced to the number it carries.
 if [[ ! "$BY_RAW" =~ ^[0-9]+$ ]]; then

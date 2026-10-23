@@ -8,7 +8,7 @@
 #   G4  a header [x] counts as finished even with no sub-task listed as closed
 #   G5  stop_hook_active → allow (the loop guard)
 #   G6  no git identity → allow (run-mode makes no commit without one)
-#   G7  not a git work tree, or no .epic/stories → allow
+#   G7  not a git work tree, or no .epico/stories → allow
 #   G8  a fenced example and a Quality Gates section are not groups
 #   G9  hooks.json registers the guard on Stop
 #   G10 a history larger than a pipe buffer still finds the subject (no SIGPIPE false miss)
@@ -21,7 +21,7 @@ setup() {
   git -C "$REPO" config user.email t@example.invalid
   git -C "$REPO" config user.name T
   git -C "$REPO" commit -q --allow-empty -m initial
-  STORY="$REPO/.epic/stories/001-demo"
+  STORY="$REPO/.epico/stories/001-demo"
   mkdir -p "$STORY"
 }
 
@@ -95,7 +95,7 @@ run_hook() { run bash -c "printf '%s' '$1' | bash '$HOOK'"; }
   plain=$(mktemp -d)
   run_hook "{\"cwd\": \"$plain\"}"
   [ -z "$output" ]
-  rm -rf "$plain" "$REPO/.epic"
+  rm -rf "$plain" "$REPO/.epico"
   run_hook "{\"cwd\": \"$REPO\"}"
   [ -z "$output" ]
 }

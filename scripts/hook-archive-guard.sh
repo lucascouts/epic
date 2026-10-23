@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PreToolUse hook: enforces the read-only invariant on .epic/archive/.
+# PreToolUse hook: enforces the read-only invariant on .epico/archive/.
 # Archived stories preserve historical context and must never be mutated
 # in-place by an interactive Edit/Write.
 #
@@ -11,7 +11,7 @@
 # wants an archive operation, and there is exactly one that is sanctioned.
 #
 # Pattern uses leading wildcard to catch both relative and absolute paths
-# (*"/.epic/archive/"* — a partial path leaking into .epic/archive/ is the
+# (*"/.epico/archive/"* — a partial path leaking into .epico/archive/ is the
 # only signal we need).
 #
 # Exit 2 blocks the tool call and surfaces stderr back to the model.
@@ -22,7 +22,7 @@ INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 
 case "$FILE_PATH" in
-  *".epic/archive/"*)
+  *".epico/archive/"*)
     echo 'Archived stories are read-only. Use epico-archive for sanctioned archive operations.' >&2
     exit 2
     ;;

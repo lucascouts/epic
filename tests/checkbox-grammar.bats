@@ -39,8 +39,8 @@ bats_require_minimum_version 1.5.0
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   WORK=$(mktemp -d)
-  mkdir -p "$WORK/proj/.epic/stories/010-mixed"
-  MIXED="$WORK/proj/.epic/stories/010-mixed"
+  mkdir -p "$WORK/proj/.epico/stories/010-mixed"
+  MIXED="$WORK/proj/.epico/stories/010-mixed"
   write_mixed_fixture
 }
 
@@ -243,15 +243,15 @@ load_roster() {
   # closed is finished, not a draft nobody started.
   snapshot_fixture
   sed -i 's/^- \[ \] 1.5/- [x] 1.5/' "$MIXED/tasks.md"
-  find "$WORK/proj/.epic" -exec touch -d '30 days ago' {} +
-  run bash "$PLUGIN_ROOT/scripts/doctor.sh" --epic-dir "$WORK/proj/.epic"
+  find "$WORK/proj/.epico" -exec touch -d '30 days ago' {} +
+  run bash "$PLUGIN_ROOT/scripts/doctor.sh" --epico-dir "$WORK/proj/.epico"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e 'all(.findings[]; .check != "dormant")'
 
   # The same file with every box line gone is the dormant shape.
   sed -i -E '/^[[:space:]]*- \[[ x~]\]/d' "$MIXED/tasks.md"
   touch -d '30 days ago' "$MIXED/tasks.md"
-  run bash "$PLUGIN_ROOT/scripts/doctor.sh" --epic-dir "$WORK/proj/.epic"
+  run bash "$PLUGIN_ROOT/scripts/doctor.sh" --epico-dir "$WORK/proj/.epico"
   echo "$output" | jq -e 'any(.findings[]; .check == "dormant" and (.target | endswith("010-mixed")))'
 }
 
@@ -329,17 +329,17 @@ load_roster() {
   #
   # The close lands on a COPY: $MIXED is the shared fixture the cases above
   # read, and this is the one consumer that would write to it. The copy keeps
-  # the proj/.epic/stories/010-mixed shape so the script resolves the story
+  # the proj/.epico/stories/010-mixed shape so the script resolves the story
   # exactly as a real caller's does.
   COPY=$(mktemp -d "$WORK/close.XXXXXX")
-  mkdir -p "$COPY/proj/.epic/stories"
-  cp -r "$MIXED" "$COPY/proj/.epic/stories/010-mixed"
+  mkdir -p "$COPY/proj/.epico/stories"
+  cp -r "$MIXED" "$COPY/proj/.epico/stories/010-mixed"
   cd "$COPY/proj"
 
   # Diagnostics go to stderr and a clean close emits none, so $output is the
   # JSON object. (bats merges the two streams by default, so a stray diagnostic
   # would redden this case as a parse failure rather than pass unnoticed.)
-  run bash "$PLUGIN_ROOT/scripts/close-subtask.sh" .epic/stories/010-mixed 1.5
+  run bash "$PLUGIN_ROOT/scripts/close-subtask.sh" .epico/stories/010-mixed 1.5
   [ "$status" -eq 0 ]
 
   # The header's shared truth, advanced by that one close: 1.5 stops being the
@@ -370,13 +370,13 @@ load_roster() {
   # the reading, not on the move.
   snapshot_fixture
   COPY=$(mktemp -d "$WORK/archive.XXXXXX")
-  mkdir -p "$COPY/proj/.epic/stories"
-  cp -r "$MIXED" "$COPY/proj/.epic/stories/010-mixed"
+  mkdir -p "$COPY/proj/.epico/stories"
+  cp -r "$MIXED" "$COPY/proj/.epico/stories/010-mixed"
   cd "$COPY/proj"
 
   # archive-story TALKS on stderr, and bats merges the streams — dropping
   # stderr is what keeps $output one parseable JSON object.
-  run bash -c "bash '$PLUGIN_ROOT/scripts/archive-story.sh' .epic/stories/010-mixed 2>/dev/null"
+  run bash -c "bash '$PLUGIN_ROOT/scripts/archive-story.sh' .epico/stories/010-mixed 2>/dev/null"
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused" and .moved == false'
 
@@ -393,7 +393,7 @@ load_roster() {
   assert_fixture_untouched
 }
 
-@test "epic-index.sh — the census the index renders folds the terminal [~] into done" {
+@test "epico-index.sh — the census the index renders folds the terminal [~] into done" {
   # epico-index RENDERS FOR A HUMAN and reuses hook-session-restore's split verbatim:
   # a terminal [~] closes the box, `deferred:` is reported apart. It emits no
   # `open` field at all, so the shared open count is recovered as
@@ -402,16 +402,16 @@ load_roster() {
   snapshot_fixture
   COPY=$(mktemp -d "$WORK/index.XXXXXX")
   cp -r "$WORK/proj" "$COPY/proj"
-  printf '# Epico\n\n<!-- epic:index:start -->\n<!-- epic:index:end -->\n' \
-    > "$COPY/proj/.epic/EPIC.md"
+  printf '# Epico\n\n<!-- epico:index:start -->\n<!-- epico:index:end -->\n' \
+    > "$COPY/proj/.epico/EPICO.md"
   cd "$COPY/proj"
 
-  run bash -c "bash '$PLUGIN_ROOT/scripts/epic-index.sh' 2>/dev/null"
+  run bash -c "bash '$PLUGIN_ROOT/scripts/epico-index.sh' 2>/dev/null"
   [ "$status" -eq 0 ]
 
   # Column 5 of the story's row is the progress cell: `done/total (+N deferred)`.
   prog=$(awk -F'|' '$2 ~ /010/ { gsub(/^[[:space:]]+|[[:space:]]+$/, "", $5); print $5 }' \
-    "$COPY/proj/.epic/EPIC.md")
+    "$COPY/proj/.epico/EPICO.md")
   if [[ ! "$prog" =~ ^([0-9]+)/([0-9]+)\ \(\+([0-9]+)\ deferred\)$ ]]; then
     echo "the index rendered no parseable census for the mixed fixture: '$prog'"
     return 1
@@ -443,7 +443,7 @@ load_roster() {
   snapshot_fixture
   COPY=$(mktemp -d "$WORK/supersede.XXXXXX")
   cp -r "$WORK/proj" "$COPY/proj"
-  SUCCESSOR="$COPY/proj/.epic/stories/011-successor"
+  SUCCESSOR="$COPY/proj/.epico/stories/011-successor"
   mkdir -p "$SUCCESSOR"
   for f in story.md tasks.md; do
     printf -- '---\nstory: successor\ntype: feature\nscale: standard\nversion: 1\ncreated: 2026-08-16\n---\n\n# %s\n' \
@@ -451,11 +451,11 @@ load_roster() {
   done
   cd "$COPY/proj"
 
-  run bash -c "bash '$PLUGIN_ROOT/scripts/supersede-story.sh' .epic/stories/010-mixed --by 011 2>/dev/null"
+  run bash -c "bash '$PLUGIN_ROOT/scripts/supersede-story.sh' .epico/stories/010-mixed --by 011 2>/dev/null"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "superseded" and .remap_rows == 2 and .closed_subtasks == 2'
 
-  SUPERSEDED="$COPY/proj/.epic/stories/010-mixed"
+  SUPERSEDED="$COPY/proj/.epico/stories/010-mixed"
 
   # Surface 1 — the remap table written into the superseded story: which scope
   # was declared to have moved.
@@ -539,7 +539,7 @@ GOLDEN
   # here as a rewrite nobody asked for.
   cd "$WORK/proj"
   before=$(sha256sum "$MIXED/tasks.md" | cut -d' ' -f1)
-  run bash "$PLUGIN_ROOT/scripts/migrate-story.sh" .epic/stories/010-mixed --apply
+  run bash "$PLUGIN_ROOT/scripts/migrate-story.sh" .epico/stories/010-mixed --apply
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '[.rewrites[]] | add == 0' > /dev/null
   [ "$(sha256sum "$MIXED/tasks.md" | cut -d' ' -f1)" = "$before" ]
@@ -552,7 +552,7 @@ GOLDEN
   - Validation: All tests pass
   - Commit: "feat(010): the legacy shape"
 LEGACY
-  run --separate-stderr bash "$PLUGIN_ROOT/scripts/migrate-story.sh" .epic/stories/010-mixed --apply
+  run --separate-stderr bash "$PLUGIN_ROOT/scripts/migrate-story.sh" .epico/stories/010-mixed --apply
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.rewrites.commit_subtasks == 1' > /dev/null
   # the five graded boxes are all still there, states intact

@@ -7,7 +7,7 @@ setup() {
   P=$(mktemp -d)
   git -C "$P" init -q
   git -C "$P" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
-  STORY="$P/.epic/stories/001-x"
+  STORY="$P/.epico/stories/001-x"
   mkdir -p "$STORY"
 }
 
@@ -24,13 +24,13 @@ rec() { bash "$PLUGIN_ROOT/scripts/record-validated.sh" "$STORY"; }
   echo "$output" | jq -e --arg h "$head" '.sha == $h and .dirty == false'
 }
 
-@test "changes under .epic/ do not make the tree dirty" {
+@test "changes under .epico/ do not make the tree dirty" {
   echo x > "$STORY/tasks.md"
   run rec
   grep -qx 'dirty: false' "$STORY/.draft/validated.yaml"
 }
 
-@test "a change outside .epic/ makes it dirty" {
+@test "a change outside .epico/ makes it dirty" {
   echo x > "$P/main.go"
   run rec
   grep -qx 'dirty: true' "$STORY/.draft/validated.yaml"

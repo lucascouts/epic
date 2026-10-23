@@ -22,7 +22,7 @@
 # with `coverage: "0/0"` claims a measurement was made and came back empty —
 # a different statement from "there was nothing here to measure" — and an
 # `orphan_requirements: []` claims a look was taken with identical force. Same
-# shape and same reason as epic-gitpolicy.sh's non-git object.
+# shape and same reason as epico-gitpolicy.sh's non-git object.
 # The practical half of the rule: `jq -r` renders an ABSENT key as the literal
 # text `null`, not as `0` or `[]`, so a consumer reading one unconditionally does
 # not read a zero — it reads `null`, and `[[ "$(jq -r .traced …)" -gt 0 ]]`
@@ -192,7 +192,7 @@ frontmatter_field() {
 #      to compare against at all.
 #   4. monitor-stale.sh `declares_spike_scale` — reads tasks.md and nothing
 #      else.
-#   5. epic-index.sh `status_cell` — keeps its own precedence, and says so at
+#   5. epico-index.sh `status_cell` — keeps its own precedence, and says so at
 #      its own definition. It
 #      renders a row, it gates nothing, and a renderer that disagrees costs a
 #      wrong cell, not a wrong archive.
@@ -255,7 +255,7 @@ scale_has_requirements_chain() {
 # "undeclared": `null` is JSON's own word for "there is none", while `""` is an
 # empty string that reads as a scale, and `"undeclared"` would be a fifth
 # spelling of a scale that references/tasks.md does not define. Keyed off the
-# resolution itself, the way epic-gitpolicy.sh keys `gitignore_source: null` off
+# resolution itself, the way epico-gitpolicy.sh keys `gitignore_source: null` off
 # its own probe, so the two cannot drift apart.
 if [[ -n "$DECLARED_SCALE" ]]; then
   SCALE_JSON="\"$(json_escape "$DECLARED_SCALE")\""
@@ -270,7 +270,7 @@ fi
 # `traced: 0` with `coverage: "0/0"` says a measurement was made and came back
 # empty; `orphan_requirements: []` says a look was taken. Both are different
 # statements from "there was nothing here to measure", so the measurement keys are
-# ABSENT, not zeroed and not emptied. The precedent is epic-gitpolicy.sh's
+# ABSENT, not zeroed and not emptied. The precedent is epico-gitpolicy.sh's
 # non-git object, which reports the fact that makes the measurement inapplicable
 # and omits the measurements it never took.
 # THE RULE THIS MAKES EXPLICIT FOR EVERY CONSUMER: branch on `status`, never on a
@@ -283,7 +283,7 @@ fi
 # traceability tool does not answer a question it does not own.
 #
 # printf rather than echo on every line of this object, for the reason
-# epic-gitpolicy.sh states: escaped output is made of backslashes and `echo`
+# epico-gitpolicy.sh states: escaped output is made of backslashes and `echo`
 # is only backslash-safe while `xpg_echo` is off, which is an option inherited
 # from the environment and not this script's to assume. The report object at the
 # bottom still uses echo.

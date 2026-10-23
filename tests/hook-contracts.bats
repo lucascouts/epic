@@ -6,7 +6,7 @@
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   WORK=$(mktemp -d)
-  mkdir -p "$WORK/.epic/stories/001-old/.draft" "$WORK/.epic/stories/002-live/.draft"
+  mkdir -p "$WORK/.epico/stories/001-old/.draft" "$WORK/.epico/stories/002-live/.draft"
 }
 
 teardown() {
@@ -14,34 +14,34 @@ teardown() {
 }
 
 @test "compact restore renders progress first and stays under the 10,000-character cap" {
-  printf -- '---\nstory: old\n---\n## Task List\n- [x] 1 - Done\n- [ ] 2 - Next\n' > "$WORK/.epic/stories/001-old/tasks.md"
-  head -c 15000 /dev/zero | tr '\0' 'x' | fold -w 100 > "$WORK/.epic/stories/001-old/.draft/meta.yaml"
+  printf -- '---\nstory: old\n---\n## Task List\n- [x] 1 - Done\n- [ ] 2 - Next\n' > "$WORK/.epico/stories/001-old/tasks.md"
+  head -c 15000 /dev/zero | tr '\0' 'x' | fold -w 100 > "$WORK/.epico/stories/001-old/.draft/meta.yaml"
   cd "$WORK"
   run bash "$PLUGIN_ROOT/scripts/hook-session-restore.sh"
   [ "$status" -eq 0 ]
   [ "${#output}" -lt 10000 ]
-  [[ "$output" == *"- Tasks: 1/2 completed"*"Truncated"*".epic/stories/001-old"* ]]
+  [[ "$output" == *"- Tasks: 1/2 completed"*"Truncated"*".epico/stories/001-old"* ]]
 }
 
 @test "compact restore prints a small state whole and writes nothing to disk" {
-  printf -- '---\nstory: old\n---\n## Task List\n- [ ] 1 - Next\n' > "$WORK/.epic/stories/001-old/tasks.md"
+  printf -- '---\nstory: old\n---\n## Task List\n- [ ] 1 - Next\n' > "$WORK/.epico/stories/001-old/tasks.md"
   cd "$WORK"
   run bash "$PLUGIN_ROOT/scripts/hook-session-restore.sh"
   [ "$status" -eq 0 ]
   [[ "$output" == *"- Tasks: 0/1 completed"* ]]
   [[ "$output" != *"Truncated"* ]]
-  [ ! -e "$WORK/.epic/stories/001-old/.draft/compact-snapshot.md" ]
+  [ ! -e "$WORK/.epico/stories/001-old/.draft/compact-snapshot.md" ]
 }
 
 @test "orphan drafts: one rm line per old draft, the live draft untouched and unnamed" {
-  touch -d '40 days ago' "$WORK/.epic/stories/001-old/.draft"
+  touch -d '40 days ago' "$WORK/.epico/stories/001-old/.draft"
   cd "$WORK"
   run bash "$PLUGIN_ROOT/scripts/hook-orphan-drafts.sh"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"rm -rf .epic/stories/001-old/.draft"* ]]
+  [[ "$output" == *"rm -rf .epico/stories/001-old/.draft"* ]]
   [[ "$output" != *"002-live"* ]]
   [[ "$output" != *"*"* ]]
-  [ -d "$WORK/.epic/stories/001-old/.draft" ]
+  [ -d "$WORK/.epico/stories/001-old/.draft" ]
 }
 
 @test "orphan drafts: silent when nothing is old" {
@@ -62,7 +62,7 @@ guard() { bash "$PLUGIN_ROOT/scripts/hook-executor-guard.sh"; }
 }
 
 @test "executor guard denies editing tasks.md inside the Executor" {
-  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epico:executor\",tool_name:\"Edit\",tool_input:{file_path:\"/w/.epic/stories/001-x/tasks.md\"}}' | guard"
+  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epico:executor\",tool_name:\"Edit\",tool_input:{file_path:\"/w/.epico/stories/001-x/tasks.md\"}}' | guard"
   echo "$output" | jq -e '.hookSpecificOutput.permissionDecision == "deny"'
 }
 
@@ -87,11 +87,11 @@ guard() { bash "$PLUGIN_ROOT/scripts/hook-executor-guard.sh"; }
 }
 
 @test "guards hold when the session cwd is a subdirectory of the project" {
-  mkdir -p "$WORK/src/deep" "$WORK/.epic/archive/001-old"
+  mkdir -p "$WORK/src/deep" "$WORK/.epico/archive/001-old"
   cd "$WORK/src/deep"
-  run bash -c "jq -n --arg f '$WORK/.epic/archive/001-old/story.md' '{tool_name:\"Edit\",tool_input:{file_path:\$f}}' | bash '$PLUGIN_ROOT/scripts/hook-archive-guard.sh'"
+  run bash -c "jq -n --arg f '$WORK/.epico/archive/001-old/story.md' '{tool_name:\"Edit\",tool_input:{file_path:\$f}}' | bash '$PLUGIN_ROOT/scripts/hook-archive-guard.sh'"
   [ "$status" -eq 2 ]
-  run bash -c "jq -n --arg f '../../.epic/stories/001-x/tasks.md' '{agent_type:\"epico:executor\",tool_name:\"Write\",tool_input:{file_path:\$f}}' | bash '$PLUGIN_ROOT/scripts/hook-executor-guard.sh'"
+  run bash -c "jq -n --arg f '../../.epico/stories/001-x/tasks.md' '{agent_type:\"epico:executor\",tool_name:\"Write\",tool_input:{file_path:\$f}}' | bash '$PLUGIN_ROOT/scripts/hook-executor-guard.sh'"
   echo "$output" | jq -e '.hookSpecificOutput.permissionDecision == "deny"'
   for c in 'git -C ../.. commit -m x' 'git -c core.hooksPath=/dev/null commit -m x' 'cd ../.. && git commit -m x'; do
     run bash -c "jq -n --arg c '$c' '{agent_type:\"epico:executor\",tool_name:\"Bash\",tool_input:{command:\$c}}' | bash '$PLUGIN_ROOT/scripts/hook-executor-guard.sh'"
@@ -112,18 +112,18 @@ report_guard() {  # <transcript> [stop_hook_active]
   jq -n --arg t "$1" --arg c "$WORK" --argjson a "${2:-false}" '{agent_type:"epico:auditor",stop_hook_active:$a,agent_transcript_path:$t,cwd:$c}' \
     | bash "$PLUGIN_ROOT/scripts/hook-report-guard.sh"
 }
-D() { printf '%s' "$WORK/.epic/stories/001-old/.draft"; }
+D() { printf '%s' "$WORK/.epico/stories/001-old/.draft"; }
 
 @test "report guard blocks an Auditor stop when no report is on disk — the validation one first" {
-  spawn_transcript "$WORK/t.jsonl" "$WORK/.epic/stories/001-old"
+  spawn_transcript "$WORK/t.jsonl" "$WORK/.epico/stories/001-old"
   run report_guard "$WORK/t.jsonl"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.decision == "block" and (.reason | test("validation-report.yaml"))'
 }
 
 @test "report guard reads the disk, not the transcript: a Write the transcript shows proves nothing" {
-  spawn_transcript "$WORK/t.jsonl" ".epic/stories/001-old"
-  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/w/.epic/stories/001-old/.draft/audit-report.yaml"}}]}}' >> "$WORK/t.jsonl"
+  spawn_transcript "$WORK/t.jsonl" ".epico/stories/001-old"
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/w/.epico/stories/001-old/.draft/audit-report.yaml"}}]}}' >> "$WORK/t.jsonl"
   run report_guard "$WORK/t.jsonl"
   echo "$output" | jq -e '.decision == "block"'
   printf 'story: "001-old"\nverdict: pass\n' > "$(D)/audit-report.yaml"
@@ -133,7 +133,7 @@ D() { printf '%s' "$WORK/.epic/stories/001-old/.draft"; }
 }
 
 @test "report guard: a validation fail on disk ends the spawn, a validation pass still owes the audit" {
-  spawn_transcript "$WORK/t.jsonl" "\`.epic/stories/001-old\`" "$WORK"
+  spawn_transcript "$WORK/t.jsonl" "\`.epico/stories/001-old\`" "$WORK"
   printf 'story: "001-old"\nverdict: fail\n' > "$(D)/validation-report.yaml"
   run report_guard "$WORK/t.jsonl"
   [ -z "$output" ]
@@ -143,7 +143,7 @@ D() { printf '%s' "$WORK/.epic/stories/001-old/.draft"; }
 }
 
 @test "report guard fails open: second stop attempt, no story directory, another agent, empty file is not a report" {
-  spawn_transcript "$WORK/t.jsonl" "$WORK/.epic/stories/001-old"
+  spawn_transcript "$WORK/t.jsonl" "$WORK/.epico/stories/001-old"
   run report_guard "$WORK/t.jsonl" true
   [ -z "$output" ]
   printf '%s\n' '{"type":"user","message":{"role":"user","content":"validate it"}}' > "$WORK/n.jsonl"

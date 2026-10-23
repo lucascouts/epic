@@ -6,8 +6,8 @@
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   WORK=$(mktemp -d)
-  mkdir -p "$WORK/proj/.epic/stories/001-test"
-  STORY="$WORK/proj/.epic/stories/001-test"
+  mkdir -p "$WORK/proj/.epico/stories/001-test"
+  STORY="$WORK/proj/.epico/stories/001-test"
 }
 
 teardown() {

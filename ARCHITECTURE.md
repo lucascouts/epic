@@ -62,7 +62,7 @@ The plugin surface maps to Claude Code's extension points:
 |---|---|---|
 | `skills/epico/` | Skill | The `/epico:epico` entry point. Parses `$ARGUMENTS`, routes to modes, orchestrates agents, writes artifacts. |
 | `agents/` | Sub-agents | 8 specialized personas with bounded tool access and dedicated context windows. |
-| `hooks/hooks.json` | Hooks | 9 hook events, each `if:`-filtered to `.epic/**` paths or tool-arg patterns. |
+| `hooks/hooks.json` | Hooks | 9 hook events, each `if:`-filtered to `.epico/**` paths or tool-arg patterns. |
 | `output-styles/epic.md` | Output style | Optional structured presentation mode. |
 | `bin/` | PATH executables | `epico-validate`, `epico-xref`, `epico-archive` — thin wrappers over `scripts/`. |
 | `scripts/` | — | Bash implementations behind hooks, bin, and CI. |
@@ -129,7 +129,7 @@ Artifacts are the stable interface between phases and between agents. Agents pas
 ### Story directory layout
 
 ```
-.epic/stories/NNN-kebab-name/
+.epico/stories/NNN-kebab-name/
 ├── story.md              # requirements (EARS), written phase 1
 ├── design.md             # design context, written phase 2 (Full only)
 ├── tasks.md              # hierarchical tasks + validation cmds, phase 3
@@ -172,28 +172,28 @@ All files in a story share the same `version`. It's an integer, not semver; bump
 
 ### Archive immutability
 
-`.epic/archive/**` is read-only at the tool level: `hook-archive-guard.sh` blocks `Write`/`Edit` via `PreToolUse`. Story numbers are never recycled — archive retains numbers permanently.
+`.epico/archive/**` is read-only at the tool level: `hook-archive-guard.sh` blocks `Write`/`Edit` via `PreToolUse`. Story numbers are never recycled — archive retains numbers permanently.
 
 ---
 
 ## Hook matrix
 
-All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — so they fire on Claude's `.epic/**` writes even outside a `/epico:epico` session (another skill, a plain `Write`). A skill-frontmatter hook would start only once the skill is invoked, and then stay active for the rest of the session. Tool hooks never see edits made in an external editor. Each uses an `if:` filter or matcher to stay cheap when Epico is idle.
+All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — so they fire on Claude's `.epico/**` writes even outside a `/epico:epico` session (another skill, a plain `Write`). A skill-frontmatter hook would start only once the skill is invoked, and then stay active for the rest of the session. Tool hooks never see edits made in an external editor. Each uses an `if:` filter or matcher to stay cheap when Epico is idle.
 
 | Event | Matcher / if-filter | Script | Purpose |
 |---|---|---|---|
-| `PostToolUse` | `Write(**/.epic/**)` | `hook-validate.sh` | Auto-run `validate-story.sh` on every story-artifact write |
-| `PreToolUse` | `Edit(**/.epic/archive/**)` · `Write(**/.epic/archive/**)` | `hook-archive-guard.sh` | Block mutations to archived stories |
-| `PreToolUse` | `Bash` (no filter) · `Edit`/`Write` of `**/.epic/stories/**/tasks.md` | `hook-executor-guard.sh` | Inside the Executor (`agent_type`), deny `git commit` and edits to `tasks.md` |
+| `PostToolUse` | `Write(**/.epico/**)` | `hook-validate.sh` | Auto-run `validate-story.sh` on every story-artifact write |
+| `PreToolUse` | `Edit(**/.epico/archive/**)` · `Write(**/.epico/archive/**)` | `hook-archive-guard.sh` | Block mutations to archived stories |
+| `PreToolUse` | `Bash` (no filter) · `Edit`/`Write` of `**/.epico/stories/**/tasks.md` | `hook-executor-guard.sh` | Inside the Executor (`agent_type`), deny `git commit` and edits to `tasks.md` |
 | `PreToolUse` | `Bash` (no filter) | `hook-commit-identity-guard.sh` | Deny a commit that supplies its own identity, and any `git config user.*` write |
 | `SubagentStop` | `epico:auditor` | `hook-report-guard.sh` | Keep the agent running until its report file is on disk |
 | `Stop` | — | `hook-legend-guard.sh` | For a `layperson` requester, block the end of a turn once while a process word from any of its text has no legend, naming each word |
 | `Stop` | — | `hook-commit-guard.sh` | Block the end of a turn once while a finished group's pre-authored commit is missing, naming the message |
 | `SessionStart` | `compact` | `hook-session-restore.sh` | After a compaction, render the active story's state from disk into context |
 | `SessionStart` | `clear` | `hook-orphan-drafts.sh` | After `/clear`, list drafts untouched for 30+ days, one removal line each; deletes nothing |
-| `SessionStart` | `startup\|resume\|clear` | `doctor.sh --summary` | One line naming what is wrong with `.epic/`, nothing when healthy; read-only |
+| `SessionStart` | `startup\|resume\|clear` | `doctor.sh --summary` | One line naming what is wrong with `.epico/`, nothing when healthy; read-only |
 
-`if` patterns start with `**/` because a pattern is matched against the working directory: `Edit(.epic/**)` misses every call made from a subdirectory. The `PreToolUse` guards carry `"onFailure": "block"`, so a guard that cannot run blocks the call instead of letting it through. Minimum Claude Code: 2.1.295 for the whole plugin.
+`if` patterns start with `**/` because a pattern is matched against the working directory: `Edit(.epico/**)` misses every call made from a subdirectory. The `PreToolUse` guards carry `"onFailure": "block"`, so a guard that cannot run blocks the call instead of letting it through. Minimum Claude Code: 2.1.295 for the whole plugin.
 
 ---
 
@@ -222,7 +222,7 @@ Epico has four distinct validation layers, each catching a different failure mod
 
 | Layer | When | What it catches | Script / agent |
 |---|---|---|---|
-| Artifact validation | On every write to `.epic/**` | Malformed frontmatter, missing sections, bad YAML | `scripts/validate-story.sh` (via `hook-validate.sh`) |
+| Artifact validation | On every write to `.epico/**` | Malformed frontmatter, missing sections, bad YAML | `scripts/validate-story.sh` (via `hook-validate.sh`) |
 | Cross-reference | Manual or `--cross-ref` flag | Orphan R-numbers, design components unreferenced by tasks, tasks without R-numbers | `scripts/cross-reference.sh` |
 | Task validation | After each sub-task | Implementation fails the sub-task's declared validation command | `validator` sub-agent + `scripts/validate-story.sh` |
 | Story audit | After all tasks complete | Scope creep, deviations not in register, unmet quality gates, integration gaps, missing Red evidence | `auditor` sub-agent |
@@ -251,7 +251,7 @@ The story audit includes a **Red-evidence gate** (auditor check #10): every sub-
                                   Validate mode ─► auditor (validation, then audit)
                                     │
                                     ▼
-                                  Archive ─► .epic/archive/NNN-name/  (read-only)
+                                  Archive ─► .epico/archive/NNN-name/  (read-only)
 ```
 
 Numbers auto-increment across `stories/` + `archive/` and are never recycled. A `999` cap forces archival before further stories are created.
@@ -282,11 +282,11 @@ Artifacts (story/design/tasks) are always English because Claude performs best o
 
 ### Hooks at plugin scope, not skill frontmatter
 
-Plugin-scope hooks fire when the user edits `.epic/**` outside an active `/epico:epico` session (plain `Edit`, external editor, another skill). Skill-frontmatter hooks would only apply during skill execution — none of Epico's hooks fit that profile. Detailed rationale is embedded in [SKILL.md](skills/epico/SKILL.md#validation).
+Plugin-scope hooks fire when the user edits `.epico/**` outside an active `/epico:epico` session (plain `Edit`, external editor, another skill). Skill-frontmatter hooks would only apply during skill execution — none of Epico's hooks fit that profile. Detailed rationale is embedded in [SKILL.md](skills/epico/SKILL.md#validation).
 
 ### Archive immutability via PreToolUse block, not convention
 
-A `PreToolUse` hook on `.epic/archive/**` returns a blocking response. Convention-only (a note in the README) would fail when an agent writes without reading the convention. Enforcement at the tool layer is robust against both drift and unfamiliar users.
+A `PreToolUse` hook on `.epico/archive/**` returns a blocking response. Convention-only (a note in the README) would fail when an agent writes without reading the convention. Enforcement at the tool layer is robust against both drift and unfamiliar users.
 
 ### Degrade gracefully on missing MCPs
 
@@ -331,7 +331,7 @@ Epico deliberately does not do these things. Adding them would conflict with the
 - **Generic code generation outside a story.** The `/epico:epico` command refuses to implement without an approved task.
 - **Repo-wide refactors as a single story.** Breaking large refactors into multiple stories is the correct pattern (linked via "based on" / "extends").
 - **Runtime dependencies beyond bash/git/jq.** MCPs are optional and health-checked; their absence degrades gracefully.
-- **Version-controlled drafts.** `.epic/` (including `.draft/`) is `.gitignored` by default; the user decides when a story is ready to commit.
+- **Version-controlled drafts.** `.epico/` (including `.draft/`) is `.gitignored` by default; the user decides when a story is ready to commit.
 
 ---
 

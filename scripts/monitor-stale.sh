@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stale-story check: one pass over .epic/stories, one stdout line per story
+# Stale-story check: one pass over .epico/stories, one stdout line per story
 # with no progress past its threshold. The story list runs it
 # (references/list-mode.md); nothing runs it in the background.
 #
@@ -84,7 +84,7 @@ declares_spike_scale() {
 # nothing when there is no readable one.
 #
 # The GRAMMAR — heading_re, verdict_re, status_re — is copied VERBATIM from the
-# parse_verdict shared by scripts/epic-index.sh, scripts/archive-story.sh and
+# parse_verdict shared by scripts/epico-index.sh, scripts/archive-story.sh and
 # scripts/validate-story.sh. Four readers share that grammar, and if it ever
 # changes all four move together. This is the only PARTIAL one: staleness
 # keys on the status alone, so the fourth regex there (`promoted-to:`) is
@@ -121,7 +121,7 @@ find_stale() {
   local cutoff=$((now_epoch - THRESHOLD_DAYS * 86400))
   local spike_cutoff=$((now_epoch - SPIKE_THRESHOLD_DAYS * 86400))
 
-  for tasks_file in .epic/stories/*/tasks.md; do
+  for tasks_file in .epico/stories/*/tasks.md; do
     [ -f "$tasks_file" ] || continue
 
     # ONE mtime read, hoisted above both rules. The THRESHOLD

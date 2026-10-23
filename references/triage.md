@@ -12,7 +12,7 @@ Loaded by Create and by Instant before anything is written. Instant reads it wit
 
 ## Constitution gate
 
-**Standard and Full need `.epic/constitution.md`** — its `## Defaults` answer the questions the requester is never asked, and its `## Quality` and `## Security floor` are the story's starting legend. Without it, both scales would ask what the project already decided, or decide it differently each run. So, before the precheck below:
+**Standard and Full need `.epico/constitution.md`** — its `## Defaults` answer the questions the requester is never asked, and its `## Quality` and `## Security floor` are the story's starting legend. Without it, both scales would ask what the project already decided, or decide it differently each run. So, before the precheck below:
 
 - **Missing, or without `## Defaults` and `## Quality`:** do not triage at Standard or Full. Interactively, say so in one line and offer `/epico:epico init --repair` now — one question, the run continues after it. **Headless:** run `init --repair` with every default, record it as an assumption, and continue.
 - **Fast and spike** are untouched: they read the constitution when it exists and carry on without it.
@@ -112,7 +112,7 @@ requester:
    The recommendation/pause happens at triage **only**. The resolved decision is written to design.md's `## Tooling Decisions` block and the relevant E2E/frontend sub-tasks are annotated in tasks.md — the Executor and Test Advisor consume that decision without re-detecting.
 8. Allocate the story number with `epico-next-number` — the one tested allocator, used by single create and batch create alike
 9. Propose output path in `NNN-kebab-case`
-10. If no existing stories in `.epic/stories/`: append EARS primer
+10. If no existing stories in `.epico/stories/`: append EARS primer
 
 ### Mode Recommendation
 
@@ -161,7 +161,7 @@ Present as:
 > - **MCPs:** [verified MCPs and any substitutions]
 > - **Memory:** [ai-memory — N pages recalled | not detected]
 > - **Tooling:** [detected E2E tools + `frontend-design`; resolved E2E/frontend selection; any favorite-absent install recommendation]
-> - **Output:** `.epic/stories/NNN-<proposed-name>/`
+> - **Output:** `.epico/stories/NNN-<proposed-name>/`
 >
 > Confirm or adjust?"
 

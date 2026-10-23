@@ -1,4 +1,4 @@
 ---
 type: file_exists
-path: '.epic/stories/*/tasks.md'
+path: '.epico/stories/*/tasks.md'
 ---

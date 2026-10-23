@@ -4,7 +4,7 @@ Triggered by `/epico:epico stories refine NNN`.
 
 ## Procedure
 
-1. Read existing story from `.epic/stories/<name>/`
+1. Read existing story from `.epico/stories/<name>/`
 2. Identify what changed
 3. Produce delta document for affected phases:
 

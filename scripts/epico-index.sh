@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Regenerates the managed story-index block inside .epic/EPIC.md.
+# Regenerates the managed story-index block inside .epico/EPICO.md.
 #
 # The index is a GENERATED BLOCK delimited by two HTML-comment markers:
 #
-#   <!-- epic:index:start -->   ...generated table...   <!-- epic:index:end -->
+#   <!-- epico:index:start -->   ...generated table...   <!-- epico:index:end -->
 #
 # Everything OUTSIDE those markers is the project's own hand-written content
 # and is copied through byte for byte. Regenerating the block from disk
@@ -17,15 +17,15 @@
 # The manifest is the permanent record of what LEFT, so a story whose archived
 # directory has since been pruned keeps its row — linkless, and saying so.
 #
-# Usage: epic-index.sh [--epic-dir <dir>] [--help]
+# Usage: epico-index.sh [--epico-dir <dir>] [--help]
 #
 # Exit codes:
 #   0  index regenerated, already up to date, or nothing to do
 #   1  regeneration failed (malformed marker pair, unreadable/unwritable file)
-#   2  invalid input (unknown flag, no .epic directory found)
+#   2  invalid input (unknown flag, no .epico directory found)
 #
 # All writes happen here via Bash. hook-archive-guard.sh (PreToolUse) blocks
-# the Edit/Write tools under .epic/archive/** ONLY, so .epic/EPIC.md is in
+# the Edit/Write tools under .epico/archive/** ONLY, so .epico/EPICO.md is in
 # fact reachable by the orchestrator's file tools — this script writes it
 # anyway, for symmetry with the rest of the tooling and so a headless run
 # needs no tool at all.
@@ -40,21 +40,21 @@ export LC_ALL=C
 # --- Help ---
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   cat <<'HELP'
-Usage: epic-index.sh [--epic-dir <dir>] [--help]
+Usage: epico-index.sh [--epico-dir <dir>] [--help]
 
-Regenerates the managed story-index block in <epic-dir>/EPIC.md from disk
+Regenerates the managed story-index block in <epico-dir>/EPICO.md from disk
 state: one table row per story directory found under stories/ and archive/,
 with a link resolving to the story's CURRENT location — plus one row per story
 recorded in archive/manifest.yaml whose directory is no longer on disk.
 
 Options:
-  --epic-dir <dir>   Path to the .epic directory. Default: the nearest .epic
+  --epico-dir <dir>   Path to the .epico directory. Default: the nearest .epico
                      directory at or above the current working directory.
   --help, -h         Show this help.
 
 Behavior:
-  * Only the block between <!-- epic:index:start --> and
-    <!-- epic:index:end --> is rewritten; every byte outside it is preserved.
+  * Only the block between <!-- epico:index:start --> and
+    <!-- epico:index:end --> is rewritten; every byte outside it is preserved.
   * A story recorded in archive/manifest.yaml that neither directory holds is
     still listed, from the record derived at archive time, with NO link and an
     "archived (directory removed)" location. An absent, unreadable or truncated
@@ -79,19 +79,19 @@ HELP
 fi
 
 # --- Flags ---
-EPIC_DIR_ARG=""
+EPICO_DIR_ARG=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --epic-dir)
+    --epico-dir | --epic-dir)
       if [[ $# -lt 2 ]]; then
-        echo "Error: --epic-dir requires a directory argument." >&2
+        echo "Error: --epico-dir requires a directory argument." >&2
         exit 2
       fi
-      EPIC_DIR_ARG="$2"
+      EPICO_DIR_ARG="$2"
       shift 2
       ;;
-    --epic-dir=*)
-      EPIC_DIR_ARG="${1#*=}"
+    --epico-dir=*)
+      EPICO_DIR_ARG="${1#*=}"
       shift
       ;;
     --)
@@ -100,25 +100,25 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Error: unknown argument '$1'." >&2
-      echo "Usage: epic-index.sh [--epic-dir <dir>] [--help]" >&2
+      echo "Usage: epico-index.sh [--epico-dir <dir>] [--help]" >&2
       exit 2
       ;;
   esac
 done
 if [[ $# -gt 0 ]]; then
   echo "Error: unknown argument '$1'." >&2
-  echo "Usage: epic-index.sh [--epic-dir <dir>] [--help]" >&2
+  echo "Usage: epico-index.sh [--epico-dir <dir>] [--help]" >&2
   exit 2
 fi
 
-# --- Resolve the .epic directory ---
+# --- Resolve the .epico directory ---
 # Discovery walks UP from the cwd so the script works from any subdirectory,
 # the same way git finds its repository root.
-find_epic_dir() {
+find_epico_dir() {
   local d="$PWD"
   while :; do
-    if [[ -d "$d/.epic" ]]; then
-      printf '%s' "$d/.epic"
+    if [[ -d "$d/.epico" ]]; then
+      printf '%s' "$d/.epico"
       return 0
     fi
     [[ "$d" == "/" || -z "$d" ]] && return 1
@@ -126,26 +126,30 @@ find_epic_dir() {
   done
 }
 
-if [[ -n "$EPIC_DIR_ARG" ]]; then
-  EPIC_DIR="${EPIC_DIR_ARG%/}"
-  if [[ ! -d "$EPIC_DIR" ]]; then
-    echo "Error: --epic-dir '$EPIC_DIR_ARG' is not a directory." >&2
+if [[ -n "$EPICO_DIR_ARG" ]]; then
+  EPICO_DIR="${EPICO_DIR_ARG%/}"
+  if [[ ! -d "$EPICO_DIR" ]]; then
+    echo "Error: --epico-dir '$EPICO_DIR_ARG' is not a directory." >&2
     exit 2
   fi
 else
-  EPIC_DIR=$(find_epic_dir) || {
-    echo "Error: no .epic directory found at or above '$PWD'." >&2
+  EPICO_DIR=$(find_epico_dir) || {
+    echo "Error: no .epico directory found at or above '$PWD'." >&2
     exit 2
   }
 fi
 
-INDEX_FILE="$EPIC_DIR/EPIC.md"
-STORIES_DIR="$EPIC_DIR/stories"
-ARCHIVE_DIR="$EPIC_DIR/archive"
+INDEX_FILE="$EPICO_DIR/EPICO.md"
+STORIES_DIR="$EPICO_DIR/stories"
+ARCHIVE_DIR="$EPICO_DIR/archive"
 MANIFEST_FILE="$ARCHIVE_DIR/manifest.yaml"
 
-MARK_START='<!-- epic:index:start -->'
-MARK_END='<!-- epic:index:end -->'
+MARK_START='<!-- epico:index:start -->'
+MARK_END='<!-- epico:index:end -->'
+# Written before the rename to Epico; read as the same block and rewritten
+# with the current markers.
+LEGACY_START='<!-- epic:index:start -->'
+LEGACY_END='<!-- epic:index:end -->'
 TAB=$'\t'
 
 TMP_BUILD=""
@@ -511,7 +515,7 @@ scan_area "$ARCHIVE_DIR" archive
 
 STORY_COUNT=${#S_DIR[@]}
 
-# --- The third source: .epic/archive/manifest.yaml ---
+# --- The third source: .epico/archive/manifest.yaml ---
 # The index scans stories/ + archive/ + THE MANIFEST. The first
 # two are the filesystem; the manifest is the PERMANENT RECORD of every story
 # that ever left stories/, and it outlives the directory it names. Prune an
@@ -770,7 +774,7 @@ verdict_cell() {
 # away. It is affordable HERE and nowhere else: this function RENDERS a row and
 # gates nothing, so a disagreement costs one wrong cell, never a wrong archive.
 #
-# TWO FIXTURE COMMENTS RESTATE THIS EXCEPTION AND MOVE WITH IT: tests/epic-index.bats
+# TWO FIXTURE COMMENTS RESTATE THIS EXCEPTION AND MOVE WITH IT: tests/epico-index.bats
 # explains the same precedence at its `spike_tasks` helper and at its
 # `003-precedence` case, both pointing back HERE for the reason. They are NOT a
 # sixth reader — nothing in a bats fixture resolves a scale — which is why the
@@ -867,16 +871,16 @@ build_rows() {
     fi
 
     # Link target: the story file when there is one, the directory otherwise.
-    # Relative to .epic/, which is where EPIC.md lives — that is what makes the
+    # Relative to .epico/, which is where EPICO.md lives — that is what makes the
     # link resolve to the story's CURRENT location.
-    if [[ -f "$EPIC_DIR/$area/$dir/story.md" ]]; then
+    if [[ -f "$EPICO_DIR/$area/$dir/story.md" ]]; then
       link="$area/$(url_escape "$dir")/story.md"
     else
       link="$area/$(url_escape "$dir")/"
     fi
 
-    cell_status=$(status_cell "$EPIC_DIR/$area/$dir/story.md" "$EPIC_DIR/$area/$dir/tasks.md")
-    prog=$(progress_cell "$EPIC_DIR/$area/$dir/tasks.md")
+    cell_status=$(status_cell "$EPICO_DIR/$area/$dir/story.md" "$EPICO_DIR/$area/$dir/tasks.md")
+    prog=$(progress_cell "$EPICO_DIR/$area/$dir/tasks.md")
 
     if [[ "$area" == "archive" ]]; then
       loc="archived"
@@ -901,7 +905,7 @@ ROWS+=(${MAN_ROWS[@]+"${MAN_ROWS[@]}"})
 # --- Render the generated block ---
 render_block() {
   printf '%s\n' "$MARK_START"
-  printf '%s\n' '<!-- Generated by scripts/epic-index.sh — edits inside this block are overwritten. -->'
+  printf '%s\n' '<!-- Generated by scripts/epico-index.sh — edits inside this block are overwritten. -->'
   printf '\n'
   if [[ ${#ROWS[@]} -eq 0 ]]; then
     printf '%s\n' '_No stories yet._'
@@ -935,13 +939,13 @@ scan_markers() {
       # explaining the mechanism in prose does not become a marker.
       stripped="${line%$'\r'}"
       stripped=$(trim "$stripped")
-      if [[ "$stripped" == "$MARK_START" ]]; then
+      if [[ "$stripped" == "$MARK_START" || "$stripped" == "$LEGACY_START" ]]; then
         START_COUNT=$((START_COUNT + 1))
         # The head ends BEFORE this line; the tail starts AFTER the end marker.
         if [[ "$START_COUNT" -eq 1 ]]; then HEAD_BYTES=$bytes; fi
       fi
       bytes=$((bytes + ${#line} + 1))
-      if [[ "$stripped" == "$MARK_END" ]]; then
+      if [[ "$stripped" == "$MARK_END" || "$stripped" == "$LEGACY_END" ]]; then
         END_COUNT=$((END_COUNT + 1))
         if [[ "$END_COUNT" -eq 1 ]]; then TAIL_OFFSET=$bytes; fi
       fi
@@ -1005,18 +1009,18 @@ if [[ -f "$INDEX_FILE" ]] && cmp -s "$TMP_BUILD" "$INDEX_FILE"; then
 fi
 
 # Atomic replace through a sibling temp file: a crash mid-write must never
-# leave a truncated EPIC.md, because the truncated part is the project's own
+# leave a truncated EPICO.md, because the truncated part is the project's own
 # hand-written content.
-# KNOWN RESIDUAL: an EPIC.md that is a SYMLINK is replaced by a regular file —
+# KNOWN RESIDUAL: an EPICO.md that is a SYMLINK is replaced by a regular file —
 # the same trade-off archive-story.sh records for `sed -i`. Writing through the
 # link would mean giving up the atomic replace, i.e. trading a rare, cosmetic
 # surprise for a rare, destructive one.
-TMP_SWAP=$(mktemp "$EPIC_DIR/.epic-index.XXXXXX") \
-  || fail "could not create a temporary file in $EPIC_DIR (is it writable?)"
+TMP_SWAP=$(mktemp "$EPICO_DIR/.epico-index.XXXXXX") \
+  || fail "could not create a temporary file in $EPICO_DIR (is it writable?)"
 cat "$TMP_BUILD" > "$TMP_SWAP" || fail "could not write $TMP_SWAP"
 
 # Keep the file's own permissions; mktemp creates 0600, which would silently
-# tighten a committed EPIC.md. With no existing file, reproduce what a plain
+# tighten a committed EPICO.md. With no existing file, reproduce what a plain
 # `>` redirection would have created.
 NEW_MODE=""
 if [[ -f "$INDEX_FILE" ]]; then

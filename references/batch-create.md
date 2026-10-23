@@ -29,7 +29,7 @@ The interview is the expensive part of creating a story, and creating stories on
 6. **One interview** — every clarification for every member, in one round-set
 7. **Per-story pipeline** — each approved story runs its scale's normal phases
 8. **One approval** — a verdict per story and a one-line tally
-9. **Index refresh** — `scripts/epic-index.sh`
+9. **Index refresh** — `scripts/epico-index.sh`
 
 ## 1. Entry and the source document
 
@@ -76,7 +76,7 @@ It emits exactly one JSON object with three keys, and all three are the contract
 | `reserved` | the numbers this call claimed, zero-padded, ascending — one placeholder directory `NNN-reserved/` exists per entry |
 | `collisions` | one entry per number that was contested, naming what claimed it and where this call went instead; empty when the run was uncontested |
 
-**Directory existence is the reservation.** The allocator scans `.epic/stories/` **and** `.epic/archive/` — numbers are never recycled, so an archived story still owns its number — and the placeholders it creates are what make the numbers unavailable to the next scan. Rename each placeholder to its real `NNN-slug/` in the same confirmation step, so the window in which a directory says `reserved` is as short as the flow can make it.
+**Directory existence is the reservation.** The allocator scans `.epico/stories/` **and** `.epico/archive/` — numbers are never recycled, so an archived story still owns its number — and the placeholders it creates are what make the numbers unavailable to the next scan. Rename each placeholder to its real `NNN-slug/` in the same confirmation step, so the window in which a directory says `reserved` is as short as the flow can make it.
 
 **A collision is reported, never silently absorbed.** When the re-scan after creation finds another creator claimed one of the numbers, the allocator moves its own placeholder and records it. Surface the `collisions` entries in the confirmation output: the user asked for N stories at numbers they saw on screen, and two of them may now be somewhere else. A foreign directory is never removed, overwritten or renamed.
 

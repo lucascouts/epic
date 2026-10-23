@@ -31,7 +31,7 @@ The checkpoint's closing records **"done (workaround)"** apart from a root-cause
 
 ## The record
 
-`.epic/checkpoints/<N>.yaml`, written at the end:
+`.epico/checkpoints/<N>.yaml`, written at the end:
 
 ```yaml
 stage: <N>
@@ -41,10 +41,10 @@ items:
   - step: 2
     item: "<what was judged>"
     user: "<the user's verdict>"
-    epic: "<Epico's reading>"
+    epico: "<Epico's reading>"
     final: "<what was recorded>"
 documents: [<each file the doc writer wrote>]
 next_stage: <N+1>
 ```
 
-Mechanical items from step 1 are summarised by count, not listed. It follows the project's `.epic/.gitpolicy`: versioned under `tracked-md`, local under `local-only`.
+Mechanical items from step 1 are summarised by count, not listed. It follows the project's `.epico/.gitpolicy`: versioned under `tracked-md`, local under `local-only`.

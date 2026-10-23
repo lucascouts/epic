@@ -41,7 +41,7 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/refine-mode.md 'epico-deviation add deviation'
 }
 
-@test "X4: the orchestrator greps and reads through epic-* scripts, never cats a whole report" {
+@test "X4: the orchestrator greps and reads through epico-* scripts, never cats a whole report" {
   has references/output-rules.md '## reading files back'
   has references/output-rules.md 'never `cat` the file'
   has references/output-rules.md 'epico-report --story'

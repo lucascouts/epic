@@ -27,7 +27,7 @@ setup() {
   REFS="$PLUGIN_ROOT/references"
   WORK=$(mktemp -d)
   PROJ="$WORK/proj"
-  mkdir -p "$PROJ/.epic/stories" "$PROJ/.epic/archive"
+  mkdir -p "$PROJ/.epico/stories" "$PROJ/.epico/archive"
   cd "$PROJ"
 }
 
@@ -63,7 +63,7 @@ EOF
 # sub-task, a sibling group depending on `Task 1.2` (a provenance pointer the
 # rewrite must not strand).
 make_commit_subtask_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   write_story_md "$dir"
   cat > "$dir/tasks.md" <<'EOF'
@@ -111,7 +111,7 @@ EOF
 # Field-form fixture: the canonical post-template shape — commit point as a
 # group-level field, no Commit checkbox anywhere.
 make_field_form_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   write_story_md "$dir"
   cat > "$dir/tasks.md" <<'EOF'
@@ -145,8 +145,8 @@ EOF
 
 @test "a Commit sub-task becomes one group-level Commit field with the message verbatim" {
   make_commit_subtask_story 090-legacy
-  bash "$MIGRATE_SH" .epic/stories/090-legacy --apply > /dev/null 2>&1
-  local f="$PROJ/.epic/stories/090-legacy/tasks.md"
+  bash "$MIGRATE_SH" .epico/stories/090-legacy --apply > /dev/null 2>&1
+  local f="$PROJ/.epico/stories/090-legacy/tasks.md"
   [ "$(grep -cF -- '- Commit: "feat(090): the exact message, verbatim — punctuation and all"' "$f")" -eq 1 ]
   # the field landed inside group 1, before group 2 opens
   local fieldline group2
@@ -157,15 +157,15 @@ EOF
 
 @test "a closed Commit box's state is dropped — no Commit-titled box of any state remains" {
   make_commit_subtask_story 090-legacy
-  bash "$MIGRATE_SH" .epic/stories/090-legacy --apply > /dev/null 2>&1
-  local f="$PROJ/.epic/stories/090-legacy/tasks.md"
+  bash "$MIGRATE_SH" .epico/stories/090-legacy --apply > /dev/null 2>&1
+  local f="$PROJ/.epico/stories/090-legacy/tasks.md"
   run ! grep -qE '^[[:space:]]*- \[[x~ ]\][[:space:]]+[0-9]+\.[0-9]+[[:space:]]+-[[:space:]]+Commit' "$f"
 }
 
 @test "the numbering gap is preserved and nothing is renumbered" {
   make_commit_subtask_story 090-legacy
-  bash "$MIGRATE_SH" .epic/stories/090-legacy --apply > /dev/null 2>&1
-  local f="$PROJ/.epic/stories/090-legacy/tasks.md"
+  bash "$MIGRATE_SH" .epico/stories/090-legacy --apply > /dev/null 2>&1
+  local f="$PROJ/.epico/stories/090-legacy/tasks.md"
   grep -qF -- '- [ ] 1.1 - Make part one' "$f"
   grep -qF -- '- [ ] 1.2 - Make part two' "$f"
   # 1.3 is a gap now: no box of any state carries that number
@@ -176,8 +176,8 @@ EOF
 
 @test "the 'Task 1.2' dependency pointer still resolves after conversion" {
   make_commit_subtask_story 090-legacy
-  bash "$MIGRATE_SH" .epic/stories/090-legacy --apply > /dev/null 2>&1
-  local f="$PROJ/.epic/stories/090-legacy/tasks.md"
+  bash "$MIGRATE_SH" .epico/stories/090-legacy --apply > /dev/null 2>&1
+  local f="$PROJ/.epico/stories/090-legacy/tasks.md"
   grep -qF 'Dependencies: Task 1.2' "$f"
   grep -qF -- '- [ ] 1.2 - Make part two' "$f"
 }
@@ -186,14 +186,14 @@ EOF
 
 @test "PIN a field-only tasks.md raises no commit warning and no legacy nudge" {
   make_field_form_story 091-field
-  run --separate-stderr bash "$VALIDATE_SH" .epic/stories/091-field
+  run --separate-stderr bash "$VALIDATE_SH" .epico/stories/091-field
   echo "$output" | jq -e '[.warning_details[] | select(test("No Commit"))] | length == 0' > /dev/null
   echo "$output" | jq -e '[.warning_details[] | select(test("legacy"; "i"))] | length == 0' > /dev/null
 }
 
 @test "a checkbox Commit sub-task raises the warning-level nudge naming the legacy shape and migrate" {
   make_commit_subtask_story 090-legacy
-  run --separate-stderr bash "$VALIDATE_SH" .epic/stories/090-legacy
+  run --separate-stderr bash "$VALIDATE_SH" .epico/stories/090-legacy
   echo "$output" | jq -e '[.warning_details[] | select(test("legacy"; "i") and test("migrate"; "i"))] | length > 0' > /dev/null
 }
 
@@ -204,7 +204,7 @@ EOF
   # and counting it would raise a warning that survives doing what it asks:
   # migrate reports `commit_subtasks: 0` and the identical nudge comes back.
   make_field_form_story 092-mentions
-  cat >> "$PROJ/.epic/stories/092-mentions/tasks.md" <<'EOF'
+  cat >> "$PROJ/.epico/stories/092-mentions/tasks.md" <<'EOF'
 
 - [ ] 9 - Later work
   - _Complexity: Simple | Tests: None | Risks: None | Dependencies: None_
@@ -215,11 +215,11 @@ EOF
     - Validation: ok
     - Requirements: R1.1
 EOF
-  run --separate-stderr bash "$VALIDATE_SH" .epic/stories/092-mentions
+  run --separate-stderr bash "$VALIDATE_SH" .epico/stories/092-mentions
   # The nudge must be silent...
   echo "$output" | jq -e '[.warning_details[] | select(test("Commit sub-task checkbox"))] | length == 0' > /dev/null
   # ...and migrate must agree there is nothing to convert.
-  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/092-mentions
+  run --separate-stderr bash "$MIGRATE_SH" .epico/stories/092-mentions
   echo "$output" | jq -e '.rewrites.commit_subtasks == 0' > /dev/null
 }
 

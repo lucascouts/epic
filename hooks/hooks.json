@@ -1,5 +1,5 @@
 {
-  "description": "Epico guards: archive is read-only, the Executor never commits or edits tasks.md, commits keep the identity git already has; validation after a write under .epic/; state restore after compaction; orphan-draft notice after /clear; a one-line epico-doctor summary at session start; supervisor messages relayed as untrusted claims after each close; report guard on the Auditor.",
+  "description": "Epico guards: archive is read-only, the Executor never commits or edits tasks.md, commits keep the identity git already has; validation after a write under .epico/; state restore after compaction; orphan-draft notice after /clear; a pre-Epico .epic/ moved to .epico/ and a one-line epico-doctor summary at session start; supervisor messages relayed as untrusted claims after each close; report guard on the Auditor.",
   "hooks": {
     "PostToolUse": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Write(**/.epic/**)",
+            "if": "Write(**/.epico/**)",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-validate.sh\""
           }
         ]
@@ -29,13 +29,13 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Edit(**/.epic/archive/**)",
+            "if": "Edit(**/.epico/archive/**)",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-archive-guard.sh\"",
             "onFailure": "block"
           },
           {
             "type": "command",
-            "if": "Write(**/.epic/archive/**)",
+            "if": "Write(**/.epico/archive/**)",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-archive-guard.sh\"",
             "onFailure": "block"
           }
@@ -56,13 +56,13 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Edit(**/.epic/stories/**/tasks.md)",
+            "if": "Edit(**/.epico/stories/**/tasks.md)",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-executor-guard.sh\"",
             "onFailure": "block"
           },
           {
             "type": "command",
-            "if": "Write(**/.epic/stories/**/tasks.md)",
+            "if": "Write(**/.epico/stories/**/tasks.md)",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-executor-guard.sh\"",
             "onFailure": "block"
           }
@@ -103,7 +103,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/doctor.sh\" --summary"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/migrate-dir.sh\" --hook; bash \"${CLAUDE_PLUGIN_ROOT}/scripts/doctor.sh\" --summary"
           }
         ]
       }

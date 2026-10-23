@@ -1,6 +1,6 @@
 # CI/Headless Mode
 
-Use these patterns when running Epico plugin operations programmatically with `claude -p` or the Agent SDK. Every recipe that invokes `/epico:epico` must load the plugin: pass `--plugin-dir "$EPIC_PLUGIN_ROOT"` (a checkout of this repo), or install the plugin first. Do not add `--bare`: it skips every hook — the archive, executor and identity guards included — loads none of the plugin's sub-agents, and authenticates only through `ANTHROPIC_API_KEY`, never an OAuth login. Every recipe below also states its permissions instead of inheriting them:
+Use these patterns when running Epico plugin operations programmatically with `claude -p` or the Agent SDK. Every recipe that invokes `/epico:epico` must load the plugin: pass `--plugin-dir "$EPICO_PLUGIN_ROOT"` (a checkout of this repo), or install the plugin first. Do not add `--bare`: it skips every hook — the archive, executor and identity guards included — loads none of the plugin's sub-agents, and authenticates only through `ANTHROPIC_API_KEY`, never an OAuth login. Every recipe below also states its permissions instead of inheriting them:
 
 - `--permission-mode acceptEdits` — set it explicitly; a `-p` run with no mode picks one that depends on the provider.
 - `--permission-prompts none` — nobody is there to answer, so anything that would prompt is denied at once instead of hanging the run.
@@ -21,17 +21,17 @@ Export `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` as a precaution: it keeps every 
 
 ## Validate Stories in CI
 
-Run validation as a PR check or CI step. Inside a session with the plugin enabled, the scripts are on PATH as `epico-validate`, `epico-xref` and the other `epic-*` wrappers; for standalone CI pipelines clone the plugin repo and set `EPIC_PLUGIN_ROOT` to its path:
+Run validation as a PR check or CI step. Inside a session with the plugin enabled, the scripts are on PATH as `epico-validate`, `epico-xref` and the other `epic-*` wrappers; for standalone CI pipelines clone the plugin repo and set `EPICO_PLUGIN_ROOT` to its path:
 
 ```bash
 # Validate structural correctness
-bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" .epic/stories/001-feature-name/
+bash "$EPICO_PLUGIN_ROOT/scripts/validate-story.sh" .epico/stories/001-feature-name/
 
 # Validate with cross-reference checks (requirements traceability)
-bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" .epic/stories/001-feature-name/ --cross-ref
+bash "$EPICO_PLUGIN_ROOT/scripts/validate-story.sh" .epico/stories/001-feature-name/ --cross-ref
 
 # Dedicated cross-reference report
-bash "$EPIC_PLUGIN_ROOT/scripts/cross-reference.sh" .epic/stories/001-feature-name/
+bash "$EPICO_PLUGIN_ROOT/scripts/cross-reference.sh" .epico/stories/001-feature-name/
 ```
 
 Exit codes: 0 = pass, 1 = issues found, 2 = invalid input. Output is always JSON.
@@ -47,7 +47,7 @@ That object carries `story`, `scale` and `status` and **omits every measurement 
 
 ```bash
 CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico Add retry logic to the payment gateway" \
-  --plugin-dir "$EPIC_PLUGIN_ROOT" \
+  --plugin-dir "$EPICO_PLUGIN_ROOT" \
   --permission-mode acceptEdits --permission-prompts none \
   --allowedTools "Read,Write,Edit,Glob,Grep,Bash,Agent,mcp__ai-memory__*" \
   --output-format json \
@@ -58,7 +58,7 @@ CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico Add retry logic t
 
 ```bash
 CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico stories validate 001" \
-  --plugin-dir "$EPIC_PLUGIN_ROOT" \
+  --plugin-dir "$EPICO_PLUGIN_ROOT" \
   --permission-mode acceptEdits --permission-prompts none \
   --allowedTools "Read,Write,Edit,Glob,Grep,Bash,Agent,mcp__ai-memory__*" \
   --output-format json \
@@ -69,7 +69,7 @@ CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico stories validate 
 
 ```bash
 CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico stories" \
-  --plugin-dir "$EPIC_PLUGIN_ROOT" \
+  --plugin-dir "$EPICO_PLUGIN_ROOT" \
   --permission-mode acceptEdits --permission-prompts none \
   --allowedTools "Read,Glob,Grep,Bash" \
   --output-format text \
@@ -81,12 +81,12 @@ CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico stories" \
 ```yaml
 - name: Validate epic stories
   env:
-    EPIC_PLUGIN_ROOT: ${{ github.workspace }}/.epic-plugin
+    EPICO_PLUGIN_ROOT: ${{ github.workspace }}/.epico-plugin
   run: |
-    git clone https://github.com/lucascouts/epico.git "$EPIC_PLUGIN_ROOT"
-    for dir in .epic/stories/*/; do
+    git clone https://github.com/lucascouts/epico.git "$EPICO_PLUGIN_ROOT"
+    for dir in .epico/stories/*/; do
       echo "Validating $dir..."
-      bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" "$dir" --cross-ref || exit 1
+      bash "$EPICO_PLUGIN_ROOT/scripts/validate-story.sh" "$dir" --cross-ref || exit 1
     done
 ```
 
@@ -100,7 +100,7 @@ Example: extract a validation summary for a story:
 
 ```bash
 CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico stories validate 001" \
-  --plugin-dir "$EPIC_PLUGIN_ROOT" --permission-mode acceptEdits --permission-prompts none \
+  --plugin-dir "$EPICO_PLUGIN_ROOT" --permission-mode acceptEdits --permission-prompts none \
   --allowedTools "Read,Write,Edit,Glob,Grep,Bash,Agent,mcp__ai-memory__*" \
   --output-format json \
   --json-schema '{
@@ -123,7 +123,7 @@ CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico stories validate 
 Pipe to `jq` for CI gating:
 
 ```bash
-OUT=$(claude -p "..." --plugin-dir "$EPIC_PLUGIN_ROOT" --output-format json --json-schema '{...}')
+OUT=$(claude -p "..." --plugin-dir "$EPICO_PLUGIN_ROOT" --output-format json --json-schema '{...}')
 # A run that errored, or ended without a structured result, is a failure — not a pass.
 echo "$OUT" | jq -e '(.is_error | not) and (.structured_output != null)' >/dev/null \
   || { echo "Epico run failed or returned no structured output" >&2; exit 1; }
@@ -144,7 +144,7 @@ which can happen if the marketplace is unreachable or `plugin.json` becomes inva
 
 ```bash
 claude -p "Validate epic stories in this repo" \
-  --plugin-dir "$EPIC_PLUGIN_ROOT" \
+  --plugin-dir "$EPICO_PLUGIN_ROOT" \
   --permission-mode acceptEdits --permission-prompts none \
   --output-format stream-json \
   --verbose \
@@ -190,4 +190,4 @@ above for an end-to-end CI pipeline.
 - Scripts are standalone bash — no Claude Code dependency for validation
 - For structured output from Claude operations, use `--output-format json`
 - Combine with `--json-schema` for typed structured output (see example above)
-- Inside a Claude session with the Epico plugin enabled, call the scripts through their `epic-*` wrappers on PATH (`epico-validate`, `epico-xref`, …)
+- Inside a Claude session with the Epico plugin enabled, call the scripts through their `epico-*` wrappers on PATH (`epico-validate`, `epico-xref`, …)

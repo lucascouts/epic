@@ -35,7 +35,7 @@ epico-supersede <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=ta
 | `--remap <N.N=target>` | Where sub-task `N.N`'s scope went. Repeatable, one per open sub-task. Only the **first** `=` separates, so `--remap 3.1=dropped: the v1 sandbox died` arrives intact | That row takes `MMM / re-scoped` |
 | `--help`, `-h` | Usage on stdout, exit 0 | — |
 
-`NNN` is a story number (`042`) or a story directory; the number resolves against the nearest `.epic/`.
+`NNN` is a story number (`042`) or a story directory; the number resolves against the nearest `.epico/`.
 
 **Never invent a flag value.** The rationale and every target are the user's words. A headless run defaults them *visibly* — the recorded default states that no rationale was supplied instead of manufacturing one.
 
@@ -115,7 +115,7 @@ How the template is filled:
 With the banner in, the script closes `NNN` to a terminal, archivable state:
 
 - **Sub-tasks** — every open sub-task (the same set the remap rows were built from) is closed in `NNN`'s tasks.md as `[~] (superseded-by: MMM)`, qualifier on the same line per the checkbox grammar — see [tasks.md#checkbox-grammar](tasks.md#checkbox-grammar). Example: `- [~] 2.1 - Switch the reader (superseded-by: 012)`. On a deferred box the `deferred:` qualifier is **replaced**, never joined — a line carrying both stays owed, because `deferred:` wins.
-- **Frontmatter** — `status: superseded` plus the machine-readable companion `superseded-by: MMM` in every `NNN` artifact with frontmatter; `artifacts_flipped[]` names the ones this run wrote. The companion is what `epic-index.sh` reads to render the supersede target in the index.
+- **Frontmatter** — `status: superseded` plus the machine-readable companion `superseded-by: MMM` in every `NNN` artifact with frontmatter; `artifacts_flipped[]` names the ones this run wrote. The companion is what `epico-index.sh` reads to render the supersede target in the index.
 
 `superseded-by:` is a terminal qualifier, so no box stays open and nothing remains owed — the story archives cleanly whenever the offer is taken.
 
@@ -215,7 +215,7 @@ And the report, on stdout, exit 0:
 ```json
 {
   "story": "042-legacy-import",
-  "path": "/home/dev/project/.epic/stories/042-legacy-import",
+  "path": "/home/dev/project/.epico/stories/042-legacy-import",
   "by": "051",
   "status": "superseded",
   "reason": "",

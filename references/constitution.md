@@ -1,6 +1,6 @@
 # Constitution Template
 
-The constitution is an optional governance file at `.epic/constitution.md` that defines cross-story constraints. All stories must respect these constraints.
+The constitution is an optional governance file at `.epico/constitution.md` that defines cross-story constraints. All stories must respect these constraints.
 
 ## Template
 

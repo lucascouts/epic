@@ -19,7 +19,7 @@ Triggered by `/epico:epico stories run NNN`, `/epico:epico stories NNN run all`,
 
 ## Procedure
 
-1. **Resolve story** — find `.epic/stories/NNN-*/`
+1. **Resolve story** — find `.epico/stories/NNN-*/`
 2. **Read tasks.md** — parse all tasks, sub-tasks, and their fields
 3. **Determine scope:**
    - `run NNN` or `NNN run all` → all pending tasks (those with `[ ]` — a `[~]` box is closed and is never pending)
@@ -174,7 +174,7 @@ epico-close <NNN|story-dir> <N.N|N|gate:<text-prefix>> \
   [--tilde "<qualifier>: <reason>"]
 ```
 
-**One box per invocation.** The story number (`010`) works in place of the directory — it resolves against the nearest `.epic/`. The box is named the way the grammar names it: a sub-task (`3.1`), a task group (`3`), or a Quality Gate by a **prefix of its own text** (`gate:All task validations`) — gates carry no number, so a prefix is how one is pointed at.
+**One box per invocation.** The story number (`010`) works in place of the directory — it resolves against the nearest `.epico/`. The box is named the way the grammar names it: a sub-task (`3.1`), a task group (`3`), or a Quality Gate by a **prefix of its own text** (`gate:All task validations`) — gates carry no number, so a prefix is how one is pointed at.
 
 #### From the closing block to the call
 
@@ -234,12 +234,12 @@ A refusal names its own reason in `reason`, and each arm is a statement about th
 - `--tilde` names a qualifier and gives **no reason**
 - the `--tilde` reason smuggles a **second** qualifier token — every reader matches a qualifier anywhere on the line, so the file and the report would end up disagreeing about the same box
 - the target is **ambiguous**: more than one line answers to it, and which one was meant is not something a writer may guess
-- the story lives under `.epic/archive/` — an archived story is read-only
+- the story lives under `.epico/archive/` — an archived story is read-only
 - the group header still has open children (above), or the story, its `tasks.md`, or the rewrite itself could not be reached
 
 **On a resumed run, "already closed" is benign confirmation, not a failure.** A run interrupted after a close and before its report is replayed over boxes that already carry their mark: read that refusal as *this one is already done*, log it, and move to the next box. Do not "repair" it by editing the file. The script stays strict on purpose — outside a resume, a second close is a real disagreement about what happened, and a silent one is what the refusal exists to prevent.
 
-**Close one story at a time.** The post-compaction restore (`hook-session-restore.sh`) takes the **most-recently-modified story** under `.epic/stories/` as the active one, so interleaving closes across two stories mid-run points it at whichever story was written last. The script itself only ever touches the story it was invoked for — the hazard is in the ordering, not in the write — so finish one story's closes before starting another's.
+**Close one story at a time.** The post-compaction restore (`hook-session-restore.sh`) takes the **most-recently-modified story** under `.epico/stories/` as the active one, so interleaving closes across two stories mid-run points it at whichever story was written last. The script itself only ever touches the story it was invoked for — the hazard is in the ordering, not in the write — so finish one story's closes before starting another's.
 
 ### Status Transitions
 
@@ -266,7 +266,7 @@ Rule 1 is the canonical **`done`**: "every box is `[x]` or terminal `[~]`" and "
 
 **Writing the transition.** The five rules below are what the write must satisfy, **whoever performs it**. Run mode performs none of them by hand — `close-subtask.sh` does, inside the close — while REFINE and VALIDATE cite this list as the single definition and perform the `Edit` themselves:
 
-1. **`Edit` the frontmatter line — never `Write` the file.** The PostToolUse hook in `hooks/hooks.json` matches **`Write` only**: a `Write` under `.epic/**` re-runs `validate-story.sh`. Transitions written with `Write` would fire a full validation pass after every marking — a validation storm on an advisory metadata update. An `Edit` of the single `status:` line does not trigger the hook. `close-subtask.sh` satisfies the same requirement from the other side: it replaces that one line through a temp file renamed into place, and a Bash write fires **no** PostToolUse hook at all — which is why the script runs `validate-story.sh` once itself, after the marking and the stamp, and reports the verdict in the JSON's `validate` field.
+1. **`Edit` the frontmatter line — never `Write` the file.** The PostToolUse hook in `hooks/hooks.json` matches **`Write` only**: a `Write` under `.epico/**` re-runs `validate-story.sh`. Transitions written with `Write` would fire a full validation pass after every marking — a validation storm on an advisory metadata update. An `Edit` of the single `status:` line does not trigger the hook. `close-subtask.sh` satisfies the same requirement from the other side: it replaces that one line through a temp file renamed into place, and a Bash write fires **no** PostToolUse hook at all — which is why the script runs `validate-story.sh` once itself, after the marking and the stamp, and reports the verdict in the JSON's `validate` field.
 2. **The same value in every artifact of the story that carries frontmatter** — `story.md`, `design.md`, `tasks.md`, whichever exist (a Fast story has only tasks.md). One story, one lifecycle state: artifacts declaring different values raise a validation warning naming them. An artifact with no frontmatter is skipped — there is no line to edit, and its silence is never counted as divergence.
 3. **Legacy story with no `status:` field — the `Edit` adds it.** Most existing stories predate the field; absence is legal, silent, and never an error. Insert `status: <value>` as a new line inside the frontmatter block, before the closing `---`, in each artifact that has one.
 4. **Add only the state this run observed.** The value added is what the engine just saw: a marking that leaves work open is `in-progress`; a marking that satisfies rule 1 is `done`; a census that finds open work on a story reading `done` or `validated` is `in-progress` again. Never back-date `draft` onto a story the engine never saw created, and never write an intermediate value the run did not observe — a legacy story whose first marking also completes it goes straight from no field to `done`, in one write. The field is worth having only because it is evidence; a fabricated prior state is exactly the lie it exists to prevent.
@@ -374,13 +374,13 @@ Metadata lines and the `Objective`, `Validation`, `Requirements` and `Commit` fi
 
 Always executed by the main agent (not a sub-agent). Git operations require the main worktree context, so in a parallel batch the commit runs **after** the merge and never inside a worktree (see Parallel Execution).
 
-**Stage by name, never `git add -A` or `git add .`.** The commit stages the files the sub-tasks named and nothing else. A blanket add sweeps in whatever the run happened to leave beside them — `.epic/` included, whenever no ignore rule covers it. An ignore rule written by a session hook is absent from every session where that hook did not run, and a rule that only holds when a hook fired is not a rule. Staging by name also keeps the generated artifacts, the runtime data file and the compiled binary out of the commit without depending on a `.gitignore` anyone remembered to write.
+**Stage by name, never `git add -A` or `git add .`.** The commit stages the files the sub-tasks named and nothing else. A blanket add sweeps in whatever the run happened to leave beside them — `.epico/` included, whenever no ignore rule covers it. An ignore rule written by a session hook is absent from every session where that hook did not run, and a rule that only holds when a hook fired is not a rule. Staging by name also keeps the generated artifacts, the runtime data file and the compiled binary out of the commit without depending on a `.gitignore` anyone remembered to write.
 
 **Commit as the identity git already has — never supply one.** Check `git config user.email` once before the first commit. When it is empty, make **no** commit: the boxes stay closed, the changes stay uncommitted, and the closing message gives the user the two `git config user.name` / `user.email` commands and the pending commit messages. Never pass `-c user.name=…`, `-c user.email=…`, `--author` or `GIT_AUTHOR_*` / `GIT_COMMITTER_*`, and never run `git config user.*` with a value: a name inferred from the session puts someone's signature on a commit they never made. `hook-commit-identity-guard.sh` denies all of these.
 
 **Nothing leaves the machine without an explicit answer.** The commit is local and is the last git step a run takes by itself. Push, merge, tag, publish a release or open a pull request only when the user has answered yes to that action in this session — a plan, a `--auto` flag or an earlier yes to a different action is not that answer. Without one, the closing message names the command that would do it, and the run ends there.
 
-**When `.epic/` is untracked and no ignore rule covers it, leave it that way and say so in one line.** Do not add an ignore rule on the story's behalf: whether the artifacts belong in git is the workspace's policy to declare, and `scripts/epic-gitpolicy.sh` is what reports a workspace contradicting itself. Silently committing them decides that policy by accident.
+**When `.epico/` is untracked and no ignore rule covers it, leave it that way and say so in one line.** Do not add an ignore rule on the story's behalf: whether the artifacts belong in git is the workspace's policy to declare, and `scripts/epico-gitpolicy.sh` is what reports a workspace contradicting itself. Silently committing them decides that policy by accident.
 
 **A missing commit is caught on disk, not left to memory.** `hook-commit-guard.sh` runs when a turn ends: a group whose sub-tasks are all settled and whose `Commit:` message is not a commit subject blocks the stop once, naming the message. It stays silent with no git identity — the rule above already makes no commit then — and on the second stop attempt.
 
@@ -424,7 +424,7 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 > **Requirements:** [requirements field]
 > **Commit:** [the group's `Commit:` message, verbatim, when this sub-task is the group's last — your closing block reports it]
 > **Comment language:** [English only — or English plus <language> on the line below, when the user asked for it]
-> **Story directory:** [absolute path to .epic/stories/NNN-slug in the main tree — your progress notes go there, never into a worktree copy]
+> **Story directory:** [absolute path to .epico/stories/NNN-slug in the main tree — your progress notes go there, never into a worktree copy]
 >
 > ## Story Context
 >
@@ -515,7 +515,7 @@ A register it cannot read — a multi-line value, a nested mapping someone wrote
 
 
 ```yaml
-# .epic/stories/<name>/.draft/deviations.yaml
+# .epico/stories/<name>/.draft/deviations.yaml
 deviations:
   - task: "2.1"
     component: "AppConfig::from_env"

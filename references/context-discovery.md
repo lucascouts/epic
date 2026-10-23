@@ -3,8 +3,8 @@
 ## File Discovery (all scales)
 
 1. Glob for `spec.md`, `roadmap.md`, `*.spec.md` in project root
-2. Check for `.epic/stories/` directory (existing stories)
-3. Check for `.epic/constitution.md`
+2. Check for `.epico/stories/` directory (existing stories)
+3. Check for `.epico/constitution.md`
 4. Check for `docs/` with relevant documentation
 
 `CLAUDE.md` (and `AGENTS.md` where the project has no `CLAUDE.md`) are not read here: Claude Code already loads them into this session and into every sub-agent, and reading them again pays for the same text twice.
@@ -44,7 +44,7 @@ Results are saved to `.draft/meta.yaml` under `analyst_output` key and passed as
 
 | File | Applied At |
 |---|---|
-| `.epic/constitution.md` | Before Phase 1 (all scales); its `## Defaults` block again at Clarify and Run, as decisions taken silently |
+| `.epico/constitution.md` | Before Phase 1 (all scales); its `## Defaults` block again at Clarify and Run, as decisions taken silently |
 | Analyst output | Triage + Completeness Checklist + Phase 2 (design) |
 | Prior knowledge (memory, when detected) | Triage + Codebase Analysis — as leads to verify, never as facts |
 

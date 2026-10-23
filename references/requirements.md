@@ -24,7 +24,7 @@ created: <date>
 
 [Only if expand mode — reference source stories here. Otherwise omit this section.]
 
-- Related: `.epic/stories/<name>/story.md` — [brief relationship description]
+- Related: `.epico/stories/<name>/story.md` — [brief relationship description]
 
 ## Requirements
 

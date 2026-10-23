@@ -355,7 +355,7 @@ A **spike** is a time-boxed probe: it exists to answer a question, and its deliv
 - promoted-to: NNN   # required when status: promote
 ```
 
-The grammar below is what the shipped parser (`parse_verdict`, shared verbatim by `scripts/epic-index.sh`, `scripts/archive-story.sh` and `scripts/validate-story.sh`) actually accepts. It is fail-closed by design: anything it cannot read counts as not recorded.
+The grammar below is what the shipped parser (`parse_verdict`, shared verbatim by `scripts/epico-index.sh`, `scripts/archive-story.sh` and `scripts/validate-story.sh`) actually accepts. It is fail-closed by design: anything it cannot read counts as not recorded.
 
 - **Heading:** two or more `#`, then the word `Verdict`. Anything after it must be separated by a space — `## Verdict — cache probe` matches, `## Verdict:` does not, and a heading that does not match leaves the section invisible.
 - **Where the section ends:** at the next `##`-or-deeper heading. Put the Verdict last so nothing truncates it.
