@@ -9,7 +9,7 @@ The checks a piece of software is expected to carry, in three tiers, and how the
 3. **The request** adds what the constitution could not know: an API consumed by more than one client activates contract tests; a stated performance requirement activates a benchmark.
 4. **The story's legend** is the result: `## Quality Requirements`, one line per active item, numbered `Q1`…`Qn` in the order of this catalog, each with the command that proves it on this project. A Fast story, which has no `story.md`, carries the legend at the top of `tasks.md`.
 
-**The engineering level bounds the set** ([engineering-level.md](engineering-level.md)): `experiment` activates the **security floor** below and nothing else; `tool` activates the always tier; `project` adds every context item whose signal the tree or the request carries; `product` adds the CI-shaped context items — pinned Actions, minimum dependency age, licence, SBOM and signing — without waiting for a signal, and the on-request tier when a requirement names it. The four steps above choose inside that bound.
+**The engineering level bounds the set** ([engineering-level.md](engineering-level.md)): `experiment` activates the **security floor** below and nothing else; `tool` activates the always tier; `project` adds every context item whose signal the tree or the request carries; `product` adds the CI-shaped context items — hardened workflows, minimum dependency age, licence, SBOM and signing, security policy and branch protection — without waiting for a signal, and the on-request tier when a requirement names it. The four steps above choose inside that bound.
 
 **Activating an item never installs a tool.** The [preferred-tooling policy](preferred-tooling.md) applies: prefer the tool already installed for that item, name a recommendation and pause when none is, and record the choice on the legend line. A layperson is never paused for a tool choice — the best installed tool is taken and recorded.
 
@@ -70,10 +70,13 @@ Activated by a signal in the tree or in the request. The signal is the rule; the
 | Versioned migrations | a database | schema changes are ordered and reversible | the migration tool's `status`, and a down migration |
 | SAST | code that receives external input or handles auth | defects in the project's own code, not its dependencies | `opengrep` (or `semgrep`) with a registry ruleset |
 | Image digest, non-root, scan | a `Dockerfile` | base pinned by `sha256:`, no root user, no known CVE in the image | `grep '@sha256:' Dockerfile`; a `USER` line; `trivy image` |
-| Pinned Actions | `.github/workflows/` | every action pinned to a commit SHA, never a mutable tag | `pinact` or `zizmor`; a grep for `@v[0-9]` |
+| Hardened workflows | `.github/workflows/` | every action pinned to a commit SHA, never a mutable tag; `permissions:` declared and least-privilege — read by default, write only on the job that needs it; no `pull_request_target` or `workflow_run` that checks out untrusted code, and no `${{ github.event.* }}` expanded inside `run:` — it goes through `env:`; `actions/checkout` with `persist-credentials: false`; a `timeout-minutes` on every job; a self-hosted runner only on a private repository, isolated and ephemeral — on a public one any fork's pull request runs code on it | `zizmor .github/workflows` · `actionlint`; a grep for `@v[0-9]` |
+| Pre-commit hook | a git repository, at `project` and above | the fast checks — secrets first, then format and lint — run before a commit exists, not only in CI | `.pre-commit-config.yaml` with `gitleaks`; `pre-commit run --all-files` |
 | Accessibility | a frontend | the UI is usable without a mouse or a screen | an axe run on the rendered pages |
 | Licence, SBOM, signing | something published or distributed | who may use it, what is in it, that it is what it claims | `LICENSE` exists; `syft`; `cosign` |
-| Minimum dependency age | dependencies and a CI | a version younger than seven days is not taken | Renovate `minimumReleaseAge` or `depsguard` |
+| Security policy | something published or distributed | a reporter knows where to send a vulnerability privately and what to expect | `SECURITY.md` exists and names a private channel |
+| Branch protection | a remote repository | the default branch refuses deletion and force-push, and a merge waits for the CI checks. It is a setting of the forge, not a file of the tree, so the proof reads the forge | `gh api repos/{owner}/{repo}/rules/branches/{default}` lists `deletion`, `non_fast_forward` and `required_status_checks` |
+| Minimum dependency age | dependencies and a CI | a version younger than seven days is not taken | Renovate `minimumReleaseAge` · Dependabot `cooldown` · `depsguard` |
 | Format version | the program writes a file it reads back — a save file, a cache, a configuration | a format can be told apart from its successors, so a later version reads an older file instead of misreading it. The atomic write itself is already the floor's ([data integrity](#the-security-floor--five-items-no-level-drops)) | a version field in the format; the story's test reads a file written by the previous format |
 
 ## On request
@@ -86,6 +89,7 @@ Costly or narrow; activated only by a requirement that names them.
 | Benchmarks | a stated performance requirement | `hyperfine` · `wrk` · `vegeta` · `go test -bench` |
 | Coverage threshold | a team policy that names a number | the test runner's coverage flag against the number |
 | Mutation testing | a suite whose strength is in question | `cargo-mutants` · `stryker` |
+| Build provenance (SLSA) | an artifact others install and must trust came from this commit and this pipeline | `actions/attest-build-provenance`; `gh attestation verify` — it needs the forge's OIDC identity, the one step here that cannot run locally |
 
 ## The legend line
 
