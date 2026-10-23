@@ -32,6 +32,10 @@ The Tech Reviewer's focus areas, its measurement rule and its report format live
 >
 > Story directory: [absolute path to .epico/stories/NNN-slug in the main tree] · Sub-task: [number]
 >
+> ## Language rules
+>
+> [`references/language-rules.md#<language>` for each technology under review — or `no language-rules.md section for <language>`, never rules invented for it]
+>
 > ## Files to Review
 >
 > [Files the sub-task created or modified — from the Executor's report, or from the inline route's own closing block]

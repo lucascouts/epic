@@ -184,3 +184,117 @@ ci_mirror_rule() { # ci_mirror_rule <label> <block> — the rule sits on one lin
   has "S18 untested" "$step" 'untested'
   has "S18 verified_at" "$step" 'verified_at'
 }
+
+# --- R3: secure-coding rules per language ------------------------------------
+
+LANGS="$ROOT/references/language-rules.md"
+
+lang() { # lang <heading> — one `## <heading>` section, nothing past the next
+  section "$LANGS" "^## $1\$" '^## '
+}
+
+@test "S19: language-rules.md has exactly the eight language sections" {
+  [ -f "$LANGS" ]
+  got=$(command grep -E '^## ' "$LANGS" | sed 's/^## //' | paste -sd'|')
+  [ "$got" = "Go|Rust|Python|JavaScript/TypeScript|PHP|Shell|SQL|Docker" ]
+}
+
+@test "S20: Go — -race, a context timeout on network I/O, %w" {
+  s=$(lang Go); [ -n "$s" ]
+  has "S20 race" "$s" '-race'
+  has "S20 timeout" "$s" 'context[^.]*timeout[^.]*network'
+  has "S20 wrap" "$s" '%w'
+}
+
+@test "S21: Rust — no unwrap/expect in production, cargo audit" {
+  s=$(lang Rust); [ -n "$s" ]
+  has "S21 unwrap" "$s" 'unwrap'
+  has "S21 expect" "$s" 'expect'
+  has "S21 production" "$s" 'production'
+  has "S21 audit" "$s" 'cargo audit'
+}
+
+@test "S22: Python — no shell=True with input, raise … from" {
+  s=$(lang Python); [ -n "$s" ]
+  has "S22 shell" "$s" 'shell=True'
+  has "S22 raise from" "$s" 'raise [^ ]+ from'
+}
+
+@test "S23: JavaScript/TypeScript — strict, no any, schema validation of external data" {
+  s=$(lang JavaScript/TypeScript); [ -n "$s" ]
+  has "S23 strict" "$s" 'strict'
+  has "S23 any" "$s" '`any`'
+  has "S23 schema" "$s" 'schema[^.]*external|external[^.]*schema'
+}
+
+@test "S24: PHP — PDO prepared statements, htmlspecialchars" {
+  s=$(lang PHP); [ -n "$s" ]
+  has "S24 pdo" "$s" 'PDO[^.]*prepared'
+  has "S24 escape" "$s" 'htmlspecialchars'
+}
+
+@test "S25: Shell — set -euo pipefail, quoted expansions" {
+  s=$(lang Shell); [ -n "$s" ]
+  has "S25 strict mode" "$s" 'set -euo pipefail'
+  has "S25 quoted" "$s" 'quote[a-z]* every expansion|quoted expansion'
+}
+
+@test "S26: SQL — parameterized only" {
+  s=$(lang SQL); [ -n "$s" ]
+  has "S26 param" "$s" 'parameteri[sz]ed'
+  has "S26 never concat" "$s" 'never (concatenat|interpolat)'
+}
+
+@test "S27: Docker — digest pin, multi-stage, .dockerignore, non-root, no secret in the image" {
+  s=$(lang Docker); [ -n "$s" ]
+  has "S27 digest" "$s" 'sha256:'
+  has "S27 multi-stage" "$s" 'multi-stage'
+  has "S27 dockerignore" "$s" '\.dockerignore'
+  has "S27 non-root" "$s" 'non-root'
+  has "S27 secret" "$s" 'secret[^.]*image|image[^.]*secret'
+}
+
+RUN_MODE="$ROOT/references/run-mode.md"
+
+@test "S28: the Executor prompt template names language-rules.md per detected language" {
+  tpl=$(section "$RUN_MODE" '^### Executor Prompt Template' '^### ')
+  has "S28 file" "$tpl" 'language-rules\.md'
+  has "S28 per language" "$tpl" 'each detected language|per detected language'
+}
+
+@test "S29: the delegated route builds the prompt with those sections" {
+  del=$(section "$RUN_MODE" '^### Delegated Route' '^### ')
+  step1=$(printf '%s\n' "$del" | command grep -E '^1\. ')
+  has "S29 step 1" "$step1" 'language-rules\.md'
+}
+
+@test "S30: the inline route reads the same sections before implementing" {
+  inl=$(section "$RUN_MODE" '^### Inline Route' '^### ')
+  has "S30 file" "$inl" 'language-rules\.md'
+  has "S30 before" "$inl" 'language-rules\.md[^.]*before implement|before implement[^.]*language-rules'
+}
+
+@test "S31: a language with no section names none, says so in one line, invents nothing" {
+  det=$(section "$RUN_MODE" '^## Tech Stack Detection' '^## ')
+  line=$(printf '%s\n' "$det" | command grep -F 'language-rules.md' | command grep -iE 'no section' | head -1)
+  [ -n "$line" ]
+  has "S31 none" "$line" 'name[s]? none'
+  has "S31 one line" "$line" 'one line'
+  has "S31 invent" "$line" 'never invent|without inventing'
+}
+
+@test "S32: the Tech Reviewer prompt template names the language-rules.md sections under review" {
+  tpl=$(section "$ROOT/references/run-tech-review.md" '^### Tech Reviewer Prompt Template' '^### ')
+  has "S32 file" "$tpl" 'language-rules\.md'
+  has "S32 under review" "$tpl" 'under review'
+}
+
+@test "S33: the no-match line applies to the reviewer prompt" {
+  tpl=$(section "$ROOT/references/run-tech-review.md" '^### Tech Reviewer Prompt Template' '^### ')
+  has "S33 no section" "$tpl" 'no language-rules\.md section for'
+}
+
+@test "S34: tech-reviewer.md's Protocol points at the named sections" {
+  proto=$(section "$ROOT/agents/tech-reviewer.md" '^## Protocol' '^## ')
+  has "S34 pointer" "$proto" 'language-rules\.md'
+}

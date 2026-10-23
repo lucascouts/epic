@@ -84,6 +84,8 @@ tech_profile:
 
 The `tech_profile` is passed to the Executor sub-agent prompt. Boundaries trigger Tech Review after execution, on every route.
 
+**Each detected language maps to its section of [language-rules.md](language-rules.md)** — the secure-coding rules a linter does not catch — and only those sections are read, never the whole file. A detected language with no section there names none: say so in one line — `no language-rules.md section for <language>` — without inventing rules for it.
+
 ## Execution Threshold
 
 **The route is chosen per sub-task, and it is not read off `Complexity`.** `Complexity` is a parent-task field — [tasks.md](tasks.md#metadata-line-fields) makes it *Always on parent* and merely optional on the sub-task — so routing on it alone sends every sub-task of a `Moderate` parent to a sub-agent, the ones whose spec is already closed included. That is the expensive mistake: a sub-agent starts with an empty context and has to re-read what the orchestrator is already holding, so delegating a closed spec buys isolation nobody needed and pays for it in rediscovery.
@@ -139,7 +141,7 @@ The two routes below — inline and delegated — apply this ordering; Standard/
 
 ### Inline Route — Main Agent
 
-The main agent executes directly but MUST follow the same step sequence as the Executor. No step may be skipped. The Executor's breaker holds here too: the same command failing three times ends the sub-task as failed, with the shared error as its reason. If a Context field exists, context MUST be gathered before implementation.
+The main agent executes directly but MUST follow the same step sequence as the Executor. No step may be skipped. The Executor's breaker holds here too: the same command failing three times ends the sub-task as failed, with the shared error as its reason. If a Context field exists, context MUST be gathered before implementation. **The main agent reads the `language-rules.md` sections of the detected languages before implementing** — the same sections an Executor's prompt would name, because the inline route never loads the Executor's definition and would otherwise skip them.
 
 **Tech review applies on this route too.** It is an orchestrator step, not an Executor step, so "the same step sequence" does not carry it: after the sub-task's validation passes and before the box is closed, run the Delegated Route's step 5 — spawn Tech Reviewers when the Complexity table in Execution Threshold calls for one. A closed spec that crosses a technology boundary is exactly where a generalist implementer misses what the reviewer catches, and routing it inline must not also drop its review.
 
@@ -151,7 +153,7 @@ For an **inline-routed** sub-task under the run-time ordering above (Fast, spike
 
 Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent section. The orchestrator:
 
-1. Builds the Executor prompt with task fields + story context + design interfaces + tech profile
+1. Builds the Executor prompt with task fields + story context + design interfaces + tech profile + the `language-rules.md` section of each detected language
 2. Spawns the Executor — `run_in_background: false`, result awaited; with `isolation: "worktree"` for parallel tasks, a parallel group being several Agent calls in one message, every one awaited before the next step ([personas.md](personas.md#personas))
 3. Waits for the Executor to complete
 4. Reads the Executor's structured report
@@ -424,6 +426,7 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 > **Requirements:** [requirements field]
 > **Commit:** [the group's `Commit:` message, verbatim, when this sub-task is the group's last — your closing block reports it]
 > **Comment language:** [English only — or English plus <language> on the line below, when the user asked for it]
+> **Language rules:** [`references/language-rules.md#<language>` for each detected language — read those sections before implementing; or `no language-rules.md section for <language>`]
 > **Story directory:** [absolute path to .epico/stories/NNN-slug in the main tree — your progress notes go there, never into a worktree copy]
 >
 > ## Story Context
