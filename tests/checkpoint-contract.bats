@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# The checkpoint mode's contract: the user's verdict before Epic's on judgment
+# The checkpoint mode's contract: the user's verdict before Epico's on judgment
 # items, no recommended marker there, --auto stops before judgment, documents
 # only through the doc writer, the record of every answer.
 
@@ -13,19 +13,19 @@ has() {  # <extended regex> — case-insensitive, names the miss
 }
 
 @test "routed: the cascade arm, the dispatch row and the description" {
-  command grep -qF '"checkpoint <N>"' "$ROOT/skills/epic/SKILL.md"
-  command grep -qF '| **Checkpoint** | `/epic:epic checkpoint <N>` | Load [checkpoint-mode.md]' "$ROOT/skills/epic/SKILL.md"
+  command grep -qF '"checkpoint <N>"' "$ROOT/skills/epico/SKILL.md"
+  command grep -qF '| **Checkpoint** | `/epico:epico checkpoint <N>` | Load [checkpoint-mode.md]' "$ROOT/skills/epico/SKILL.md"
 }
 
 @test "the user leads: verdict first on judgment items, no recommended marker, --auto stops before judgment" {
-  has 'ask for the user.s verdict, and only then give Epic.s own reading'
+  has 'ask for the user.s verdict, and only then give Epico.s own reading'
   has 'carry \*\*no `\(Recommended\)` marker\*\*'
   has 'under `--auto` the checkpoint runs step 1, prints it, and stops before step 2'
   has 'headless: print every step.s evidence and proposed answers, write nothing'
 }
 
-@test "step 1 runs epic-checkpoint and handles every state it returns" {
-  has 'run `epic-checkpoint --stage <N>`'
+@test "step 1 runs epico-checkpoint and handles every state it returns" {
+  has 'run `epico-checkpoint --stage <N>`'
   for st in closed in-work unmapped mismatch open; do has "\`$st\` —"; done
   has 'unknown_ids'
 }
@@ -37,10 +37,10 @@ has() {  # <extended regex> — case-insensitive, names the miss
   has 'never code, never a story'
 }
 
-@test "the record keeps the user's verdict, Epic's reading and the final answer" {
-  has '\.epic/checkpoints/<N>\.yaml'
+@test "the record keeps the user's verdict, Epico's reading and the final answer" {
+  has '\.epico/checkpoints/<N>\.yaml'
   has '^    user: '
-  has '^    epic: '
+  has '^    epico: '
   has '^    final: '
-  has 'follows the project.s `\.epic/\.gitpolicy`'
+  has 'follows the project.s `\.epico/\.gitpolicy`'
 }

@@ -19,7 +19,7 @@
 #   --should-annotate  the cost rule as a decision, NOT a rendering: it
 #                      reads no stdin and writes no output. Exit 0 = evaluate
 #                      this story, exit 1 = skip it. <is-stories-full> is `true`
-#                      only for `/epic:epic stories full`.
+#                      only for `/epico:epico stories full`.
 #
 # Exit codes:
 #   0  --list / --validate: a rendering was produced, OR deliberately was not.
@@ -287,7 +287,7 @@ render_validate() {
 #   1. status — only `done`/`validated` stories are ever annotated. A draft has
 #      no integration question to ask, however small the project, so this gate
 #      is not a cost control and no sweep flag overrides it.
-#   2. the full sweep — `/epic:epic stories full` evaluates "regardless of story
+#   2. the full sweep — `/epico:epico stories full` evaluates "regardless of story
 #      count", so it answers before the count is even looked at. That is what
 #      makes an unparseable count harmless on this path: it is not consulted.
 #   3. the count — more than 50 skips. MORE THAN: 50 evaluates.

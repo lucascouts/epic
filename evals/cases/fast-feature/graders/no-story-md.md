@@ -1,5 +1,5 @@
 ---
 type: file_exists
-path: '.epic/stories/*/story.md'
+path: '.epico/stories/*/story.md'
 exists: false
 ---

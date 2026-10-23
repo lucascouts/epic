@@ -3,7 +3,7 @@
 # end of the turn, once, naming each word.
 #
 # The words leak in short status lines written between tool calls ("Red
-# confirmed, now the implementation") — never in the closing, which epic-jargon
+# confirmed, now the implementation") — never in the closing, which epico-jargon
 # already checks. Asking the model not to narrate is not reliable, so this hook
 # does not ask: it reads every assistant text block of the turn from the transcript, runs
 # jargon-check.sh over all of it, and when a term has no legend anywhere in the
@@ -27,11 +27,11 @@ TRANSCRIPT="${TRANSCRIPT/#\~/$HOME}"
 [ -n "$TRANSCRIPT" ] && [ -r "$TRANSCRIPT" ] || exit 0
 CWD=${CWD:-$PWD}
 ROOT=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$CWD")
-[ -d "$ROOT/.epic" ] || exit 0
+[ -d "$ROOT/.epico" ] || exit 0
 
 # The newest story is the one this turn is about — live or just archived: a Fast
 # run can finish and archive its story in the same turn it leaked a word in.
-NEWEST=$(find "$ROOT/.epic/stories" "$ROOT/.epic/archive" -mindepth 2 -maxdepth 2 -name tasks.md \
+NEWEST=$(find "$ROOT/.epico/stories" "$ROOT/.epico/archive" -mindepth 2 -maxdepth 2 -name tasks.md \
   -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n 1 | cut -d' ' -f2- || true)
 [ -n "$NEWEST" ] || exit 0
 LEVEL=$(awk 'NR == 1 && $0 != "---" { exit } NR > 1 && $0 == "---" { exit }

@@ -2,11 +2,11 @@
 
 Loaded before any story artifact is created or refined: where artifacts go, how they are numbered, and the frontmatter every artifact carries.
 
-- Default path: `.epic/stories/NNN-<name>/`
+- Default path: `.epico/stories/NNN-<name>/`
 - Naming: `NNN-kebab-case` where NNN is auto-incremented (zero-padded, 001-999)
-- Auto-increment: `epic-next-number` detects the highest existing number across `.epic/stories/` AND `.epic/archive/` and adds 1. It is the single allocator — neither create flow re-implements the scan, and `--reserve N` claims numbers on disk (directory existence is the reservation)
+- Auto-increment: `epico-next-number` detects the highest existing number across `.epico/stories/` AND `.epico/archive/` and adds 1. It is the single allocator — neither create flow re-implements the scan, and `--reserve N` claims numbers on disk (directory existence is the reservation)
 - Numbers are NEVER recycled — archived stories retain their numbers permanently
-- If 999 is reached: "Maximum story count reached. Archive old stories with `/epic:epic stories archive` to free space."
+- If 999 is reached: "Maximum story count reached. Archive old stories with `/epico:epico stories archive` to free space."
 - Create directory before writing files
 - User can override path; accept without further questions
 - Add version frontmatter to each artifact on creation:
@@ -46,7 +46,7 @@ Loaded before any story artifact is created or refined: where artifacts go, how 
   ---
   ```
 - Version is a simple integer, not semver
-- Maximum 10 history entries; older entries: "see git history" — **unless the artifacts are not in git, in which case the cap does not apply.** The rule relegates old entries, and relegation needs somewhere to relegate them *to*. Where `.epic/` is gitignored — the default this plugin ships, and verifiable with `git ls-files .epic/` returning nothing — dropping the eleventh entry destroys it instead of moving it, and the escape hatch the rule names does not exist. Check before trimming; a story that has genuinely been refined eleven times keeps eleven entries, and that is not a violation. Where the artifacts *are* tracked, the cap holds as written
+- Maximum 10 history entries; older entries: "see git history" — **unless the artifacts are not in git, in which case the cap does not apply.** The rule relegates old entries, and relegation needs somewhere to relegate them *to*. Where `.epico/` is gitignored — the default this plugin ships, and verifiable with `git ls-files .epico/` returning nothing — dropping the eleventh entry destroys it instead of moving it, and the escape hatch the rule names does not exist. Check before trimming; a story that has genuinely been refined eleven times keeps eleven entries, and that is not a violation. Where the artifacts *are* tracked, the cap holds as written
 - All files in a story share the same version number
 
 The `status:` field, its six values and who writes each: [lifecycle-status.md](lifecycle-status.md).
@@ -56,8 +56,8 @@ The `status:` field, its six values and who writes each: [lifecycle-status.md](l
 What the orchestrator reads stays in its context for the rest of the session, so it reads the part it acts on, never the whole file:
 
 - **A report or a log: `grep` the section, never `cat` the file.** `grep -n -A8 '^### Validation Result' .draft/reports/2.1.md`, not the report end to end.
-- **The Auditor's verdicts: `epic-report --story <dir>`** — both verdicts and the size of every list, as one line of JSON. `epic-report --story <dir> --list gaps` prints one list when its items are needed.
-- **The deviation register: `epic-deviation list --story <dir> [--open]`**, never the YAML.
+- **The Auditor's verdicts: `epico-report --story <dir>`** — both verdicts and the size of every list, as one line of JSON. `epico-report --story <dir> --list gaps` prints one list when its items are needed.
+- **The deviation register: `epico-deviation list --story <dir> [--open]`**, never the YAML.
 - **The task census: the JSON `close-subtask.sh` already returned**, never a re-read of `tasks.md`.
 - **Command output: the exit code and the last lines** (`| tail -n 20`); the full output only when the last lines do not explain a failure.
 

@@ -17,7 +17,7 @@
 # THE VERSION DECLARATION BELOW IS LOAD-BEARING, not boilerplate. The archive
 # case drives `archive-story.sh` with `run --separate-stderr`, and flags on
 # `run` require bats 1.5.0; without this line bats emits BW02 on every run of
-# the whole suite. `epic-index.bats` and `archive-story.bats` declare it too.
+# the whole suite. `epico-index.bats` and `archive-story.bats` declare it too.
 
 bats_require_minimum_version 1.5.0
 
@@ -140,9 +140,9 @@ detector_json() {
   # merged anywhere — there is no git repo here, so the detector cannot even
   # answer — and the archive must not care.
   local proj="$WORK/proj"
-  mkdir -p "$proj/.epic/stories/006-widget-flow"
+  mkdir -p "$proj/.epico/stories/006-widget-flow"
   cd "$proj"
-  local d="$proj/.epic/stories/006-widget-flow"
+  local d="$proj/.epico/stories/006-widget-flow"
   cat > "$d/story.md" <<'EOF'
 ---
 story: widget-flow
@@ -183,11 +183,11 @@ EOF
   # `--separate-stderr`, because archive-story.sh puts its JSON on stdout and
   # its human-readable diagnostics on stderr BY CONTRACT — bats' plain `run`
   # merges the two and the merged stream is not parseable.
-  run --separate-stderr bash "$PLUGIN_ROOT/scripts/archive-story.sh" .epic/stories/006-widget-flow
+  run --separate-stderr bash "$PLUGIN_ROOT/scripts/archive-story.sh" .epico/stories/006-widget-flow
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "archived"' > /dev/null
   # And the verdict names nothing about integration — the concept must not
   # appear in the archive's report at all.
   echo "$output" | jq -e 'has("integrated") | not' > /dev/null
-  [ -d "$proj/.epic/archive/006-widget-flow" ]
+  [ -d "$proj/.epico/archive/006-widget-flow" ]
 }

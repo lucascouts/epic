@@ -19,7 +19,7 @@ Each phase: generate artifact > **write to disk** > notify user > gate (approve 
 
 **Three-step notification pattern:**
 1. **Before writing:** "Creating `story.md`..."
-2. **After writing:** "Phase 1 written to `.epic/stories/NNN-name/story.md`. Review and approve to continue."
+2. **After writing:** "Phase 1 written to `.epico/stories/NNN-name/story.md`. Review and approve to continue."
 3. **User reviews the file directly** — they can edit it or request changes via chat.
 
 - Do NOT paste artifact contents into the chat — the file IS the artifact
@@ -72,7 +72,7 @@ During phase generation, save incremental progress so a **new** session can tell
 Before generating each major section of an artifact, write a `.wip` file:
 
 ```yaml
-# .epic/stories/NNN-name/.draft/story.md.wip
+# .epico/stories/NNN-name/.draft/story.md.wip
 progress: 3
 sections_completed:
   - frontmatter
@@ -121,7 +121,7 @@ For Standard mode, Phase 1 + Phase 3 references are loaded.
 
 On format doubts, load the relevant example from `assets/examples/`.
 
-Additionally, if `.epic/constitution.md` is present, its relevant sections are loaded as constraints (the project's `CLAUDE.md` is already in context).
+Additionally, if `.epico/constitution.md` is present, its relevant sections are loaded as constraints (the project's `CLAUDE.md` is already in context).
 
 ## Integration points and gotchas (Full mode, before Phase 2)
 
@@ -148,7 +148,7 @@ After the main agent generates the task list structure (with Objective, ToDo, Va
 > Design contract excerpts: [Full mode only — signatures/data shapes from design.md, per Unit/Integration sub-task]
 > E2E tool: [the `E2E tool:` line of design.md's `## Tooling Decisions` — e.g. `playwright`, or `none`]
 > Task list: [generated tasks WITHOUT Tests fields, and WITHOUT ToDo fields for authoring]
-> Story directory: [.epic/stories/NNN-name]
+> Story directory: [.epico/stories/NNN-name]
 > Project language/framework and test conventions: [detected from codebase analysis]"
 
 The main agent merges the Test Advisor mapping into the task list before writing tasks.md to disk. The Test Advisor writes **only** inside the story's `.draft/` directory — the authored test files under `.draft/authored-tests/` and the Red evidence in `.draft/red-evidence.yaml` — and modifies no other project file. Every Unit/Integration test it authors must be confirmed Red before Phase 3 completes; an authored Unit/Integration test that passes blocks Phase 3 until revised (up to 2 attempts) or escalated to the user. An authored E2E test is not run in Phase 3 — its Red verification is deferred to Run mode and recorded as a `red_deferred: true` entry.
@@ -200,8 +200,8 @@ The nine cross-artifact checks and the output format live in [reviewer.md](../ag
 
 **When a Standard or Full story is written and carries `run-model:`, the closing ends with how to run it on that model** — because the choice only takes effect in a session running it. Two ways, both named with the story's number:
 
-- in this session: type `/model <run-model>`, then `/epic:epic stories run NNN` — `/model <name>` also makes it the default for new sessions; for this session only, open `/model`, pick it and press `s`
-- in a new one: `claude --model <run-model>`, then `/epic:epic stories run NNN` — applies to that session alone, and is the cheaper of the two: it starts with an empty context, and the story's files already carry everything the run needs
+- in this session: type `/model <run-model>`, then `/epico:epico stories run NNN` — `/model <name>` also makes it the default for new sessions; for this session only, open `/model`, pick it and press `s`
+- in a new one: `claude --model <run-model>`, then `/epico:epico stories run NNN` — applies to that session alone, and is the cheaper of the two: it starts with an empty context, and the story's files already carry everything the run needs
 
 Neither is run on the user's behalf: a plugin cannot switch the session's model, so the closing gives the commands and stops. For a `layperson` the same two lines are given in their words, with `/model` and the model name legended.
 
@@ -210,7 +210,7 @@ Neither is run on the user's behalf: a plugin cannot switch the session's model,
 After the final phase approval (standard and full scales only), generate a traceability table. **Build it from `cross-reference.sh`, never by hand-counting** — manual tallying is error-prone at scale. Run:
 
 ```bash
-epic-xref .epic/stories/NNN-name
+epico-xref .epico/stories/NNN-name
 ```
 
 The JSON output carries everything the table needs: `mapping` is the requirement → sub-tasks relation, `orphan_requirements` lists requirements no task declares, `phantom_references` lists task references with no requirement. Render the table directly from those fields — task numbers come straight from `mapping`:

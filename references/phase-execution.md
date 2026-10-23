@@ -1,6 +1,6 @@
 # Phase execution and recovery — Standard and Full
 
-Loaded when a Standard or Full story writes its phases, saves drafts or resumes. Kept out of [SKILL.md](../skills/epic/SKILL.md) so a run that does not need it does not carry it.
+Loaded when a Standard or Full story writes its phases, saves drafts or resumes. Kept out of [SKILL.md](../skills/epico/SKILL.md) so a run that does not need it does not carry it.
 
 ## Completeness Checklist
 
@@ -35,7 +35,7 @@ A Standard Unit test is small and lives beside the code it pins, so authoring it
 After each phase approval, save to draft:
 
 ```
-.epic/stories/<name>/
+.epico/stories/<name>/
   .draft/
     story.md       <- after Phase 1 approval
     design.md      <- after Phase 2 approval (full only)
@@ -62,7 +62,7 @@ analyst_output: |
 
 ### Resume Detection
 
-If `.epic/stories/<name>/.draft/` exists when Create mode is detected for the same topic:
+If `.epico/stories/<name>/.draft/` exists when Create mode is detected for the same topic:
 
 1. Compare `project-hash` with current HEAD
 2. If diverged: "Found a draft (Phase N approved), but the project has commits since then. Resume anyway, or start fresh?"

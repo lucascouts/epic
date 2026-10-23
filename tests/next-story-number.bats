@@ -3,7 +3,7 @@
 #
 # Contract under test:
 #   next-story-number.sh [--reserve N], run from a project root containing
-#   .epic/stories/ and .epic/archive/  →  ONE JSON object on stdout:
+#   .epico/stories/ and .epico/archive/  →  ONE JSON object on stdout:
 #     {next, reserved: [], collisions: []}
 #   - next: zero-padded 3-digit string = max NNN- prefix across BOTH roots + 1;
 #     an empty project starts at "001"
@@ -27,16 +27,16 @@
 # directories any other way, adapt the fixture's interception point — never
 # the assertions.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so the suite can run against a
+# EPICO_PLUGIN_ROOT overrides root resolution so the suite can run against a
 # plugin tree other than its parent directory.
 
 bats_require_minimum_version 1.5.0
 
 setup() {
-  PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+  PLUGIN_ROOT="${EPICO_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   SCRIPT="$PLUGIN_ROOT/scripts/next-story-number.sh"
   WORK=$(mktemp -d)
-  mkdir -p "$WORK/.epic/stories" "$WORK/.epic/archive"
+  mkdir -p "$WORK/.epico/stories" "$WORK/.epico/archive"
 }
 
 teardown() {
@@ -59,15 +59,15 @@ run_alloc() {
 @test "next is the max across stories AND archive (archived max wins)" {
   # a stories-only scan is the bug shape: an archived
   # story holding the true max must not let a number be recycled
-  mkdir "$WORK/.epic/stories/003-live-story"
-  mkdir "$WORK/.epic/archive/007-archived-story"
+  mkdir "$WORK/.epico/stories/003-live-story"
+  mkdir "$WORK/.epico/archive/007-archived-story"
   run --separate-stderr run_alloc
   [ "$status" -eq 0 ]
   [ "$(echo "$output" | jq -r '.next')" = "008" ]
 }
 
 @test "next stays zero-padded across the width boundary (009 -> 010)" {
-  mkdir "$WORK/.epic/stories/009-nine"
+  mkdir "$WORK/.epico/stories/009-nine"
   run --separate-stderr run_alloc
   [ "$status" -eq 0 ]
   [ "$(echo "$output" | jq -r '.next')" = "010" ]
@@ -75,22 +75,22 @@ run_alloc() {
 }
 
 @test "a plain call reserves nothing on disk" {
-  mkdir "$WORK/.epic/stories/004-existing"
+  mkdir "$WORK/.epico/stories/004-existing"
   run run_alloc
   [ "$status" -eq 0 ]
-  [ "$(ls "$WORK/.epic/stories" | wc -l)" -eq 1 ]
-  [ "$(ls "$WORK/.epic/archive" | wc -l)" -eq 0 ]
+  [ "$(ls "$WORK/.epico/stories" | wc -l)" -eq 1 ]
+  [ "$(ls "$WORK/.epico/archive" | wc -l)" -eq 0 ]
 }
 
 @test "--reserve 3 returns consecutive zero-padded numbers and the dirs ARE the reservation" {
-  mkdir "$WORK/.epic/stories/004-existing"
+  mkdir "$WORK/.epico/stories/004-existing"
   run --separate-stderr run_alloc --reserve 3
   [ "$status" -eq 0 ]
   [ "$(echo "$output" | jq -c '.reserved')" = '["005","006","007"]' ]
   [ "$(echo "$output" | jq -c '.collisions')" = "[]" ]
   # one placeholder directory per reserved number, in the stories root
   for n in 005 006 007; do
-    ls -d "$WORK/.epic/stories/$n-"* >/dev/null
+    ls -d "$WORK/.epico/stories/$n-"* >/dev/null
   done
   # directory existence is the reservation: a second scan starts after them
   run --separate-stderr run_alloc
@@ -99,7 +99,7 @@ run_alloc() {
 }
 
 @test "999 cap — a plain call past the cap refuses with exit 1 naming it" {
-  mkdir "$WORK/.epic/stories/999-last"
+  mkdir "$WORK/.epico/stories/999-last"
   run run_alloc
   [ "$status" -eq 1 ]
   [[ "$output" == *999* ]]
@@ -108,15 +108,15 @@ run_alloc() {
 @test "999 cap — a --reserve that would cross the cap refuses whole, reserving nothing" {
   # allocate-N-exactly-once means all-or-nothing: a refusal must not
   # leave a partial reservation behind
-  mkdir "$WORK/.epic/stories/998-penultimate"
+  mkdir "$WORK/.epico/stories/998-penultimate"
   run run_alloc --reserve 2
   [ "$status" -eq 1 ]
   [[ "$output" == *999* ]]
-  [ "$(ls "$WORK/.epic/stories" | wc -l)" -eq 1 ]
+  [ "$(ls "$WORK/.epico/stories" | wc -l)" -eq 1 ]
 }
 
 @test "concurrent creator between scan and mkdir — tail re-slotted, collision recorded, foreign dir untouched" {
-  mkdir "$WORK/.epic/stories/004-existing"
+  mkdir "$WORK/.epico/stories/004-existing"
 
   # PATH shim: the first NNN-* placeholder mkdir also drops a foreign dir
   # claiming the SAME number, simulating a concurrent create in the race
@@ -155,11 +155,11 @@ SH
   # the batch still got 2 distinct numbers, none of them the foreign 005
   echo "$output" | jq -e '.reserved | (length == 2) and (unique | length == 2) and ((index("005")) | not)'
   # the foreign dir was never removed or overwritten, and now solely owns 005
-  [ -d "$WORK/.epic/stories/005-taken" ]
-  [ "$(ls -d "$WORK/.epic/stories/005-"* | wc -l)" -eq 1 ]
+  [ -d "$WORK/.epico/stories/005-taken" ]
+  [ "$(ls -d "$WORK/.epico/stories/005-"* | wc -l)" -eq 1 ]
   # every re-slotted number has its placeholder on disk
   while IFS= read -r n; do
-    ls -d "$WORK/.epic/stories/$n-"* >/dev/null
+    ls -d "$WORK/.epico/stories/$n-"* >/dev/null
   done < <(echo "$output" | jq -r '.reserved[]')
   # and a fresh scan starts strictly after everything reserved
   last=$(echo "$output" | jq -r '.reserved | max')

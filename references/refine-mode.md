@@ -1,10 +1,10 @@
 # Refine Mode
 
-Triggered by `/epic:epic stories refine NNN`.
+Triggered by `/epico:epico stories refine NNN`.
 
 ## Procedure
 
-1. Read existing story from `.epic/stories/<name>/`
+1. Read existing story from `.epico/stories/<name>/`
 2. Identify what changed
 3. Produce delta document for affected phases:
 
@@ -42,15 +42,15 @@ So, for **each** sub-task the merge adds whose `Tests:` field is not `None`:
 2. `Unit` and `Integration` tests are confirmed Red now, exactly as in Phase 3. An `E2E` test records `red_deferred: true` and has its Red confirmed at run time, exactly as in Phase 3 — refine changes *when the authoring happens*, never *what the evidence means*.
 3. **Append** to `.draft/red-evidence.yaml`; never rewrite it. The existing entries are dated records of runs that happened, and a refinement is not entitled to restate them.
 
-**If the Test Advisor cannot establish Red** — the behaviour already exists, the test cannot be run, the sub-task turns out not to be testable — do not invent an entry and do not silently drop the `Tests:` field. Record the reason with `epic-deviation add deviation` (`.draft/deviations.yaml`) and surface it with the delta, so the gap is a decision someone made rather than an absence nobody saw.
+**If the Test Advisor cannot establish Red** — the behaviour already exists, the test cannot be run, the sub-task turns out not to be testable — do not invent an entry and do not silently drop the `Tests:` field. Record the reason with `epico-deviation add deviation` (`.draft/deviations.yaml`) and surface it with the delta, so the gap is a decision someone made rather than an absence nobody saw.
 
 **Why this is a step and not a gotcha.** A one-time sweep for sub-tasks carrying a non-`None` `Tests:` field closes the gaps it finds and has nothing to re-run it: every later refinement that adds a sub-task would reopen the class in silence. Only a step that runs on every refinement keeps it closed.
 
-## Releasing a Test Blocked by `epic-test-diff`
+## Releasing a Test Blocked by `epico-test-diff`
 
-`close-subtask.sh` refuses to close a sub-task whose materialized pre-authored test no longer asserts what `.draft/authored-tests/` holds — an assertion line changed, removed or added, or the test missing (`epic-test-diff --story <dir> --file <target_path>` shows which line). Restoring the assertion releases it; so does this mode, when the plan itself was wrong:
+`close-subtask.sh` refuses to close a sub-task whose materialized pre-authored test no longer asserts what `.draft/authored-tests/` holds — an assertion line changed, removed or added, or the test missing (`epico-test-diff --story <dir> --file <target_path>` shows which line). Restoring the assertion releases it; so does this mode, when the plan itself was wrong:
 
-1. Show the user the assertion delta from `epic-test-diff` and say what the test now pins instead.
+1. Show the user the assertion delta from `epico-test-diff` and say what the test now pins instead.
 2. On a yes, MODIFY the requirement or acceptance criterion the test pins, in the same delta as everything else.
 3. Copy the materialized test over its authored copy in `.draft/authored-tests/`, and run it: it must pass now, since the code was written against it.
 4. Append an entry to `.draft/red-evidence.yaml` for that sub-task with `restated: <date>` and the reason; never rewrite the original entry.

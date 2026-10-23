@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Contradiction lint for a workspace's .epic git policy.
+# Contradiction lint for a workspace's .epico git policy.
 #
-# Usage: epic-gitpolicy.sh          measure the CURRENT DIRECTORY, print JSON
-#        epic-gitpolicy.sh --help
+# Usage: epico-gitpolicy.sh          measure the CURRENT DIRECTORY, print JSON
+#        epico-gitpolicy.sh --help
 #
 # Output: one JSON object on stdout —
 #   {git: true, policy: tracked-md|local-only|undeclared,
-#    gitignore_ignores_epic: bool, gitignore_source: "<path>"|null,
+#    gitignore_ignores_epico: bool, gitignore_source: "<path>"|null,
 #    tracked_md: N, tracked_draft: N,
 #    verdict: consistent|contradiction|partial}
 # and, in a workspace that is not a git repository:
@@ -15,7 +15,7 @@
 # CONSUMER REQUIREMENT — READ A MEASUREMENT KEY ONLY WHEN `git` IS true.
 # `git`, `policy` and `verdict` are TOTAL: every path emits all three, so they
 # are safe to read unconditionally. The four MEASUREMENT keys are not —
-# gitignore_ignores_epic, gitignore_source, tracked_md and tracked_draft are
+# gitignore_ignores_epico, gitignore_source, tracked_md and tracked_draft are
 # ABSENT from the non-git object, and `jq -r` renders an absent key as the
 # literal text `null`, not as `false`, `""` or `0`. So the obvious
 #   [[ "$(jq -r .tracked_md "$j")" -gt 0 ]]
@@ -33,7 +33,7 @@
 #      say
 #   2  usage error only (an argument this script does not take)
 #
-# WHY IT EXISTS: a workspace can commit .epic files THROUGH a .gitignore that
+# WHY IT EXISTS: a workspace can commit .epico files THROUGH a .gitignore that
 # says they are never committed, or change its policy and leave artifacts
 # behind. Git never reports either, because both are merely self-contradictory;
 # this is the one place that says so, in one line, from five measured facts.
@@ -47,7 +47,7 @@
 # (the same convention as scripts/story-git-status.sh).
 #
 # CONSUMERS read this with jq and nothing more: init pre-fills its question from
-# `policy` + `gitignore_ignores_epic` and needs `gitignore_source` to know WHICH
+# `policy` + `gitignore_ignores_epico` and needs `gitignore_source` to know WHICH
 # file to offer to edit, and the story list prints one header line when
 # `verdict != consistent`. THAT SECOND CONSUMER IS WHY EVERY RULE BELOW IS
 # WEIGHED FOR NOISE AND NOT ONLY FOR TRUTH: a verdict that fires on an ordinary
@@ -120,10 +120,10 @@ json_escape() {
 
 # --- Usage ------------------------------------------------------------------
 # This script takes NO arguments: the thing it measures is the current working
-# directory, and .epic/ is always resolved relative to $PWD — never to the
+# directory, and .epico/ is always resolved relative to $PWD — never to the
 # script's own location, which lives in the plugin and not in the workspace.
-USAGE='Usage: epic-gitpolicy.sh
-  (no arguments)  measure the .epic git policy of the current directory and
+USAGE='Usage: epico-gitpolicy.sh
+  (no arguments)  measure the .epico git policy of the current directory and
                   print the verdict as JSON on stdout
   --help, -h      this text'
 
@@ -144,11 +144,11 @@ if [[ "$#" -eq 1 ]]; then
   esac
 fi
 
-EPIC_DIR=".epic"
-POLICY_FILE="$EPIC_DIR/.gitpolicy"
+EPICO_DIR=".epico"
+POLICY_FILE="$EPICO_DIR/.gitpolicy"
 
 # --- Declared policy --------------------------------------------------------
-# The FIRST line of .epic/.gitpolicy, whitespace- and CR-trimmed. Only the two
+# The FIRST line of .epico/.gitpolicy, whitespace- and CR-trimmed. Only the two
 # known spellings are honoured; an empty, unreadable, misspelled or absent file
 # is `undeclared`, which is the answer that makes init ask the question again —
 # always the right outcome for a policy nothing here can read. Line 1 only, so
@@ -177,7 +177,7 @@ fi
 # Not a git repository → the three fields that are still TRUE here, and NOT the
 # four measurements: with no index and no exclude rules there is no such thing
 # as a tracked file or an ignored path, so `tracked_md: 0` and
-# `gitignore_ignores_epic: false` would be measurements nobody made, dressed up
+# `gitignore_ignores_epico: false` would be measurements nobody made, dressed up
 # as findings. `verdict: consistent` is what keeps the list header silent —
 # "show nothing".
 #
@@ -185,7 +185,7 @@ fi
 # counts and the ignore probe — are omitted, because they were not measured and
 # must not be faked. The declared policy is not a git measurement: it is the
 # plain file read just above, it is equally true with or without a repository,
-# and withholding it would force init to parse .epic/.gitpolicy a second time.
+# and withholding it would force init to parse .epico/.gitpolicy a second time.
 rc=0
 IN_TREE=$(git rev-parse --is-inside-work-tree 2>/dev/null) || rc=$?
 if [[ "$rc" -ne 0 || "$IN_TREE" != "true" ]]; then
@@ -198,7 +198,7 @@ if [[ "$rc" -ne 0 || "$IN_TREE" != "true" ]]; then
   exit 0
 fi
 
-# --- Is .epic ignored, and by what? -----------------------------------------
+# --- Is .epico ignored, and by what? -----------------------------------------
 # THREE FACTS DECIDE THIS CALL'S EXACT SHAPE (git 2.55), and each is easy to
 # undo by accident:
 #
@@ -206,16 +206,16 @@ fi
 #      report a path the index already knows, so the ONE workspace this lint
 #      exists for — files tracked THROUGH an ignoring .gitignore, `git add -f`
 #      — answers "not ignored" and the contradiction disappears:
-#      `check-ignore .epic` → rc 1, `check-ignore --no-index .epic` → rc 0
-#      naming `.gitignore:1:.epic/`. The flag is the whole point of the probe.
+#      `check-ignore .epico` → rc 1, `check-ignore --no-index .epico` → rc 0
+#      naming `.gitignore:1:.epico/`. The flag is the whole point of the probe.
 #
 #   2. THE PROBED PATH KEEPS ITS TRAILING SLASH. A directory-only pattern
-#      (`.epic/`, `/.epic/`) matches the pathname `.epic/` always, but matches
-#      the bare `.epic` only when the directory exists on disk — git stats the
-#      filesystem to decide. Probing `.epic` would therefore go quiet in the
-#      exact case init cares about: a workspace whose .epic/ has not been
-#      created yet. `.epic/` matches under all three common spellings —
-#      `.epic`, `.epic/` and `/.epic/` — present or absent.
+#      (`.epico/`, `/.epico/`) matches the pathname `.epico/` always, but matches
+#      the bare `.epico` only when the directory exists on disk — git stats the
+#      filesystem to decide. Probing `.epico` would therefore go quiet in the
+#      exact case init cares about: a workspace whose .epico/ has not been
+#      created yet. `.epico/` matches under all three common spellings —
+#      `.epico`, `.epico/` and `/.epico/` — present or absent.
 #
 #   3. `-v -z --stdin` IS THE ONLY UNAMBIGUOUS WAY TO READ THE SOURCE, and the
 #      three flags are one decision, not three. `-v` names the rule; its human
@@ -238,14 +238,14 @@ fi
 # and the user's global core.excludesFile.
 # A rule in any of them produces the same contradiction, and asking git
 # rather than parsing text also buys negations, `**` and precedence for free.
-# The boolean is therefore named for what it means: git ignores .epic, whatever
+# The boolean is therefore named for what it means: git ignores .epico, whatever
 # said so — and it stays that wide, because that is the predicate the
 # contradiction verdict needs.
 #
 # WHY THE SOURCE IS REPORTED SEPARATELY: the boolean cannot answer the question
-# init has to ask. Init asks consent to remove an .epic rule from the root
+# init has to ask. Init asks consent to remove an .epico rule from the root
 # .gitignore, and a bare `true` does not say WHERE the rule lives. A user whose
-# GLOBAL excludesFile ignores .epic, in a repo whose root .gitignore is
+# GLOBAL excludesFile ignores .epico, in a repo whose root .gitignore is
 # innocent, reads `true` with no line to remove; the wizard would offer a dead
 # end or edit the wrong file. Distinguishable at no extra git call: root rule → `.gitignore`, repo-local rule → `.git/info/exclude`,
 # nothing → no output at all.
@@ -255,13 +255,13 @@ fi
 # bytes and would splice the four fields into one word, so the answer has to be
 # `read` from a process substitution, which discards git's exit status. It
 # loses nothing: git prints a record only for a MATCH, so "named a source" ⇔
-# rc 0. On the shape that looks most like a counter-example — `.epic/` followed
-# by `!.epic/` — git prints nothing and exits 1, the same as no rule at all.
+# rc 0. On the shape that looks most like a counter-example — `.epico/` followed
+# by `!.epico/` — git prints nothing and exits 1, the same as no rule at all.
 #
 # DO NOT ADD `--non-matching`. It is the one flag that would print a record for
-# a path that is NOT ignored, with every field empty (`::<TAB>.epic/`), and the
+# a path that is NOT ignored, with every field empty (`::<TAB>.epico/`), and the
 # equivalence above is what couples the two keys — the `-n` conjunct below is
-# the belt to that brace, so `gitignore_ignores_epic: true` beside
+# the belt to that brace, so `gitignore_ignores_epico: true` beside
 # `gitignore_source: null` stays unreachable whatever a later edit does.
 #
 # Both failure modes still fail toward silence: not ignored (rc 1) and git
@@ -270,8 +270,8 @@ fi
 
 # One record of four NUL-terminated fields, or no output at all:
 #   <source>\0<linenum>\0<pattern>\0<pathname>\0
-epic_ignore_probe() {
-  printf '%s\0' "$EPIC_DIR/" |
+epico_ignore_probe() {
+  printf '%s\0' "$EPICO_DIR/" |
     git check-ignore --no-index -v -z --stdin 2>/dev/null
 }
 
@@ -279,7 +279,7 @@ GITIGNORE_IGNORES_EPIC=false
 # `read` succeeding means it FOUND the terminating NUL, i.e. git emitted a
 # record; the `else` clears whatever a short read left behind, because a
 # truncated path is a wrong path and `""` is the value that means "none".
-if IFS= read -r -d '' GITIGNORE_SOURCE < <(epic_ignore_probe) &&
+if IFS= read -r -d '' GITIGNORE_SOURCE < <(epico_ignore_probe) &&
   [[ -n "$GITIGNORE_SOURCE" ]]; then
   GITIGNORE_IGNORES_EPIC=true
 else
@@ -288,7 +288,7 @@ fi
 
 # --- Path classification ----------------------------------------------------
 # TWO PREDICATES, ONE DEFINITION EACH, AND BOTH CALLERS USE THESE — the counting
-# loop below and epic_has_untracked_artifacts. With inline copies, a class
+# loop below and epico_has_untracked_artifacts. With inline copies, a class
 # widened in one and not the other would make the reported counts and the "is anything left to add?" probe disagree about the same file,
 # which is a verdict bug with no visible symptom. Predicates, not a function
 # returning the class on stdout: a command substitution would fork once per
@@ -304,15 +304,15 @@ is_draft_path() {
 
 # is_md_artifact <path>: succeeds for the artifact set the recommended policy
 # tracks — *.md plus archive/manifest.yaml (story.md, design.md, tasks.md,
-# EPIC.md, the archive manifest).
+# EPICO.md, the archive manifest).
 #
 # WHAT IT DELIBERATELY EXCLUDES is as load-bearing as what it includes: the
-# policy's own machinery, .epic/.gitpolicy and .epic/.gitignore, is an artifact
+# policy's own machinery, .epico/.gitpolicy and .epico/.gitignore, is an artifact
 # of NO policy and is legitimately committed under EVERY one of them — a
 # .gitpolicy nobody else can read declares nothing to a teammate, and the nested
 # .gitignore is how .draft/ stays out of the index. Counting them would report a
 # contradiction against the very file that declares the policy, on a local-only
-# workspace that did nothing wrong. Every other non-artifact file under .epic/
+# workspace that did nothing wrong. Every other non-artifact file under .epico/
 # falls in the same gap for the same reason: only the artifact set can answer
 # "is the declared policy real?".
 is_md_artifact() {
@@ -324,7 +324,7 @@ is_md_artifact() {
 
 # --- Tracked-file counts ----------------------------------------------------
 # THE TWO COUNTS ARE DISJOINT AND MUST STAY THAT WAY. A .draft note is very
-# often a .md file — .epic/stories/NNN-x/.draft/notes.md is the standard one —
+# often a .md file — .epico/stories/NNN-x/.draft/notes.md is the standard one —
 # so "is it markdown?" and "is it a draft?" are not independent questions and
 # cannot be asked in either order without a rule. The rule: ANY path with a
 # /.draft/ component is a draft and nothing else, whatever its extension. The
@@ -349,25 +349,25 @@ while IFS= read -r -d '' TRACKED_PATH; do
   elif is_md_artifact "$TRACKED_PATH"; then
     TRACKED_MD=$((TRACKED_MD + 1))
   fi
-done < <(git ls-files -z -- "$EPIC_DIR" 2>/dev/null)
+done < <(git ls-files -z -- "$EPICO_DIR" 2>/dev/null)
 TRACKED_ANY=$((TRACKED_MD + TRACKED_DRAFT))
 
-# epic_has_untracked_artifacts: succeeds when at least one md-class artifact
-# exists under .epic/ that git is NOT tracking and is NOT ignoring. Existence
+# epico_has_untracked_artifacts: succeeds when at least one md-class artifact
+# exists under .epico/ that git is NOT tracking and is NOT ignoring. Existence
 # only — it stops at the first hit and never counts.
 # Called from ONE verdict arm and only there, so the common path stays at a
 # single ls-files call. `--exclude-standard` is what keeps a .draft/ note the
-# nested .epic/.gitignore already excludes from posing as an untracked artifact;
+# nested .epico/.gitignore already excludes from posing as an untracked artifact;
 # the is_draft_path conjunct repeats that guarantee for a workspace that has no
 # nested ignore file at all, and keeps the same draft-beats-md precedence the
 # counting loop uses.
-epic_has_untracked_artifacts() {
+epico_has_untracked_artifacts() {
   local p
   while IFS= read -r -d '' p; do
     if ! is_draft_path "$p" && is_md_artifact "$p"; then
       return 0
     fi
-  done < <(git ls-files -z --others --exclude-standard -- "$EPIC_DIR" 2>/dev/null)
+  done < <(git ls-files -z --others --exclude-standard -- "$EPICO_DIR" 2>/dev/null)
   return 1
 }
 
@@ -393,7 +393,7 @@ if [[ "$GITIGNORE_IGNORES_EPIC" == true && "$TRACKED_ANY" -gt 0 ]]; then
   VERDICT="contradiction"
 elif [[ "$GITIGNORE_IGNORES_EPIC" == true && "$POLICY" == "tracked-md" && "$TRACKED_MD" -eq 0 ]]; then
   # The declared policy is unreachable: tracking was chosen, the exclude rules
-  # forbid it, and every future `git add .epic` will silently do nothing. The
+  # forbid it, and every future `git add .epico` will silently do nothing. The
   # arm above already covers the version where something got in anyway.
   VERDICT="contradiction"
 elif [[ "$TRACKED_DRAFT" -gt 0 ]]; then
@@ -402,7 +402,7 @@ elif [[ "$TRACKED_DRAFT" -gt 0 ]]; then
   # tracked-md, local-only and undeclared alike, and needs no declaration to be
   # wrong. Cheap to say and cheap to fix, so it is worth one line.
   VERDICT="partial"
-elif [[ "$POLICY" == "tracked-md" && "$TRACKED_MD" -eq 0 ]] && epic_has_untracked_artifacts; then
+elif [[ "$POLICY" == "tracked-md" && "$TRACKED_MD" -eq 0 ]] && epico_has_untracked_artifacts; then
   # Declared tracking that never happened: the whole
   # artifact set is sitting untracked while the policy file says otherwise, and
   # nothing is blocking it (the second arm above owns the blocked variant), so
@@ -460,7 +460,7 @@ printf '%s\n' \
   "{" \
   "  \"git\": true," \
   "  \"policy\": \"$(json_escape "$POLICY")\"," \
-  "  \"gitignore_ignores_epic\": $GITIGNORE_IGNORES_EPIC," \
+  "  \"gitignore_ignores_epico\": $GITIGNORE_IGNORES_EPIC," \
   "  \"gitignore_source\": $GITIGNORE_SOURCE_JSON," \
   "  \"tracked_md\": $TRACKED_MD," \
   "  \"tracked_draft\": $TRACKED_DRAFT," \

@@ -12,7 +12,7 @@ evals/
 └── results/                              # written by each run; gitignored
 ```
 
-- **Trigger cases** have one grader: `tool_used` on `Skill` with the `epic` skill — at least once for should-trigger, never (`min: 0`, `max: 0`, `arm: both`) for should-not-trigger. They stop after 3 turns: the decision to load the skill is made in the first.
+- **Trigger cases** have one grader: `tool_used` on `Skill` with the `epico` skill — at least once for should-trigger, never (`min: 0`, `max: 0`, `arm: both`) for should-not-trigger. They stop after 3 turns: the decision to load the skill is made in the first.
 - **Artifact cases** grade what was written: `file_exists` for the story files, and `regex` over the trace scoped to the content of a `Write` to that file — never to the whole trace, which also carries the skill text and every reference the run read. The few judgements a regex cannot make use an `llm` grader. Three cases start from a small Express app (`scaffold.sh`), because their requests point at existing code; an empty workspace makes the right answer "there is nothing to change".
 
 ## Run

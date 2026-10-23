@@ -5,7 +5,7 @@
 # The commit is the run's last git step and the one an instruction alone keeps
 # losing: a weaker model closes a group, writes the closing and stops with the
 # work uncommitted. This hook reads the disk instead of trusting the turn. For
-# every live story (.epic/stories/*/tasks.md), a group is FINISHED when its
+# every live story (.epico/stories/*/tasks.md), a group is FINISHED when its
 # header is `[x]` or every sub-task it owns (by number prefix, N.M under N) is
 # settled — `[x]` or `[~]`. A finished group that carries a `- Commit: <msg>`
 # field — under its header or its sub-tasks, since a group may be written with
@@ -15,7 +15,7 @@
 #
 # Fails open, so a guard defect never traps a turn: unreadable input, a second
 # stop attempt (stop_hook_active, the documented loop guard), no git work tree,
-# no .epic/stories, and an empty `git config user.email` — run-mode makes no
+# no .epico/stories, and an empty `git config user.email` — run-mode makes no
 # commit without an identity, by rule, and says so in the closing instead.
 
 set -euo pipefail
@@ -29,7 +29,7 @@ CWD=${CWD:-$PWD}
 
 ROOT=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || true)
 [ -n "$ROOT" ] || exit 0
-[ -d "$ROOT/.epic/stories" ] || exit 0
+[ -d "$ROOT/.epico/stories" ] || exit 0
 [ -n "$(git -C "$ROOT" config user.email 2>/dev/null || true)" ] || exit 0
 
 SUBJECTS=$(git -C "$ROOT" log --format=%s 2>/dev/null || true)
@@ -72,7 +72,7 @@ missing_commits() {
 }
 
 REASONS=()
-for tasks in "$ROOT"/.epic/stories/*/tasks.md; do
+for tasks in "$ROOT"/.epico/stories/*/tasks.md; do
   [ -f "$tasks" ] || continue
   story=$(basename "$(dirname "$tasks")")
   while IFS=$'\t' read -r group msg; do

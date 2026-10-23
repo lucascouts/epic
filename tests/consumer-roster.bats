@@ -45,13 +45,13 @@
 # sourced. That is a testability requirement, and it is what lets the hostile
 # halves below reassign them to drive a case the real tree cannot produce.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so this file can run against a
+# EPICO_PLUGIN_ROOT overrides root resolution so this file can run against a
 # plugin tree other than the one it sits in.
 
 bats_require_minimum_version 1.5.0
 
 setup() {
-  PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+  PLUGIN_ROOT="${EPICO_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   ROSTER_LIB="$PLUGIN_ROOT/tests/lib/checkbox-consumers.sh"
   WORK=$(mktemp -d)
 }

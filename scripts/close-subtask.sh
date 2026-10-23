@@ -49,7 +49,7 @@
 # only are its own: WHICH state the located box must already be in — `[~]`
 # carrying `deferred:`, an outstanding debt, rather than `[ ]` — and what the
 # marked line then says, which is the debt AND its discharge on one line,
-# because `.epic/` may be untracked, and then a reason dropped from the line
+# because `.epico/` may be untracked, and then a reason dropped from the line
 # cannot be recovered. THE GRAMMAR IS UNCHANGED: still three boxes, still four
 # qualifiers. This adds a transition BETWEEN two of those states, not a fifth
 # one.
@@ -68,7 +68,7 @@
 #
 # NO SHARED LIBRARY, BY CONVENTION. `scripts/` has none — every script here is
 # invoked standalone by path — so the house patterns below (the JSON escaper,
-# the single `emit_report`, `find_epic_dir` / `resolve_by_number`) are COPIED
+# the single `emit_report`, `find_epico_dir` / `resolve_by_number`) are COPIED
 # from archive-story.sh and supersede-story.sh rather than sourced. The shared
 # checkbox grammar is copied the same way and its consumers move together; who
 # they are and why no count is written down is settled in the block above
@@ -90,7 +90,7 @@ stamps the story's `status:` and reports the whole transaction as one JSON
 object. One box per invocation.
 
 Arguments:
-  <NNN|story-dir>   Story number (010) or its directory (.epic/stories/010-slug)
+  <NNN|story-dir>   Story number (010) or its directory (.epico/stories/010-slug)
   <N.N|N|gate:...>  Which box: a sub-task (1.2), a task group (1), or a Quality
                     Gate named by a prefix of its text (gate:All task validations)
 
@@ -301,16 +301,16 @@ trim() {
   printf '%s' "$s"
 }
 
-# find_epic_dir — walk up from the CWD looking for .epic/, so a bare NNN works
+# find_epico_dir — walk up from the CWD looking for .epico/, so a bare NNN works
 # from any subdirectory of the project. The CWD is the anchor, never this
 # script's own location: the plugin's scripts/ lives outside the project being
 # worked on (and, under a plugin install, outside its checkout entirely).
-find_epic_dir() {
+find_epico_dir() {
   local dir
   dir=$(pwd -P)
   while :; do
-    if [[ -d "$dir/.epic" ]]; then
-      printf '%s' "$dir/.epic"
+    if [[ -d "$dir/.epico" ]]; then
+      printf '%s' "$dir/.epico"
       return 0
     fi
     [[ "$dir" == "/" ]] && return 1
@@ -318,7 +318,7 @@ find_epic_dir() {
   done
 }
 
-# resolve_by_number <NNN> <epic-dir> — <NNN>-<slug> under stories/ first, then
+# resolve_by_number <NNN> <epico-dir> — <NNN>-<slug> under stories/ first, then
 # archive/. Resolving the archived copy is deliberate: an archived number must
 # RESOLVE so the archive refusal can name its real reason ("read-only") instead
 # of the misleading "not found". Accepts 12 for 012.
@@ -665,7 +665,7 @@ fi
 # A story this script cannot reach is a REFUSAL, not a usage error — see the
 # divergence note in the header. Each arm names what it looked for, because
 # "not found" without the place it looked is a message nobody can act on.
-EPIC_DIR=""
+EPICO_DIR=""
 if [[ -d "$TARGET" ]]; then
   # The trailing slash is stripped, but never off a bare `/`: `${TARGET%/}`
   # would empty it, and `cd ""` SUCCEEDS in bash without moving — so the story
@@ -677,10 +677,10 @@ if [[ -d "$TARGET" ]]; then
     STORY_PATH="${STORY_PATH%/}"
   fi
 elif [[ "$TARGET" =~ ^[0-9]+$ ]]; then
-  EPIC_DIR=$(find_epic_dir) ||
-    refuse "no .epic/ directory found from $(pwd) — run this inside an Epic project, or pass the story directory; nothing was modified"
-  STORY_PATH=$(resolve_by_number "$TARGET" "$EPIC_DIR") ||
-    refuse "story '$TARGET' not found under $EPIC_DIR/stories or $EPIC_DIR/archive — nothing was modified"
+  EPICO_DIR=$(find_epico_dir) ||
+    refuse "no .epico/ directory found from $(pwd) — run this inside an Epico project, or pass the story directory; nothing was modified"
+  STORY_PATH=$(resolve_by_number "$TARGET" "$EPICO_DIR") ||
+    refuse "story '$TARGET' not found under $EPICO_DIR/stories or $EPICO_DIR/archive — nothing was modified"
 else
   refuse "story '$TARGET' not found — pass a story number (010) or its directory; nothing was modified"
 fi
@@ -689,20 +689,20 @@ STORY_ABS=$(cd "$STORY_PATH" 2>/dev/null && pwd -P) ||
   refuse "cannot enter story directory '$STORY_PATH' — nothing was modified"
 STORY_ID=$(basename "$STORY_ABS")
 
-# A story under .epic/archive/ is READ-ONLY, and the refusal happens
+# A story under .epico/archive/ is READ-ONLY, and the refusal happens
 # BEFORE anything else looks at it (an archived story with no tasks.md must
 # still report its real reason rather than tripping over the missing file).
 #
 # The test is made on the PHYSICAL path, and on the whole path rather than on
 # the parent's name, for two distinct reasons:
-#   * `pwd -P` resolves symlinks, so a `.epic/stories/007-old` pointing into
-#     `.epic/archive/007-old` is caught. Testing the path the caller typed would
+#   * `pwd -P` resolves symlinks, so a `.epico/stories/007-old` pointing into
+#     `.epico/archive/007-old` is caught. Testing the path the caller typed would
 #     rewrite an archived story through a live-looking name.
-#   * "lives UNDER .epic/archive/" includes anything nested
+#   * "lives UNDER .epico/archive/" includes anything nested
 #     deeper than one level — `basename "$(dirname …)" == archive` (the
 #     sibling scripts' form) sees only the first level.
-if [[ "$STORY_ABS" == */.epic/archive || "$STORY_ABS" == */.epic/archive/* ]]; then
-  refuse "story '$STORY_ID' lives under .epic/archive/ ('$STORY_PATH') — an archived story is read-only, so its boxes can no longer be closed; nothing was modified"
+if [[ "$STORY_ABS" == */.epico/archive || "$STORY_ABS" == */.epico/archive/* ]]; then
+  refuse "story '$STORY_ID' lives under .epico/archive/ ('$STORY_PATH') — an archived story is read-only, so its boxes can no longer be closed; nothing was modified"
 fi
 
 # tasks.md is the only artifact this script writes, and every box lives in it.
@@ -940,7 +940,7 @@ REWRITE_EMITTER_NL=0   # newlines the emitter reports writing — witness C
 # The GNU form first, then the BSD one, and THE OUTPUT IS WHAT DECIDES rather
 # than the exit status: `stat -f` on GNU stat prints filesystem information and
 # exits 0, so a status-only check would happily accept that as a mode.
-# epic-index.sh:1015-1023 uses the same shape.
+# epico-index.sh:1015-1023 uses the same shape.
 FILE_MODE=""
 file_mode() {
   FILE_MODE=$(stat -c '%a' "$1" 2> /dev/null) || FILE_MODE=""
@@ -959,7 +959,7 @@ file_mode() {
 # SIGNAL takes none of them: the process dies between the write and the rename
 # and the tmp survives beside the story artifact, which is litter the next
 # reader has to know to ignore — a `ulimit -f 0` around one close leaves
-# tasks.md byte-identical and the box open, but a `tasks.md.epic-close.XXXXXX`
+# tasks.md byte-identical and the box open, but a `tasks.md.epico-close.XXXXXX`
 # stump in the story directory. archive-story.sh:3056-3059 covers the same gap the same way, with the same
 # `|| true` (a trap must never turn a clean verdict into a failure) and the same
 # 128+signal exit codes (an exit that lies about how the process ended is worse
@@ -978,7 +978,7 @@ file_mode() {
 # do (REWRITE_TMP is empty on every path that never opened a tmp).
 REWRITE_TMP=""
 # shellcheck disable=SC2317,SC2329  # invoked from the trap strings below, and
-# a trap string is not a call site the linter follows (epic-index.sh:154 carries
+# a trap string is not a call site the linter follows (epico-index.sh:154 carries
 # the same pair for the same reason). BOTH codes are needed: 0.10+ reports
 # SC2329 once per function, 0.9 (what CI installs) reports SC2317 once per
 # COMMAND in the body.
@@ -1010,7 +1010,7 @@ rewrite_file() {
   # A unique name removes that at the cost of one fork. mktemp
   # also creates the file `0600`, so the window between written and renamed is
   # the narrowest mode available rather than whatever the umask allows.
-  tmp=$(mktemp "$f.epic-close.XXXXXX") || return 1
+  tmp=$(mktemp "$f.epico-close.XXXXXX") || return 1
   # Handed to the signal trap the moment it exists, and taken back from it the
   # moment it stops existing (every `cleanup_rewrite_tmp` below removes it AND
   # clears the global; the successful rename clears it without removing
@@ -1039,7 +1039,7 @@ rewrite_file() {
   fi
   # Addition D — the mode, read off the ORIGINAL and applied to the tmp BEFORE
   # the rename, so a failure to carry it over is a rewrite that never happened
-  # rather than a file already replaced. epic-index.sh:1012-1027 solves the same
+  # rather than a file already replaced. epico-index.sh:1012-1027 solves the same
   # problem the same way, with ONE deliberate difference: it falls back to
   # `0666 & ~umask` when it cannot read a mode, because ITS target may
   # legitimately not exist yet. tasks.md provably exists and is readable by the
@@ -1226,7 +1226,7 @@ require_outstanding_deferral() {
   if [[ ! "$LOC_TEXT" =~ $TILDE_DEFERRED_RE ]]; then
     # A TERMINAL QUALIFIER IS A DECISION ALREADY TAKEN. A waiver, an n-a or a
     # supersede says the work will NOT be done and who said so; overwriting one
-    # destroys that record — in a project whose `.epic/` is untracked, destroys
+    # destroys that record — in a project whose `.epico/` is untracked, destroys
     # it outright. The token found is named, because "refused" without it sends
     # the caller back to open the file.
     if [[ "$LOC_TEXT" =~ $TILDE_TERMINAL_RE ]]; then
@@ -1235,7 +1235,7 @@ require_outstanding_deferral() {
     fi
     refuse "box '$TASK_ID' of story '$STORY_ID' is [~] but carries none of the four qualifiers the checkbox grammar defines ($TILDE_FORMS) — tasks.md line $LOC_LINE reads '$LOC_SHOWN'. That is a validation error in its own right, and there is no deferral on it for $flag to act on; fix the line first. Nothing was modified"
   fi
-  # `.epic/` may be untracked, so a reason dropped from the line may not be
+  # `.epico/` may be untracked, so a reason dropped from the line may not be
   # recoverable from anywhere. It is read off the line the write is about to
   # replace, CR and trailing whitespace taken off first so the text handed to
   # set_box as <strip> is exactly what that line ends with.
@@ -1307,7 +1307,7 @@ if [[ "$FLAGS_GIVEN" -eq 0 && "$TARGET_KIND" == sub && -f "$STORY_ABS/.draft/red
   _td_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" 2> /dev/null && pwd -P) || _td_dir=""
   if [[ -n "$RED_TARGET" && -n "$_td_dir" && -f "$_td_dir/test-diff.sh" ]]; then
     if ! bash "$_td_dir/test-diff.sh" --story "$STORY_ABS" --file "$RED_TARGET" > /dev/null 2>&1; then
-      refuse "box '$TASK_ID' of story '$STORY_ID' cannot close: its pre-authored test '$RED_TARGET' no longer asserts what was authored — epic-test-diff reports an assertion line changed, removed or added, or the test missing. Assertions are frozen; restore them, or refine the story to carry the change into .draft/authored-tests/. Nothing was modified"
+      refuse "box '$TASK_ID' of story '$STORY_ID' cannot close: its pre-authored test '$RED_TARGET' no longer asserts what was authored — epico-test-diff reports an assertion line changed, removed or added, or the test missing. Assertions are frozen; restore them, or refine the story to carry the change into .draft/authored-tests/. Nothing was modified"
     fi
   fi
 fi
@@ -1477,7 +1477,7 @@ BOX="$MARK_CHAR"
 # gives it (references/tasks.md: "the work is still owed by someone"), and an
 # UNQUALIFIED `[~]` — the grammar error validate-story.sh reports — counts in
 # the total and closes nothing. That aggregation is hook-session-restore.sh's and
-# epic-index.sh:386-417's verbatim, which is what makes this script's report and
+# epico-index.sh:386-417's verbatim, which is what makes this script's report and
 # the index a reader sees side by side incapable of disagreeing about one story.
 #
 # EVERY BOX IN THE DOCUMENT, with no fence or Quality-Gates exclusion — the

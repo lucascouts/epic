@@ -26,7 +26,7 @@ CHECKBOX_CONSUMERS=(
   close-subtask.sh
   cross-reference.sh
   doctor.sh
-  epic-index.sh
+  epico-index.sh
   hook-commit-guard.sh
   hook-session-restore.sh
   migrate-story.sh

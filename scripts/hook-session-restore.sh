@@ -5,7 +5,7 @@
 # touches, so it is read now rather than saved before compaction.
 #
 # Active story: the one whose tasks.md was modified most recently. No
-# .epic/stories, or no tasks.md yet: exit 0 silently — nothing to restore.
+# .epico/stories, or no tasks.md yet: exit 0 silently — nothing to restore.
 #
 # Claude Code shows a hook's context in full only up to 10,000 characters;
 # past that Claude gets a short preview. Progress and the next pending item
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
-STORIES_ROOT="$ROOT/.epic/stories"
+STORIES_ROOT="$ROOT/.epico/stories"
 [ -d "$STORIES_ROOT" ] || exit 0
 
 ACTIVE_STORY=""
@@ -35,12 +35,12 @@ HEAD_SHA=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo "(not a git
 MAX_CHARS=8000
 
 render() {
-  echo "# Epic — active story state after compaction"
+  echo "# Epico — active story state after compaction"
   echo
   echo "- **Story**: $STORY_NAME"
   echo "- **HEAD**: $HEAD_SHA"
   if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
-    echo "- **Protocols**: compaction dropped the mode references read before it; the run protocol is $CLAUDE_PLUGIN_ROOT/references/run-mode.md, and every mode's is listed in the Epic skill's Mode Dispatch"
+    echo "- **Protocols**: compaction dropped the mode references read before it; the run protocol is $CLAUDE_PLUGIN_ROOT/references/run-mode.md, and every mode's is listed in the Epico skill's Mode Dispatch"
   fi
   echo
 

@@ -4,7 +4,7 @@
 # Blocks by structural anchor, keywords inside, case-insensitive; no sentence
 # verbatim. Note on awk patterns: strings, no backslash escapes.
 #
-#   I1  init's verbatim .epic/.gitignore block carries node_modules/ beside
+#   I1  init's verbatim .epico/.gitignore block carries node_modules/ beside
 #       .draft/ and *.wip
 #   I2  no agent-memory step: since 0.12.0 no agent declares `memory:`, so
 #       nothing writes .claude/agent-memory/ and there is nothing to ignore
@@ -27,7 +27,7 @@ has() {
   fi
 }
 
-@test "I1: init's .epic/.gitignore block carries node_modules/ beside .draft/ and *.wip" {
+@test "I1: init's .epico/.gitignore block carries node_modules/ beside .draft/ and *.wip" {
   block=$(section "$ROOT/references/init-mode.md" '^```gitignore' '^```$')
   has "I1" "$block" "node_modules/"
   has "I1" "$block" "[.]draft/"

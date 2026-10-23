@@ -11,11 +11,11 @@
 # Fixtures are real temp git repos (mktemp + git init + commits/branches) —
 # no simplified stubs; the script's only dependency IS git.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so the draft copy under
+# EPICO_PLUGIN_ROOT overrides root resolution so the draft copy under
 # .draft/authored-tests/tests/ can run before materialization into tests/.
 
 setup() {
-  PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+  PLUGIN_ROOT="${EPICO_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   SCRIPT="$PLUGIN_ROOT/scripts/story-git-status.sh"
   WORK=$(mktemp -d)
 }
@@ -27,7 +27,7 @@ teardown() {
 # --- fixture helpers -------------------------------------------------------
 
 # make_repo <dir> <initial-branch>: git repo with one neutral commit and the
-# story dir .epic/stories/006-widget-flow inside the worktree.
+# story dir .epico/stories/006-widget-flow inside the worktree.
 make_repo() {
   local dir=$1 branch=$2
   mkdir -p "$dir"
@@ -36,8 +36,8 @@ make_repo() {
   git -C "$dir" config user.name "Test"
   git -C "$dir" config commit.gpgsign false
   git -C "$dir" commit --allow-empty -q -m "chore: initial scaffold"
-  mkdir -p "$dir/.epic/stories/006-widget-flow"
-  printf -- '---\nstatus: done\n---\n' > "$dir/.epic/stories/006-widget-flow/story.md"
+  mkdir -p "$dir/.epico/stories/006-widget-flow"
+  printf -- '---\nstatus: done\n---\n' > "$dir/.epico/stories/006-widget-flow/story.md"
 }
 
 # commit_msg <dir> <subject>: empty commit with a controlled subject.
@@ -55,7 +55,7 @@ set_origin_head() {
 # run_status <dir>: invoke the script from inside the repo on the fixture story.
 run_status() {
   cd "$1"
-  run bash "$SCRIPT" .epic/stories/006-widget-flow
+  run bash "$SCRIPT" .epico/stories/006-widget-flow
 }
 
 # =====================================================================
@@ -101,16 +101,16 @@ run_status() {
 }
 
 @test "not a git repository: exit 2 so callers degrade silently" {
-  mkdir -p "$WORK/plain/.epic/stories/006-widget-flow"
+  mkdir -p "$WORK/plain/.epico/stories/006-widget-flow"
   cd "$WORK/plain"
-  run bash "$SCRIPT" .epic/stories/006-widget-flow
+  run bash "$SCRIPT" .epico/stories/006-widget-flow
   [ "$status" -eq 2 ]
 }
 
 @test "story not found: exit 2" {
   make_repo "$WORK/r" main
   cd "$WORK/r"
-  run bash "$SCRIPT" .epic/stories/999-does-not-exist
+  run bash "$SCRIPT" .epico/stories/999-does-not-exist
   [ "$status" -eq 2 ]
 }
 
@@ -187,11 +187,11 @@ run_status() {
   make_repo "$WORK/r" main
   git -C "$WORK/r" branch feat/006-widget-flow
   cd "$WORK/r"
-  run bash "$SCRIPT" .epic/stories/006-widget-flow
+  run bash "$SCRIPT" .epico/stories/006-widget-flow
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.integrated == true'
   git branch -D feat/006-widget-flow >/dev/null
-  run bash "$SCRIPT" .epic/stories/006-widget-flow
+  run bash "$SCRIPT" .epico/stories/006-widget-flow
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.integrated == false'
 }
@@ -207,7 +207,7 @@ run_status() {
   [ "$before" = "$after" ]
   # Delta, not absolute emptiness: make_repo itself leaves story.md untracked,
   # so an empty-porcelain assertion is unsatisfiable on hosts with no global
-  # ignore for .epic. What the no-storage rule owns is that the SCRIPT changes
+  # ignore for .epico. What the no-storage rule owns is that the SCRIPT changes
   # nothing — tracked or untracked — between the two snapshots.
   porcelain_after=$(git -C "$WORK/r" status --porcelain)
   [ "$porcelain_before" = "$porcelain_after" ]   # no artifact was modified

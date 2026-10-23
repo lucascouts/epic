@@ -10,7 +10,7 @@
 #   never scans less.
 #
 #   Root resolution: git top level first (gitleaks specifies .gitleaksignore at
-#   the repository root), then the nearest ancestor owning `.epic/`, then none.
+#   the repository root), then the nearest ancestor owning `.epico/`, then none.
 #
 # EVERY case here is Integration, and that is a property of the subject, not a
 # shortcut: archive-story.sh executes on invocation and cannot be sourced, so
@@ -36,7 +36,7 @@ setup() {
   ARCHIVE_SH="$PLUGIN_ROOT/scripts/archive-story.sh"
   WORK=$(mktemp -d)
   PROJ="$WORK/proj"
-  mkdir -p "$PROJ/.epic/stories"
+  mkdir -p "$PROJ/.epico/stories"
   cd "$PROJ"
 }
 
@@ -50,7 +50,7 @@ teardown() {
 # Deliberately the same fixture shape as tests/archive-story.bats, so a case
 # that blocks here blocks for the secrets guard and for nothing else.
 make_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   cat > "$dir/story.md" <<EOF
 ---
@@ -98,14 +98,14 @@ git_init_isolated() {
 
 # put_secret <story-dir> <file> <key>
 put_secret() {
-  printf 'aws_access_key_id = "%s"\n' "$3" > "$PROJ/.epic/stories/$1/$2"
+  printf 'aws_access_key_id = "%s"\n' "$3" > "$PROJ/.epico/stories/$1/$2"
 }
 
 # classify <story-dir> <file> <line> — pin a finding in the PROJECT's allowlist,
 # written project-root-relative, which is the form gitleaks documents and the
 # form the guard matches.
 classify() {
-  printf '.epic/stories/%s/%s:aws-access-token:%s\n' "$1" "$2" "$3" \
+  printf '.epico/stories/%s/%s:aws-access-token:%s\n' "$1" "$2" "$3" \
     >> "$PROJ/.gitleaksignore"
 }
 
@@ -122,7 +122,7 @@ require_gitleaks() {
   require_gitleaks
   git_init_isolated "$PROJ"
   make_story 010-clean
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-clean
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-clean
   [ "$status" -eq 0 ]
   # `pwd -P` because the guard normalises physically and mktemp may hand back a
   # symlinked path on some platforms — comparing the raw $PROJ would test the
@@ -131,10 +131,10 @@ require_gitleaks() {
     '.secrets.allowlist_root == $root' > /dev/null
 }
 
-@test "1.1: a non-git project resolves the directory that owns .epic/" {
+@test "1.1: a non-git project resolves the directory that owns .epico/" {
   require_gitleaks
   make_story 010-clean
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-clean
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-clean
   [ "$status" -eq 0 ]
   echo "$output" | jq -e --arg root "$(cd "$PROJ" && pwd -P)" \
     '.secrets.allowlist_root == $root' > /dev/null
@@ -143,7 +143,7 @@ require_gitleaks() {
 @test "1.1: a root that resolves without containing the story falls back, and says so" {
   require_gitleaks
   # The REACHABLE half of the fallback. "No root at all" cannot be produced
-  # from the command line — the entry point refuses a story outside `.epic/` at
+  # from the command line — the entry point refuses a story outside `.epico/` at
   # exit 2, before the guard runs — so this is the half a test can honestly
   # cover.
   # An inherited git environment is how it happens in the wild: a git hook
@@ -153,7 +153,7 @@ require_gitleaks() {
   make_story 010-elsewhere
   put_secret 010-elsewhere creds.md "$FIXTURE_KEY_A"
   GIT_DIR="$WORK/elsewhere_init/.git" GIT_WORK_TREE="$WORK/elsewhere_init" \
-    run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-elsewhere
+    run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-elsewhere
   # The scan still happens and still reports — the fallback never scans less.
   echo "$output" | jq -e '.secrets.scanned == true' > /dev/null
   echo "$output" | jq -e '.secrets.findings == 1' > /dev/null
@@ -176,7 +176,7 @@ require_gitleaks() {
   classify 010-linked creds.md 1
   ln -s "$PROJ" "$WORK/link"
   cd "$WORK/link"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-linked
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-linked
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.secrets.findings == 0' > /dev/null
   echo "$output" | jq -e '.secrets.allowlist_root != null' > /dev/null
@@ -191,12 +191,12 @@ require_gitleaks() {
   make_story 010-classified
   put_secret 010-classified creds.md "$FIXTURE_KEY_A"
   classify 010-classified creds.md 1
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-classified
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-classified
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "archived"' > /dev/null
   echo "$output" | jq -e '.secrets.findings == 0' > /dev/null
   echo "$output" | jq -e '.secrets.scanned == true' > /dev/null
-  [ -d "$PROJ/.epic/archive/010-classified" ]
+  [ -d "$PROJ/.epico/archive/010-classified" ]
 }
 
 @test "1.2: a classified fixture beside an unclassified secret still blocks, reporting only the real one" {
@@ -208,13 +208,13 @@ require_gitleaks() {
   put_secret 010-mixed fixture.md "$FIXTURE_KEY_A"
   put_secret 010-mixed real.md "$FIXTURE_KEY_B"
   classify 010-mixed fixture.md 1
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-mixed
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-mixed
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked"' > /dev/null
   echo "$output" | jq -e '.secrets.findings == 1' > /dev/null
   echo "$output" | jq -e '.moved == false' > /dev/null
-  [ -d "$PROJ/.epic/stories/010-mixed" ]
-  [ ! -d "$PROJ/.epic/archive/010-mixed" ]
+  [ -d "$PROJ/.epico/stories/010-mixed" ]
+  [ ! -d "$PROJ/.epico/archive/010-mixed" ]
 }
 
 @test "1.2: re-rooting does not shrink the scan — every finding survives when nothing is classified" {
@@ -224,13 +224,13 @@ require_gitleaks() {
   # three files, at three depths, with NO allowlist present — the anchored scan
   # must report exactly what the unanchored one did.
   make_story 010-coverage
-  mkdir -p "$PROJ/.epic/stories/010-coverage/.draft/nested"
+  mkdir -p "$PROJ/.epico/stories/010-coverage/.draft/nested"
   put_secret 010-coverage top.md "$FIXTURE_KEY_A"
   printf 'aws_access_key_id = "%s"\n' "$FIXTURE_KEY_B" \
-    > "$PROJ/.epic/stories/010-coverage/.draft/nested/deep.md"
+    > "$PROJ/.epico/stories/010-coverage/.draft/nested/deep.md"
   printf 'aws_access_key_id = "%s"\n' "$FIXTURE_KEY_A" \
-    > "$PROJ/.epic/stories/010-coverage/.draft/mid.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-coverage
+    > "$PROJ/.epico/stories/010-coverage/.draft/mid.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-coverage
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.secrets.findings == 3' > /dev/null
 }
@@ -239,14 +239,14 @@ require_gitleaks() {
   require_gitleaks
   # The specific fail-open re-rooting could introduce: `gitleaks dir` does not
   # honour .gitignore, which is why re-rooting is safe. If a future
-  # gitleaks started honouring it, an anchored scan of a gitignored `.epic/`
+  # gitleaks started honouring it, an anchored scan of a gitignored `.epico/`
   # would report a clean story that is not clean. This case reddens then,
   # instead of the guard disarming in silence.
   git_init_isolated "$PROJ"
-  printf '.epic/\n' > "$PROJ/.gitignore"
+  printf '.epico/\n' > "$PROJ/.gitignore"
   make_story 010-ignored
   put_secret 010-ignored creds.md "$FIXTURE_KEY_A"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-ignored
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-ignored
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.secrets.findings == 1' > /dev/null
 }
@@ -256,7 +256,7 @@ require_gitleaks() {
   # Anchoring must be silent when there is nothing to apply.
   make_story 010-nolist
   put_secret 010-nolist creds.md "$FIXTURE_KEY_A"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-nolist
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-nolist
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.secrets.findings == 1' > /dev/null
   echo "$output" | jq -e '.secrets.error == null' > /dev/null
@@ -270,7 +270,7 @@ require_gitleaks() {
   require_gitleaks
   make_story 010-skipped
   put_secret 010-skipped creds.md "$FIXTURE_KEY_A"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-skipped --skip-secrets
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-skipped --skip-secrets
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.secrets.scanned == false' > /dev/null
   # `has()` first, for the reason spelled out in the fallback case: without it,
@@ -285,7 +285,7 @@ require_gitleaks() {
   # null key identically. `has()` is the assertion that tells them apart.
   make_story 010-total
   put_secret 010-total creds.md "$FIXTURE_KEY_A"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-total
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-total
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.secrets | has("allowlist_root")' > /dev/null
 }
@@ -296,8 +296,8 @@ require_gitleaks() {
   # "blocked before anything looked" and "scanned and clean" must stay
   # distinguishable in a permanent record.
   make_story 010-cleanbin
-  printf 'ab\0cd' > "$PROJ/.epic/stories/010-cleanbin/blob.dat"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-cleanbin
+  printf 'ab\0cd' > "$PROJ/.epico/stories/010-cleanbin/blob.dat"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-cleanbin
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.secrets == {}' > /dev/null
 }
@@ -311,14 +311,14 @@ require_gitleaks() {
   make_story 010-orphaning
   put_secret 010-orphaning creds.md "$FIXTURE_KEY_A"
   classify 010-orphaning creds.md 1
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-orphaning
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-orphaning
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "archived"' > /dev/null
   # The diagnostic must name the dead path AND hand over the repair — a warning
   # that says "something is wrong" without saying what to type is a warning
   # people learn to scroll past.
-  echo "$stderr" | grep -q '\.epic/stories/010-orphaning'
-  echo "$stderr" | grep -q '\.epic/archive/010-orphaning'
+  echo "$stderr" | grep -q '\.epico/stories/010-orphaning'
+  echo "$stderr" | grep -q '\.epico/archive/010-orphaning'
   echo "$stderr" | grep -q 'sed -i'
 }
 
@@ -334,7 +334,7 @@ require_gitleaks() {
   # whole feature exists to prevent, one level up.
   make_story 010-quiet
   printf 'some/other/path/file.md:aws-access-token:1\n' > "$PROJ/.gitleaksignore"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-quiet
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-quiet
   [ "$status" -eq 0 ]
   # `if grep -q …; then return 1; fi`, never `grep -qv` and never a bare
   # `! grep -q`. Two separate traps. `-v` succeeds when ANY line fails to
@@ -358,7 +358,7 @@ require_gitleaks() {
   classify 010-readonly creds.md 1
   local before after
   before=$(sha256sum < "$PROJ/.gitleaksignore")
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/010-readonly
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/010-readonly
   [ "$status" -eq 0 ]
   after=$(sha256sum < "$PROJ/.gitleaksignore")
   [ "$before" = "$after" ]

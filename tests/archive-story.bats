@@ -17,8 +17,8 @@ setup() {
   ARCHIVE_SH="$PLUGIN_ROOT/scripts/archive-story.sh"
   WORK=$(mktemp -d)
   PROJ="$WORK/proj"
-  MANIFEST="$PROJ/.epic/archive/manifest.yaml"
-  mkdir -p "$PROJ/.epic/stories"
+  MANIFEST="$PROJ/.epico/archive/manifest.yaml"
+  mkdir -p "$PROJ/.epico/stories"
   cd "$PROJ"
 }
 
@@ -32,7 +32,7 @@ teardown() {
 # complete:   3 tasks - 2 [x], 1 [~]  (total 3, closed 2, deferred 1, open 0)
 # incomplete: 3 tasks - 1 [x], 2 [ ]  (total 3, closed 1, deferred 0, open 2)
 make_story() {
-  local dir="$PROJ/.epic/stories/$1" mode="${2:-complete}" status=validated
+  local dir="$PROJ/.epico/stories/$1" mode="${2:-complete}" status=validated
   [ "$mode" = incomplete ] && status=in-progress
   mkdir -p "$dir"
   cat > "$dir/story.md" <<EOF
@@ -88,7 +88,7 @@ EOF
 # OPEN one (only the verdict can complete). Frontmatter status stays
 # `in-progress` so the status branch never decides either.
 make_spike() {
-  local dir="$PROJ/.epic/stories/$1" vstatus="$2" promoted="${3:-}" probe="${4:-x}"
+  local dir="$PROJ/.epico/stories/$1" vstatus="$2" promoted="${3:-}" probe="${4:-x}"
   mkdir -p "$dir"
   {
     echo '---'
@@ -118,43 +118,43 @@ make_spike() {
 
 @test "unknown flag exits 2 with nothing moved" {
   make_story 005-flagged complete
-  run bash "$ARCHIVE_SH" .epic/stories/005-flagged --bogus
+  run bash "$ARCHIVE_SH" .epico/stories/005-flagged --bogus
   [ "$status" -eq 2 ]
-  [ -d "$PROJ/.epic/stories/005-flagged" ]
-  [ ! -d "$PROJ/.epic/archive/005-flagged" ]
+  [ -d "$PROJ/.epico/stories/005-flagged" ]
+  [ ! -d "$PROJ/.epico/archive/005-flagged" ]
 }
 
 @test "incomplete story without --force is refused with the open count" {
   make_story 005-open incomplete
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-open
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-open
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused"' > /dev/null
   # The refusal reports the open items count (2 in this fixture).
   echo "$output" | grep -qi 'open'
   echo "$output" | grep -q '2'
-  [ -d "$PROJ/.epic/stories/005-open" ]
-  [ ! -d "$PROJ/.epic/archive/005-open" ]
+  [ -d "$PROJ/.epico/stories/005-open" ]
+  [ ! -d "$PROJ/.epico/archive/005-open" ]
 }
 
 @test "a done story that was never validated is refused, naming validate and --force" {
   # `done` means the run closed its boxes, not that anyone checked the result.
   make_story 005-unvalidated complete
-  sed -i 's/^status: validated$/status: done/' "$PROJ/.epic/stories/005-unvalidated/story.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-unvalidated
+  sed -i 's/^status: validated$/status: done/' "$PROJ/.epico/stories/005-unvalidated/story.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-unvalidated
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused"' > /dev/null
   echo "$output" | jq -e '.reason | contains("not validated") and contains("validate 005") and contains("--force")' > /dev/null
-  [ -d "$PROJ/.epic/stories/005-unvalidated" ]
+  [ -d "$PROJ/.epico/stories/005-unvalidated" ]
   [ ! -e "$MANIFEST" ]
 }
 
 @test "a superseded story archives only through --force, which records the reason" {
   make_story 005-absorbed complete
-  sed -i 's/^status: validated$/status: superseded/' "$PROJ/.epic/stories/005-absorbed/story.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-absorbed
+  sed -i 's/^status: validated$/status: superseded/' "$PROJ/.epico/stories/005-absorbed/story.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-absorbed
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused"' > /dev/null
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-absorbed --force "absorbed by 012"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-absorbed --force "absorbed by 012"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.overrides_used == ["force"] and .manifest_entry.status == "superseded"' > /dev/null
   grep -q 'absorbed by 012' "$MANIFEST"
@@ -162,25 +162,25 @@ make_spike() {
 
 @test "a validated story with a box reopened since is still refused" {
   make_story 005-reopened incomplete
-  sed -i 's/^status: in-progress$/status: validated/' "$PROJ/.epic/stories/005-reopened/story.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-reopened
+  sed -i 's/^status: in-progress$/status: validated/' "$PROJ/.epico/stories/005-reopened/story.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-reopened
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused" and (.reason | contains("still open"))' > /dev/null
 }
 
 @test "already-archived story is refused untouched" {
-  mkdir -p "$PROJ/.epic/archive/004-old"
-  cat > "$PROJ/.epic/archive/004-old/story.md" <<'EOF'
+  mkdir -p "$PROJ/.epico/archive/004-old"
+  cat > "$PROJ/.epico/archive/004-old/story.md" <<'EOF'
 ---
 story: old
 status: archived
 ---
 EOF
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/archive/004-old
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/archive/004-old
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused"' > /dev/null
   # Nothing modified - the story stays, no manifest springs into existence.
-  [ -d "$PROJ/.epic/archive/004-old" ]
+  [ -d "$PROJ/.epico/archive/004-old" ]
   [ ! -e "$MANIFEST" ]
 }
 
@@ -190,28 +190,28 @@ EOF
 
 @test "spike with an open verdict is refused" {
   make_spike 005-spike-open open
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-spike-open
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-spike-open
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused"' > /dev/null
-  [ -d "$PROJ/.epic/stories/005-spike-open" ]
-  [ ! -d "$PROJ/.epic/archive/005-spike-open" ]
+  [ -d "$PROJ/.epico/stories/005-spike-open" ]
+  [ ! -d "$PROJ/.epico/archive/005-spike-open" ]
   [ ! -e "$MANIFEST" ]
 }
 
 @test "spike promoted without promoted-to is refused" {
   make_spike 005-spike-nopromo promote
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-spike-nopromo
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-spike-nopromo
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused"' > /dev/null
   echo "$output" | grep -q 'promoted-to'
-  [ -d "$PROJ/.epic/stories/005-spike-nopromo" ]
-  [ ! -d "$PROJ/.epic/archive/005-spike-nopromo" ]
+  [ -d "$PROJ/.epico/stories/005-spike-nopromo" ]
+  [ ! -d "$PROJ/.epico/archive/005-spike-nopromo" ]
 }
 
 @test "spike with a wont-do verdict passes preflight" {
   # Open probe box: only the verdict rule can make this complete.
   make_spike 005-spike-wontdo wont-do "" " "
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-spike-wontdo
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-spike-wontdo
   # Preflight is the whole assertion: a terminal verdict is never a refusal.
   # The exit code belongs to the later pipeline steps, not to preflight.
   echo "$output" | jq -e '.status != "refused"' > /dev/null
@@ -219,7 +219,7 @@ EOF
 
 @test "spike promoted with promoted-to passes preflight" {
   make_spike 005-spike-promo promote 012 " "
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-spike-promo
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-spike-promo
   echo "$output" | jq -e '.status != "refused"' > /dev/null
 }
 
@@ -227,7 +227,7 @@ EOF
 
 @test "manifest entry counts are derived from the checkboxes" {
   make_story 005-counts complete
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-counts
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-counts
   [ "$status" -eq 0 ]
   [ -f "$MANIFEST" ]
   grep -Eq 'tasks_total:[[:space:]]*3' "$MANIFEST"
@@ -237,10 +237,10 @@ EOF
 
 @test "forced archive records the true open count and the reason" {
   make_story 005-forced incomplete
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-forced --force "schedule pressure"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-forced --force "schedule pressure"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.moved == true' > /dev/null
-  [ -d "$PROJ/.epic/archive/005-forced" ]
+  [ -d "$PROJ/.epico/archive/005-forced" ]
   # Totals expose the truth (3 total, only 1 closed => 2 still open).
   grep -Eq 'tasks_total:[[:space:]]*3' "$MANIFEST"
   grep -Eq 'tasks_closed:[[:space:]]*1' "$MANIFEST"
@@ -250,7 +250,7 @@ EOF
 
 @test "manifest is created with the never-recycled policy header" {
   make_story 005-header complete
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-header
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-header
   [ "$status" -eq 0 ]
   [ -f "$MANIFEST" ]
   grep -qi 'never recycled' "$MANIFEST"
@@ -258,14 +258,14 @@ EOF
 
 @test "manifest append failure aborts before anything moves" {
   make_story 005-interrupt complete
-  mkdir -p "$PROJ/.epic/archive"
-  chmod 555 "$PROJ/.epic/archive"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-interrupt
+  mkdir -p "$PROJ/.epico/archive"
+  chmod 555 "$PROJ/.epico/archive"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-interrupt
   # The append is before the move; an unappendable manifest means no move.
   [ "$status" -ne 0 ]
   echo "$output" | jq -e . > /dev/null
-  [ -d "$PROJ/.epic/stories/005-interrupt" ]
-  [ ! -d "$PROJ/.epic/archive/005-interrupt" ]
+  [ -d "$PROJ/.epico/stories/005-interrupt" ]
+  [ ! -d "$PROJ/.epico/archive/005-interrupt" ]
 }
 
 @test "interrupted archive keeps its entry and the re-run completes it once" {
@@ -276,20 +276,20 @@ EOF
   # append through and makes the rename fail) rather than hand-planted: a real
   # SIGKILL is racy - the mv wins the race on a warm tmpfs - and would flake.
   make_story 005-resume complete
-  chmod 555 "$PROJ/.epic/stories"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-resume
-  chmod 755 "$PROJ/.epic/stories"
+  chmod 555 "$PROJ/.epico/stories"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-resume
+  chmod 755 "$PROJ/.epico/stories"
   [ "$status" -ne 0 ]
   # The entry is written; the story has NOT moved.
   [ -f "$MANIFEST" ]
   grep -q '005-resume' "$MANIFEST"
-  [ -d "$PROJ/.epic/stories/005-resume" ]
-  [ ! -d "$PROJ/.epic/archive/005-resume" ]
+  [ -d "$PROJ/.epico/stories/005-resume" ]
+  [ ! -d "$PROJ/.epico/archive/005-resume" ]
   # The re-run finishes that archive and does not append a second entry.
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-resume
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-resume
   [ "$status" -eq 0 ]
-  [ -d "$PROJ/.epic/archive/005-resume" ]
-  [ ! -d "$PROJ/.epic/stories/005-resume" ]
+  [ -d "$PROJ/.epico/archive/005-resume" ]
+  [ ! -d "$PROJ/.epico/stories/005-resume" ]
   [ "$(grep -c 'story: "005-resume"' "$MANIFEST")" -eq 1 ]
 }
 
@@ -298,10 +298,10 @@ EOF
   # make_story's [~] box carries no qualifier; this adds one that does, so both
   # renderer branches run.
   make_story 005-deferred complete
-  cat >> "$PROJ/.epic/stories/005-deferred/tasks.md" <<'EOF'
+  cat >> "$PROJ/.epico/stories/005-deferred/tasks.md" <<'EOF'
 - [~] 4 - Register the callback URL (deferred: needs the provider live account)
 EOF
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-deferred
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-deferred
   [ "$status" -eq 0 ]
   grep -Eq 'tasks_deferred:[[:space:]]*2' "$MANIFEST"
   grep -q 'Register the callback URL' "$MANIFEST"
@@ -319,7 +319,7 @@ EOF
   # the open boxes: the entry is derived from the artifact, never a declared
   # verdict.
   make_story 005-truth incomplete
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-truth --force "schedule pressure"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-truth --force "schedule pressure"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.manifest_entry.status == "in-progress"' > /dev/null
   echo "$output" | jq -e '.manifest_entry.tasks_open == 2' > /dev/null
@@ -329,20 +329,20 @@ EOF
 
 # --- Move, history preservation, status transition ---
 
-@test "complete story moves to .epic/archive with structured report" {
+@test "complete story moves to .epico/archive with structured report" {
   make_story 005-move complete
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-move
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-move
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "archived" and .moved == true' > /dev/null
-  [ -d "$PROJ/.epic/archive/005-move" ]
-  [ ! -d "$PROJ/.epic/stories/005-move" ]
+  [ -d "$PROJ/.epico/archive/005-move" ]
+  [ ! -d "$PROJ/.epico/stories/005-move" ]
 }
 
 @test "moved artifacts carry status archived in frontmatter" {
   make_story 005-status complete
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-status
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-status
   [ "$status" -eq 0 ]
-  grep -q '^status: archived' "$PROJ/.epic/archive/005-status/story.md"
+  grep -q '^status: archived' "$PROJ/.epico/archive/005-status/story.md"
 }
 
 @test "tracked story preserves git history across the move" {
@@ -350,15 +350,15 @@ EOF
   git -C "$PROJ" config user.email test@example.com
   git -C "$PROJ" config user.name "Test"
   make_story 005-hist complete
-  git -C "$PROJ" add .epic
+  git -C "$PROJ" add .epico
   git -C "$PROJ" commit -qm "seed story"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-hist
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-hist
   [ "$status" -eq 0 ]
-  [ -d "$PROJ/.epic/archive/005-hist" ]
+  [ -d "$PROJ/.epico/archive/005-hist" ]
   git -C "$PROJ" add -A
   git -C "$PROJ" commit -qm "archive commit"
   # The rename is tracked - history from before the move is reachable.
-  run git -C "$PROJ" log --follow --format=%s -- .epic/archive/005-hist/story.md
+  run git -C "$PROJ" log --follow --format=%s -- .epico/archive/005-hist/story.md
   [ "$status" -eq 0 ]
   echo "$output" | grep -q 'seed story'
 }
@@ -366,12 +366,12 @@ EOF
 @test "untracked story is moved without git" {
   git -C "$PROJ" init -q
   make_story 005-loose complete
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-loose
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-loose
   [ "$status" -eq 0 ]
-  [ -d "$PROJ/.epic/archive/005-loose" ]
-  [ ! -d "$PROJ/.epic/stories/005-loose" ]
+  [ -d "$PROJ/.epico/archive/005-loose" ]
+  [ ! -d "$PROJ/.epico/stories/005-loose" ]
   # Plain filesystem move - nothing staged in git for the story.
-  run git -C "$PROJ" ls-files -- .epic/archive/005-loose
+  run git -C "$PROJ" ls-files -- .epico/archive/005-loose
   [ -z "$output" ]
 }
 
@@ -387,9 +387,9 @@ EOF
   git -C "$PROJ" config user.email test@example.com
   git -C "$PROJ" config user.name "Test"
   make_story 005-staged complete
-  git -C "$PROJ" add .epic
+  git -C "$PROJ" add .epico
   git -C "$PROJ" commit -qm "seed story"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-staged
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-staged
   [ "$status" -eq 0 ]
   # No `git add` runs here on purpose: a plain `mv` leaves the index completely
   # untouched (an unstaged ` D` plus an untracked directory), so anything
@@ -398,8 +398,8 @@ EOF
   # answer (status.renames / diff.renames are irrelevant here).
   run git -C "$PROJ" diff --cached -M --name-status
   [ "$status" -eq 0 ]
-  echo "$output" | grep -q '^R.*\.epic/stories/005-staged/story\.md.*\.epic/archive/005-staged/story\.md'
-  echo "$output" | grep -q '^R.*\.epic/stories/005-staged/tasks\.md.*\.epic/archive/005-staged/tasks\.md'
+  echo "$output" | grep -q '^R.*\.epico/stories/005-staged/story\.md.*\.epico/archive/005-staged/story\.md'
+  echo "$output" | grep -q '^R.*\.epico/stories/005-staged/tasks\.md.*\.epico/archive/005-staged/tasks\.md'
 }
 
 @test "untracked story in a repo leaves the index untouched" {
@@ -407,13 +407,13 @@ EOF
   git -C "$PROJ" config user.email test@example.com
   git -C "$PROJ" config user.name "Test"
   make_story 005-noindex complete
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-noindex
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-noindex
   [ "$status" -eq 0 ]
   # The mirror image of the case above - it is the pair that makes
   # either one a discriminator rather than a tautology.
   run git -C "$PROJ" diff --cached -M --name-status
   [ -z "$output" ]
-  [ -d "$PROJ/.epic/archive/005-noindex" ]
+  [ -d "$PROJ/.epico/archive/005-noindex" ]
 }
 
 @test "partially tracked story still takes the git branch" {
@@ -425,23 +425,23 @@ EOF
   git -C "$PROJ" config user.email test@example.com
   git -C "$PROJ" config user.name "Test"
   make_story 005-partial complete
-  git -C "$PROJ" add .epic
+  git -C "$PROJ" add .epico
   git -C "$PROJ" commit -qm "seed story"
-  echo 'work-tree scratch, committed nowhere' > "$PROJ/.epic/stories/005-partial/notes.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-partial
+  echo 'work-tree scratch, committed nowhere' > "$PROJ/.epico/stories/005-partial/notes.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-partial
   [ "$status" -eq 0 ]
   # The tracked half keeps its history...
   run git -C "$PROJ" diff --cached -M --name-status
   echo "$output" | grep -q '^R.*005-partial/story\.md'
   # ...and the untracked file rides along with the directory rename.
-  [ -f "$PROJ/.epic/archive/005-partial/notes.md" ]
-  [ ! -d "$PROJ/.epic/stories/005-partial" ]
+  [ -f "$PROJ/.epico/archive/005-partial/notes.md" ]
+  [ ! -d "$PROJ/.epico/stories/005-partial" ]
 }
 
 @test "legacy artifact without a status field has one added, in every artifact" {
   # Legacy stories may carry no `status:` at all. The transition must ADD the field there, not silently skip the file
   # - a skipped artifact would sit in archive/ claiming nothing forever.
-  local dir="$PROJ/.epic/stories/005-legacy"
+  local dir="$PROJ/.epico/stories/005-legacy"
   mkdir -p "$dir"
   cat > "$dir/story.md" <<'EOF'
 ---
@@ -463,9 +463,9 @@ created: 2026-08-01
 - [x] 1 - Done
 EOF
   # No status field means nothing says it was validated: --force carries it.
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-legacy --force "legacy story, predates status"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-legacy --force "legacy story, predates status"
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-legacy"
+  local arch="$PROJ/.epico/archive/005-legacy"
   # One story, one status: EVERY artifact carrying frontmatter gets the field.
   grep -q '^status: archived' "$arch/story.md"
   grep -q '^status: archived' "$arch/tasks.md"
@@ -494,7 +494,7 @@ EOF
   make_story 005-ctl incomplete
   local reason
   reason=$(printf 'rushed \033[1mrelease\033[0m del=\177 c1=\302\206 bs=\b ff=\f')
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-ctl --force "$reason"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-ctl --force "$reason"
   [ "$status" -eq 0 ]
   # stdout is still JSON...
   echo "$output" | jq -e . > /dev/null
@@ -523,9 +523,9 @@ assert "bs=\b" in r and "ff=\f" in r, r
   # permanent record a stub with no tasks_total, no archived_at, no
   # overrides_used - an entry that claims nothing at all, silently.
   make_story 005-trunc complete
-  chmod 555 "$PROJ/.epic/stories"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-trunc
-  chmod 755 "$PROJ/.epic/stories"
+  chmod 555 "$PROJ/.epico/stories"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-trunc
+  chmod 755 "$PROJ/.epico/stories"
   [ "$status" -ne 0 ]
   # Truncate the entry right after `status:` - what a kill mid-append leaves.
   python3 -c '
@@ -538,13 +538,13 @@ for ln in open(p).read().splitlines(True):
         break
 open(p, "w").write("".join(out))
 ' "$MANIFEST"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-trunc
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-trunc
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   echo "$output" | grep -qi 'truncated'
   # Fail-closed on both counts: nothing moved, and no second entry beside it.
-  [ -d "$PROJ/.epic/stories/005-trunc" ]
-  [ ! -d "$PROJ/.epic/archive/005-trunc" ]
+  [ -d "$PROJ/.epico/stories/005-trunc" ]
+  [ ! -d "$PROJ/.epico/archive/005-trunc" ]
   [ "$(grep -c 'story: "005-trunc"' "$MANIFEST")" -eq 1 ]
 }
 
@@ -558,7 +558,7 @@ open(p, "w").write("".join(out))
 # A short entry collides only under heavy contention; 40 boxes give a ~58-line
 # entry that exposes the race reliably.
 make_bulky_story() {
-  local dir="$PROJ/.epic/stories/$1" n="${2:-40}" i
+  local dir="$PROJ/.epico/stories/$1" n="${2:-40}" i
   mkdir -p "$dir"
   cat > "$dir/story.md" <<EOF
 ---
@@ -641,7 +641,7 @@ keep_concurrent_evidence() {
   for r in $(seq 1 "$rounds"); do
     for n in $(seq 1 "$writers"); do
       idx=$(((r - 1) * writers + n))
-      bash "$ARCHIVE_SH" ".epic/stories/$(printf '%03d-race' "$idx")" --skip-secrets \
+      bash "$ARCHIVE_SH" ".epico/stories/$(printf '%03d-race' "$idx")" --skip-secrets \
         > "$WORK/run.$idx.out" 2> "$WORK/run.$idx.err" &
     done
     wait
@@ -649,7 +649,7 @@ keep_concurrent_evidence() {
 
   local failed="" archived entries headers yamlerr
   [ -f "$MANIFEST" ] || failed+="no manifest was created; "
-  archived=$(ls -1 "$PROJ/.epic/archive" 2> /dev/null | grep -c -- '-race' || true)
+  archived=$(ls -1 "$PROJ/.epico/archive" 2> /dev/null | grep -c -- '-race' || true)
   [ "${archived:-0}" -eq "$total" ] || failed+="archived dirs ${archived:-0} != $total; "
   entries=$(grep -c '^  - story: ' "$MANIFEST" 2> /dev/null || true)
   [ "${entries:-0}" -eq "$total" ] || failed+="entry lines ${entries:-0} != $total; "
@@ -677,7 +677,7 @@ print("OK")
 ' "$MANIFEST" "$total" 2>&1 || true)
   [ "$yamlerr" = OK ] || failed+="yaml: $yamlerr; "
   # No lock may survive a run that finished.
-  [ ! -e "$PROJ/.epic/archive/.manifest.lock" ] || failed+="a manifest lock was left behind; "
+  [ ! -e "$PROJ/.epico/archive/.manifest.lock" ] || failed+="a manifest lock was left behind; "
 
   if [ -n "$failed" ]; then
     echo "CONCURRENCY FAILURE: $failed"
@@ -702,8 +702,8 @@ print("OK")
   # grow; without it the append lands immediately and the assertion below fails
   # on every run, not on some of them.
   make_story 005-excl complete
-  mkdir -p "$PROJ/.epic/archive"
-  local lock="$PROJ/.epic/archive/.manifest.lock"
+  mkdir -p "$PROJ/.epico/archive"
+  local lock="$PROJ/.epico/archive/.manifest.lock"
   mkdir "$lock"
   : > "$lock/owner.test-holder"
   # A pre-existing manifest, so "did it append?" is a question about SIZE and
@@ -711,7 +711,7 @@ print("OK")
   printf '%s\n' 'archived:' > "$MANIFEST"
   local before
   before=$(wc -c < "$MANIFEST")
-  env EPIC_ARCHIVE_LOCK_TIMEOUT=30 bash "$ARCHIVE_SH" .epic/stories/005-excl \
+  env EPICO_ARCHIVE_LOCK_TIMEOUT=30 bash "$ARCHIVE_SH" .epico/stories/005-excl \
     > "$WORK/excl.out" 2> "$WORK/excl.err" &
   local archiver=$!
   # Long enough for an unsynchronized append to have happened many times over:
@@ -727,12 +727,12 @@ print("OK")
     false
   }
   # The story has not moved either - the append is before the move.
-  [ -d "$PROJ/.epic/stories/005-excl" ]
+  [ -d "$PROJ/.epico/stories/005-excl" ]
   # Release, and it finishes normally.
   rm -f "$lock"/owner.*
   rmdir "$lock"
   wait "$archiver"
-  [ -d "$PROJ/.epic/archive/005-excl" ]
+  [ -d "$PROJ/.epico/archive/005-excl" ]
   [ "$(grep -c 'story: "005-excl"' "$MANIFEST")" -eq 1 ]
   jq -e '.status == "archived"' < "$WORK/excl.out" > /dev/null
 }
@@ -746,17 +746,17 @@ print("OK")
   # cannot take a live lock. Timeout shortened here so the case does not sit
   # for the production 30s.
   make_story 005-stale complete
-  mkdir -p "$PROJ/.epic/archive/.manifest.lock"
-  : > "$PROJ/.epic/archive/.manifest.lock/owner.dead-4242-1"
-  run --separate-stderr env EPIC_ARCHIVE_LOCK_TIMEOUT=1 \
-    bash "$ARCHIVE_SH" .epic/stories/005-stale
+  mkdir -p "$PROJ/.epico/archive/.manifest.lock"
+  : > "$PROJ/.epico/archive/.manifest.lock/owner.dead-4242-1"
+  run --separate-stderr env EPICO_ARCHIVE_LOCK_TIMEOUT=1 \
+    bash "$ARCHIVE_SH" .epico/stories/005-stale
   [ "$status" -eq 0 ]
-  [ -d "$PROJ/.epic/archive/005-stale" ]
+  [ -d "$PROJ/.epico/archive/005-stale" ]
   # It says so, on stderr - breaking somebody's lock is never silent.
   echo "$stderr" | grep -qi 'breaking the manifest lock'
   # ...and the entry really is in there, and the lock is gone again.
   [ "$(grep -c 'story: "005-stale"' "$MANIFEST")" -eq 1 ]
-  [ ! -e "$PROJ/.epic/archive/.manifest.lock" ]
+  [ ! -e "$PROJ/.epico/archive/.manifest.lock" ]
 }
 
 @test "a manifest lock that keeps changing hands is waited for, never broken" {
@@ -773,8 +773,8 @@ print("OK")
   # holder-stderr assertion at the end turns a scaffold that holds nothing into
   # a loud failure rather than a mysterious one.
   make_story 005-busy complete
-  local lock="$PROJ/.epic/archive/.manifest.lock"
-  mkdir -p "$PROJ/.epic/archive"
+  local lock="$PROJ/.epico/archive/.manifest.lock"
+  mkdir -p "$PROJ/.epico/archive"
   mkdir "$lock"
   : > "$lock/owner.holder-0"
   # Held for ~2s - TWICE the timeout, so a stale check that ignored identity
@@ -791,8 +791,8 @@ print("OK")
     rmdir "$lock"
   ) 2> "$WORK/holder.err" &
   local holder=$!
-  run --separate-stderr env EPIC_ARCHIVE_LOCK_TIMEOUT=1 \
-    bash "$ARCHIVE_SH" .epic/stories/005-busy
+  run --separate-stderr env EPICO_ARCHIVE_LOCK_TIMEOUT=1 \
+    bash "$ARCHIVE_SH" .epico/stories/005-busy
   wait "$holder" || true
   # The scaffold really did hold the lock for the whole window.
   [ ! -s "$WORK/holder.err" ] || {
@@ -805,7 +805,7 @@ print("OK")
   [[ "$stderr" != *"breaking the manifest lock"* ]]
   # ...and then did its own append, exactly once.
   [ "$(grep -c 'story: "005-busy"' "$MANIFEST")" -eq 1 ]
-  [ -d "$PROJ/.epic/archive/005-busy" ]
+  [ -d "$PROJ/.epico/archive/005-busy" ]
   [ ! -e "$lock" ]
 }
 
@@ -816,16 +816,16 @@ print("OK")
   # waiting only delays the same verdict. Reading every failure as contention
   # costs a full timeout - twice, once for the stale break - before reporting.
   make_story 005-lockfile complete
-  mkdir -p "$PROJ/.epic/archive"
-  : > "$PROJ/.epic/archive/.manifest.lock"
+  mkdir -p "$PROJ/.epico/archive"
+  : > "$PROJ/.epico/archive/.manifest.lock"
   local t0=$SECONDS
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-lockfile
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-lockfile
   local elapsed=$((SECONDS - t0))
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   # Fail-closed: no entry, nothing moved.
-  [ -d "$PROJ/.epic/stories/005-lockfile" ]
-  [ ! -d "$PROJ/.epic/archive/005-lockfile" ]
+  [ -d "$PROJ/.epico/stories/005-lockfile" ]
+  [ ! -d "$PROJ/.epico/archive/005-lockfile" ]
   # Reported at once - the default timeout is 30s, so anything near it means
   # the run sat waiting for a lock that could not exist.
   [ "$elapsed" -lt 10 ]
@@ -839,14 +839,14 @@ print("OK")
   # top level under `set -e` killed the shell with ZERO bytes on stdout - the
   # one thing the output contract promises never happens.
   make_story 005-noread complete
-  chmod 000 "$PROJ/.epic/stories/005-noread/tasks.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-noread
-  chmod 644 "$PROJ/.epic/stories/005-noread/tasks.md"
+  chmod 000 "$PROJ/.epico/stories/005-noread/tasks.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-noread
+  chmod 644 "$PROJ/.epico/stories/005-noread/tasks.md"
   [ "$status" -eq 1 ]
   [ -n "$output" ]
   echo "$output" | jq -e '.status == "refused" and .moved == false' > /dev/null
   echo "$output" | grep -q 'tasks.md'
-  [ -d "$PROJ/.epic/stories/005-noread" ]
+  [ -d "$PROJ/.epico/stories/005-noread" ]
   [ ! -e "$MANIFEST" ]
 }
 
@@ -862,14 +862,14 @@ print("OK")
   rm -f "$WORK/nodate/date"
   printf '#!/bin/sh\nexit 1\n' > "$WORK/nodate/date"
   chmod +x "$WORK/nodate/date"
-  run --separate-stderr env PATH="$WORK/nodate" bash "$ARCHIVE_SH" .epic/stories/005-clock
+  run --separate-stderr env PATH="$WORK/nodate" bash "$ARCHIVE_SH" .epico/stories/005-clock
   [ "$status" -eq 1 ]
   [ -n "$output" ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   # Fail-closed: an entry with no archived_at is a derived field the run cannot
   # support, so nothing is written and nothing moves.
-  [ -d "$PROJ/.epic/stories/005-clock" ]
-  [ ! -d "$PROJ/.epic/archive/005-clock" ]
+  [ -d "$PROJ/.epico/stories/005-clock" ]
+  [ ! -d "$PROJ/.epico/archive/005-clock" ]
 }
 
 # --- A derived value must appear in the artifact it was derived from ---
@@ -882,8 +882,8 @@ print("OK")
   # the completion branch refused a story that was genuinely validated.
   make_story 005-cmt complete
   sed -i 's/^status: validated$/status: validated  # closed early/' \
-    "$PROJ/.epic/stories/005-cmt/story.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-cmt
+    "$PROJ/.epico/stories/005-cmt/story.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-cmt
   # The status branch sees `validated`, so the story archives without --force.
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.manifest_entry.status == "validated"' > /dev/null
@@ -898,21 +898,21 @@ print("OK")
 # --- The destination is derived from the story's PHYSICAL location ---
 
 @test "a symlinked story directory is refused, not archived outside the project" {
-  # `pwd -P` resolves the symlink and EPIC_DIR was re-derived from the physical
-  # path, so a `.epic/stories/005-sym -> /elsewhere/shared/stories/005-sym`
+  # `pwd -P` resolves the symlink and EPICO_DIR was re-derived from the physical
+  # path, so a `.epico/stories/005-sym -> /elsewhere/shared/stories/005-sym`
   # created /elsewhere/shared/archive/, wrote the manifest there, reported
-  # `path: .epic/stories/005-sym` (where the story is NOT) and exited 0 - with
+  # `path: .epico/stories/005-sym` (where the story is NOT) and exited 0 - with
   # the destination outside the tree hook-archive-guard.sh protects.
   mkdir -p "$WORK/elsewhere/stories"
   make_story 005-real complete
-  mv "$PROJ/.epic/stories/005-real" "$WORK/elsewhere/stories/005-sym"
-  ln -s "$WORK/elsewhere/stories/005-sym" "$PROJ/.epic/stories/005-sym"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-sym
+  mv "$PROJ/.epico/stories/005-real" "$WORK/elsewhere/stories/005-sym"
+  ln -s "$WORK/elsewhere/stories/005-sym" "$PROJ/.epico/stories/005-sym"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-sym
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused" and .moved == false' > /dev/null
   echo "$output" | grep -qi 'symlink'
   # Nothing was created anywhere: not in the project, not at the target.
-  [ ! -d "$PROJ/.epic/archive" ]
+  [ ! -d "$PROJ/.epico/archive" ]
   [ ! -e "$WORK/elsewhere/archive" ]
   [ -d "$WORK/elsewhere/stories/005-sym" ]
 }
@@ -930,12 +930,12 @@ print("OK")
   git -C "$PROJ" config user.email test@example.com
   git -C "$PROJ" config user.name "Test"
   make_story 005-env complete
-  git -C "$PROJ" add .epic
+  git -C "$PROJ" add .epico
   git -C "$PROJ" commit -qm "seed story"
   mkdir "$WORK/other"
   git -C "$WORK/other" init -q
   run --separate-stderr env GIT_DIR="$WORK/other/.git" GIT_WORK_TREE="$WORK/other" \
-    bash "$ARCHIVE_SH" .epic/stories/005-env
+    bash "$ARCHIVE_SH" .epico/stories/005-env
   [ "$status" -eq 0 ]
   # The rename is staged in the story's OWN repository...
   run git -C "$PROJ" diff --cached -M --name-status
@@ -954,15 +954,15 @@ print("OK")
   git -C "$PROJ" config user.email test@example.com
   git -C "$PROJ" config user.name "Test"
   make_story 005-unreadable complete
-  git -C "$PROJ" add .epic
+  git -C "$PROJ" add .epico
   git -C "$PROJ" commit -qm "seed story"
   chmod 000 "$PROJ/.git/index"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-unreadable
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-unreadable
   chmod 644 "$PROJ/.git/index"
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
-  [ -d "$PROJ/.epic/stories/005-unreadable" ]
-  [ ! -d "$PROJ/.epic/archive/005-unreadable" ]
+  [ -d "$PROJ/.epico/stories/005-unreadable" ]
+  [ ! -d "$PROJ/.epico/archive/005-unreadable" ]
 }
 
 # --- CRLF artifacts are transitioned, and a partial pass is not silent ---
@@ -978,11 +978,11 @@ import sys
 p = sys.argv[1]
 d = open(p, "rb").read().replace(b"\n", b"\r\n")
 open(p, "wb").write(d)
-' "$PROJ/.epic/stories/005-crlf/story.md"
-  grep -qa $'^---\r$' "$PROJ/.epic/stories/005-crlf/story.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-crlf
+' "$PROJ/.epico/stories/005-crlf/story.md"
+  grep -qa $'^---\r$' "$PROJ/.epico/stories/005-crlf/story.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-crlf
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-crlf"
+  local arch="$PROJ/.epico/archive/005-crlf"
   # One story, one status - both artifacts agree, whatever their line endings.
   grep -q $'^status: archived\r$' "$arch/story.md"
   grep -q '^status: archived$' "$arch/tasks.md"
@@ -999,10 +999,10 @@ open(p, "wb").write(d)
   # contradicting each other, which is the divergence validate-story.sh reports.
   make_story 005-partialfm complete
   printf '# Plain notes, no frontmatter block\n' \
-    > "$PROJ/.epic/stories/005-partialfm/notes.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-partialfm
+    > "$PROJ/.epico/stories/005-partialfm/notes.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-partialfm
   [ "$status" -eq 0 ]
-  grep -q '^status: archived' "$PROJ/.epic/archive/005-partialfm/story.md"
+  grep -q '^status: archived' "$PROJ/.epico/archive/005-partialfm/story.md"
   # The skipped artifact is named on stderr, with the divergence spelled out.
   echo "$stderr" | grep -q 'notes.md'
   echo "$stderr" | grep -qi 'disagree'
@@ -1016,20 +1016,20 @@ open(p, "wb").write(d)
   # (date re-runs) and so did every flag whenever the two runs were invoked
   # differently.
   make_story 005-recorded complete
-  chmod 555 "$PROJ/.epic/stories"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-recorded \
+  chmod 555 "$PROJ/.epico/stories"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-recorded \
     --force "waiting on vendor" --keep-logs
-  chmod 755 "$PROJ/.epic/stories"
+  chmod 755 "$PROJ/.epico/stories"
   [ "$status" -ne 0 ]
-  [ -d "$PROJ/.epic/stories/005-recorded" ]
+  [ -d "$PROJ/.epico/stories/005-recorded" ]
   local recorded_at
   recorded_at=$(grep -m1 'archived_at:' "$MANIFEST" | sed 's/.*archived_at: "\(.*\)"/\1/')
   [ -n "$recorded_at" ]
   # Re-run with DIFFERENT flags: the resume must report run 1's entry.
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-recorded \
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-recorded \
     --force "giving up" --allow-heavy
   [ "$status" -eq 0 ]
-  [ -d "$PROJ/.epic/archive/005-recorded" ]
+  [ -d "$PROJ/.epico/archive/005-recorded" ]
   echo "$output" | jq -e '.manifest_entry.forced_reason == "waiting on vendor"' > /dev/null
   echo "$output" | jq -e '.manifest_entry.overrides_used == ["force","keep-logs"]' > /dev/null
   echo "$output" | jq --arg t "$recorded_at" -e '.manifest_entry.archived_at == $t' > /dev/null
@@ -1044,12 +1044,12 @@ open(p, "wb").write(d)
   # at preflight and never reaches the resume, so the orphan entry has no
   # command of its own to clean it. The refusal has to say so.
   make_story 005-orphan incomplete
-  chmod 555 "$PROJ/.epic/stories"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-orphan --force "vendor"
-  chmod 755 "$PROJ/.epic/stories"
+  chmod 555 "$PROJ/.epico/stories"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-orphan --force "vendor"
+  chmod 755 "$PROJ/.epico/stories"
   [ "$status" -ne 0 ]
   grep -q '005-orphan' "$MANIFEST"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-orphan
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-orphan
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused"' > /dev/null
   echo "$output" | jq -e '.reason | contains("interrupted run")' > /dev/null
@@ -1060,22 +1060,22 @@ open(p, "wb").write(d)
 
 @test "a story directory whose name starts with a dash is reachable after --" {
   make_story -005-dashy complete
-  run --separate-stderr bash "$ARCHIVE_SH" -- .epic/stories/-005-dashy
+  run --separate-stderr bash "$ARCHIVE_SH" -- .epico/stories/-005-dashy
   [ "$status" -eq 0 ]
-  [ -d "$PROJ/.epic/archive/-005-dashy" ]
+  [ -d "$PROJ/.epico/archive/-005-dashy" ]
 }
 
 @test "a DANGLING symlink in the destination slot blocks before the move" {
   # The pre-move check used `[[ -e ]]`, which FOLLOWS the link and is false for
   # a dangling one - so the move went ahead and failed with a bare ENOTDIR.
   make_story 005-dangle complete
-  mkdir -p "$PROJ/.epic/archive"
-  ln -s "$PROJ/.epic/archive/nowhere-at-all" "$PROJ/.epic/archive/005-dangle"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-dangle
+  mkdir -p "$PROJ/.epico/archive"
+  ln -s "$PROJ/.epico/archive/nowhere-at-all" "$PROJ/.epico/archive/005-dangle"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-dangle
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   echo "$output" | grep -q 'already exists'
-  [ -d "$PROJ/.epic/stories/005-dangle" ]
+  [ -d "$PROJ/.epico/stories/005-dangle" ]
 }
 
 # --- Weight/binary guard ---
@@ -1083,78 +1083,78 @@ open(p, "wb").write(d)
 @test "text file over 10 MB blocks with the offender listed" {
   make_story 005-heavy complete
   yes 'padding line for the weight guard fixture' \
-    | head -c 10485761 > "$PROJ/.epic/stories/005-heavy/big.txt"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-heavy
+    | head -c 10485761 > "$PROJ/.epico/stories/005-heavy/big.txt"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-heavy
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked"' > /dev/null
   echo "$output" | jq -e '(.guard.violations | length) >= 1' > /dev/null
   echo "$output" | grep -q 'big.txt'
-  [ -d "$PROJ/.epic/stories/005-heavy" ]
-  [ ! -d "$PROJ/.epic/archive/005-heavy" ]
+  [ -d "$PROJ/.epico/stories/005-heavy" ]
+  [ ! -d "$PROJ/.epico/archive/005-heavy" ]
 }
 
 @test "text file at exactly 10485760 bytes passes the weight guard" {
   make_story 005-boundary complete
   yes 'padding line for the weight guard fixture' \
-    | head -c 10485760 > "$PROJ/.epic/stories/005-boundary/edge.txt"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-boundary
+    | head -c 10485760 > "$PROJ/.epico/stories/005-boundary/edge.txt"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-boundary
   [ "$status" -eq 0 ]
-  [ -d "$PROJ/.epic/archive/005-boundary" ]
+  [ -d "$PROJ/.epico/archive/005-boundary" ]
 }
 
 @test "an image of at most 2 MB under proof/ passes; a larger one, or one outside proof/, blocks" {
   make_story 005-proof complete
-  mkdir -p "$PROJ/.epic/stories/005-proof/proof"
-  { printf '\x89PNG\r\n\x1a\n\0'; head -c 2097143 /dev/zero; } > "$PROJ/.epic/stories/005-proof/proof/login.png"
-  [ "$(wc -c < "$PROJ/.epic/stories/005-proof/proof/login.png")" -eq 2097152 ]
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-proof
+  mkdir -p "$PROJ/.epico/stories/005-proof/proof"
+  { printf '\x89PNG\r\n\x1a\n\0'; head -c 2097143 /dev/zero; } > "$PROJ/.epico/stories/005-proof/proof/login.png"
+  [ "$(wc -c < "$PROJ/.epico/stories/005-proof/proof/login.png")" -eq 2097152 ]
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-proof
   [ "$status" -eq 0 ]
-  [ -f "$PROJ/.epic/archive/005-proof/proof/login.png" ]
+  [ -f "$PROJ/.epico/archive/005-proof/proof/login.png" ]
 
   make_story 006-proof-big complete
-  mkdir -p "$PROJ/.epic/stories/006-proof-big/proof"
-  head -c 2097153 /dev/zero > "$PROJ/.epic/stories/006-proof-big/proof/big.jpg"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/006-proof-big
+  mkdir -p "$PROJ/.epico/stories/006-proof-big/proof"
+  head -c 2097153 /dev/zero > "$PROJ/.epico/stories/006-proof-big/proof/big.jpg"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/006-proof-big
   [ "$status" -eq 1 ]
   echo "$output" | grep -q 'big.jpg'
   echo "$output" | grep -q '2 MB'
 
   make_story 007-loose complete
-  printf '\x89PNG\0' > "$PROJ/.epic/stories/007-loose/shot.png"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/007-loose
+  printf '\x89PNG\0' > "$PROJ/.epico/stories/007-loose/shot.png"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/007-loose
   [ "$status" -eq 1 ]
   echo "$output" | grep -q 'shot.png'
 }
 
 @test "NUL-containing file blocks as non-text" {
   make_story 005-binary complete
-  printf 'ab\0cd' > "$PROJ/.epic/stories/005-binary/blob.dat"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-binary
+  printf 'ab\0cd' > "$PROJ/.epico/stories/005-binary/blob.dat"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-binary
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked"' > /dev/null
   echo "$output" | grep -q 'blob.dat'
-  [ ! -d "$PROJ/.epic/archive/005-binary" ]
+  [ ! -d "$PROJ/.epico/archive/005-binary" ]
 }
 
 @test "--allow-heavy archives and records the override" {
   make_story 005-allowed complete
   yes 'padding line for the weight guard fixture' \
-    | head -c 10485761 > "$PROJ/.epic/stories/005-allowed/big.txt"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-allowed --allow-heavy
+    | head -c 10485761 > "$PROJ/.epico/stories/005-allowed/big.txt"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-allowed --allow-heavy
   [ "$status" -eq 0 ]
-  [ -d "$PROJ/.epic/archive/005-allowed" ]
+  [ -d "$PROJ/.epico/archive/005-allowed" ]
   # The override is recorded in the manifest entry.
   grep -q 'allow-heavy' "$MANIFEST"
 }
 
 @test "a node_modules/ tree blocks once, naming the directory, whatever its files weigh" {
   make_story 005-deps complete
-  local story="$PROJ/.epic/stories/005-deps"
+  local story="$PROJ/.epico/stories/005-deps"
   mkdir -p "$story/node_modules/left-pad" "$story/node_modules/.bin"
   echo 'module.exports = () => 1' > "$story/node_modules/left-pad/index.js"
   echo '{"name":"left-pad"}' > "$story/node_modules/left-pad/package.json"
   echo '#!/bin/sh' > "$story/node_modules/.bin/pad"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-deps
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-deps
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked"' > /dev/null
   # The tree is the offender: one violation, not one per file (three files here).
@@ -1163,17 +1163,17 @@ open(p, "wb").write(d)
   echo "$output" | jq -e '.guard.violations[0].reason | contains("node_modules")' > /dev/null
   # Refused, never deleted: the tree is still there for the user to remove.
   [ -f "$story/node_modules/left-pad/index.js" ]
-  [ ! -d "$PROJ/.epic/archive/005-deps" ]
+  [ ! -d "$PROJ/.epico/archive/005-deps" ]
 }
 
 @test "--allow-heavy archives a node_modules/ tree as it is and records the override" {
   make_story 005-deps-allowed complete
-  local story="$PROJ/.epic/stories/005-deps-allowed"
+  local story="$PROJ/.epico/stories/005-deps-allowed"
   mkdir -p "$story/node_modules/left-pad"
   echo 'module.exports = () => 1' > "$story/node_modules/left-pad/index.js"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-deps-allowed --allow-heavy
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-deps-allowed --allow-heavy
   [ "$status" -eq 0 ]
-  [ -f "$PROJ/.epic/archive/005-deps-allowed/node_modules/left-pad/index.js" ]
+  [ -f "$PROJ/.epico/archive/005-deps-allowed/node_modules/left-pad/index.js" ]
   grep -q 'allow-heavy' "$MANIFEST"
 }
 
@@ -1181,17 +1181,17 @@ open(p, "wb").write(d)
   # The guard lists EVERY offending file. A guard that stops at the first one
   # turns a clean-up into a game of whack-a-mole: block, delete, block again.
   make_story 005-many complete
-  local story="$PROJ/.epic/stories/005-many"
+  local story="$PROJ/.epico/stories/005-many"
   yes 'padding line for the weight guard fixture' | head -c 10485761 > "$story/first.txt"
   yes 'padding line for the weight guard fixture' | head -c 10485762 > "$story/second.txt"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-many
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-many
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '(.guard.violations | length) == 2' > /dev/null
   echo "$output" | jq -e '[.guard.violations[].file | endswith("first.txt")] | any' > /dev/null
   echo "$output" | jq -e '[.guard.violations[].file | endswith("second.txt")] | any' > /dev/null
   # The human reason carries both too - it is what the orchestrator surfaces.
   echo "$output" | jq -e '.reason | contains("first.txt") and contains("second.txt")' > /dev/null
-  [ ! -d "$PROJ/.epic/archive/005-many" ]
+  [ ! -d "$PROJ/.epico/archive/005-many" ]
 }
 
 @test "each violation carries the offending file's size and its reason" {
@@ -1199,8 +1199,8 @@ open(p, "wb").write(d)
   # not a figure a consumer has to fish back out of a prose sentence.
   make_story 005-sized complete
   yes 'padding line for the weight guard fixture' \
-    | head -c 10485761 > "$PROJ/.epic/stories/005-sized/big.txt"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-sized
+    | head -c 10485761 > "$PROJ/.epico/stories/005-sized/big.txt"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-sized
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.guard.violations[0]
     | has("file") and has("size") and has("reason")' > /dev/null
@@ -1216,15 +1216,15 @@ open(p, "wb").write(d)
   # The guard walks the whole story tree: a blob is no lighter for sitting one
   # directory down, and .draft/ is where a story's evidence accumulates.
   make_story 005-draftblob complete
-  mkdir -p "$PROJ/.epic/stories/005-draftblob/.draft/logs"
-  printf 'core\0dump' > "$PROJ/.epic/stories/005-draftblob/.draft/logs/crash.dump"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-draftblob
+  mkdir -p "$PROJ/.epico/stories/005-draftblob/.draft/logs"
+  printf 'core\0dump' > "$PROJ/.epico/stories/005-draftblob/.draft/logs/crash.dump"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-draftblob
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked"' > /dev/null
   echo "$output" | jq -e '[.guard.violations[].file
     | endswith(".draft/logs/crash.dump")] | any' > /dev/null
-  [ -d "$PROJ/.epic/stories/005-draftblob" ]
-  [ ! -d "$PROJ/.epic/archive/005-draftblob" ]
+  [ -d "$PROJ/.epico/stories/005-draftblob" ]
+  [ ! -d "$PROJ/.epico/archive/005-draftblob" ]
 }
 
 @test "a UTF-16 text artifact is blocked as non-text, with --allow-heavy as the escape" {
@@ -1238,8 +1238,8 @@ open(p, "wb").write(d)
   python3 -c '
 import sys
 open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le"))
-' "$PROJ/.epic/stories/005-utf16/notes-utf16.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-utf16
+' "$PROJ/.epico/stories/005-utf16/notes-utf16.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-utf16
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked"' > /dev/null
   echo "$output" | jq -e '[.guard.violations[].file
@@ -1247,9 +1247,9 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   # The reason names the edge, so nobody has to guess why a text file is binary.
   echo "$output" | jq -e '.guard.violations[0].reason | test("UTF-16")' > /dev/null
   # ...and the documented way out works, recorded as an override.
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-utf16 --allow-heavy
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-utf16 --allow-heavy
   [ "$status" -eq 0 ]
-  [ -d "$PROJ/.epic/archive/005-utf16" ]
+  [ -d "$PROJ/.epico/archive/005-utf16" ]
   grep -q 'allow-heavy' "$MANIFEST"
 }
 
@@ -1258,29 +1258,29 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   # as "binary" would block a clean story over an empty placeholder - the guard
   # failing in the direction that costs trust rather than safety.
   make_story 005-emptyish complete
-  : > "$PROJ/.epic/stories/005-emptyish/.gitkeep"
-  printf '\n\n\n' > "$PROJ/.epic/stories/005-emptyish/blank-lines.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-emptyish
+  : > "$PROJ/.epico/stories/005-emptyish/.gitkeep"
+  printf '\n\n\n' > "$PROJ/.epico/stories/005-emptyish/blank-lines.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-emptyish
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '(.guard.violations | length) == 0' > /dev/null
-  [ -d "$PROJ/.epic/archive/005-emptyish" ]
+  [ -d "$PROJ/.epico/archive/005-emptyish" ]
 }
 
 @test "a blocked story leaves no manifest entry and no archive directory" {
   # The step order, asserted from the outside: the guard runs BEFORE the append
   # (step 5) and the move (step 6). A blocked story that had already been
   # written into the permanent record would be a record of an archive that
-  # never happened - and .epic/archive/ is deliberately hard to repair.
+  # never happened - and .epico/archive/ is deliberately hard to repair.
   make_story 005-nowrite complete
-  printf 'ab\0cd' > "$PROJ/.epic/stories/005-nowrite/blob.dat"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-nowrite
+  printf 'ab\0cd' > "$PROJ/.epico/stories/005-nowrite/blob.dat"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-nowrite
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   echo "$output" | jq -e '.manifest_entry == {}' > /dev/null
   [ ! -e "$MANIFEST" ]
-  [ ! -d "$PROJ/.epic/archive" ]
-  [ -f "$PROJ/.epic/stories/005-nowrite/story.md" ]
-  [ -f "$PROJ/.epic/stories/005-nowrite/blob.dat" ]
+  [ ! -d "$PROJ/.epico/archive" ]
+  [ -f "$PROJ/.epico/stories/005-nowrite/story.md" ]
+  [ -f "$PROJ/.epico/stories/005-nowrite/blob.dat" ]
 }
 
 @test "a file the guard cannot read is a reported verdict, not a silent abort" {
@@ -1290,20 +1290,20 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   # end the run with zero bytes on stdout, which the output contract promises
   # never happens. Fail closed, with JSON, naming the file.
   make_story 005-opaque complete
-  printf 'plain readable text\n' > "$PROJ/.epic/stories/005-opaque/opaque.txt"
-  chmod 000 "$PROJ/.epic/stories/005-opaque/opaque.txt"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-opaque
+  printf 'plain readable text\n' > "$PROJ/.epico/stories/005-opaque/opaque.txt"
+  chmod 000 "$PROJ/.epico/stories/005-opaque/opaque.txt"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-opaque
   # `|| true`: if the guard ever stops blocking, the story is MOVED and this
   # path is gone - and the case must then fail on its assertion, not die here
   # on the fixture cleanup. (teardown chmods the whole work tree anyway.)
-  chmod 644 "$PROJ/.epic/stories/005-opaque/opaque.txt" 2> /dev/null || true
+  chmod 644 "$PROJ/.epico/stories/005-opaque/opaque.txt" 2> /dev/null || true
   [ "$status" -eq 1 ]
   [ -n "$output" ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   echo "$output" | jq -e '[.guard.violations[].file | endswith("opaque.txt")] | any' > /dev/null
   echo "$output" | jq -e '.guard.violations[0].reason | test("cannot be read")' > /dev/null
-  [ -d "$PROJ/.epic/stories/005-opaque" ]
-  [ ! -d "$PROJ/.epic/archive/005-opaque" ]
+  [ -d "$PROJ/.epico/stories/005-opaque" ]
+  [ ! -d "$PROJ/.epico/archive/005-opaque" ]
 }
 
 @test "a tree the guard cannot fully enumerate blocks instead of passing" {
@@ -1313,25 +1313,25 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   # story on the strength of a partial list. Same rule as everywhere else here -
   # what the guard cannot see, it cannot clear.
   make_story 005-locked complete
-  mkdir -p "$PROJ/.epic/stories/005-locked/.draft/locked"
-  printf 'ab\0cd' > "$PROJ/.epic/stories/005-locked/.draft/locked/hidden.dat"
-  chmod 000 "$PROJ/.epic/stories/005-locked/.draft/locked"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-locked
-  chmod 755 "$PROJ/.epic/stories/005-locked/.draft/locked" 2> /dev/null || true
+  mkdir -p "$PROJ/.epico/stories/005-locked/.draft/locked"
+  printf 'ab\0cd' > "$PROJ/.epico/stories/005-locked/.draft/locked/hidden.dat"
+  chmod 000 "$PROJ/.epico/stories/005-locked/.draft/locked"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-locked
+  chmod 755 "$PROJ/.epico/stories/005-locked/.draft/locked" 2> /dev/null || true
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   echo "$output" | jq -e '[.guard.violations[].reason
     | test("cannot enumerate")] | any' > /dev/null
-  [ -d "$PROJ/.epic/stories/005-locked" ]
-  [ ! -d "$PROJ/.epic/archive/005-locked" ]
+  [ -d "$PROJ/.epico/stories/005-locked" ]
+  [ ! -d "$PROJ/.epico/archive/005-locked" ]
 }
 
 @test "a 2 GB-class binary is blocked with the offender and its size listed" {
   # A multi-GB binary must be refused. The fixture is sparse, so it costs no disk - and
   # the guard must not have to READ it to refuse it (size first, then text).
   make_story 005-huge-binary complete
-  truncate -s 2469606195 "$PROJ/.epic/stories/005-huge-binary/vendor-blob.bin"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-huge-binary
+  truncate -s 2469606195 "$PROJ/.epico/stories/005-huge-binary/vendor-blob.bin"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-huge-binary
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked"' > /dev/null
   echo "$output" | jq -e '.guard.violations[0].size == 2469606195' > /dev/null
@@ -1341,8 +1341,8 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   # would block it as "non-text" and look just as correct while the 10 MB rule
   # sat broken. The size test runs first precisely so 2.3 GB is never read.
   echo "$output" | jq -e '.guard.violations[0].reason | test("larger than")' > /dev/null
-  [ -d "$PROJ/.epic/stories/005-huge-binary" ]
-  [ ! -d "$PROJ/.epic/archive/005-huge-binary" ]
+  [ -d "$PROJ/.epico/stories/005-huge-binary" ]
+  [ ! -d "$PROJ/.epico/archive/005-huge-binary" ]
 }
 
 # --- Secrets guard ---
@@ -1353,23 +1353,23 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
   make_story 005-leaky complete
   printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
-    > "$PROJ/.epic/stories/005-leaky/notes-creds.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-leaky
+    > "$PROJ/.epico/stories/005-leaky/notes-creds.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-leaky
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked"' > /dev/null
   echo "$output" | jq -e '.secrets.findings >= 1' > /dev/null
-  [ -d "$PROJ/.epic/stories/005-leaky" ]
-  [ ! -d "$PROJ/.epic/archive/005-leaky" ]
+  [ -d "$PROJ/.epico/stories/005-leaky" ]
+  [ ! -d "$PROJ/.epico/archive/005-leaky" ]
 }
 
 @test "--skip-secrets bypasses the scan and records the override" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
   make_story 005-skipped complete
   printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
-    > "$PROJ/.epic/stories/005-skipped/notes-creds.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-skipped --skip-secrets
+    > "$PROJ/.epico/stories/005-skipped/notes-creds.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-skipped --skip-secrets
   [ "$status" -eq 0 ]
-  [ -d "$PROJ/.epic/archive/005-skipped" ]
+  [ -d "$PROJ/.epico/archive/005-skipped" ]
   # The override is recorded in the manifest entry.
   grep -q 'skip-secrets' "$MANIFEST"
 }
@@ -1384,10 +1384,10 @@ open(sys.argv[1], "wb").write("# Notes\nplain readable text\n".encode("utf-16-le
   done
   rm -f "$WORK/nobin/gitleaks"
   make_story 005-noscan complete
-  run --separate-stderr env PATH="$WORK/nobin" bash "$ARCHIVE_SH" .epic/stories/005-noscan
+  run --separate-stderr env PATH="$WORK/nobin" bash "$ARCHIVE_SH" .epico/stories/005-noscan
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "archived"' > /dev/null
-  [ -d "$PROJ/.epic/archive/005-noscan" ]
+  [ -d "$PROJ/.epico/archive/005-noscan" ]
   # The skipped scan is noted in the structured output.
   printf '%s\n%s\n' "$output" "$stderr" | grep -qi 'gitleaks'
 }
@@ -1425,7 +1425,7 @@ gl_shim_path() {
   make_story 005-scanfail complete
   local p
   p=$(gl_shim_path 7)
-  run --separate-stderr env PATH="$p" bash "$ARCHIVE_SH" .epic/stories/005-scanfail
+  run --separate-stderr env PATH="$p" bash "$ARCHIVE_SH" .epico/stories/005-scanfail
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   # Not a clean scan, and not findings either - the report says which.
@@ -1444,8 +1444,8 @@ gl_shim_path() {
   echo "$output" | jq -e '.secrets.error | contains("del=")' > /dev/null
   echo "$output" | jq -e '.secrets.error | contains("c1=")' > /dev/null
   # Fail-closed: nothing moved, nothing recorded.
-  [ -d "$PROJ/.epic/stories/005-scanfail" ]
-  [ ! -d "$PROJ/.epic/archive/005-scanfail" ]
+  [ -d "$PROJ/.epico/stories/005-scanfail" ]
+  [ ! -d "$PROJ/.epico/archive/005-scanfail" ]
   [ ! -e "$MANIFEST" ]
 }
 
@@ -1459,14 +1459,14 @@ gl_shim_path() {
   make_story 005-fatal complete
   local p
   p=$(gl_shim_path 1)
-  run --separate-stderr env PATH="$p" bash "$ARCHIVE_SH" .epic/stories/005-fatal
+  run --separate-stderr env PATH="$p" bash "$ARCHIVE_SH" .epico/stories/005-fatal
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   echo "$output" | jq -e '.secrets.scanned == false' > /dev/null
   # The one assertion that matters: it is NOT reported as a clean scan.
   echo "$output" | jq -e '.secrets.findings == null' > /dev/null
   echo "$output" | jq -e '.secrets.error | test("without writing a readable JSON report")' > /dev/null
-  [ -d "$PROJ/.epic/stories/005-fatal" ]
+  [ -d "$PROJ/.epico/stories/005-fatal" ]
   [ ! -e "$MANIFEST" ]
   # No report survives this path, so none is named: pointing an operator at a
   # file the run has just deleted is the same mistake as a false "nothing moved".
@@ -1481,7 +1481,7 @@ gl_shim_path() {
   make_story 005-noreport complete
   local p
   p=$(gl_shim_path 0)
-  run --separate-stderr env PATH="$p" bash "$ARCHIVE_SH" .epic/stories/005-noreport
+  run --separate-stderr env PATH="$p" bash "$ARCHIVE_SH" .epico/stories/005-noreport
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   echo "$output" | jq -e '.secrets.scanned == false' > /dev/null
@@ -1492,8 +1492,8 @@ gl_shim_path() {
   # No surviving report, so none is named (same rule as the exit-1 fatal case).
   echo "$output" | jq -e '.secrets.report == null' > /dev/null
   # Fail-closed: the guard precedes the append and the move.
-  [ -d "$PROJ/.epic/stories/005-noreport" ]
-  [ ! -d "$PROJ/.epic/archive/005-noreport" ]
+  [ -d "$PROJ/.epico/stories/005-noreport" ]
+  [ ! -d "$PROJ/.epico/archive/005-noreport" ]
   [ ! -e "$MANIFEST" ]
 }
 
@@ -1507,7 +1507,7 @@ gl_shim_path() {
   for t in /usr/bin/*; do ln -s "$t" "$WORK/nobin2/${t##*/}" 2> /dev/null || true; done
   rm -f "$WORK/nobin2/gitleaks"
   make_story 005-nonote complete
-  run --separate-stderr env PATH="$WORK/nobin2" bash "$ARCHIVE_SH" .epic/stories/005-nonote
+  run --separate-stderr env PATH="$WORK/nobin2" bash "$ARCHIVE_SH" .epico/stories/005-nonote
   [ "$status" -eq 0 ]
   # Structurally on stdout, where the orchestrator's jq can see it...
   echo "$output" | jq -e '.secrets.scanned == false' > /dev/null
@@ -1523,7 +1523,7 @@ gl_shim_path() {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
   # Silence must never read as safety: a clean archive says so POSITIVELY...
   make_story 005-clean complete
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-clean
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-clean
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.secrets.scanned == true' > /dev/null
   echo "$output" | jq -e '.secrets.findings == 0' > /dev/null
@@ -1532,8 +1532,8 @@ gl_shim_path() {
   # story blocked at step 2 never reaches the scanner, so it must not read as
   # clean either.
   make_story 005-cleanbin complete
-  printf 'ab\0cd' > "$PROJ/.epic/stories/005-cleanbin/blob.dat"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-cleanbin
+  printf 'ab\0cd' > "$PROJ/.epico/stories/005-cleanbin/blob.dat"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-cleanbin
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.secrets == {}' > /dev/null
 }
@@ -1545,10 +1545,10 @@ gl_shim_path() {
   # scan in the report is worse than no scan at all.
   make_story 005-leakskip complete
   printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
-    > "$PROJ/.epic/stories/005-leakskip/notes-creds.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-leakskip --skip-secrets
+    > "$PROJ/.epico/stories/005-leakskip/notes-creds.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-leakskip --skip-secrets
   [ "$status" -eq 0 ]
-  [ -d "$PROJ/.epic/archive/005-leakskip" ]
+  [ -d "$PROJ/.epico/archive/005-leakskip" ]
   echo "$output" | jq -e '.secrets.scanned == false' > /dev/null
   echo "$output" | jq -e '.secrets.findings == null' > /dev/null
   echo "$output" | jq -e '.secrets.skipped == "--skip-secrets"' > /dev/null
@@ -1558,7 +1558,7 @@ gl_shim_path() {
   echo "$output" | jq -e '.manifest_entry.overrides_used | index("skip-secrets") != null' > /dev/null
   grep -q 'skip-secrets' "$MANIFEST"
   # Archive does not scrub: the file travels as it is...
-  grep -q 'AKIAQWERTYUIOPASDFGH' "$PROJ/.epic/archive/005-leakskip/notes-creds.md"
+  grep -q 'AKIAQWERTYUIOPASDFGH' "$PROJ/.epico/archive/005-leakskip/notes-creds.md"
   # ...but the secret is never copied into the manifest. (`[[ != ]]` rather than
   # `! grep`: see the note in the no-secret-material case - a `!` that is not
   # the last line of the body can never fail a bats test.)
@@ -1571,10 +1571,10 @@ gl_shim_path() {
   # number of leaks tells the operator nothing about the size of the clean-up.
   make_story 005-two complete
   printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
-    > "$PROJ/.epic/stories/005-two/creds-a.md"
+    > "$PROJ/.epico/stories/005-two/creds-a.md"
   printf 'aws_access_key_id = "AKIAZXCVBNMASDFGHJKL"\n' \
-    > "$PROJ/.epic/stories/005-two/creds-b.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-two
+    > "$PROJ/.epico/stories/005-two/creds-b.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-two
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.secrets.findings == 2' > /dev/null
   echo "$output" | jq -e '.secrets.findings | type == "number"' > /dev/null
@@ -1589,8 +1589,8 @@ gl_shim_path() {
   # transcript. The count and the report PATH are what leave this process.
   make_story 005-quiet complete
   printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
-    > "$PROJ/.epic/stories/005-quiet/notes-creds.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-quiet
+    > "$PROJ/.epico/stories/005-quiet/notes-creds.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-quiet
   [ "$status" -eq 1 ]
   # `[[ != ]]`, NOT `! grep -q ...`: bash exempts a `!`-inverted command from
   # `set -e`, so a `! cmd` anywhere but the LAST line of a bats test body is a
@@ -1610,27 +1610,27 @@ gl_shim_path() {
   # that never happened, under a tree that is deliberately hard to repair.
   make_story 005-order complete
   printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
-    > "$PROJ/.epic/stories/005-order/notes-creds.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-order
+    > "$PROJ/.epico/stories/005-order/notes-creds.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-order
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   echo "$output" | jq -e '.manifest_entry == {}' > /dev/null
   [ ! -e "$MANIFEST" ]
-  [ ! -d "$PROJ/.epic/archive" ]
-  [ -f "$PROJ/.epic/stories/005-order/notes-creds.md" ]
-  [ -f "$PROJ/.epic/stories/005-order/story.md" ]
+  [ ! -d "$PROJ/.epico/archive" ]
+  [ -f "$PROJ/.epico/stories/005-order/notes-creds.md" ]
+  [ -f "$PROJ/.epico/stories/005-order/story.md" ]
 }
 
 @test "the scan report lives outside the project and never rides into the archive" {
   command -v gitleaks > /dev/null || skip "gitleaks not installed"
   # gitleaks' JSON report holds the MATCHED SECRET, the file and the line. Two
   # places it must never be: world-readable in a shared temp directory, and
-  # inside the story - where it would travel into .epic/archive/ with the move
+  # inside the story - where it would travel into .epico/archive/ with the move
   # and become a permanent copy of exactly what the guard just objected to.
   make_story 005-reportpath complete
   printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' \
-    > "$PROJ/.epic/stories/005-reportpath/notes-creds.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-reportpath
+    > "$PROJ/.epico/stories/005-reportpath/notes-creds.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-reportpath
   [ "$status" -eq 1 ]
   local rp
   rp=$(echo "$output" | jq -r '.secrets.report')
@@ -1644,10 +1644,10 @@ gl_shim_path() {
   # A CLEAN scan keeps nothing: `[]` is not evidence, and nothing gitleaks-shaped
   # may end up in the archived story.
   make_story 005-reportgone complete
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-reportgone
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-reportgone
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.secrets.report == null' > /dev/null
-  [ -z "$(find "$PROJ/.epic/archive/005-reportgone" -name '*gitleaks*' -print -quit)" ]
+  [ -z "$(find "$PROJ/.epico/archive/005-reportgone" -name '*gitleaks*' -print -quit)" ]
 }
 
 @test "a file over the scanner's size limit is reported as unscanned, not as clean" {
@@ -1664,8 +1664,8 @@ gl_shim_path() {
   {
     printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n'
     head -c 15000001 /dev/zero | tr '\0' 'a'
-  } > "$PROJ/.epic/stories/005-toobig/huge-notes.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-toobig --allow-heavy
+  } > "$PROJ/.epico/stories/005-toobig/huge-notes.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-toobig --allow-heavy
   [ "$status" -eq 0 ]
   # The scan passes with a plaintext key sitting in the story...
   echo "$output" | jq -e '.secrets.scanned == true and .secrets.findings == 0' > /dev/null
@@ -1679,15 +1679,15 @@ gl_shim_path() {
 
 @test "draft logs collapse into a single summary file" {
   make_story 005-logs complete
-  mkdir -p "$PROJ/.epic/stories/005-logs/.draft/logs"
-  seq 1 20000 > "$PROJ/.epic/stories/005-logs/.draft/logs/build.log"
+  mkdir -p "$PROJ/.epico/stories/005-logs/.draft/logs"
+  seq 1 20000 > "$PROJ/.epico/stories/005-logs/.draft/logs/build.log"
   { seq 1 200; echo "FINAL LINE MARKER 005"; } \
-    > "$PROJ/.epic/stories/005-logs/.draft/logs/test-run.log"
-  touch -d '2026-08-01 10:00' "$PROJ/.epic/stories/005-logs/.draft/logs/build.log"
-  touch -d '2026-08-01 11:00' "$PROJ/.epic/stories/005-logs/.draft/logs/test-run.log"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-logs
+    > "$PROJ/.epico/stories/005-logs/.draft/logs/test-run.log"
+  touch -d '2026-08-01 10:00' "$PROJ/.epico/stories/005-logs/.draft/logs/build.log"
+  touch -d '2026-08-01 11:00' "$PROJ/.epico/stories/005-logs/.draft/logs/test-run.log"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-logs
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-logs"
+  local arch="$PROJ/.epico/archive/005-logs"
   # One summary carrying names + the tail of the most recent log...
   [ -f "$arch/.draft/logs-summary.md" ]
   grep -q 'build.log' "$arch/.draft/logs-summary.md"
@@ -1701,11 +1701,11 @@ gl_shim_path() {
 
 @test "--keep-logs preserves logs and records the override" {
   make_story 005-keeplogs complete
-  mkdir -p "$PROJ/.epic/stories/005-keeplogs/.draft/logs"
-  seq 1 200 > "$PROJ/.epic/stories/005-keeplogs/.draft/logs/build.log"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-keeplogs --keep-logs
+  mkdir -p "$PROJ/.epico/stories/005-keeplogs/.draft/logs"
+  seq 1 200 > "$PROJ/.epico/stories/005-keeplogs/.draft/logs/build.log"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-keeplogs --keep-logs
   [ "$status" -eq 0 ]
-  [ -f "$PROJ/.epic/archive/005-keeplogs/.draft/logs/build.log" ]
+  [ -f "$PROJ/.epico/archive/005-keeplogs/.draft/logs/build.log" ]
   # The override is recorded.
   grep -q 'keep-logs' "$MANIFEST"
 }
@@ -1716,7 +1716,7 @@ gl_shim_path() {
 
 # make_log_story <dir-name> [lines] - a COMPLETE story with .draft/logs/build.log
 make_log_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   make_story "$1" complete
   mkdir -p "$dir/.draft/logs"
   seq 1 "${2:-500}" > "$dir/.draft/logs/build.log"
@@ -1729,9 +1729,9 @@ make_log_story() {
   # these logs and THEN refuse the archive - evidence destroyed for a story that
   # was never archived at all, and nothing left to re-run against.
   make_log_story 005-blockedlogs 2000
-  local story="$PROJ/.epic/stories/005-blockedlogs"
+  local story="$PROJ/.epico/stories/005-blockedlogs"
   yes 'padding line for the weight guard fixture' | head -c 10485761 > "$story/big.txt"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-blockedlogs
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-blockedlogs
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   # The logs are untouched, byte for byte, and no summary was written...
@@ -1750,9 +1750,9 @@ make_log_story() {
   # The same assertion against the OTHER guard, because the two block from
   # different steps and only running both proves the prune sits after each.
   make_log_story 005-leakylogs 2000
-  local story="$PROJ/.epic/stories/005-leakylogs"
+  local story="$PROJ/.epico/stories/005-leakylogs"
   printf 'aws_access_key_id = "AKIAQWERTYUIOPASDFGH"\n' > "$story/notes-creds.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-leakylogs
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-leakylogs
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   [ -f "$story/.draft/logs/build.log" ]
@@ -1768,7 +1768,7 @@ make_log_story() {
   # without parsing prose - and `guards_passed=true` is the script's own
   # sequence assertion, stated where a test can see it.
   make_log_story 005-order-logs 500
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-order-logs
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-order-logs
   [ "$status" -eq 0 ]
   local weight secrets prune
   weight=$(echo "$stderr" | grep -n 'guard=weight-binary' | head -1 | cut -d: -f1)
@@ -1789,19 +1789,19 @@ make_log_story() {
   # reports 0 for anything under a kilobyte, and `logs_kb: 0` already means
   # "nothing was freed".
   make_story 005-kbsmall complete
-  mkdir -p "$PROJ/.epic/stories/005-kbsmall/.draft/logs"
+  mkdir -p "$PROJ/.epico/stories/005-kbsmall/.draft/logs"
   head -c 30000 /dev/zero | tr '\0' 'a' \
-    > "$PROJ/.epic/stories/005-kbsmall/.draft/logs/small.log"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-kbsmall
+    > "$PROJ/.epico/stories/005-kbsmall/.draft/logs/small.log"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-kbsmall
   [ "$status" -eq 0 ]
   # ceil(30000 / 1024) == 30
   echo "$output" | jq -e '.pruned.logs_kb == 30' > /dev/null
 
   make_story 005-kbbig complete
-  mkdir -p "$PROJ/.epic/stories/005-kbbig/.draft/logs"
+  mkdir -p "$PROJ/.epico/stories/005-kbbig/.draft/logs"
   head -c 3000000 /dev/zero | tr '\0' 'a' \
-    > "$PROJ/.epic/stories/005-kbbig/.draft/logs/big.log"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-kbbig
+    > "$PROJ/.epico/stories/005-kbbig/.draft/logs/big.log"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-kbbig
   [ "$status" -eq 0 ]
   # ceil(3000000 / 1024) == 2930
   echo "$output" | jq -e '.pruned.logs_kb == 2930' > /dev/null
@@ -1814,15 +1814,15 @@ make_log_story() {
   # log. The basic case greps for the two names only - which a summary listing
   # nothing but names would satisfy exactly as well.
   make_story 005-facts complete
-  local d="$PROJ/.epic/stories/005-facts/.draft/logs"
+  local d="$PROJ/.epico/stories/005-facts/.draft/logs"
   mkdir -p "$d"
   head -c 4096 /dev/zero | tr '\0' 'x' > "$d/first.log"
   head -c 8192 /dev/zero | tr '\0' 'y' > "$d/second.log"
   touch -d '2026-08-01 10:00' "$d/first.log"
   touch -d '2026-08-02 11:30' "$d/second.log"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-facts
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-facts
   [ "$status" -eq 0 ]
-  local s="$PROJ/.epic/archive/005-facts/.draft/logs-summary.md"
+  local s="$PROJ/.epico/archive/005-facts/.draft/logs-summary.md"
   [ -f "$s" ]
   grep -q 'size_bytes: 4096' "$s"
   grep -q 'size_bytes: 8192' "$s"
@@ -1836,16 +1836,16 @@ make_log_story() {
   # The degenerate case of "the most recently modified log": one file, which is
   # both the newest and the oldest. It must not crash and must not skip the tail.
   make_story 005-onelog complete
-  local d="$PROJ/.epic/stories/005-onelog/.draft/logs"
+  local d="$PROJ/.epico/stories/005-onelog/.draft/logs"
   mkdir -p "$d"
   { seq 1 100; echo 'ONLY LOG MARKER'; } > "$d/only.log"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-onelog
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-onelog
   [ "$status" -eq 0 ]
-  local s="$PROJ/.epic/archive/005-onelog/.draft/logs-summary.md"
+  local s="$PROJ/.epico/archive/005-onelog/.draft/logs-summary.md"
   [ -f "$s" ]
   grep -q 'only.log' "$s"
   grep -q 'ONLY LOG MARKER' "$s"
-  [ ! -e "$PROJ/.epic/archive/005-onelog/.draft/logs/only.log" ]
+  [ ! -e "$PROJ/.epico/archive/005-onelog/.draft/logs/only.log" ]
   echo "$output" | jq -e '.pruned.logs_kb > 0' > /dev/null
 }
 
@@ -1855,10 +1855,10 @@ make_log_story() {
   # holding no tail would be a permanent record of nothing. It must also not
   # crash, and must not report a prune that did not happen.
   make_story 005-emptylogs complete
-  mkdir -p "$PROJ/.epic/stories/005-emptylogs/.draft/logs"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-emptylogs
+  mkdir -p "$PROJ/.epico/stories/005-emptylogs/.draft/logs"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-emptylogs
   [ "$status" -eq 0 ]
-  [ ! -e "$PROJ/.epic/archive/005-emptylogs/.draft/logs-summary.md" ]
+  [ ! -e "$PROJ/.epico/archive/005-emptylogs/.draft/logs-summary.md" ]
   echo "$output" | jq -e '.pruned.logs_kb == 0' > /dev/null
   echo "$stderr" | grep -q 'prune=logs verdict=none'
 }
@@ -1871,22 +1871,22 @@ make_log_story() {
   # --allow-heavy is needed to reach step 4 at all - the weight/binary guard
   # blocks an unreadable file first, which is the step order doing its job.
   make_story 005-unreadlog complete
-  local d="$PROJ/.epic/stories/005-unreadlog/.draft/logs"
+  local d="$PROJ/.epico/stories/005-unreadlog/.draft/logs"
   mkdir -p "$d"
   { seq 1 50; echo 'OLDER READABLE MARKER'; } > "$d/older.log"
   { seq 1 50; echo 'NEWER UNREADABLE MARKER'; } > "$d/newer.log"
   touch -d '2026-08-01 10:00' "$d/older.log"
   touch -d '2026-08-01 12:00' "$d/newer.log"
   chmod 000 "$d/newer.log"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-unreadlog --allow-heavy
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-unreadlog --allow-heavy
   # `|| true` on both: whichever side of the move the file ended on, the fixture
   # cleanup must not kill the case before its assertions run.
   chmod 644 "$d/newer.log" 2> /dev/null || true
-  chmod 644 "$PROJ/.epic/archive/005-unreadlog/.draft/logs/newer.log" 2> /dev/null || true
+  chmod 644 "$PROJ/.epico/archive/005-unreadlog/.draft/logs/newer.log" 2> /dev/null || true
   [ "$status" -eq 0 ]
   [ -n "$output" ]
   echo "$output" | jq -e '.status == "archived"' > /dev/null
-  local arch="$PROJ/.epic/archive/005-unreadlog"
+  local arch="$PROJ/.epico/archive/005-unreadlog"
   # The readable log collapsed...
   [ ! -e "$arch/.draft/logs/older.log" ]
   # ...and the one whose tail could not be read is still there, untouched.
@@ -1905,7 +1905,7 @@ make_log_story() {
   # file. It is also why the log list is a YAML block and not a markdown table:
   # a name holding `|` would silently grow a column there.
   make_story 005-oddname complete
-  local d="$PROJ/.epic/stories/005-oddname/.draft/logs"
+  local d="$PROJ/.epico/stories/005-oddname/.draft/logs"
   mkdir -p "$d"
   local odd
   odd=$(printf 'we"ird na\nme.log')
@@ -1913,9 +1913,9 @@ make_log_story() {
   printf 'plain\n' > "$d/plain.log"
   touch -d '2026-08-01 10:00' "$d/plain.log"
   touch -d '2026-08-01 12:00' "$d/$odd"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-oddname
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-oddname
   [ "$status" -eq 0 ]
-  local s="$PROJ/.epic/archive/005-oddname/.draft/logs-summary.md"
+  local s="$PROJ/.epico/archive/005-oddname/.draft/logs-summary.md"
   [ -f "$s" ]
   # One line, escaped exactly as both formats decode it.
   grep -qF 'name: "we\"ird na\nme.log"' "$s"
@@ -1931,7 +1931,7 @@ assert sys.argv[2] in names, (sys.argv[2], names)
 ' "$s" "$odd"
   # The odd-named log is the newest, so the tail is its own - and it is gone.
   grep -q 'ODD NAME MARKER' "$s"
-  [ ! -e "$PROJ/.epic/archive/005-oddname/.draft/logs/$odd" ]
+  [ ! -e "$PROJ/.epico/archive/005-oddname/.draft/logs/$odd" ]
 }
 
 @test "--keep-logs writes no summary at all" {
@@ -1940,9 +1940,9 @@ assert sys.argv[2] in names, (sys.argv[2], names)
   # of collapsing them, so a run that wrote a summary AND kept the logs would be
   # honouring neither reading.
   make_log_story 005-keepnosum 500
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-keepnosum --keep-logs
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-keepnosum --keep-logs
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-keepnosum"
+  local arch="$PROJ/.epico/archive/005-keepnosum"
   [ -f "$arch/.draft/logs/build.log" ]
   [ "$(wc -l < "$arch/.draft/logs/build.log")" -eq 500 ]
   [ ! -e "$arch/.draft/logs-summary.md" ]
@@ -1958,10 +1958,10 @@ assert sys.argv[2] in names, (sys.argv[2], names)
   # logs, and say so.
   make_log_story 005-hassum 300
   printf '# Hand-written notes about these logs\n' \
-    > "$PROJ/.epic/stories/005-hassum/.draft/logs-summary.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-hassum
+    > "$PROJ/.epico/stories/005-hassum/.draft/logs-summary.md"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-hassum
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-hassum"
+  local arch="$PROJ/.epico/archive/005-hassum"
   grep -q 'Hand-written notes' "$arch/.draft/logs-summary.md"
   [ -f "$arch/.draft/logs/build.log" ]
   echo "$output" | jq -e '.pruned.logs_kb == 0' > /dev/null
@@ -1983,9 +1983,9 @@ assert sys.argv[2] in names, (sys.argv[2], names)
 
 @test "an unscanned story says so in the summary it leaves behind" {
   make_log_story 005-provenance 300
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-provenance --skip-secrets
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-provenance --skip-secrets
   [ "$status" -eq 0 ]
-  local s="$PROJ/.epic/archive/005-provenance/.draft/logs-summary.md"
+  local s="$PROJ/.epico/archive/005-provenance/.draft/logs-summary.md"
   [ -f "$s" ]
   grep -q 'secrets_scan:' "$s"
   grep -q 'NOT SCANNED' "$s"
@@ -1998,14 +1998,14 @@ assert sys.argv[2] in names, (sys.argv[2], names)
   # in a permanent record, "scanned and clean" and "nobody looked" must not be
   # the same sentence.
   make_log_story 005-prov-scanned 300
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-prov-scanned
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-prov-scanned
   [ "$status" -eq 0 ]
   make_log_story 005-prov-unscanned 300
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-prov-unscanned --skip-secrets
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-prov-unscanned --skip-secrets
   [ "$status" -eq 0 ]
   local a b
-  a=$(grep 'secrets_scan:' "$PROJ/.epic/archive/005-prov-scanned/.draft/logs-summary.md")
-  b=$(grep 'secrets_scan:' "$PROJ/.epic/archive/005-prov-unscanned/.draft/logs-summary.md")
+  a=$(grep 'secrets_scan:' "$PROJ/.epico/archive/005-prov-scanned/.draft/logs-summary.md")
+  b=$(grep 'secrets_scan:' "$PROJ/.epico/archive/005-prov-unscanned/.draft/logs-summary.md")
   [[ "$a" == *"scanned by gitleaks"* ]]
   [[ "$b" == *"NOT SCANNED"* ]]
   [[ "$a" != "$b" ]]
@@ -2020,12 +2020,12 @@ assert sys.argv[2] in names, (sys.argv[2], names)
   # size to the scanner at all; when it does, the summary refuses to let a clean
   # verdict stand for lines nothing ever looked at.
   make_story 005-bigunscanned complete
-  local d="$PROJ/.epic/stories/005-bigunscanned/.draft/logs"
+  local d="$PROJ/.epico/stories/005-bigunscanned/.draft/logs"
   mkdir -p "$d"
   { head -c 15000001 /dev/zero | tr '\0' 'a'; echo; echo 'HUGE LOG MARKER'; } > "$d/huge.log"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-bigunscanned --allow-heavy
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-bigunscanned --allow-heavy
   [ "$status" -eq 0 ]
-  local s="$PROJ/.epic/archive/005-bigunscanned/.draft/logs-summary.md"
+  local s="$PROJ/.epico/archive/005-bigunscanned/.draft/logs-summary.md"
   [ -f "$s" ]
   grep -q 'HUGE LOG MARKER' "$s"
   # The scan reported clean, with the file never opened...
@@ -2040,15 +2040,15 @@ assert sys.argv[2] in names, (sys.argv[2], names)
 
 @test "byte-identical draft copy is removed and differing copy kept" {
   make_story 005-copies complete
-  local story="$PROJ/.epic/stories/005-copies"
+  local story="$PROJ/.epico/stories/005-copies"
   mkdir -p "$story/.draft"
   echo 'promoted design body' > "$story/design.md"
   cp "$story/design.md" "$story/.draft/design.md"          # identical
   echo 'promoted notes v2' > "$story/notes.md"
   echo 'draft notes v1' > "$story/.draft/notes.md"          # differs
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-copies
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-copies
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-copies"
+  local arch="$PROJ/.epico/archive/005-copies"
   [ ! -e "$arch/.draft/design.md" ]
   [ -f "$arch/.draft/notes.md" ]
   grep -q 'draft notes v1' "$arch/.draft/notes.md"
@@ -2057,13 +2057,13 @@ assert sys.argv[2] in names, (sys.argv[2], names)
 
 @test "--keep-copies preserves the duplicate and records the override" {
   make_story 005-keepcopies complete
-  local story="$PROJ/.epic/stories/005-keepcopies"
+  local story="$PROJ/.epico/stories/005-keepcopies"
   mkdir -p "$story/.draft"
   echo 'promoted design body' > "$story/design.md"
   cp "$story/design.md" "$story/.draft/design.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-keepcopies --keep-copies
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-keepcopies --keep-copies
   [ "$status" -eq 0 ]
-  [ -f "$PROJ/.epic/archive/005-keepcopies/.draft/design.md" ]
+  [ -f "$PROJ/.epico/archive/005-keepcopies/.draft/design.md" ]
   # The override is recorded.
   grep -q 'keep-copies' "$MANIFEST"
 }
@@ -2076,7 +2076,7 @@ assert sys.argv[2] in names, (sys.argv[2], names)
 # the fixture's own files. Echoes nothing; the caller writes the pairs it needs.
 make_copy_story() {
   make_story "$1" complete
-  mkdir -p "$PROJ/.epic/stories/$1/.draft"
+  mkdir -p "$PROJ/.epico/stories/$1/.draft"
 }
 
 @test "a story blocked by the weight guard keeps every .draft copy" {
@@ -2087,11 +2087,11 @@ make_copy_story() {
   # refused - and unlike the logs half it writes no summary, so the only record
   # that the file ever existed would be gone with it.
   make_copy_story 005-blockedcopies
-  local story="$PROJ/.epic/stories/005-blockedcopies"
+  local story="$PROJ/.epico/stories/005-blockedcopies"
   echo 'promoted design body' > "$story/design.md"
   cp "$story/design.md" "$story/.draft/design.md"
   yes 'padding line for the weight guard fixture' | head -c 10485761 > "$story/big.txt"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-blockedcopies
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-blockedcopies
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "blocked" and .moved == false' > /dev/null
   # The exact copy is still exactly where it was...
@@ -2112,12 +2112,12 @@ make_copy_story() {
   # so the ORDER is readable without parsing prose, and `guards_passed=true` is
   # the script's own sequence assertion stated where a test can see it.
   make_copy_story 005-order-copies
-  local story="$PROJ/.epic/stories/005-order-copies"
+  local story="$PROJ/.epico/stories/005-order-copies"
   mkdir -p "$story/.draft/logs"
   seq 1 500 > "$story/.draft/logs/build.log"
   echo 'promoted design body' > "$story/design.md"
   cp "$story/design.md" "$story/.draft/design.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-order-copies
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-order-copies
   [ "$status" -eq 0 ]
   local weight secrets logs copies
   weight=$(echo "$stderr" | grep -n 'guard=weight-binary' | head -1 | cut -d: -f1)
@@ -2142,16 +2142,16 @@ make_copy_story() {
   # sizes passes the two same-length pairs, and comparing "the first line" or a
   # trimmed form passes the trailing-newline pair.
   make_copy_story 005-near
-  local story="$PROJ/.epic/stories/005-near" d="$PROJ/.epic/stories/005-near/.draft"
+  local story="$PROJ/.epico/stories/005-near" d="$PROJ/.epico/stories/005-near/.draft"
   printf 'duplicate detection\n' > "$story/onebyte.md"
   printf 'duplicate detectiom\n' > "$d/onebyte.md"        # one byte changed
   printf 'trailing newline matters\n' > "$story/newline.md"
   printf 'trailing newline matters' > "$d/newline.md"     # one byte shorter
   printf 'AAAA\n' > "$story/samesize.md"
   printf 'BBBB\n' > "$d/samesize.md"                      # same length, other bytes
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-near
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-near
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-near"
+  local arch="$PROJ/.epico/archive/005-near"
   [ -f "$arch/.draft/onebyte.md" ]
   [ -f "$arch/.draft/newline.md" ]
   [ -f "$arch/.draft/samesize.md" ]
@@ -2169,17 +2169,17 @@ make_copy_story() {
   # and metadata equality is neither necessary nor sufficient for it - which is
   # why the comparison is cmp on the bytes and not a stat-based shortcut.
   make_copy_story 005-meta
-  local story="$PROJ/.epic/stories/005-meta"
+  local story="$PROJ/.epico/stories/005-meta"
   printf 'promoted body, byte for byte\n' > "$story/design.md"
   cp "$story/design.md" "$story/.draft/design.md"
   chmod 600 "$story/.draft/design.md"
   chmod 644 "$story/design.md"
   touch -d '2020-01-01 00:00' "$story/.draft/design.md"
   touch -d '2026-08-01 12:00' "$story/design.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-meta
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-meta
   [ "$status" -eq 0 ]
-  [ ! -e "$PROJ/.epic/archive/005-meta/.draft/design.md" ]
-  [ -f "$PROJ/.epic/archive/005-meta/design.md" ]
+  [ ! -e "$PROJ/.epico/archive/005-meta/.draft/design.md" ]
+  [ -f "$PROJ/.epico/archive/005-meta/design.md" ]
   echo "$output" | jq -e '.pruned.copies_removed == 1' > /dev/null
 }
 
@@ -2189,14 +2189,14 @@ make_copy_story() {
   # tells a count from a flag - and the number has to reach the PERMANENT record,
   # not just stdout.
   make_copy_story 005-three
-  local story="$PROJ/.epic/stories/005-three" f
+  local story="$PROJ/.epico/stories/005-three" f
   for f in design research plan; do
     printf 'promoted %s body\n' "$f" > "$story/$f.md"
     cp "$story/$f.md" "$story/.draft/$f.md"
   done
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-three
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-three
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-three"
+  local arch="$PROJ/.epico/archive/005-three"
   for f in design research plan; do
     [ ! -e "$arch/.draft/$f.md" ]
     [ -f "$arch/$f.md" ]
@@ -2211,14 +2211,14 @@ make_copy_story() {
   # archive exists to keep. A file that is a copy of nothing can never be a
   # duplicate of anything.
   make_copy_story 005-orphan
-  local story="$PROJ/.epic/stories/005-orphan"
+  local story="$PROJ/.epico/stories/005-orphan"
   printf 'scratch thinking nobody promoted\n' > "$story/.draft/scratch.md"
   printf 'raw interview notes\n' > "$story/.draft/interview.txt"
   printf 'promoted design body\n' > "$story/design.md"
   cp "$story/design.md" "$story/.draft/design.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-orphan
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-orphan
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-orphan"
+  local arch="$PROJ/.epico/archive/005-orphan"
   [ -f "$arch/.draft/scratch.md" ]
   grep -q 'scratch thinking' "$arch/.draft/scratch.md"
   [ -f "$arch/.draft/interview.txt" ]
@@ -2238,15 +2238,15 @@ make_copy_story() {
   # Both fixtures are byte-identical to their would-be partner, so only the
   # PAIRING decides the outcome.
   make_copy_story 005-nested
-  local story="$PROJ/.epic/stories/005-nested"
+  local story="$PROJ/.epico/stories/005-nested"
   mkdir -p "$story/.draft/adr" "$story/adr"
   printf 'same bytes, unrelated documents\n' > "$story/002.md"
   printf 'same bytes, unrelated documents\n' > "$story/.draft/adr/002.md"
   printf 'promoted adr three\n' > "$story/adr/003.md"
   cp "$story/adr/003.md" "$story/.draft/adr/003.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-nested
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-nested
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-nested"
+  local arch="$PROJ/.epico/archive/005-nested"
   [ -f "$arch/.draft/adr/002.md" ]
   grep -q 'unrelated documents' "$arch/.draft/adr/002.md"
   [ ! -e "$arch/.draft/adr/003.md" ]
@@ -2261,19 +2261,19 @@ make_copy_story() {
   # deletes. --allow-heavy is needed to reach step 4 at all - the weight/binary
   # guard blocks an unreadable file first, which is the step order working.
   make_copy_story 005-unreadcopy
-  local story="$PROJ/.epic/stories/005-unreadcopy"
+  local story="$PROJ/.epico/stories/005-unreadcopy"
   printf 'promoted design body\n' > "$story/design.md"
   cp "$story/design.md" "$story/.draft/design.md"
   chmod 000 "$story/.draft/design.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-unreadcopy --allow-heavy
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-unreadcopy --allow-heavy
   # `|| true` on both: whichever side of the move the file ended on, the fixture
   # cleanup must not kill the case before its assertions run.
   chmod 644 "$story/.draft/design.md" 2> /dev/null || true
-  chmod 644 "$PROJ/.epic/archive/005-unreadcopy/.draft/design.md" 2> /dev/null || true
+  chmod 644 "$PROJ/.epico/archive/005-unreadcopy/.draft/design.md" 2> /dev/null || true
   [ "$status" -eq 0 ]
   [ -n "$output" ]
   echo "$output" | jq -e '.status == "archived"' > /dev/null
-  local arch="$PROJ/.epic/archive/005-unreadcopy"
+  local arch="$PROJ/.epico/archive/005-unreadcopy"
   [ -f "$arch/.draft/design.md" ]
   grep -q 'promoted design body' "$arch/.draft/design.md"
   echo "$output" | jq -e '.pruned.copies_removed == 0' > /dev/null
@@ -2288,15 +2288,15 @@ make_copy_story() {
   # error is never "equal"), and a draft DIRECTORY whose promoted path is a FILE
   # (nothing under it maps to anything, so nothing is a candidate).
   make_copy_story 005-typemix
-  local story="$PROJ/.epic/stories/005-typemix"
+  local story="$PROJ/.epico/stories/005-typemix"
   mkdir -p "$story/adr.md" "$story/.draft/notes.md"
   printf 'promoted adr collection\n' > "$story/adr.md/index.md"
   printf 'draft file where a directory was promoted\n' > "$story/.draft/adr.md"
   printf 'promoted notes body\n' > "$story/notes.md"
   printf 'draft directory where a file was promoted\n' > "$story/.draft/notes.md/inner.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-typemix
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-typemix
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-typemix"
+  local arch="$PROJ/.epico/archive/005-typemix"
   [ -f "$arch/.draft/adr.md" ]
   [ -f "$arch/.draft/notes.md/inner.md" ]
   [ -f "$arch/adr.md/index.md" ]
@@ -2315,12 +2315,12 @@ make_copy_story() {
   # never enumerates it, and the loop tests -L again - and only removing BOTH
   # changes the outcome.
   make_copy_story 005-linkcopy
-  local story="$PROJ/.epic/stories/005-linkcopy"
+  local story="$PROJ/.epico/stories/005-linkcopy"
   printf 'promoted design body\n' > "$story/design.md"
   ln -s ../design.md "$story/.draft/design.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-linkcopy
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-linkcopy
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-linkcopy"
+  local arch="$PROJ/.epico/archive/005-linkcopy"
   [ -L "$arch/.draft/design.md" ]
   # ...and it still resolves: -f follows the link.
   [ -f "$arch/.draft/design.md" ]
@@ -2333,12 +2333,12 @@ make_copy_story() {
   # artifact pointing at nothing. A removal of a redundant duplicate would have
   # become the destruction of the story's only copy.
   make_copy_story 005-linkpromoted
-  local story="$PROJ/.epic/stories/005-linkpromoted"
+  local story="$PROJ/.epico/stories/005-linkpromoted"
   printf 'the only copy of this text\n' > "$story/.draft/design.md"
   ln -s .draft/design.md "$story/design.md"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-linkpromoted
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-linkpromoted
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-linkpromoted"
+  local arch="$PROJ/.epico/archive/005-linkpromoted"
   [ -f "$arch/.draft/design.md" ]
   # -f on the link is FALSE when it dangles, so this is the no-dangle assertion.
   [ -L "$arch/design.md" ]
@@ -2353,12 +2353,12 @@ make_copy_story() {
   # inert - and it must stay that way, because it is now the ONLY record of logs
   # this same step deleted moments earlier.
   make_copy_story 005-summarysafe
-  local story="$PROJ/.epic/stories/005-summarysafe"
+  local story="$PROJ/.epico/stories/005-summarysafe"
   mkdir -p "$story/.draft/logs"
   { seq 1 300; echo 'SUMMARY SAFE MARKER'; } > "$story/.draft/logs/build.log"
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/005-summarysafe
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/005-summarysafe
   [ "$status" -eq 0 ]
-  local arch="$PROJ/.epic/archive/005-summarysafe"
+  local arch="$PROJ/.epico/archive/005-summarysafe"
   [ -f "$arch/.draft/logs-summary.md" ]
   grep -q 'SUMMARY SAFE MARKER' "$arch/.draft/logs-summary.md"
   [ ! -e "$arch/.draft/logs/build.log" ]
@@ -2397,7 +2397,7 @@ make_copy_story() {
 # A non-empty third argument leaves box 3.1 OPEN - the status-written,
 # closures-unfinished shape described above, however it came to be written.
 make_superseded_story() {
-  local dir="$PROJ/.epic/stories/$1" by="$2" leftover="${3:-}"
+  local dir="$PROJ/.epico/stories/$1" by="$2" leftover="${3:-}"
   mkdir -p "$dir"
   {
     echo '---'
@@ -2438,17 +2438,17 @@ make_superseded_story() {
   # three boxes the op closed. Absorbed work was never validated, so the gate
   # refuses it; the step-5 offer passes the reason it names on acceptance.
   make_superseded_story 042-legacy-import 051
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/042-legacy-import
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/042-legacy-import
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused" and (.reason | contains("not validated"))' > /dev/null
-  [ -d "$PROJ/.epic/stories/042-legacy-import" ]
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/042-legacy-import --force "superseded by 051"
+  [ -d "$PROJ/.epico/stories/042-legacy-import" ]
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/042-legacy-import --force "superseded by 051"
   # A REAL archive, not merely a run that did not crash.
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.manifest_entry.forced_reason == "superseded by 051"' > /dev/null
   echo "$output" | jq -e '.status == "archived" and .moved == true' > /dev/null
-  [ -d "$PROJ/.epic/archive/042-legacy-import" ]
-  [ ! -d "$PROJ/.epic/stories/042-legacy-import" ]
+  [ -d "$PROJ/.epico/archive/042-legacy-import" ]
+  [ ! -d "$PROJ/.epico/stories/042-legacy-import" ]
   # The entry records the story's OWN pre-archive status, so the manifest says
   # what the story was when it was archived, never a verdict this script coined.
   [ -f "$MANIFEST" ]
@@ -2471,14 +2471,14 @@ make_superseded_story() {
   # its own. One box is still `[ ]` and the status is not `validated`, so only
   # --force can carry it through — and the manifest says so.
   make_superseded_story 043-interrupted 051 leftover-open-box
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/043-interrupted
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/043-interrupted
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.status == "refused"' > /dev/null
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/043-interrupted --force "superseded by 051"
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/043-interrupted --force "superseded by 051"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "archived" and .moved == true' > /dev/null
-  [ -d "$PROJ/.epic/archive/043-interrupted" ]
-  [ ! -d "$PROJ/.epic/stories/043-interrupted" ]
+  [ -d "$PROJ/.epico/archive/043-interrupted" ]
+  [ ! -d "$PROJ/.epico/stories/043-interrupted" ]
   [ -f "$MANIFEST" ]
   grep -q 'story: "043-interrupted"' "$MANIFEST"
   grep -Eq 'status:[[:space:]]*"superseded"' "$MANIFEST"

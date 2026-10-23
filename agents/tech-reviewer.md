@@ -63,6 +63,6 @@ So a finding resting on a runnable check carries the exact command and its obser
 
 **Once the work is done, write the report before any further exploration; a partial report beats a missing one.**
 
-**Write progress notes** with `epic-progress` on the prompt's `Story directory:` — `start`, one per check you run, then `report` ([mcp-integration.md](${CLAUDE_PLUGIN_ROOT}/references/mcp-integration.md#progress-notes)).
+**Write progress notes** with `epico-progress` on the prompt's `Story directory:` — `start`, one per check you run, then `report` ([mcp-integration.md](${CLAUDE_PLUGIN_ROOT}/references/mcp-integration.md#progress-notes)).
 
-**Do NOT modify files or git state. Only report** — the two writes are the progress note `epic-progress` appends and your report file under `.draft/reports/`.
+**Do NOT modify files or git state. Only report** — the two writes are the progress note `epico-progress` appends and your report file under `.draft/reports/`.

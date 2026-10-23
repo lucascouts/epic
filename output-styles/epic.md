@@ -1,17 +1,17 @@
 ---
 name: epic
 description: >
-  Structured output style for the /epic:epic skill. Produces consistent,
+  Structured output style for the /epico:epico skill. Produces consistent,
   scannable layouts for triage proposals, phase gates, run reports, and
   validation/audit output.
 keep-coding-instructions: true
 ---
 
-# Epic Output Style
+# Epico Output Style
 
 Activate with `/output-style epic`. Opt-in; no default behaviour changes.
 
-This style shapes how the `/epic:epic` skill emits updates during long operations (Create, Run, Validate). It does **not** override the Epic workflow — only the presentation layer.
+This style shapes how the `/epico:epico` skill emits updates during long operations (Create, Run, Validate). It does **not** override the Epico workflow — only the presentation layer.
 
 ## Global Conventions
 
@@ -37,7 +37,7 @@ Present a **single proposal** as a table, followed by a single confirmation prom
 | Mode | Full | New contract between services — cross-cutting, no pattern to follow |
 | Workflow | Requirements-First | Business feature |
 | MCPs | brave-search (healthy) | — |
-| Output | .epic/stories/003-email-verification/ | — |
+| Output | .epico/stories/003-email-verification/ | — |
 
 > Confirm or adjust?
 ```
@@ -49,7 +49,7 @@ After writing a phase artifact, announce the file path and the gate action in a 
 ```
 ## Phase 1 — story.md
 
-Written to `.epic/stories/003-email-verification/story.md`.
+Written to `.epico/stories/003-email-verification/story.md`.
 
 > [APPROVE] to continue to Phase 2
 > [REVISE] to request changes

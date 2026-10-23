@@ -9,7 +9,7 @@
 #     `- [x] **N.2.1 Title** …` and table rows `| N.2.1 | Title | … |` in
 #     ROADMAP.md, docs/ROADMAP.md and docs/stages/*.md;
 #   - the stories that name them: `roadmap:` in each archived entry of
-#     .epic/archive/manifest.yaml, and in the tasks.md of each open story.
+#     .epico/archive/manifest.yaml, and in the tasks.md of each open story.
 #
 # Each task gets one state:
 #   closed     an archived story names it and no open story does
@@ -78,7 +78,7 @@ TASKS=$(
 
 # refs: one TSV line per (story, where, id); stories without roadmap: listed apart.
 REFS="" UNMAPPED=()
-MANIFEST="$ROOT/.epic/archive/manifest.yaml"
+MANIFEST="$ROOT/.epico/archive/manifest.yaml"
 if [ -f "$MANIFEST" ]; then
   REFS+=$(awk '
     /^  - story: / { s = $0; sub(/^  - story: /, "", s); gsub(/"/, "", s); stories[++n] = s; next }
@@ -91,7 +91,7 @@ if [ -f "$MANIFEST" ]; then
       }
     }' "$MANIFEST")$'\n'
 fi
-for t in "$ROOT"/.epic/stories/*/tasks.md; do
+for t in "$ROOT"/.epico/stories/*/tasks.md; do
   [ -f "$t" ] || continue
   s=$(basename "$(dirname "$t")")
   r=$(awk 'NR == 1 && $0 != "---" { exit } NR > 1 && $0 == "---" { exit } /^roadmap:/ { sub(/^roadmap:[[:space:]]*/, ""); gsub(/[][ ]/, ""); print; exit }' "$t")

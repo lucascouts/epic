@@ -1,6 +1,6 @@
 # Batch Create Mode
 
-Triggered by `/epic:epic stories create --batch <doc>`. One interview, N stories.
+Triggered by `/epico:epico stories create --batch <doc>`. One interview, N stories.
 
 ## Contents
 
@@ -29,7 +29,7 @@ The interview is the expensive part of creating a story, and creating stories on
 6. **One interview** — every clarification for every member, in one round-set
 7. **Per-story pipeline** — each approved story runs its scale's normal phases
 8. **One approval** — a verdict per story and a one-line tally
-9. **Index refresh** — `scripts/epic-index.sh`
+9. **Index refresh** — `scripts/epico-index.sh`
 
 ## 1. Entry and the source document
 
@@ -39,7 +39,7 @@ The document is read once and stays the batch's single source: every story deriv
 
 ## 2. Derivation
 
-Read the document for **story-shaped items**: a stated problem with a stated remedy that a person could implement and check. Each proposal carries the same three fields a single create's triage produces — event, type and scale — from the triage table in [SKILL.md](../skills/epic/SKILL.md). A batch may mix scales freely; scale is decided per proposal, never per batch.
+Read the document for **story-shaped items**: a stated problem with a stated remedy that a person could implement and check. Each proposal carries the same three fields a single create's triage produces — event, type and scale — from the triage table in [SKILL.md](../skills/epico/SKILL.md). A batch may mix scales freely; scale is decided per proposal, never per batch.
 
 **Zero story-shaped items is a result, not a failure to try harder.** Report that the document yielded none and stop. A batch is never padded with invented stories: the cost of a fabricated story is paid later, by whoever tries to implement it.
 
@@ -65,7 +65,7 @@ Below the rows, the batch-wide context gathered once in step 2 — the runtime d
 On confirmation, and not before, numbers are claimed by [`scripts/next-story-number.sh`](../scripts/next-story-number.sh) — the one tested allocator, used by single create too, so both flows agree by construction instead of by two prose descriptions that drift.
 
 ```bash
-epic-next-number --reserve N
+epico-next-number --reserve N
 ```
 
 It emits exactly one JSON object with three keys, and all three are the contract:
@@ -76,11 +76,11 @@ It emits exactly one JSON object with three keys, and all three are the contract
 | `reserved` | the numbers this call claimed, zero-padded, ascending — one placeholder directory `NNN-reserved/` exists per entry |
 | `collisions` | one entry per number that was contested, naming what claimed it and where this call went instead; empty when the run was uncontested |
 
-**Directory existence is the reservation.** The allocator scans `.epic/stories/` **and** `.epic/archive/` — numbers are never recycled, so an archived story still owns its number — and the placeholders it creates are what make the numbers unavailable to the next scan. Rename each placeholder to its real `NNN-slug/` in the same confirmation step, so the window in which a directory says `reserved` is as short as the flow can make it.
+**Directory existence is the reservation.** The allocator scans `.epico/stories/` **and** `.epico/archive/` — numbers are never recycled, so an archived story still owns its number — and the placeholders it creates are what make the numbers unavailable to the next scan. Rename each placeholder to its real `NNN-slug/` in the same confirmation step, so the window in which a directory says `reserved` is as short as the flow can make it.
 
 **A collision is reported, never silently absorbed.** When the re-scan after creation finds another creator claimed one of the numbers, the allocator moves its own placeholder and records it. Surface the `collisions` entries in the confirmation output: the user asked for N stories at numbers they saw on screen, and two of them may now be somewhere else. A foreign directory is never removed, overwritten or renamed.
 
-**At the 999 cap the allocator exits 1 and nothing is reserved.** Surface the existing maximum-story-count message — *"Maximum story count reached. Archive old stories with `/epic:epic stories archive` to free space."* — and stop **before** the interview. An interview whose output has nowhere to land is the one thing more wasteful than the repetition this mode exists to remove.
+**At the 999 cap the allocator exits 1 and nothing is reserved.** Surface the existing maximum-story-count message — *"Maximum story count reached. Archive old stories with `/epico:epico stories archive` to free space."* — and stop **before** the interview. An interview whose output has nowhere to land is the one thing more wasteful than the repetition this mode exists to remove.
 
 ## 5. One interview
 
@@ -119,7 +119,7 @@ The batch ends with **one** decision moment carrying **one verdict per story**:
 
 **A skipped proposal keeps its number as a draft seed.** Its reserved directory persists carrying `.draft/meta.yaml` with `phase: 0`, the proposal as triaged, and the `source-doc:` path it derived from. The number is not returned to the pool — releasing it would recycle a number, which this framework does not do — and the seed is recoverable later by resume detection.
 
-**A materialized story gets `status: draft` frontmatter**, and the index is refreshed once at the end of the batch with `epic-index`.
+**A materialized story gets `status: draft` frontmatter**, and the index is refreshed once at the end of the batch with `epico-index`.
 
 ## 8. Interruption and resume
 

@@ -1,6 +1,6 @@
 {
   "subagentStatusLine": {
     "type": "command",
-    "command": "jq -c '.tasks[]? | select((.agentType // \"\") | startswith(\"epic:\")) | {id, content: (\"[epic] \" + (.agentType | ltrimstr(\"epic:\")) + (if (.label // \"\") != \"\" then \" · \" + .label else \"\" end) + \" · \" + ((((.tokenCount // 0) / 100) | floor) / 10 | tostring) + \"k tokens\")}'"
+    "command": "jq -c '.tasks[]? | select((.agentType // \"\") | startswith(\"epico:\")) | {id, content: (\"[epico] \" + (.agentType | ltrimstr(\"epico:\")) + (if (.label // \"\") != \"\" then \" · \" + .label else \"\" end) + \" · \" + ((((.tokenCount // 0) / 100) | floor) / 10 | tostring) + \"k tokens\")}'"
   }
 }

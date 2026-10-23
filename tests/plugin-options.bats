@@ -8,7 +8,7 @@
 
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  SKILL="$ROOT/skills/epic/SKILL.md"
+  SKILL="$ROOT/skills/epico/SKILL.md"
 }
 
 @test "SKILL.md carries aiMemory and defaultScale through user_config" {
@@ -32,8 +32,8 @@ setup() {
   [ "$status" -eq 1 ]
 }
 
-@test "SKILL.md states that .epic documentation is always English and not configurable" {
-  grep -q 'Everything the Epic writes under `.epic/` is written in English' "$SKILL"
+@test "SKILL.md states that .epico documentation is always English and not configurable" {
+  grep -q 'Everything the Epico writes under `.epico/` is written in English' "$SKILL"
   grep -q 'This is not an option and no setting changes it' "$SKILL"
 }
 
@@ -43,7 +43,7 @@ setup() {
   [ ! -e "$ROOT/scripts/hook-defer-commit.sh" ]
 }
 
-@test "ci-mode recipes never pass --bare with /epic:epic" {
+@test "ci-mode recipes never pass --bare with /epico:epico" {
   run bash -c "grep -nE -- '--bare( |\$)' '$ROOT/references/ci-mode.md' | grep -v 'Never use'"
   [ -z "$output" ]
 }
@@ -63,7 +63,7 @@ setup() {
 
 @test "SKILL.md carries no thinking keyword and no paths gate" {
   # `ultrathink` anywhere in the body raises effort on every invocation;
-  # `paths:` would keep the skill from triggering in a repo with no .epic yet.
+  # `paths:` would keep the skill from triggering in a repo with no .epico yet.
   run grep -niw 'ultrathink' "$SKILL"
   [ "$status" -eq 1 ]
   run grep -n '^paths:' "$SKILL"

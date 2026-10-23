@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Archives a validated story into .epic/archive/, under guard.
+# Archives a validated story into .epico/archive/, under guard.
 #
 # Usage: bash scripts/archive-story.sh <NNN|story-dir> [--allow-heavy]
 #        [--skip-secrets] [--keep-logs] [--keep-copies] [--force <reason>]
@@ -47,11 +47,11 @@ Usage: archive-story.sh <NNN|story-dir> [--allow-heavy] [--skip-secrets]
                         [--keep-logs] [--keep-copies] [--force <reason>]
 
 Archives a completed story: preflight, guards, evidence pruning, a manifest
-entry derived from the checkboxes, the move into .epic/archive/ and the index
+entry derived from the checkboxes, the move into .epico/archive/ and the index
 regeneration — in that order, with nothing destructive before the guards pass.
 
 Arguments:
-  <NNN|story-dir>   Story number (005) or its directory (.epic/stories/005-slug)
+  <NNN|story-dir>   Story number (005) or its directory (.epico/stories/005-slug)
 
 Flags:
   --allow-heavy     Archive despite files >10 MB, non-text files or a node_modules/ tree (recorded)
@@ -364,7 +364,7 @@ story_field() {
 #      compare against at all.
 #   4. monitor-stale.sh `declares_spike_scale` — reads tasks.md and nothing
 #      else.
-#   5. epic-index.sh `status_cell` — keeps its own precedence, as stated at its
+#   5. epico-index.sh `status_cell` — keeps its own precedence, as stated at its
 #      definition: it renders a row and gates nothing, so a disagreement costs
 #      a wrong cell, not a wrong archive.
 # There is no shared library to import the rule from: `scripts/` has none, every
@@ -540,11 +540,11 @@ collect_deferred_items() {
 # rejects the unfilled `NNN` placeholder of the template (fail-closed).
 #
 # The GRAMMAR — these four regexes — is shared VERBATIM with the parse_verdict
-# of epic-index.sh AND of validate-story.sh. THREE full consumers, plus a
+# of epico-index.sh AND of validate-story.sh. THREE full consumers, plus a
 # PARTIAL fourth — monitor-stale.sh's verdict_status, which copies the first
 # three regexes verbatim and deliberately omits `promoted-to` (staleness keys on
 # the status alone). If the grammar changes, all four move together. The
-# AGGREGATION is per-consumer and differs on purpose: epic-index.sh RENDERS the
+# AGGREGATION is per-consumer and differs on purpose: epico-index.sh RENDERS the
 # verdict for a human, validate-story.sh turns it into validation errors (a
 # spike must HAVE a verdict, and `promote` must name its target),
 # monitor-stale.sh turns it into a deadline (has this probe concluded yet?), and
@@ -651,19 +651,19 @@ assess_completion() {
   elif [[ "$FM_STATUS" == "validated" ]]; then
     COMPLETE=true
   else
-    INCOMPLETE_REASON="story '$STORY_ID' is not validated (status: ${FM_STATUS:-none}) — run '/epic:epic stories validate ${STORY_ID%%-*}' first, or pass --force <reason> to archive it unvalidated"
+    INCOMPLETE_REASON="story '$STORY_ID' is not validated (status: ${FM_STATUS:-none}) — run '/epico:epico stories validate ${STORY_ID%%-*}' first, or pass --force <reason> to archive it unvalidated"
   fi
   return 0
 }
 
-# find_epic_dir — walk up from the cwd looking for .epic/, so the NNN form works
+# find_epico_dir — walk up from the cwd looking for .epico/, so the NNN form works
 # from any subdirectory of the project.
-find_epic_dir() {
+find_epico_dir() {
   local dir
   dir=$(pwd -P)
   while :; do
-    if [[ -d "$dir/.epic" ]]; then
-      printf '%s' "$dir/.epic"
+    if [[ -d "$dir/.epico" ]]; then
+      printf '%s' "$dir/.epico"
       return 0
     fi
     [[ "$dir" == "/" ]] && return 1
@@ -671,7 +671,7 @@ find_epic_dir() {
   done
 }
 
-# resolve_by_number <NNN> <epic-dir> — <NNN>-<slug> under stories/ first, then
+# resolve_by_number <NNN> <epico-dir> — <NNN>-<slug> under stories/ first, then
 # archive/ (an already-archived number must resolve so it can be REFUSED with
 # its real reason instead of "not found"). Accepts 5 for 005.
 resolve_by_number() {
@@ -863,7 +863,7 @@ scan_weight_binary() {
 
   for f in ${files[@]+"${files[@]}"}; do
     # A dependency tree is never a story artifact (an executor's `npm install`
-    # can leave one under .epic/), and its files are small enough to pass the
+    # can leave one under .epico/), and its files are small enough to pass the
     # size check one by one. So the DIRECTORY is the offender: reported once, its files never
     # scanned and never counted. The guard refuses, it does not delete: nothing
     # destructive runs before step 4, and a tree the user can reinstall in a
@@ -1100,14 +1100,14 @@ secrets_cleanup_tmp() {
 #
 # Resolved from the STORY, not from the caller's cwd: the allowlist that governs
 # a story is the one in the story's own project, and a caller may stand anywhere.
-# `.epic/` being gitignored is irrelevant — ignore rules affect tracking, never
+# `.epico/` being gitignored is irrelevant — ignore rules affect tracking, never
 # repository discovery.
 #
-# Git FIRST, `.epic/` second. gitleaks specifies the allowlist at the repository
-# root, and in a monorepo with `.epic/` in a subproject the .gitleaksignore still
-# sits at the git root — anchoring on `.epic/` there would produce unmatchable
-# fingerprints one level down. The `.epic/` walk exists only for a project git cannot answer
-# for, which Epic supports (see epic-gitpolicy.sh).
+# Git FIRST, `.epico/` second. gitleaks specifies the allowlist at the repository
+# root, and in a monorepo with `.epico/` in a subproject the .gitleaksignore still
+# sits at the git root — anchoring on `.epico/` there would produce unmatchable
+# fingerprints one level down. The `.epico/` walk exists only for a project git cannot answer
+# for, which Epico supports (see epico-gitpolicy.sh).
 #
 # BOTH candidates are normalised through `cd … && pwd -P` because STORY_ABS is
 # built that way too. `git rev-parse --show-toplevel` may answer with a LOGICAL
@@ -1124,7 +1124,7 @@ secrets_project_root() {
   dir=$story_abs
   while [ -n "$dir" ] && [ "$dir" != "/" ]; do
     dir=$(dirname "$dir")
-    [ -d "$dir/.epic" ] && { (cd "$dir" 2>/dev/null && pwd -P); return 0; }
+    [ -d "$dir/.epico" ] && { (cd "$dir" 2>/dev/null && pwd -P); return 0; }
   done
   return 0
 }
@@ -1139,7 +1139,7 @@ secrets_project_root() {
 # (a) unreadable by other users on the machine — a private `mktemp -d`, which is
 # mode 0700, and the report inside it is chmod 600 as well; and (b) OUTSIDE the
 # story directory, because anything written inside it travels into
-# .epic/archive/ with the move and becomes a permanent, deliberately-hard-to-
+# .epico/archive/ with the move and becomes a permanent, deliberately-hard-to-
 # delete copy of the very secret the guard just objected to.
 #
 # Every failure is captured and returned, never left to `set -e`: a bare abort
@@ -1186,7 +1186,7 @@ run_secrets_scan() {
   #
   # NOT A FAIL-OPEN, and this is the failure mode that would look like success:
   # `gitleaks dir` does NOT honour .gitignore, so re-rooting does not make it
-  # skip a gitignored `.epic/`. Pinned by tests/secrets-allowlist.bats rather
+  # skip a gitignored `.epico/`. Pinned by tests/secrets-allowlist.bats rather
   # than left to this comment.
   if [ -n "$SECRETS_ROOT" ]; then
     out=$(cd "$SECRETS_ROOT" && gitleaks dir "$SECRETS_REL" --no-banner --no-color \
@@ -1927,7 +1927,7 @@ derive_entry_fields() {
   # after the 16-key shape, so an entry written by an older release still reads
   # as complete). `roadmap` is tasks.md's list of ROADMAP task IDs, copied only
   # in the exact form validate-story.sh accepts — a malformed one is left out
-  # rather than made permanent. `validated_sha` is the commit epic-validated
+  # rather than made permanent. `validated_sha` is the commit epico-validated
   # recorded before the Auditor's spawn.
   STORY_ROADMAP=$(frontmatter_field "$STORY_PATH/tasks.md" roadmap | tr -d ' \t')
   if [[ "$STORY_ROADMAP" =~ ^\[[0-9]+(\.[0-9]+)+(,[0-9]+(\.[0-9]+)+)*\]$ ]]; then
@@ -1957,7 +1957,7 @@ derive_entry_fields() {
 # this file is the only place that still knows the number was ever used.
 manifest_header() {
   cat <<'HEADER'
-# Epic archive manifest — one entry per archived story, appended by
+# Epico archive manifest — one entry per archived story, appended by
 # scripts/archive-story.sh at the moment of the move.
 #
 # Every field is DERIVED from the story's own artifacts (checkbox census,
@@ -1967,7 +1967,7 @@ manifest_header() {
 # POLICY: Numbers are never recycled. A new story always takes the next highest
 # number, even when a lower one now exists only in this file.
 #
-# Append-only. Everything under .epic/archive/ is read-only for tools
+# Append-only. Everything under .epico/archive/ is read-only for tools
 # (scripts/hook-archive-guard.sh); this file is written by that one script.
 archived:
 HEADER
@@ -1997,7 +1997,7 @@ manifest_entry_yaml() {
   printf '    pruned:\n'
   printf '      logs_kb: %d\n' "$PRUNED_LOGS_KB"
   printf '      copies_removed: %d\n' "$PRUNED_COPIES"
-  # Optional keys go BEFORE overrides_used: epic-index treats overrides_used as
+  # Optional keys go BEFORE overrides_used: epico-index treats overrides_used as
   # the sentinel of a finished entry, so nothing it needs may follow it.
   [[ -n "$STORY_ROADMAP" ]] && printf '    roadmap: %s\n' "$STORY_ROADMAP"
   [[ -n "$VALIDATED_SHA" ]] && printf '    validated_sha: %s\n' "$(quote_scalar "$VALIDATED_SHA")"
@@ -2187,7 +2187,7 @@ manifest_read_entry() {
 # The failure is INVISIBLE to a line-counting assertion: interleaving preserves
 # every line, so `grep -c '^  - story: '` still reports N and every entry looks
 # present. Only parsing the document sees it. And manifest.yaml is the archive's
-# permanent record, under .epic/archive/, which is read-only for the Edit/Write
+# permanent record, under .epico/archive/, which is read-only for the Edit/Write
 # tools by design — a corrupt one is unreadable to every consumer and not
 # repairable through the sanctioned tooling.
 #
@@ -2223,7 +2223,7 @@ manifest_read_entry() {
 #
 # TIMEOUT: 30 s against a critical section measured in milliseconds — a margin
 # of ~10 000x, so only a corpse (or a SIGSTOPped process) ever reaches it.
-# EPIC_ARCHIVE_LOCK_TIMEOUT overrides it so a test can exercise the break
+# EPICO_ARCHIVE_LOCK_TIMEOUT overrides it so a test can exercise the break
 # without waiting 30 s; a non-numeric or zero value is IGNORED, because a
 # 0-second timeout would break live locks on sight.
 MANIFEST_LOCK_DIR=""      # set beside MANIFEST_FILE at story resolution
@@ -2232,7 +2232,7 @@ MANIFEST_LOCK_MARK=""
 MANIFEST_LOCK_NAP=""      # "" unknown | frac | int — fractional sleep support
 
 manifest_lock_timeout() {
-  local t="${EPIC_ARCHIVE_LOCK_TIMEOUT:-}"
+  local t="${EPICO_ARCHIVE_LOCK_TIMEOUT:-${EPIC_ARCHIVE_LOCK_TIMEOUT:-}}"
   if [[ "$t" =~ ^[0-9]+$ ]] && [[ "$t" -gt 0 ]]; then
     printf '%s' "$t"
   else
@@ -2449,24 +2449,24 @@ manifest_append() {
 
 # --- Move + status transition (steps 6-7) -----------------------------------
 
-# epic_git — git, with the four environment variables that RE-POINT it at
+# epico_git — git, with the four environment variables that RE-POINT it at
 # another repository removed. `git -C <dir>` sets the working directory; it does
 # NOT override GIT_DIR/GIT_WORK_TREE/GIT_INDEX_FILE/GIT_OBJECT_DIRECTORY, which
 # are exactly what is set whenever this script runs from a git hook, from
 # `git rebase --exec`, or from any wrapper that exports them. Without this, the
 # probes below answer about a DIFFERENT repository than the one holding the
 # story, and the `git mv` would write the rename into that repository's index.
-epic_git() {
+epico_git() {
   env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
     git "$@"
 }
 
-# git_dir_above — is there a `.git` anywhere at or above $EPIC_DIR? Asked as a
+# git_dir_above — is there a `.git` anywhere at or above $EPICO_DIR? Asked as a
 # FILESYSTEM question so that "git refused to answer" can be told apart from
 # "there is genuinely no repository here" without parsing git's messages, which
 # are localized. `-e` covers `.git` as a file (submodule / linked work tree).
 git_dir_above() {
-  local dir="$EPIC_DIR"
+  local dir="$EPICO_DIR"
   while :; do
     [[ -e "$dir/.git" ]] && return 0
     [[ "$dir" == "/" ]] && return 1
@@ -2475,7 +2475,7 @@ git_dir_above() {
 }
 
 # in_git_worktree — is there a git work tree that owns these paths? The question
-# is asked from $EPIC_DIR, the common parent of the source and the destination,
+# is asked from $EPICO_DIR, the common parent of the source and the destination,
 # so the answer is about the repo that would own BOTH — never one discovered
 # from whatever directory the caller happened to run from.
 #
@@ -2496,7 +2496,7 @@ in_git_worktree() {
     GIT_STATE="no-binary"
     return 1
   fi
-  out=$(epic_git -C "$EPIC_DIR" rev-parse --is-inside-work-tree 2>&1) && rc=0 || rc=$?
+  out=$(epico_git -C "$EPICO_DIR" rev-parse --is-inside-work-tree 2>&1) && rc=0 || rc=$?
   if [[ $rc -eq 0 ]]; then
     [[ "$out" == "true" ]] && {
       GIT_STATE="worktree"
@@ -2520,14 +2520,14 @@ in_git_worktree() {
 #
 # Exit 1 (untracked) and exit 128 are DIFFERENT answers and are kept apart here:
 # 128 is git failing to answer at all — the story sits in a submodule relative
-# to $EPIC_DIR, or outside the work tree, or the index cannot be read. Collapsing
+# to $EPICO_DIR, or outside the work tree, or the index cannot be read. Collapsing
 # it into "untracked", as a plain `2>&1; return $?` does, picks the plain move
 # for a story whose history git may well be holding. Fail-closed instead:
 #   0 -> tracked   1 -> untracked   2 -> git could not answer (GIT_PROBE_ERR)
 story_is_tracked() {
   local out rc
   GIT_PROBE_ERR=""
-  out=$(epic_git -C "$EPIC_DIR" ls-files --error-unmatch -- "$STORY_ABS" 2>&1 > /dev/null) && rc=0 || rc=$?
+  out=$(epico_git -C "$EPICO_DIR" ls-files --error-unmatch -- "$STORY_ABS" 2>&1 > /dev/null) && rc=0 || rc=$?
   case "$rc" in
     0) return 0 ;;
     1) return 1 ;;
@@ -2560,7 +2560,7 @@ choose_move_mode() {
   local rc
   if ! in_git_worktree; then
     if [[ "$GIT_STATE" == "error" ]]; then
-      MOVE_WHY="git found a repository at or above '$EPIC_DIR' but would not answer about it${GIT_PROBE_ERR:+: $GIT_PROBE_ERR}"
+      MOVE_WHY="git found a repository at or above '$EPICO_DIR' but would not answer about it${GIT_PROBE_ERR:+: $GIT_PROBE_ERR}"
       return 1
     fi
     MOVE_MODE="plain"
@@ -2595,14 +2595,14 @@ choose_move_mode() {
 # plain `mv` would convert a recoverable stop into the silent loss of the
 # story's git history.
 #
-# The git branch runs through epic_git for the same reason the probes do: if the
+# The git branch runs through epico_git for the same reason the probes do: if the
 # ambient GIT_DIR named another repository, the probe and the move would have to
 # agree about WHICH repository, and staging a rename into a foreign index is not
 # a recoverable stop.
 move_story() {
   local dest="$1"
   if [[ "$MOVE_MODE" == "git" ]]; then
-    MOVE_ERR=$(epic_git -C "$EPIC_DIR" mv -- "$STORY_ABS" "$dest" 2>&1) && return 0
+    MOVE_ERR=$(epico_git -C "$EPICO_DIR" mv -- "$STORY_ABS" "$dest" 2>&1) && return 0
   else
     MOVE_ERR=$(mv -- "$STORY_ABS" "$dest" 2>&1) && return 0
   fi
@@ -2617,7 +2617,7 @@ move_story() {
 # reads; `.draft/` holds working copies, not the story's lifecycle claim.
 #
 # Written with `sed -i` from Bash ON PURPOSE. hook-archive-guard.sh blocks the
-# Edit/Write TOOLS anywhere under .epic/archive/**, and cannot see Bash file
+# Edit/Write TOOLS anywhere under .epico/archive/**, and cannot see Bash file
 # operations — which is why this script is the sanctioned way to touch an
 # archived artifact at all.
 #
@@ -2683,8 +2683,8 @@ apply_archived_status() {
 }
 
 # --- Index regeneration (step 8) --------------------------------------------
-# After a story is archived, its row in `.epic/EPIC.md` must resolve into
-# `.epic/archive/`. The row is not rewritten in place — scripts/epic-index.sh
+# After a story is archived, its row in `.epico/EPICO.md` must resolve into
+# `.epico/archive/`. The row is not rewritten in place — scripts/epico-index.sh
 # REGENERATES the whole managed block from disk state, which is what makes the
 # link correct by construction; a hand-maintained index goes stale.
 #
@@ -2720,7 +2720,7 @@ apply_archived_status() {
 INDEX_SCRIPT=""
 INDEX_ERR=""
 _epic_script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd -P) || _epic_script_dir=""
-[[ -n "$_epic_script_dir" ]] && INDEX_SCRIPT="$_epic_script_dir/epic-index.sh"
+[[ -n "$_epic_script_dir" ]] && INDEX_SCRIPT="$_epic_script_dir/epico-index.sh"
 unset _epic_script_dir
 
 # regenerate_index — step 8 itself. It always returns 0: this step reaches no
@@ -2733,7 +2733,7 @@ unset _epic_script_dir
 # that is running this script, instead of whatever `bash` PATH resolves to.
 #
 # BOTH of the child's streams are captured into a variable and replayed on
-# STDERR. epic-index.sh's contract is that its stdout is empty (every diagnostic
+# STDERR. epico-index.sh's contract is that its stdout is empty (every diagnostic
 # it has goes to stderr, precisely so it can be called from here) — but THIS
 # script's stdout is reserved for one JSON object that a consumer pipes straight
 # into jq, so the guarantee is enforced at the call site instead of trusted:
@@ -2747,10 +2747,10 @@ regenerate_index() {
   # below, where bash's own diagnostic is captured.
   if [[ -z "$INDEX_SCRIPT" || ! -f "$INDEX_SCRIPT" ]]; then
     INDEX_STATE="regen-failed"
-    INDEX_ERR="the index generator is not there (looked for '${INDEX_SCRIPT:-<the sibling epic-index.sh of this script>}')"
+    INDEX_ERR="the index generator is not there (looked for '${INDEX_SCRIPT:-<the sibling epico-index.sh of this script>}')"
     return 0
   fi
-  out=$("${BASH:-bash}" "$INDEX_SCRIPT" --epic-dir "$EPIC_DIR" 2>&1) && rc=0 || rc=$?
+  out=$("${BASH:-bash}" "$INDEX_SCRIPT" --epico-dir "$EPICO_DIR" 2>&1) && rc=0 || rc=$?
   if [[ -n "$out" ]]; then
     printf '%s\n' "$out" >&2
   fi
@@ -2839,14 +2839,14 @@ done
 [[ -n "$TARGET" ]] || usage_error "missing story argument"
 
 # --- Story resolution -------------------------------------------------------
-EPIC_DIR=""
+EPICO_DIR=""
 if [[ -d "$TARGET" ]]; then
   STORY_PATH="${TARGET%/}"
 elif [[ "$TARGET" =~ ^[0-9]+$ ]]; then
-  EPIC_DIR=$(find_epic_dir) ||
-    usage_error "no .epic/ directory found from $(pwd) — run inside an Epic project or pass the story directory"
-  STORY_PATH=$(resolve_by_number "$TARGET" "$EPIC_DIR") ||
-    usage_error "story '$TARGET' not found under $EPIC_DIR/stories or $EPIC_DIR/archive"
+  EPICO_DIR=$(find_epico_dir) ||
+    usage_error "no .epico/ directory found from $(pwd) — run inside an Epico project or pass the story directory"
+  STORY_PATH=$(resolve_by_number "$TARGET" "$EPICO_DIR") ||
+    usage_error "story '$TARGET' not found under $EPICO_DIR/stories or $EPICO_DIR/archive"
 else
   usage_error "story '$TARGET' not found — pass a story number (005) or its directory"
 fi
@@ -2855,11 +2855,11 @@ STORY_ABS=$(cd "$STORY_PATH" 2>/dev/null && pwd -P) ||
   usage_error "cannot resolve story directory '$STORY_PATH'"
 STORY_ID=$(basename "$STORY_ABS")
 STORY_PARENT=$(basename "$(dirname "$STORY_ABS")")
-# The manifest (step 5) lives at $EPIC_DIR/archive/manifest.yaml.
+# The manifest (step 5) lives at $EPICO_DIR/archive/manifest.yaml.
 # EVERY destination is derived from the story's PHYSICAL location, so the two
 # checks below are what keep the whole operation inside the project.
-EPIC_DIR=$(dirname "$(dirname "$STORY_ABS")")
-ARCHIVE_DIR="$EPIC_DIR/archive"
+EPICO_DIR=$(dirname "$(dirname "$STORY_ABS")")
+ARCHIVE_DIR="$EPICO_DIR/archive"
 MANIFEST_FILE="$ARCHIVE_DIR/manifest.yaml"
 # Beside the file it guards, so it is on the same filesystem and inside the same
 # tree the archive guard protects. Dot-prefixed: it is machinery, not a record.
@@ -2867,9 +2867,9 @@ MANIFEST_LOCK_DIR="$ARCHIVE_DIR/.manifest.lock"
 
 # The story directory must not be a symlink out of the project. `pwd -P`
 # resolves it, and everything downstream is then re-derived from the PHYSICAL
-# path: without this check a `.epic/stories/005-x -> /elsewhere/shared/stories/005-x`
+# path: without this check a `.epico/stories/005-x -> /elsewhere/shared/stories/005-x`
 # would archive itself into /elsewhere/shared/archive/, create that directory,
-# write the manifest there, report `path: .epic/stories/005-x` (where the story
+# write the manifest there, report `path: .epico/stories/005-x` (where the story
 # is NOT) and exit 0 — while the project's own manifest never learns the story
 # was archived and the destination sits outside the tree hook-archive-guard.sh
 # protects. Fail closed: the physical parent of the story must be the same
@@ -2880,10 +2880,10 @@ if [[ "$STORY_LOGICAL_PARENT" != "$(dirname "$STORY_ABS")" ]]; then
   refuse "'$STORY_PATH' is a symlink to '$STORY_ABS', outside '$STORY_LOGICAL_PARENT' — archive derives the manifest and the destination from the story's real location, so it would write outside this project (and outside what hook-archive-guard.sh protects); nothing was modified"
 fi
 
-# ...and that parent chain must be an .epic/ directory. `stories/` alone is not
+# ...and that parent chain must be an .epico/ directory. `stories/` alone is not
 # enough: `/anywhere/stories/005-x` also has a parent named `stories`.
-if [[ "$(basename "$EPIC_DIR")" != ".epic" ]]; then
-  usage_error "'$STORY_PATH' does not live in a .epic/ directory (resolved to '$STORY_ABS') — expected <project>/.epic/stories/<NNN>-<slug>"
+if [[ "$(basename "$EPICO_DIR")" != ".epico" ]]; then
+  usage_error "'$STORY_PATH' does not live in a .epico/ directory (resolved to '$STORY_ABS') — expected <project>/.epico/stories/<NNN>-<slug>"
 fi
 
 # ============================================================================
@@ -2902,7 +2902,7 @@ for _artifact in story.md tasks.md; do
 done
 unset _artifact
 
-# Location. Archive operates on .epic/stories/<NNN>-<slug>; a story already in
+# Location. Archive operates on .epico/stories/<NNN>-<slug>; a story already in
 # archive/ is REFUSED (exit 1, nothing touched), anything else is invalid
 # input (exit 2). The archived check comes first so the refusal reports its
 # real reason rather than tripping over a missing tasks.md.
@@ -2913,7 +2913,7 @@ if [[ "$STORY_PARENT" == "archive" || "$FM_STATUS" == "archived" ]]; then
 fi
 
 if [[ "$STORY_PARENT" != "stories" ]]; then
-  usage_error "'$STORY_PATH' is not a story directory — expected .epic/stories/<NNN>-<slug>"
+  usage_error "'$STORY_PATH' is not a story directory — expected .epico/stories/<NNN>-<slug>"
 fi
 
 if [[ ! -f "$STORY_PATH/story.md" && ! -f "$STORY_PATH/tasks.md" ]]; then
@@ -3192,7 +3192,7 @@ fi
 # A fact about the filesystem, recorded the instant it becomes true. From here
 # on EVERY exit path — including a step-7 failure — reports where the story
 # actually is; a `moved: false` for a directory demonstrably sitting in
-# .epic/archive/ would send its reader looking in the wrong place.
+# .epico/archive/ would send its reader looking in the wrong place.
 MOVED=true
 
 # THE MOVE JUST ORPHANED EVERY ALLOWLIST ENTRY THAT POINTED INTO THIS STORY.
@@ -3280,15 +3280,15 @@ if [[ "$INDEX_STATE" != "ok" ]]; then
   # stdout into jq: a note only a human can see is invisible to the consumer
   # that would act on it (the same two-register rule step 3 follows for an
   # absent scanner).
-  REASON="'$STORY_ID' IS archived and recorded, but the managed index block in '$EPIC_DIR/EPIC.md' could not be regenerated, so its row still points at the story's old location — $INDEX_ERR. NOTHING WAS ROLLED BACK: the move and the manifest entry stand, and the index is generated from disk state, so re-running 'epic-index.sh' (or the next LIST, which regenerates opportunistically) repairs the row with nothing to reconcile"
+  REASON="'$STORY_ID' IS archived and recorded, but the managed index block in '$EPICO_DIR/EPICO.md' could not be regenerated, so its row still points at the story's old location — $INDEX_ERR. NOTHING WAS ROLLED BACK: the move and the manifest entry stand, and the index is generated from disk state, so re-running 'epico-index.sh' (or the next LIST, which regenerates opportunistically) repairs the row with nothing to reconcile"
 fi
 
 # ONE line, one field list, two verdict words — the convention prune_copies_step
 # records: a second printf is a second copy of the same key list, and the next
 # field added to one of them would be silently missing from the other. So
 # `grep 'archive-story: index='` answers with one shape whatever happened.
-printf 'archive-story: index=%s generator=%s epic_dir=%s%s\n' \
-  "$INDEX_STATE" "${INDEX_SCRIPT:-(not found)}" "$EPIC_DIR" \
+printf 'archive-story: index=%s generator=%s epico_dir=%s%s\n' \
+  "$INDEX_STATE" "${INDEX_SCRIPT:-(not found)}" "$EPICO_DIR" \
   "${INDEX_ERR:+ reason=$INDEX_ERR (the move STANDS — the block is regenerated from disk state, so the next run repairs it)}" >&2
 
 printf 'Archived: %s -> %s\n' "$STORY_PATH" "$ARCHIVE_DIR/$STORY_ID" >&2

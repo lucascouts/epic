@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Cascade↔description coverage for skills/epic/SKILL.md.
+# Cascade↔description coverage for skills/epico/SKILL.md.
 #
 # Contract under test:
 #   Every routing mode present in the cascade is announced by the skill's
@@ -16,14 +16,14 @@
 # table checking only the first half goes stale silently, in the direction
 # nobody is looking.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so the suite can run against a
+# EPICO_PLUGIN_ROOT overrides root resolution so the suite can run against a
 # plugin tree other than its parent directory.
 
 bats_require_minimum_version 1.5.0
 
 setup() {
-  PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
-  SKILL="$PLUGIN_ROOT/skills/epic/SKILL.md"
+  PLUGIN_ROOT="${EPICO_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+  SKILL="$PLUGIN_ROOT/skills/epico/SKILL.md"
   WORK=$(mktemp -d)
 }
 
@@ -120,7 +120,7 @@ undeclared_arms() {
 # MUTANT 1 — the term side can fail. Same predicate, a description with one
 # declared term removed.
 @test "MUTANT — a description missing a declared term is named by the same predicate" {
-  local fake="$WORK/skills/epic/SKILL.md"; mkdir -p "$(dirname "$fake")"
+  local fake="$WORK/skills/epico/SKILL.md"; mkdir -p "$(dirname "$fake")"
   cp "$SKILL" "$fake"
   # strip the word "validate" from the description block only
   awk '/^description: >/{f=1} f&&/^[a-z-]+:/&&!/^description/{f=0} f{gsub(/validate/,"XXXX")} {print}' "$SKILL" > "$fake"
@@ -131,7 +131,7 @@ undeclared_arms() {
 # MUTANT 2 — the arm side can fail. Same predicate, a cascade with an arm the
 # table does not declare.
 @test "MUTANT — an undeclared cascade arm is named by the same predicate" {
-  local fake="$WORK/skills/epic/SKILL.md"; mkdir -p "$(dirname "$fake")"
+  local fake="$WORK/skills/epico/SKILL.md"; mkdir -p "$(dirname "$fake")"
   sed 's|^"init"$|"init"\n"stories teleport NNN"|' "$SKILL" > "$fake"
   run undeclared_arms "$fake"
   [[ "$output" == *"teleport"* ]]

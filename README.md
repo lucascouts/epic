@@ -1,16 +1,16 @@
-# Epic — Structured Story Framework for Claude Code
+# Epico — Structured Story Framework for Claude Code
 
-Scale-adaptive plugin for creating, managing, and executing development work as structured stories (features and bugfixes). Epic turns vague requests into EARS-notation requirements, design documents, and a tracked task list — then orchestrates specialized sub-agents to implement, validate, and audit the work.
+Scale-adaptive plugin for creating, managing, and executing development work as structured stories (features and bugfixes). Epico turns vague requests into EARS-notation requirements, design documents, and a tracked task list — then orchestrates specialized sub-agents to implement, validate, and audit the work.
 
-Invoked as `/epic:epic` inside Claude Code.
+Invoked as `/epico:epico` inside Claude Code.
 
-> **Scope is narrow.** Epic creates, structures, and manages epics/stories — nothing else. It does **not** perform ad-hoc code review, security review, refactors outside a planned story, general analysis, or exploratory code generation. See [PURPOSE.md](PURPOSE.md) for the full in-scope / out-of-scope contract and which Claude Code command to use for each refused case.
+> **Scope is narrow.** Epico creates, structures, and manages epics/stories — nothing else. It does **not** perform ad-hoc code review, security review, refactors outside a planned story, general analysis, or exploratory code generation. See [PURPOSE.md](PURPOSE.md) for the full in-scope / out-of-scope contract and which Claude Code command to use for each refused case.
 
 ---
 
-## Why Epic
+## Why Epico
 
-Ad-hoc prompts lose context, drift in scope, and produce undocumented changes. Epic formalizes the loop:
+Ad-hoc prompts lose context, drift in scope, and produce undocumented changes. Epico formalizes the loop:
 
 - **Plan**: EARS requirements (`SHALL ...`), optional design doc with component interfaces, hierarchical tasks with validation commands.
 - **Execute**: Sub-agent (`executor`) follows a strict 6-step protocol per sub-task (context → implementation → design fidelity → validation → refactor-or-tests → report). Step 5 is conditional: Refactor when the sub-task carries a pre-authored failing test, Tests when it does not.
@@ -28,7 +28,7 @@ All three modes are **test-first**. Standard and Full at engineering level `proj
 
 **Scale is one axis; the engineering level is the other.** Triage also reads how long the thing must last — `experiment` (disposable, 1×), `tool` (kept and fixed, 2–3×), `project` (maintained, others depend on it, 4–6×), `product` (may be published or sold, 8×+) — proposes it with its price in one line, and from it sets which tier of the quality catalog the story activates, whether Phase 3 authors the tests or the run does, and the plan's box ceiling (5, 12, 24, 40 Task List boxes). The level never changes the scale. See [references/engineering-level.md](references/engineering-level.md).
 
-Epic ships an opinionated **preferred-tooling policy** ([references/preferred-tooling.md](references/preferred-tooling.md)) for E2E test tooling. Triage detects installed E2E tools — favorites are `playwright` and `chrome-devtools` — via MCP health-check, dependency-manifest inspection, and skill-list presence, in **all modes including Fast**. When no favorite is found, Epic recommends one and pauses rather than silently picking an optional tool (`puppeteer`, `selenium`, `browser-use`, `stagehand`). The resolved choice is persisted to `design.md`'s `## Tooling Decisions` block.
+Epico ships an opinionated **preferred-tooling policy** ([references/preferred-tooling.md](references/preferred-tooling.md)) for E2E test tooling. Triage detects installed E2E tools — favorites are `playwright` and `chrome-devtools` — via MCP health-check, dependency-manifest inspection, and skill-list presence, in **all modes including Fast**. When no favorite is found, Epico recommends one and pauses rather than silently picking an optional tool (`puppeteer`, `selenium`, `browser-use`, `stagehand`). The resolved choice is persisted to `design.md`'s `## Tooling Decisions` block.
 
 ---
 
@@ -39,21 +39,21 @@ Epic ships an opinionated **preferred-tooling policy** ([references/preferred-to
 Inside Claude Code:
 
 ```
-/plugin marketplace add lucascouts/epic
-/plugin install epic@lucascouts
+/plugin marketplace add lucascouts/epico
+/plugin install epico@lucascouts
 ```
 
 Or from a shell:
 
 ```bash
-claude plugin marketplace add lucascouts/epic
-claude plugin install epic@lucascouts
+claude plugin marketplace add lucascouts/epico
+claude plugin install epico@lucascouts
 ```
 
 ### Local (development)
 
 ```bash
-git clone https://github.com/lucascouts/epic.git
+git clone https://github.com/lucascouts/epico.git
 claude --plugin-dir ./epic
 ```
 
@@ -63,8 +63,8 @@ Run `/reload-plugins` after updating plugin files.
 
 - **Claude Code v2.1.295 or newer.** One floor for every feature: the fail-closed guards (`onFailure`), the sub-agent status line, `LSP` in a background sub-agent and the plugin options all need it. Older versions are not supported.
 - `bash`, `git`, `jq` available on PATH
-- **Optional MCPs** for web research: `brave-search`, `exa`, `tavily`, `firecrawl`, and `perplexity` (premium, never the default). Epic health-checks each MCP before suggesting it; missing MCPs degrade gracefully. Library docs need no MCP: Epic reads the installed dependency first, then the official docs for that version.
-- **Optional — keep sub-agents in the foreground:** in interactive sessions Claude Code runs sub-agents in the background by default, and Epic then waits for each one's completion notification. To run them in the foreground instead, start Claude Code with `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` (or put it in your settings `env`). Side effect: no background Bash commands and no Ctrl+B.
+- **Optional MCPs** for web research: `brave-search`, `exa`, `tavily`, `firecrawl`, and `perplexity` (premium, never the default). Epico health-checks each MCP before suggesting it; missing MCPs degrade gracefully. Library docs need no MCP: Epico reads the installed dependency first, then the official docs for that version.
+- **Optional — keep sub-agents in the foreground:** in interactive sessions Claude Code runs sub-agents in the background by default, and Epico then waits for each one's completion notification. To run them in the foreground instead, start Claude Code with `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` (or put it in your settings `env`). Side effect: no background Bash commands and no Ctrl+B.
 - **Optional tooling for development**: `shellcheck` and `bats` for running the script test suite locally (`bats tests/`).
 
 ---
@@ -73,25 +73,25 @@ Run `/reload-plugins` after updating plugin files.
 
 ```bash
 # 1. Initialize project configuration (wizard)
-/epic:epic init
+/epico:epico init
 
 # 2. Create a story (triage proposes scale, you confirm)
-/epic:epic Add email verification to the user signup flow
+/epico:epico Add email verification to the user signup flow
 
 # 3. List stories
-/epic:epic stories
+/epico:epico stories
 
 # 4. Run tasks of story 001
-/epic:epic stories run 001
+/epico:epico stories run 001
 
 # 5. Validate the implementation against story + design
-/epic:epic stories validate 001
+/epico:epico stories validate 001
 
 # 6. Archive validated stories
-/epic:epic stories archive 001
+/epico:epico stories archive 001
 ```
 
-Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an explicit choice the `init` wizard asks for once, per project — see [Versioning policy for `.epic/`](#versioning-policy-for-epic).
+Artifacts live in `.epico/stories/NNN-kebab-case/`. Whether git tracks them is an explicit choice the `init` wizard asks for once, per project — see [Versioning policy for `.epico/`](#versioning-policy-for-epic).
 
 ---
 
@@ -99,21 +99,21 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 
 | Command | Purpose |
 |---|---|
-| `/epic:epic` | Create story from free-text description (triage + clarify + phases) |
-| `/epic:epic init` | Set up `.epic/constitution.md`, offer deny rules for files Claude must not edit, ask the [versioning policy](#versioning-policy-for-epic) question (for `CLAUDE.md`, use the built-in `/init`) |
-| `/epic:epic stories` | List all stories (summary) |
-| `/epic:epic stories full` | List all stories with tasks |
-| `/epic:epic stories NNN` | Show one story in detail |
-| `/epic:epic stories run NNN` | Execute pending tasks of story NNN |
-| `/epic:epic stories run NNN --auto` | Run non-stop, only halt on a failure or an uncovered doubt — the default for a Fast story |
-| `/epic:epic stories run NNN --step` | Gate after every task group in a Fast run |
-| `/epic:epic stories run NNN --batch=N` | Gate every N task groups |
-| `/epic:epic stories run NNN --gate=commit` | Gate only at Commit sub-tasks |
-| `/epic:epic stories run NNN --serial` | No parallel groups — every task in order, whatever detection finds |
-| `/epic:epic stories validate NNN` | Validate and audit NNN (one Auditor spawn) |
-| `/epic:epic stories refine NNN` | Delta refinement (versioned) |
-| `/epic:epic stories supersede NNN --by MMM` | Replace story NNN with MMM via `references/supersede-mode.md` — supersede banner, per-task remap, `superseded` status in every artifact, archive offer |
-| `/epic:epic stories archive NNN[-MMM]\|--done` | Archive validated stories via `scripts/archive-story.sh` (anything else needs `--force <reason>`) — guarded move, pruned evidence, derived manifest entry |
+| `/epico:epico` | Create story from free-text description (triage + clarify + phases) |
+| `/epico:epico init` | Set up `.epico/constitution.md`, offer deny rules for files Claude must not edit, ask the [versioning policy](#versioning-policy-for-epic) question (for `CLAUDE.md`, use the built-in `/init`) |
+| `/epico:epico stories` | List all stories (summary) |
+| `/epico:epico stories full` | List all stories with tasks |
+| `/epico:epico stories NNN` | Show one story in detail |
+| `/epico:epico stories run NNN` | Execute pending tasks of story NNN |
+| `/epico:epico stories run NNN --auto` | Run non-stop, only halt on a failure or an uncovered doubt — the default for a Fast story |
+| `/epico:epico stories run NNN --step` | Gate after every task group in a Fast run |
+| `/epico:epico stories run NNN --batch=N` | Gate every N task groups |
+| `/epico:epico stories run NNN --gate=commit` | Gate only at Commit sub-tasks |
+| `/epico:epico stories run NNN --serial` | No parallel groups — every task in order, whatever detection finds |
+| `/epico:epico stories validate NNN` | Validate and audit NNN (one Auditor spawn) |
+| `/epico:epico stories refine NNN` | Delta refinement (versioned) |
+| `/epico:epico stories supersede NNN --by MMM` | Replace story NNN with MMM via `references/supersede-mode.md` — supersede banner, per-task remap, `superseded` status in every artifact, archive offer |
+| `/epico:epico stories archive NNN[-MMM]\|--done` | Archive validated stories via `scripts/archive-story.sh` (anything else needs `--force <reason>`) — guarded move, pruned evidence, derived manifest entry |
 
 ---
 
@@ -130,7 +130,7 @@ Artifacts live in `.epic/stories/NNN-kebab-case/`. Whether git tracks them is an
 
 ### Automatic validation
 
-When a story artifact is written to `.epic/stories/*/`, a PostToolUse hook runs `scripts/validate-story.sh` to check frontmatter, structure, and cross-references (R-numbers traceability). Archive directories are read-only — edits are blocked by a PreToolUse hook.
+When a story artifact is written to `.epico/stories/*/`, a PostToolUse hook runs `scripts/validate-story.sh` to check frontmatter, structure, and cross-references (R-numbers traceability). Archive directories are read-only — edits are blocked by a PreToolUse hook.
 
 ---
 
@@ -140,7 +140,7 @@ When a story artifact is written to `.epic/stories/*/`, a PostToolUse hook runs 
 epic/
 ├── .claude-plugin/plugin.json   # manifest (name, userConfig, homepage, repository)
 ├── settings.json                # plugin defaults (subagentStatusLine)
-├── skills/epic/SKILL.md         # main skill (/epic:epic)
+├── skills/epico/SKILL.md         # main skill (/epico:epico)
 ├── agents/                      # 6 sub-agents: analyst, test-advisor, reviewer, executor, tech-reviewer, auditor
 ├── hooks/hooks.json             # 4 hook events (PreToolUse, PostToolUse, SessionStart, SubagentStop); the guards fail closed
 ├── output-styles/epic.md        # optional structured output style
@@ -155,27 +155,27 @@ epic/
 
 ---
 
-## Versioning policy for `.epic/`
+## Versioning policy for `.epico/`
 
-**`/epic:epic init` asks once, per project, and records the answer.** There is no silent default in an interactive session — the question offers exactly two options and writes the state each one implies.
+**`/epico:epico init` asks once, per project, and records the answer.** There is no silent default in an interactive session — the question offers exactly two options and writes the state each one implies.
 
-| Option | What init writes | Recorded in `.epic/.gitpolicy` |
+| Option | What init writes | Recorded in `.epico/.gitpolicy` |
 |---|---|---|
-| **Versioned artifacts** (recommended) | `.epic/.gitignore` with `.draft/`, `*.wip` and `node_modules/`; offers to remove a root-`.gitignore` rule that ignores `.epic/` — quoting the line, never silently | `tracked-md` |
-| **Local-only** | `.epic/` appended to the root `.gitignore` | `local-only` |
+| **Versioned artifacts** (recommended) | `.epico/.gitignore` with `.draft/`, `*.wip` and `node_modules/`; offers to remove a root-`.gitignore` rule that ignores `.epico/` — quoting the line, never silently | `tracked-md` |
+| **Local-only** | `.epico/` appended to the root `.gitignore` | `local-only` |
 
-Versioned tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `archive/manifest.yaml`. **`.draft/` is never versioned under either policy** — it is scratch space: run logs, authored tests, phase snapshots, `*.wip`, and the story's evidence files (`deviations.yaml`, `red-evidence.yaml`, the validation and audit reports) — the last because their durable forms are the archive's summary and, where `ai-memory` is detected, the pages the orchestrator writes.
+Versioned tracks exactly `story.md`, `design.md`, `tasks.md`, `EPICO.md` and `archive/manifest.yaml`. **`.draft/` is never versioned under either policy** — it is scratch space: run logs, authored tests, phase snapshots, `*.wip`, and the story's evidence files (`deviations.yaml`, `red-evidence.yaml`, the validation and audit reports) — the last because their durable forms are the archive's summary and, where `ai-memory` is detected, the pages the orchestrator writes.
 
 **Why it is a question and not a default.** Without a declared policy, lifecycle history gets lost: a track→untrack transition deletes stories from history, a squash leaves duplicates split across `stories/` and `archive/`, and a `.gitignore` stops matching what is actually committed. Versioning the `.md` artifacts and ignoring `.draft/` gives the most auditable lifecycle, so versioned is *recommended*; it is still *asked*, because each of those failures comes from a policy nobody said out loud.
 
-**Non-interactive runs get local-only, without prompting.** A headless or Agent SDK `init` applies the conservative status quo and never starts committing `.epic` behind your back. It also never overrides a policy already recorded: a workspace that declares `tracked-md` is left exactly as it is.
+**Non-interactive runs get local-only, without prompting.** A headless or Agent SDK `init` applies the conservative status quo and never starts committing `.epico` behind your back. It also never overrides a policy already recorded: a workspace that declares `tracked-md` is left exactly as it is.
 
-**A per-project choice — init asks, and it supersedes any global doctrine.** If your global `CLAUDE.md` or personal convention says "never commit `.epic`", the answer recorded for *this* project wins here. Epic never reads or edits your global configuration.
+**A per-project choice — init asks, and it supersedes any global doctrine.** If your global `CLAUDE.md` or personal convention says "never commit `.epico`", the answer recorded for *this* project wins here. Epico never reads or edits your global configuration.
 
-**Checking the state:** `scripts/epic-gitpolicy.sh` is a read-only lint that prints one JSON object comparing the declared policy against what git actually does — `{git, policy, gitignore_ignores_epic, gitignore_source, tracked_md, tracked_draft, verdict}`, where `verdict` is `consistent`, `contradiction` or `partial`. Init runs it before asking, to show you the state you are choosing from.
+**Checking the state:** `scripts/epico-gitpolicy.sh` is a read-only lint that prints one JSON object comparing the declared policy against what git actually does — `{git, policy, gitignore_ignores_epico, gitignore_source, tracked_md, tracked_draft, verdict}`, where `verdict` is `consistent`, `contradiction` or `partial`. Init runs it before asking, to show you the state you are choosing from.
 
 ```bash
-bash "$EPIC_PLUGIN_ROOT/scripts/epic-gitpolicy.sh"   # from the workspace root
+bash "$EPICO_PLUGIN_ROOT/scripts/epico-gitpolicy.sh"   # from the workspace root
 ```
 
 Full walkthrough of both branches: [references/init-mode.md](references/init-mode.md#versioning-policy).
@@ -187,17 +187,17 @@ Full walkthrough of both branches: [references/init-mode.md](references/init-mod
 Run validation as a CI step without launching an interactive session:
 
 ```bash
-EPIC_PLUGIN_ROOT=./epic  # path to cloned plugin
-bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" .epic/stories/001-feature/ --cross-ref
+EPICO_PLUGIN_ROOT=./epic  # path to cloned plugin
+bash "$EPICO_PLUGIN_ROOT/scripts/validate-story.sh" .epico/stories/001-feature/ --cross-ref
 ```
 
 Use `--strict` in CI gates for stories expected to be production-ready (promotes warnings to errors, exit 1 on any warning):
 
 ```bash
-bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" .epic/stories/001-feature/ --cross-ref --strict
+bash "$EPICO_PLUGIN_ROOT/scripts/validate-story.sh" .epico/stories/001-feature/ --cross-ref --strict
 ```
 
-When the plugin is active, the scripts are also on PATH as `epic-validate`, `epic-xref`, `epic-archive`, `epic-doctor`, `epic-test-diff` and the other `epic-*` wrappers.
+When the plugin is active, the scripts are also on PATH as `epico-validate`, `epico-xref`, `epico-archive`, `epico-doctor`, `epico-test-diff` and the other `epic-*` wrappers.
 
 ### What a story actually cost
 
@@ -206,8 +206,8 @@ Prefer Claude Code's own numbers. `/usage` shows the session's spend; a `claude 
 For a session recorded without telemetry, `scripts/story-telemetry.sh` reads the transcript (and the sub-agent transcripts beside it) and reports what was spent — **in tokens and wall clock, never in money**. It writes no files and makes no network call. The transcript format is internal to Claude Code, so treat this as a fallback.
 
 ```bash
-bash "$EPIC_PLUGIN_ROOT/scripts/story-telemetry.sh"                      # this project's latest session
-bash "$EPIC_PLUGIN_ROOT/scripts/story-telemetry.sh" --since 2026-01-01T18:00:00Z   # one phase, by window
+bash "$EPICO_PLUGIN_ROOT/scripts/story-telemetry.sh"                      # this project's latest session
+bash "$EPICO_PLUGIN_ROOT/scripts/story-telemetry.sh" --since 2026-01-01T18:00:00Z   # one phase, by window
 ```
 
 One JSON object on stdout: tokens split `main` / `subagent` (input, cache creation, cache read, output), models seen, wall clock, and `events` beside `unique_messages`.
@@ -221,7 +221,7 @@ Three things it deliberately does **not** do, each for a stated reason:
 Generate stories programmatically with the Agent SDK:
 
 ```bash
-CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic Add retry logic to the payment gateway" \
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico Add retry logic to the payment gateway" \
   --plugin-dir /path/to/epic \
   --permission-mode acceptEdits --permission-prompts none \
   --allowedTools "Read,Write,Edit,Glob,Grep,Bash,Agent,mcp__ai-memory__*" \
@@ -257,13 +257,13 @@ Configurable via the install wizard or directly through settings. Each option is
 
 ## Stale stories
 
-The story list (`/epic:epic stories`) flags stories with pending tasks untouched for more than `staleThresholdDays` (7 by default) and spikes whose `## Verdict` is still `open` after `spikeStaleThresholdDays` (14 by default). It is a single pass run while you look at the list — nothing polls in the background.
+The story list (`/epico:epico stories`) flags stories with pending tasks untouched for more than `staleThresholdDays` (7 by default) and spikes whose `## Verdict` is still `open` after `spikeStaleThresholdDays` (14 by default). It is a single pass run while you look at the list — nothing polls in the background.
 
 ---
 
 ## Output Style (optional)
 
-Epic ships with a structured output style for Triage proposals, Phase Gates, Run reports, and validation/audit output. Activate it with:
+Epico ships with a structured output style for Triage proposals, Phase Gates, Run reports, and validation/audit output. Activate it with:
 
 ```
 /output-style epic
@@ -277,12 +277,12 @@ This is opt-in — no default behaviour changes. Defined in `output-styles/epic.
 
 ### `disableSkillShellExecution`
 
-The `## Project State` block in `skills/epic/SKILL.md` uses inline shell execution (`!` prefix) to list existing stories, print the constitution header, and report git HEAD. When the managed setting `disableSkillShellExecution: true` is active, these commands are replaced with `[shell command execution disabled by policy]` and the skill renders without initial context.
+The `## Project State` block in `skills/epico/SKILL.md` uses inline shell execution (`!` prefix) to list existing stories, print the constitution header, and report git HEAD. When the managed setting `disableSkillShellExecution: true` is active, these commands are replaced with `[shell command execution disabled by policy]` and the skill renders without initial context.
 
 The skill still functions — pass the missing context explicitly in the prompt:
 
 ```
-/epic:epic Add password reset. Context: project already has stories 001 (signup), 002 (login).
+/epico:epico Add password reset. Context: project already has stories 001 (signup), 002 (login).
 ```
 
 See the [setting reference](https://code.claude.com/docs/en/settings#settings-files) for managed-settings deployment.
@@ -317,4 +317,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Version
 
-0.21.0 — see [CHANGELOG](./CHANGELOG.md).
+0.22.0 — see [CHANGELOG](./CHANGELOG.md).

@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# The Epic-managed block of a project's CLAUDE.md.
+# The Epico-managed block of a project's CLAUDE.md.
 #
 #   claude-md.sh write [--root <dir>]    write or refresh the block
 #   claude-md.sh check [--root <dir>]    is the block present and current?
 #   claude-md.sh show  [--root <dir>]    print the block that write would write
 #
-# The block sits between `<!-- epic:start -->` and `<!-- epic:end -->` at the
+# The block sits between `<!-- epico:start -->` and `<!-- epico:end -->` at the
 # end of CLAUDE.md. Nothing outside the markers is ever touched: a CLAUDE.md
 # without the block gets it appended; one with it gets the block replaced in
 # place. With an AGENTS.md beside it, an `@AGENTS.md` line goes right before
 # the block, once, so Claude Code reads both. The block stays under 100 lines:
 # it points at the rules and holds only what every session needs.
 #
-# Built from what the project already has: .epic/constitution.md (its
+# Built from what the project already has: .epico/constitution.md (its
 # ## Quality commands and ## Invariants), the docs found at the root or
 # under docs/ (ARCHITECTURE, ROADMAP, docs/stages/, PRD, OVERVIEW, adr/,
 # versions.env) and the examples
@@ -37,10 +37,14 @@ done
 [ -d "$ROOT" ] || { echo "claude-md.sh: root not found: $ROOT" >&2; exit 2; }
 ROOT=$(cd "$ROOT" && pwd)
 MD="$ROOT/CLAUDE.md"
-CONST="$ROOT/.epic/constitution.md"
+CONST="$ROOT/.epico/constitution.md"
 # shellcheck disable=SC2016  # the backticks are literal Markdown
-START='<!-- epic:start — managed by the Epic plugin; `/epic:epic init --repair` rewrites everything up to epic:end -->'
-END='<!-- epic:end -->'
+START='<!-- epico:start — managed by the Epico plugin; `/epico:epico init --repair` rewrites everything up to epico:end -->'
+END='<!-- epico:end -->'
+# The markers written before the rename to Epico: the same block, rewritten
+# with the current markers on the next write.
+LEGACY_START='<!-- epic:start'
+LEGACY_END='<!-- epic:end -->'
 
 section() {  # <file> <heading> — the bullet lines under `## <heading>`
   [ -f "$1" ] || return 0
@@ -51,12 +55,12 @@ join() { local out=$1; shift; for x in "$@"; do out="$out, $x"; done; printf '%s
 
 block() {
   echo "$START"
-  echo "## Epic"
+  echo "## Epico"
   echo
   if [ -f "$CONST" ]; then
-    echo "- Project rules: \`.epic/constitution.md\` — Defaults, Quality, Security floor. Read it before deciding anything it covers."
+    echo "- Project rules: \`.epico/constitution.md\` — Defaults, Quality, Security floor. Read it before deciding anything it covers."
   fi
-  echo "- Stories and their plans: \`.epic/stories/\`; the index: \`.epic/EPIC.md\`."
+  echo "- Stories and their plans: \`.epico/stories/\`; the index: \`.epico/EPICO.md\`."
   # Each root doc is looked for at the root and under docs/; both are listed
   # when both exist, since the project then has two and the reader must know.
   local docs=() d
@@ -117,7 +121,8 @@ block() {
 
 current_block() {  # the block as it stands in CLAUDE.md, markers included
   [ -f "$MD" ] || return 0
-  awk -v s="<!-- epic:start" -v e="$END" 'index($0, s) == 1 { on = 1 } on { print } on && $0 == e { exit }' "$MD"
+  awk -v s="<!-- epico:start" -v ls="$LEGACY_START" -v e="$END" -v le="$LEGACY_END" \
+    'index($0, s) == 1 || index($0, ls) == 1 { on = 1 } on { print } on && ($0 == e || $0 == le) { exit }' "$MD"
 }
 
 NEW=$(block)
@@ -139,10 +144,10 @@ ACTION=appended
 [ -z "$(current_block)" ] || ACTION=replaced
 if [ "$ACTION" = replaced ]; then
   printf '%s\n' "$NEW" > "$TMP.block"
-  awk -v s="<!-- epic:start" -v e="$END" -v f="$TMP.block" '
+  awk -v s="<!-- epico:start" -v ls="$LEGACY_START" -v e="$END" -v le="$LEGACY_END" -v f="$TMP.block" '
     BEGIN { while ((getline l < f) > 0) blk = blk l "\n" }
-    index($0, s) == 1 && !done { on = 1; printf "%s", blk; next }
-    on { if ($0 == e) { on = 0; done = 1 } ; next }
+    (index($0, s) == 1 || index($0, ls) == 1) && !done { on = 1; printf "%s", blk; next }
+    on { if ($0 == e || $0 == le) { on = 0; done = 1 } ; next }
     { print }' "$MD" > "$TMP"
   rm -f "$TMP.block"
 else

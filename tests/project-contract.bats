@@ -18,7 +18,7 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
 }
 
 @test "P1: init writes the managed CLAUDE.md block; repair refreshes it; the doctor flags it" {
-  has references/init-mode.md 'epic-claude-md write'
+  has references/init-mode.md 'epico-claude-md write'
   has references/init-mode.md '## the managed claude.md block'
   has references/init-mode.md '## repair \(`init --repair`\)'
   has scripts/doctor.sh 'claude-md.sh" check'
@@ -47,7 +47,7 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
 }
 
 @test "P4: init offers a deny rule on the archive; the weight guard keeps proof images up to 2 MB" {
-  has references/init-mode.md 'Edit\(\.epic/archive/\*\*\)'
+  has references/init-mode.md 'Edit\(\.epico/archive/\*\*\)'
   has references/init-mode.md 'the archive hook is best-effort and stays'
   has scripts/archive-story.sh 'GUARD_PROOF_IMAGE_MAX=2097152'
   has references/list-mode.md 'under a `proof/` directory'
@@ -55,22 +55,22 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
 
 @test "P5: worktrees on Claude Code defaults; materialized tests committed before a parallel spawn; the trade is stated" {
   has references/run-parallel.md 'materialized tests are committed before the spawn'
-  has references/run-parallel.md 'never lists `\.epic/`'
+  has references/run-parallel.md 'never lists `\.epico/`'
   has references/run-parallel.md 'the trade is wall clock for cost'
   has references/init-mode.md '\.claude/worktrees/'
   has references/init-mode.md '"baseRef": "head"'
 }
 
 @test "P6: the story list marks dormant drafts with both ways out and changes nothing" {
-  has references/list-mode.md '`dormant` \| `epic-doctor` reports'
+  has references/list-mode.md '`dormant` \| `epico-doctor` reports'
   has references/list-mode.md 'stories archive NNN --force'
   has references/list-mode.md 'stories supersede NNN --by MMM'
   has references/list-mode.md 'a dormant draft is shown, never touched'
 }
 
 @test "P7: A7 — plugin root named once in SKILL.md, options on userConfig, README drift fixed, validate --strict in CI" {
-  has skills/epic/SKILL.md '\$\{CLAUDE_PLUGIN_ROOT\}/references/'
-  has skills/epic/SKILL.md 'triage.md#constitution-gate'
+  has skills/epico/SKILL.md '\$\{CLAUDE_PLUGIN_ROOT\}/references/'
+  has skills/epico/SKILL.md 'triage.md#constitution-gate'
   command jq -e '.userConfig.defaultScale.options == ["fast","standard","full","spike"] and .userConfig.aiMemory.options == ["auto","off"]' "$ROOT/.claude-plugin/plugin.json"
   has README.md '6 sub-agents'
   has README.md '4 hook events'

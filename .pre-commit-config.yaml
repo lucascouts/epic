@@ -1,0 +1,16 @@
+# Fast checks before a commit exists, not only in CI. `repo: local` runs the
+# binaries already on the machine instead of fetching hook repositories, so
+# there is no unpinned download here. Install once: `pre-commit install`.
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks (staged changes)
+        entry: gitleaks git --pre-commit --staged --redact --no-banner
+        language: system
+        pass_filenames: false
+      - id: shellcheck
+        name: shellcheck
+        entry: shellcheck
+        language: system
+        files: ^(scripts/.*\.sh|bin/.*)$

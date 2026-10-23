@@ -13,7 +13,7 @@
 #   L5  the artifacts stay English — only the interface falls outside the rule
 
 ROOT="$BATS_TEST_DIRNAME/.."
-SKILL="$ROOT/skills/epic/SKILL.md"
+SKILL="$ROOT/skills/epico/SKILL.md"
 
 section() {
   awk -v s="$2" -v e="$3" '$0 ~ s {f=1; print; next} f && $0 ~ e {exit} f {print}' "$1"

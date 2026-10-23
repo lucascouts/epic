@@ -1,14 +1,14 @@
 {
-  "name": "epic",
-  "version": "0.21.0",
+  "name": "epico",
+  "version": "0.22.0",
   "description": "Scale-adaptive story framework for features and bugfixes: structured requirements (EARS), design, task breakdown, and execution with specialized sub-agents for codebase analysis, test authoring, review, implementation, and validation with audit.",
   "author": {
     "name": "Lucas CS",
     "email": "lucascs@protonmail.com"
   },
   "license": "MIT",
-  "homepage": "https://github.com/lucascouts/epic",
-  "repository": "https://github.com/lucascouts/epic",
+  "homepage": "https://github.com/lucascouts/epico",
+  "repository": "https://github.com/lucascouts/epico",
   "keywords": [
     "epic",
     "stories",

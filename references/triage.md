@@ -1,6 +1,6 @@
 # Triage — Create and Instant
 
-Loaded by Create and by Instant before anything is written. Instant reads it with its three pins already set. It lives outside [SKILL.md](../skills/epic/SKILL.md) so a run that does not need it does not carry it.
+Loaded by Create and by Instant before anything is written. Instant reads it with its three pins already set. It lives outside [SKILL.md](../skills/epico/SKILL.md) so a run that does not need it does not carry it.
 
 ## Contents
 
@@ -12,9 +12,9 @@ Loaded by Create and by Instant before anything is written. Instant reads it wit
 
 ## Constitution gate
 
-**Standard and Full need `.epic/constitution.md`** — its `## Defaults` answer the questions the requester is never asked, and its `## Quality` and `## Security floor` are the story's starting legend. Without it, both scales would ask what the project already decided, or decide it differently each run. So, before the precheck below:
+**Standard and Full need `.epico/constitution.md`** — its `## Defaults` answer the questions the requester is never asked, and its `## Quality` and `## Security floor` are the story's starting legend. Without it, both scales would ask what the project already decided, or decide it differently each run. So, before the precheck below:
 
-- **Missing, or without `## Defaults` and `## Quality`:** do not triage at Standard or Full. Interactively, say so in one line and offer `/epic:epic init --repair` now — one question, the run continues after it. **Headless:** run `init --repair` with every default, record it as an assumption, and continue.
+- **Missing, or without `## Defaults` and `## Quality`:** do not triage at Standard or Full. Interactively, say so in one line and offer `/epico:epico init --repair` now — one question, the run continues after it. **Headless:** run `init --repair` with every default, record it as an assumption, and continue.
 - **Fast and spike** are untouched: they read the constitution when it exists and carry on without it.
 
 ## Runtime dependency precheck (MANDATORY before Standard/Full triage)
@@ -73,7 +73,7 @@ Bugfix always follows: P1: story.md (bug analysis) > P2: design.md (root cause) 
 
 ## Triage Protocol
 
-Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a **single proposal** for confirmation. Never ask each decision separately.
+Analyze the request (or `$ARGUMENTS` if invoked via `/epico:epico`) and present a **single proposal** for confirmation. Never ask each decision separately.
 
 **Read who is asking first — from the request alone, never from a question.** The reading is recorded as a `requester` block with four fields, in the proposal and, where a `.draft/` exists, in `meta.yaml`; its `level` is also written to `tasks.md` as `requester: layperson | developer` at every scale, Fast included, because `tasks.md` is the one file every story has and the legend guard reads it ([tasks.md](tasks.md)):
 
@@ -110,9 +110,9 @@ requester:
    - WHEN no favorite and no fitting optional tool exist, record `none — no E2E tooling available` in design.md's `## Tooling Decisions` block AND as a story Constraint.
 
    The recommendation/pause happens at triage **only**. The resolved decision is written to design.md's `## Tooling Decisions` block and the relevant E2E/frontend sub-tasks are annotated in tasks.md — the Executor and Test Advisor consume that decision without re-detecting.
-8. Allocate the story number with `epic-next-number` — the one tested allocator, used by single create and batch create alike
+8. Allocate the story number with `epico-next-number` — the one tested allocator, used by single create and batch create alike
 9. Propose output path in `NNN-kebab-case`
-10. If no existing stories in `.epic/stories/`: append EARS primer
+10. If no existing stories in `.epico/stories/`: append EARS primer
 
 ### Mode Recommendation
 
@@ -137,7 +137,7 @@ Absent every one of them, a story is **Standard** however many files it touches:
 
 **Exploratory is a shape, not a size.** Propose Spike only when the request's own goal is to find something out, or when the user asks for one explicitly. A small feature is **Fast**, never Spike — the skill **never auto-downgrades a feature to a spike**: doing so would trade a deliverable for a question the user never asked.
 
-**The model is chosen where it is active: the session.** A plugin cannot switch the model a session runs on, and a skill's `model:` does not apply when the model itself invokes it — only when the user types the command. So Epic never tries to switch it: it **suggests**, before any work starts, continuing on the recommended model or starting a session already on it. For Fast and Spike, which create and run in this sitting, the suggestion is the proposal's `Model` line, shown only when the session is not on Sonnet, and the proposal's confirmation is where the user acts on it. Standard and Full ask at clarify which model runs the story and hand it off to a session on it ([clarify.md](clarify.md#the-run-model-standard-and-full)). Under `--auto` or headless nothing is suggested. The line names the model the session reports; when it cannot tell, the line is left out.
+**The model is chosen where it is active: the session.** A plugin cannot switch the model a session runs on, and a skill's `model:` does not apply when the model itself invokes it — only when the user types the command. So Epico never tries to switch it: it **suggests**, before any work starts, continuing on the recommended model or starting a session already on it. For Fast and Spike, which create and run in this sitting, the suggestion is the proposal's `Model` line, shown only when the session is not on Sonnet, and the proposal's confirmation is where the user acts on it. Standard and Full ask at clarify which model runs the story and hand it off to a session on it ([clarify.md](clarify.md#the-run-model-standard-and-full)). Under `--auto` or headless nothing is suggested. The line names the model the session reports; when it cannot tell, the line is left out.
 
 Always explain trade-offs in the triage proposal. Include EARS primer on first story only (see [ears-notation.md](ears-notation.md)):
 
@@ -161,7 +161,7 @@ Present as:
 > - **MCPs:** [verified MCPs and any substitutions]
 > - **Memory:** [ai-memory — N pages recalled | not detected]
 > - **Tooling:** [detected E2E tools + `frontend-design`; resolved E2E/frontend selection; any favorite-absent install recommendation]
-> - **Output:** `.epic/stories/NNN-<proposed-name>/`
+> - **Output:** `.epico/stories/NNN-<proposed-name>/`
 >
 > Confirm or adjust?"
 

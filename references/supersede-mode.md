@@ -1,4 +1,4 @@
-# Supersede Mode (`/epic:epic stories supersede NNN --by MMM`)
+# Supersede Mode (`/epico:epico stories supersede NNN --by MMM`)
 
 Supersede is the sanctioned story replacement — banner, remap, closure, archive offer. Story `MMM` takes over `NNN`'s scope: `NNN` is closed with a banner pointing at its replacement, every `NNN` artifact flips to `status: superseded` with `superseded-by: MMM`, the index re-renders, and the archive is offered on the spot. `MMM` must already exist before the command runs — creating the replacement is a separate CREATE, so a typo in `--by` can never mint a story.
 
@@ -21,7 +21,7 @@ Three steps: **ask**, **call**, **surface and offer**. The mechanical half — t
 2. **Call** — one invocation, which performs the whole mechanical sequence:
 
 ```
-epic-supersede <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=target>]... [--complete-interrupted]
+epico-supersede <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=target>]... [--complete-interrupted]
 ```
 
 3. **Surface, then offer** — report the verdict out of the JSON ([Output and exit codes](#output-and-exit-codes)), then, on exit 0 only, make [the archive offer](#the-archive-offer).
@@ -35,7 +35,7 @@ epic-supersede <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=tar
 | `--remap <N.N=target>` | Where sub-task `N.N`'s scope went. Repeatable, one per open sub-task. Only the **first** `=` separates, so `--remap 3.1=dropped: the v1 sandbox died` arrives intact | That row takes `MMM / re-scoped` |
 | `--help`, `-h` | Usage on stdout, exit 0 | — |
 
-`NNN` is a story number (`042`) or a story directory; the number resolves against the nearest `.epic/`.
+`NNN` is a story number (`042`) or a story directory; the number resolves against the nearest `.epico/`.
 
 **Never invent a flag value.** The rationale and every target are the user's words. A headless run defaults them *visibly* — the recorded default states that no rationale was supplied instead of manufacturing one.
 
@@ -62,7 +62,7 @@ epic-supersede <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=tar
 Archive story NNN without validation (--force, reason: superseded by MMM)? [y/n]
 ```
 
-**Accepting the question is the user's consent to the override**, so on acceptance run `epic-archive NNN --force "superseded by MMM"` — the reason is the one the question showed, and the manifest records it as `overrides_used: ["force"]` + `forced_reason`. No other guard flag is added. The offer adds no preflight of its own — archive never consults integration state.
+**Accepting the question is the user's consent to the override**, so on acceptance run `epico-archive NNN --force "superseded by MMM"` — the reason is the one the question showed, and the manifest records it as `overrides_used: ["force"]` + `forced_reason`. No other guard flag is added. The offer adds no preflight of its own — archive never consults integration state.
 
 ## Refusal Matrix
 
@@ -115,7 +115,7 @@ How the template is filled:
 With the banner in, the script closes `NNN` to a terminal, archivable state:
 
 - **Sub-tasks** — every open sub-task (the same set the remap rows were built from) is closed in `NNN`'s tasks.md as `[~] (superseded-by: MMM)`, qualifier on the same line per the checkbox grammar — see [tasks.md#checkbox-grammar](tasks.md#checkbox-grammar). Example: `- [~] 2.1 - Switch the reader (superseded-by: 012)`. On a deferred box the `deferred:` qualifier is **replaced**, never joined — a line carrying both stays owed, because `deferred:` wins.
-- **Frontmatter** — `status: superseded` plus the machine-readable companion `superseded-by: MMM` in every `NNN` artifact with frontmatter; `artifacts_flipped[]` names the ones this run wrote. The companion is what `epic-index.sh` reads to render the supersede target in the index.
+- **Frontmatter** — `status: superseded` plus the machine-readable companion `superseded-by: MMM` in every `NNN` artifact with frontmatter; `artifacts_flipped[]` names the ones this run wrote. The companion is what `epico-index.sh` reads to render the supersede target in the index.
 
 `superseded-by:` is a terminal qualifier, so no box stays open and nothing remains owed — the story archives cleanly whenever the offer is taken.
 
@@ -155,7 +155,7 @@ The row-4 refusal targets a re-run over a *complete* prior op. Recovery therefor
 
 ## Walkthrough
 
-Example: `/epic:epic stories supersede 042 --by 051` — story `042-legacy-import` replaced by `051-modern-import`. `042`'s tasks.md before the op, one closed box and three open ones:
+Example: `/epico:epico stories supersede 042 --by 051` — story `042-legacy-import` replaced by `051-modern-import`. `042`'s tasks.md before the op, one closed box and three open ones:
 
 ```markdown
 - [x] 1.1 - Parse the legacy CSV export
@@ -167,7 +167,7 @@ Example: `/epic:epic stories supersede 042 --by 051` — story `042-legacy-impor
 Three open sub-tasks (`2.1` and `2.2` as `[ ]`, `3.1` as a deferred `[~]`) → three remap rows; `1.1` gets none. The mode asks for the rationale and for a target per open row — `2.1` is left unanswered on purpose, so it takes the default — and then makes one call:
 
 ```
-epic-supersede 042 --by 051 \
+epico-supersede 042 --by 051 \
   --rationale 'Vendor retired the v1 export API; 051 rebuilds the import on the v2 bulk endpoint.' \
   --remap '2.2=task 2.3' \
   --remap '3.1=dropped: the v1 sandbox died with the API'
@@ -215,7 +215,7 @@ And the report, on stdout, exit 0:
 ```json
 {
   "story": "042-legacy-import",
-  "path": "/home/dev/project/.epic/stories/042-legacy-import",
+  "path": "/home/dev/project/.epico/stories/042-legacy-import",
   "by": "051",
   "status": "superseded",
   "reason": "",

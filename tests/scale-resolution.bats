@@ -36,9 +36,9 @@ setup() {
   XREF_SH="$PLUGIN_ROOT/scripts/cross-reference.sh"
   WORK=$(mktemp -d)
   STORY="$WORK/story"           # validator fixtures
-  PROJ="$WORK/proj"             # archive fixtures need a .epic/ tree
-  MANIFEST="$PROJ/.epic/archive/manifest.yaml"
-  mkdir -p "$STORY" "$PROJ/.epic/stories"
+  PROJ="$WORK/proj"             # archive fixtures need a .epico/ tree
+  MANIFEST="$PROJ/.epico/archive/manifest.yaml"
+  mkdir -p "$STORY" "$PROJ/.epico/stories"
   isolate_git_env
   cd "$PROJ"
 }
@@ -50,10 +50,10 @@ teardown() {
 }
 
 # isolate_git_env — the four environment knobs that stop the host's own git
-# configuration from reaching the fixtures, copied from tests/epic-gitpolicy.bats.
+# configuration from reaching the fixtures, copied from tests/epico-gitpolicy.bats.
 # archive-story.sh asks git whether the story is tracked and picks `git mv` or
 # `mv` from the answer; a global config (or an XDG ignore file) that says
-# something about `.epic` would make that answer depend on whose laptop runs the
+# something about `.epico` would make that answer depend on whose laptop runs the
 # suite. The directory is never created — git treats an absent HOME as empty.
 isolate_git_env() {
   export HOME="$WORK/.fixture-home"
@@ -557,7 +557,7 @@ write_story_md_two_reqs() {
 # "REPORT THE INAPPLICABILITY, NEVER MEASURE ZERO." `traced: 0` with `coverage:
 # "0/0"` says a measurement was made and came back empty; the truth is that
 # there was nothing to measure, and those are different statements to a human
-# reading a gate report. The shape follows epic-gitpolicy.sh's non-git object:
+# reading a gate report. The shape follows epico-gitpolicy.sh's non-git object:
 # the keys that would report a measurement are ABSENT, not zeroed.
 
 @test "cross-reference.sh on a spike reports no orphan and exits 0" {
@@ -649,7 +649,7 @@ write_story_md_two_reqs() {
 # `status: in-progress` on both artifacts so the status branch can never be the
 # thing that decides.
 make_archive_spike() {
-  local dir="$PROJ/.epic/stories/$1" verdict="$2" story_scale_line="$3"
+  local dir="$PROJ/.epico/stories/$1" verdict="$2" story_scale_line="$3"
   mkdir -p "$dir"
   {
     echo '---'
@@ -690,12 +690,12 @@ make_archive_spike() {
   # conclusion that is its only deliverable. With the story.md scale line absent
   # the same fixture is refused, and the scale line must not change that.
   make_archive_spike 031-probe '' 'scale: full'
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/031-probe
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/031-probe
   echo "$output" | jq -e '.status == "refused"' > /dev/null
   echo "$output" | jq -e '.moved == false' > /dev/null
   # ...and refused means nothing happened on disk, not "refused after moving".
-  [ -d "$PROJ/.epic/stories/031-probe" ]
-  [ ! -d "$PROJ/.epic/archive/031-probe" ]
+  [ -d "$PROJ/.epico/stories/031-probe" ]
+  [ ! -d "$PROJ/.epico/archive/031-probe" ]
   [ ! -e "$MANIFEST" ]
 }
 
@@ -705,7 +705,7 @@ make_archive_spike() {
   # manifest is the archive's permanent record and its scale is derived, never
   # declared, so a wrong value there is a lie that outlives the story directory.
   make_archive_spike 032-probe wont-do 'scale: full'
-  run --separate-stderr bash "$ARCHIVE_SH" .epic/stories/032-probe
+  run --separate-stderr bash "$ARCHIVE_SH" .epico/stories/032-probe
   echo "$output" | jq -e '.status == "archived"' > /dev/null
   echo "$output" | jq -e '.moved == true' > /dev/null
   echo "$output" | jq -e '.manifest_entry.scale == "spike"' > /dev/null
@@ -852,15 +852,15 @@ comment_blocks() {
   fi
 }
 
-@test "epic-index.sh does not attribute the scale lookup to archive-story.sh's story_field" {
+@test "epico-index.sh does not attribute the scale lookup to archive-story.sh's story_field" {
   # archive-story.sh's `story_field` does not resolve scale, so a comment
-  # explaining epic-index.sh's scale lookup through it is false about a
-  # function it names by hand. epic-index.sh's CODE may keep its own
+  # explaining epico-index.sh's scale lookup through it is false about a
+  # function it names by hand. epico-index.sh's CODE may keep its own
   # precedence; what it may not carry is an appeal to a reader that does not
   # work that way.
-  BLOCKS=$(comment_blocks "$PLUGIN_ROOT/scripts/epic-index.sh")
+  BLOCKS=$(comment_blocks "$PLUGIN_ROOT/scripts/epico-index.sh")
   if grep -q 'story_field' <<< "$BLOCKS"; then
-    echo "a comment in epic-index.sh still explains 'scale' through archive-story.sh's story_field:"
+    echo "a comment in epico-index.sh still explains 'scale' through archive-story.sh's story_field:"
     grep 'story_field' <<< "$BLOCKS" | cut -c1-200
     return 1
   fi

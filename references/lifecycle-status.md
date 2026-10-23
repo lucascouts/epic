@@ -1,6 +1,6 @@
 # Lifecycle status — the `status:` field
 
-Loaded by the modes that write or read `status:` — Run, Validate, Supersede, Archive and the index. Kept outside [SKILL.md](../skills/epic/SKILL.md) so a run that does not need it does not carry it.
+Loaded by the modes that write or read `status:` — Run, Validate, Supersede, Archive and the index. Kept outside [SKILL.md](../skills/epico/SKILL.md) so a run that does not need it does not carry it.
 
 ### Lifecycle Status (`status:`)
 

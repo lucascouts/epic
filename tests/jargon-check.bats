@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# epic-jargon: process words in a layperson-facing closing.
+# epico-jargon: process words in a layperson-facing closing.
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the Epic plugin will be documented in this file.
+All notable changes to the Epico plugin will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -10,10 +10,27 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-10-23
+
+The plugin is now **Epico**, and the quality catalog checks how CI workflows and the repository itself are hardened.
+
+**Minimum Claude Code:** 2.1.295, unchanged.
+
+### Changed
+
+- **BREAKING — the plugin is renamed `epic` → `epico`.** Install it as `epico@lucascouts`, then uninstall `epic@lucascouts`; with both enabled, both load. The command is `/epico:epico`, the agents are `epico:executor`, `epico:auditor` and the rest, and the commands on PATH are `epico-*` (`epico-doctor`, `epico-validate`, …). The project layout follows the name: `.epic/` → `.epico/`, `EPIC.md` → `EPICO.md`, the `epic:index` and `CLAUDE.md` markers → `epico:*`, the `EPIC_*` variables → `EPICO_*`, and `--epic-dir` → `--epico-dir`.
+- **An existing project migrates by itself.** At session start, `epico-migrate-dir` moves `.epic/` to `.epico/`, renames the index, rewrites the two marker pairs and the exact `.epic` entries of `.gitignore`. When git tracks the folder the move is a `git mv`, staged and never committed — review and commit it. With both folders present nothing moves and the session says so; `epico-doctor` reports a leftover `.epic/` as an error. The old markers, the old `EPIC_SUPERVISION`, `EPIC_ARCHIVE_LOCK_TIMEOUT` and `EPIC_AI_MEMORY_BIN`, and `--epic-dir` are still read. Memory pages keep their `epic/<type>/` paths, so what is already stored is still found. The managed `CLAUDE.md` block is reported stale once; `/epico:epico init --repair` rewrites it.
+- The quality catalog's "Pinned Actions" becomes **Hardened workflows**: besides SHA pins, least-privilege `permissions:`, no `pull_request_target`/`workflow_run` checking out untrusted code, no `${{ github.event.* }}` inside `run:`, `persist-credentials: false`, `timeout-minutes` on every job, and a self-hosted runner only on a private repository. Proved with `zizmor` and `actionlint`.
+
+### Added
+
+- Catalog items **Pre-commit hook** (secrets before the commit exists), **Security policy** (`SECURITY.md`) and **Branch protection** (read from the forge with `gh api`, since it is not a file); `product` activates them without waiting for a signal. **Build provenance (SLSA)** joins the on-request tier — the one step that needs the forge's OIDC. Dependabot `cooldown` now counts as minimum dependency age.
+- The repository follows them: `timeout-minutes` and `persist-credentials: false` on every CI job, and a `.pre-commit-config.yaml` running the installed `gitleaks` and `shellcheck`.
+
 ### Fixed
 
 - The commit guard no longer reports commits that exist: it piped the whole `git log` into `grep -q` under `pipefail`, and once the history outgrew the pipe buffer the writer's SIGPIPE read as a miss — every finished group was flagged. It now matches through a here-string.
-- `epic-jargon` no longer flags an explained term once the legend list outgrows the pipe buffer — the same SIGPIPE-under-`pipefail` miss, fixed the same way.
+- `epico-jargon` no longer flags an explained term once the legend list outgrows the pipe buffer — the same SIGPIPE-under-`pipefail` miss, fixed the same way.
 
 ## [0.21.0] — 2026-10-19
 
@@ -1666,30 +1683,34 @@ _(Plugin `bin/` requires Claude Code v2.1.91+.)_
 - `/epic:epic stories teams {status|enable|disable}` for direct flag management.
 - Per-project opt-out via `.epic/teams-opt-out` sentinel file.
 
-[Unreleased]: https://github.com/lucascouts/epic/compare/v0.18.0...HEAD
-[0.18.0]: https://github.com/lucascouts/epic/releases/tag/v0.18.0
-[0.17.0]: https://github.com/lucascouts/epic/releases/tag/v0.17.0
-[0.16.0]: https://github.com/lucascouts/epic/releases/tag/v0.16.0
-[0.15.0]: https://github.com/lucascouts/epic/releases/tag/v0.15.0
-[0.14.0]: https://github.com/lucascouts/epic/releases/tag/v0.14.0
-[0.13.1]: https://github.com/lucascouts/epic/releases/tag/v0.13.1
-[0.13.0]: https://github.com/lucascouts/epic/releases/tag/v0.13.0
-[0.12.0]: https://github.com/lucascouts/epic/releases/tag/v0.12.0
-[0.11.1]: https://github.com/lucascouts/epic/releases/tag/v0.11.1
-[0.11.0]: https://github.com/lucascouts/epic/releases/tag/v0.11.0
-[0.10.0]: https://github.com/lucascouts/epic/releases/tag/v0.10.0
-[0.9.0]: https://github.com/lucascouts/epic/releases/tag/v0.9.0
-[0.8.0]: https://github.com/lucascouts/epic/releases/tag/v0.8.0
-[0.7.0]: https://github.com/lucascouts/epic/releases/tag/v0.7.0
-[0.6.0]: https://github.com/lucascouts/epic/releases/tag/v0.6.0
-[0.5.0]: https://github.com/lucascouts/epic/releases/tag/v0.5.0
-[0.4.0]: https://github.com/lucascouts/epic/releases/tag/v0.4.0
-[0.3.1]: https://github.com/lucascouts/epic/releases/tag/v0.3.1
-[0.3.0]: https://github.com/lucascouts/epic/releases/tag/v0.3.0
-[0.2.0]: https://github.com/lucascouts/epic/releases/tag/v0.2.0
-[0.1.5]: https://github.com/lucascouts/epic/releases/tag/v0.1.5
-[0.1.4]: https://github.com/lucascouts/epic/releases/tag/v0.1.4
-[0.1.3]: https://github.com/lucascouts/epic/releases/tag/v0.1.3
-[0.1.2]: https://github.com/lucascouts/epic/releases/tag/v0.1.2
-[0.1.1]: https://github.com/lucascouts/epic/releases/tag/v0.1.1
-[0.1.0]: https://github.com/lucascouts/epic/releases/tag/v0.1.0
+[Unreleased]: https://github.com/lucascouts/epico/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/lucascouts/epico/releases/tag/v0.22.0
+[0.21.0]: https://github.com/lucascouts/epico/releases/tag/v0.21.0
+[0.20.0]: https://github.com/lucascouts/epico/releases/tag/v0.20.0
+[0.19.0]: https://github.com/lucascouts/epico/releases/tag/v0.19.0
+[0.18.0]: https://github.com/lucascouts/epico/releases/tag/v0.18.0
+[0.17.0]: https://github.com/lucascouts/epico/releases/tag/v0.17.0
+[0.16.0]: https://github.com/lucascouts/epico/releases/tag/v0.16.0
+[0.15.0]: https://github.com/lucascouts/epico/releases/tag/v0.15.0
+[0.14.0]: https://github.com/lucascouts/epico/releases/tag/v0.14.0
+[0.13.1]: https://github.com/lucascouts/epico/releases/tag/v0.13.1
+[0.13.0]: https://github.com/lucascouts/epico/releases/tag/v0.13.0
+[0.12.0]: https://github.com/lucascouts/epico/releases/tag/v0.12.0
+[0.11.1]: https://github.com/lucascouts/epico/releases/tag/v0.11.1
+[0.11.0]: https://github.com/lucascouts/epico/releases/tag/v0.11.0
+[0.10.0]: https://github.com/lucascouts/epico/releases/tag/v0.10.0
+[0.9.0]: https://github.com/lucascouts/epico/releases/tag/v0.9.0
+[0.8.0]: https://github.com/lucascouts/epico/releases/tag/v0.8.0
+[0.7.0]: https://github.com/lucascouts/epico/releases/tag/v0.7.0
+[0.6.0]: https://github.com/lucascouts/epico/releases/tag/v0.6.0
+[0.5.0]: https://github.com/lucascouts/epico/releases/tag/v0.5.0
+[0.4.0]: https://github.com/lucascouts/epico/releases/tag/v0.4.0
+[0.3.1]: https://github.com/lucascouts/epico/releases/tag/v0.3.1
+[0.3.0]: https://github.com/lucascouts/epico/releases/tag/v0.3.0
+[0.2.0]: https://github.com/lucascouts/epico/releases/tag/v0.2.0
+[0.1.5]: https://github.com/lucascouts/epico/releases/tag/v0.1.5
+[0.1.4]: https://github.com/lucascouts/epico/releases/tag/v0.1.4
+[0.1.3]: https://github.com/lucascouts/epico/releases/tag/v0.1.3
+[0.1.2]: https://github.com/lucascouts/epico/releases/tag/v0.1.2
+[0.1.1]: https://github.com/lucascouts/epico/releases/tag/v0.1.1
+[0.1.0]: https://github.com/lucascouts/epico/releases/tag/v0.1.0

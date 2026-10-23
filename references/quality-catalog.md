@@ -1,6 +1,6 @@
 # Quality Catalog
 
-The checks a piece of software is expected to carry, in three tiers, and how the Epic decides which of them a story activates. It is the source that the `## Quality` block of the constitution ([init-mode.md](init-mode.md)), the `## Quality Requirements` legend of a story ([requirements.md](requirements.md)) and the generated Quality Gates of `tasks.md` ([tasks.md](tasks.md#generated-quality-gates)) all draw from: each names an item by its row here.
+The checks a piece of software is expected to carry, in three tiers, and how the Epico decides which of them a story activates. It is the source that the `## Quality` block of the constitution ([init-mode.md](init-mode.md)), the `## Quality Requirements` legend of a story ([requirements.md](requirements.md)) and the generated Quality Gates of `tasks.md` ([tasks.md](tasks.md#generated-quality-gates)) all draw from: each names an item by its row here.
 
 ## How the set is chosen
 
@@ -9,7 +9,7 @@ The checks a piece of software is expected to carry, in three tiers, and how the
 3. **The request** adds what the constitution could not know: an API consumed by more than one client activates contract tests; a stated performance requirement activates a benchmark.
 4. **The story's legend** is the result: `## Quality Requirements`, one line per active item, numbered `Q1`…`Qn` in the order of this catalog, each with the command that proves it on this project. A Fast story, which has no `story.md`, carries the legend at the top of `tasks.md`.
 
-**The engineering level bounds the set** ([engineering-level.md](engineering-level.md)): `experiment` activates the **security floor** below and nothing else; `tool` activates the always tier; `project` adds every context item whose signal the tree or the request carries; `product` adds the CI-shaped context items — pinned Actions, minimum dependency age, licence, SBOM and signing — without waiting for a signal, and the on-request tier when a requirement names it. The four steps above choose inside that bound.
+**The engineering level bounds the set** ([engineering-level.md](engineering-level.md)): `experiment` activates the **security floor** below and nothing else; `tool` activates the always tier; `project` adds every context item whose signal the tree or the request carries; `product` adds the CI-shaped context items — hardened workflows, minimum dependency age, licence, SBOM and signing, security policy and branch protection — without waiting for a signal, and the on-request tier when a requirement names it. The four steps above choose inside that bound.
 
 **Activating an item never installs a tool.** The [preferred-tooling policy](preferred-tooling.md) applies: prefer the tool already installed for that item, name a recommendation and pause when none is, and record the choice on the legend line. A layperson is never paused for a tool choice — the best installed tool is taken and recorded.
 
@@ -54,7 +54,7 @@ Everything else in this catalog stays bound by the level.
 
 **At `tool`, the tier is paid with defaults — no configuration file.** Every always item stays active, and every one is proved by **one command**: whatever the checker needs rides on the command line (`npx tsc --noEmit --allowJs --checkJs src`), and the command is recorded where the project already records commands — a `scripts` entry, a `Makefile` target, the README. **A new configuration file for a checker is a `project` cost, not a `tool` cost.** Checker configuration files can outnumber a small program's own files and push a `tool` story past both the 2–3× its level promises and the 5× ceiling ([engineering-level.md](engineering-level.md)). Defaults buy the same guarantee for one line instead of one file; what they give up is that the next person's run may disagree with yours, which is precisely what a level with no other dependants can afford. Files that *are* the deliverable — the README, `.gitignore`, `.editorconfig`, the lockfile, the runtime declaration — are written at every level: they are the item, not its configuration.
 
-**The format check covers the project's files, never `.epic/`.** `prettier --check .` also reads the story's own Markdown, and the run report written at the end of the run then fails a gate that had passed — so name the source directories and files instead of `.`. It is scope, not policy: no ignore file is written for it.
+**The format check covers the project's files, never `.epico/`.** `prettier --check .` also reads the story's own Markdown, and the run report written at the end of the run then fails a gate that had passed — so name the source directories and files instead of `.`. It is scope, not policy: no ignore file is written for it.
 
 **A syntax check is not a lint.** `node --check`, `python -m py_compile` and `bash -n` prove that a file parses and nothing else; a legend line that names one of them as Lint counts the item as **omitted**, not covered, and says so on the line. Left unasked, a run accepts whatever runtime it finds — even one out of support — declares no version, and carries no formatter, linter, type checker or `.editorconfig`; tests and error handling are the only always-tier items that appear without being asked. The runtime version is chosen the way every technical decision is: a recommended version with its reason, in one line ([clarify.md](clarify.md#clarify-protocol)).
 
@@ -70,10 +70,13 @@ Activated by a signal in the tree or in the request. The signal is the rule; the
 | Versioned migrations | a database | schema changes are ordered and reversible | the migration tool's `status`, and a down migration |
 | SAST | code that receives external input or handles auth | defects in the project's own code, not its dependencies | `opengrep` (or `semgrep`) with a registry ruleset |
 | Image digest, non-root, scan | a `Dockerfile` | base pinned by `sha256:`, no root user, no known CVE in the image | `grep '@sha256:' Dockerfile`; a `USER` line; `trivy image` |
-| Pinned Actions | `.github/workflows/` | every action pinned to a commit SHA, never a mutable tag | `pinact` or `zizmor`; a grep for `@v[0-9]` |
+| Hardened workflows | `.github/workflows/` | every action pinned to a commit SHA, never a mutable tag; `permissions:` declared and least-privilege — read by default, write only on the job that needs it; no `pull_request_target` or `workflow_run` that checks out untrusted code, and no `${{ github.event.* }}` expanded inside `run:` — it goes through `env:`; `actions/checkout` with `persist-credentials: false`; a `timeout-minutes` on every job; a self-hosted runner only on a private repository, isolated and ephemeral — on a public one any fork's pull request runs code on it | `zizmor .github/workflows` · `actionlint`; a grep for `@v[0-9]` |
+| Pre-commit hook | a git repository, at `project` and above | the fast checks — secrets first, then format and lint — run before a commit exists, not only in CI | `.pre-commit-config.yaml` with `gitleaks`; `pre-commit run --all-files` |
 | Accessibility | a frontend | the UI is usable without a mouse or a screen | an axe run on the rendered pages |
 | Licence, SBOM, signing | something published or distributed | who may use it, what is in it, that it is what it claims | `LICENSE` exists; `syft`; `cosign` |
-| Minimum dependency age | dependencies and a CI | a version younger than seven days is not taken | Renovate `minimumReleaseAge` or `depsguard` |
+| Security policy | something published or distributed | a reporter knows where to send a vulnerability privately and what to expect | `SECURITY.md` exists and names a private channel |
+| Branch protection | a remote repository | the default branch refuses deletion and force-push, and a merge waits for the CI checks. It is a setting of the forge, not a file of the tree, so the proof reads the forge | `gh api repos/{owner}/{repo}/rules/branches/{default}` lists `deletion`, `non_fast_forward` and `required_status_checks` |
+| Minimum dependency age | dependencies and a CI | a version younger than seven days is not taken | Renovate `minimumReleaseAge` · Dependabot `cooldown` · `depsguard` |
 | Format version | the program writes a file it reads back — a save file, a cache, a configuration | a format can be told apart from its successors, so a later version reads an older file instead of misreading it. The atomic write itself is already the floor's ([data integrity](#the-security-floor--five-items-no-level-drops)) | a version field in the format; the story's test reads a file written by the previous format |
 
 ## On request
@@ -86,6 +89,7 @@ Costly or narrow; activated only by a requirement that names them.
 | Benchmarks | a stated performance requirement | `hyperfine` · `wrk` · `vegeta` · `go test -bench` |
 | Coverage threshold | a team policy that names a number | the test runner's coverage flag against the number |
 | Mutation testing | a suite whose strength is in question | `cargo-mutants` · `stryker` |
+| Build provenance (SLSA) | an artifact others install and must trust came from this commit and this pipeline | `actions/attest-build-provenance`; `gh attestation verify` — it needs the forge's OIDC identity, the one step here that cannot run locally |
 
 ## The legend line
 

@@ -5,14 +5,14 @@
 #
 # Writes <story-dir>/.draft/validated.yaml:
 #   sha: <HEAD commit>
-#   dirty: true|false     — uncommitted changes OUTSIDE .epic/
+#   dirty: true|false     — uncommitted changes OUTSIDE .epico/
 #   recorded_at: <ISO-8601>
 #
 # Validate runs it right before the Auditor's spawn, so the record names the
 # tree the Auditor is about to check. It is a script, not the Auditor's report,
 # because the Auditor is a model and writes its report only on a pass; this
 # record exists on a fail too, and nothing a model writes can change it.
-# Changes under .epic/ do not make the tree dirty: they are the story's own
+# Changes under .epico/ do not make the tree dirty: they are the story's own
 # bookkeeping, and counting them would mark every validation dirty.
 # Archive copies `sha` into the manifest entry as `validated_sha`.
 #
@@ -34,7 +34,7 @@ SHA=$(git -C "$STORY_DIR" rev-parse --verify -q HEAD 2>/dev/null) || {
   exit 2
 }
 TOP=$(git -C "$STORY_DIR" rev-parse --show-toplevel)
-if [ -n "$(git -C "$TOP" status --porcelain --untracked-files=normal -- . ':(exclude).epic' 2>/dev/null)" ]; then
+if [ -n "$(git -C "$TOP" status --porcelain --untracked-files=normal -- . ':(exclude).epico' 2>/dev/null)" ]; then
   DIRTY=true
 else
   DIRTY=false

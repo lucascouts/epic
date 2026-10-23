@@ -39,7 +39,7 @@
 
 set -euo pipefail
 
-STORIES_DIR=".epic/stories"
+STORIES_DIR=".epico/stories"
 
 print_usage() {
   cat <<HELP
@@ -48,7 +48,7 @@ Usage: migrate-story.sh <NNN|story-dir> [--apply]
 Normalizes a legacy story directory into the canonical shapes.
 
 Arguments:
-  <NNN|story-dir>   Story number (015) or its directory (.epic/stories/015-slug)
+  <NNN|story-dir>   Story number (015) or its directory (.epico/stories/015-slug)
 
 Flags:
   --apply           Rewrite in place. Without it, nothing is written.
@@ -108,7 +108,7 @@ else
 fi
 
 case "$STORY_DIR/" in
-  */.epic/archive/*|.epic/archive/*)
+  */.epico/archive/*|.epico/archive/*)
     refuse "Refused: '$STORY_DIR' lives under the archive, which is read-only by invariant — an archived story is evidence, not a working file" "archive-resident"
     ;;
 esac

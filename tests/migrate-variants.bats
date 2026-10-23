@@ -21,7 +21,7 @@ setup() {
   CROSSREF_SH="$PLUGIN_ROOT/scripts/cross-reference.sh"
   WORK=$(mktemp -d)
   PROJ="$WORK/proj"
-  mkdir -p "$PROJ/.epic/stories" "$PROJ/.epic/archive"
+  mkdir -p "$PROJ/.epico/stories" "$PROJ/.epico/archive"
   cd "$PROJ"
 }
 
@@ -63,7 +63,7 @@ EOF
 # --- Variants 1-2: T1/Covers headers, checkbox-less lists ---
 
 make_t1_covers_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   write_story_md "$dir"
   cat > "$dir/tasks.md" <<'EOF'
@@ -95,7 +95,7 @@ EOF
 }
 
 make_boxless_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   write_story_md "$dir"
   cat > "$dir/tasks.md" <<'EOF'
@@ -124,7 +124,7 @@ EOF
 }
 
 make_fenced_t1_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   write_story_md "$dir"
   cat > "$dir/tasks.md" <<'EOF'
@@ -157,8 +157,8 @@ EOF
 
 @test "T1 headers and Covers fields become canonical boxes with Requirements lines" {
   make_t1_covers_story 090-t1-covers
-  bash "$MIGRATE_SH" .epic/stories/090-t1-covers --apply > /dev/null 2>&1
-  local f="$PROJ/.epic/stories/090-t1-covers/tasks.md"
+  bash "$MIGRATE_SH" .epico/stories/090-t1-covers --apply > /dev/null 2>&1
+  local f="$PROJ/.epico/stories/090-t1-covers/tasks.md"
   grep -qE '^- \[ \] [0-9]+ - .*Parse the input' "$f"
   grep -qE '^- \[ \] [0-9]+ - .*Emit the output' "$f"
   grep -qE '^[[:space:]]*- Requirements: .*R1\.1' "$f"
@@ -169,16 +169,16 @@ EOF
 
 @test "the migrated T1/Covers story is visible to cross-reference.sh — status clean, non-empty mapping" {
   make_t1_covers_story 090-t1-covers
-  bash "$MIGRATE_SH" .epic/stories/090-t1-covers --apply > /dev/null 2>&1
-  run --separate-stderr bash "$CROSSREF_SH" .epic/stories/090-t1-covers
+  bash "$MIGRATE_SH" .epico/stories/090-t1-covers --apply > /dev/null 2>&1
+  run --separate-stderr bash "$CROSSREF_SH" .epico/stories/090-t1-covers
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.status == "clean" and (.mapping | length > 0)' > /dev/null
 }
 
 @test "checkbox-less list items gain only [ ] boxes — never [x], and field lines stay fields" {
   make_boxless_story 091-boxless
-  bash "$MIGRATE_SH" .epic/stories/091-boxless --apply > /dev/null 2>&1
-  local f="$PROJ/.epic/stories/091-boxless/tasks.md"
+  bash "$MIGRATE_SH" .epico/stories/091-boxless --apply > /dev/null 2>&1
+  local f="$PROJ/.epico/stories/091-boxless/tasks.md"
   [ "$(grep -cE '^- \[ \] [0-9]+ - ' "$f")" -eq 2 ]
   run ! grep -qF '[x]' "$f"
   # the honest default: shape is recorded, done-ness is never invented
@@ -188,8 +188,8 @@ EOF
 
 @test "a T1 header inside a fenced block is documentation and survives" {
   make_fenced_t1_story 092-fenced-t1
-  bash "$MIGRATE_SH" .epic/stories/092-fenced-t1 --apply > /dev/null 2>&1
-  local f="$PROJ/.epic/stories/092-fenced-t1/tasks.md"
+  bash "$MIGRATE_SH" .epico/stories/092-fenced-t1 --apply > /dev/null 2>&1
+  local f="$PROJ/.epico/stories/092-fenced-t1/tasks.md"
   grep -qF '## T1 Example header' "$f"
   # the naked header converted; only the fenced occurrence remains
   [ "$(grep -c '^## T1' "$f")" -eq 1 ]
@@ -199,7 +199,7 @@ EOF
 # --- Variants 3-4: wrapper tags, fast-scale Requirements ---
 
 make_wrapper_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   write_story_md "$dir"
   cat > "$dir/tasks.md" <<'EOF'
@@ -235,7 +235,7 @@ EOF
 # Fast fixture is tasks-only (fast scale carries no story.md) and the scale
 # is declared where resolution is authoritative: tasks.md frontmatter.
 make_fast_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   cat > "$dir/tasks.md" <<'EOF'
 ---
@@ -263,7 +263,7 @@ EOF
 }
 
 make_canonical_standard_story() {
-  local dir="$PROJ/.epic/stories/$1"
+  local dir="$PROJ/.epico/stories/$1"
   mkdir -p "$dir"
   write_story_md "$dir"
   cat > "$dir/tasks.md" <<'EOF'
@@ -296,20 +296,20 @@ EOF
 
 @test "a naked wrapper tag strips and a fenced one survives" {
   make_wrapper_story 093-wrapper
-  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/093-wrapper --apply
+  run --separate-stderr bash "$MIGRATE_SH" .epico/stories/093-wrapper --apply
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.rewrites.wrapper_tags > 0' > /dev/null
-  local f="$PROJ/.epic/stories/093-wrapper/tasks.md"
+  local f="$PROJ/.epico/stories/093-wrapper/tasks.md"
   run ! grep -qF '</content>' "$f"
   grep -qF '</invoke>' "$f"
 }
 
 @test "a fast story loses Requirements fields and R-tokens, keeping satisfied-by byte-for-byte" {
   make_fast_story 094-fast
-  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/094-fast --apply
+  run --separate-stderr bash "$MIGRATE_SH" .epico/stories/094-fast --apply
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.rewrites.fast_requirements > 0' > /dev/null
-  local f="$PROJ/.epic/stories/094-fast/tasks.md"
+  local f="$PROJ/.epico/stories/094-fast/tasks.md"
   # the sanctioned suffix survives byte-for-byte
   grep -qF 'satisfied-by: tests/fixture.bats' "$f"
   # the suffix-less field and its dangling R-token are gone
@@ -321,9 +321,9 @@ EOF
   make_canonical_standard_story 095-standard
   local before
   before=$(tree_hash "$PROJ")
-  run --separate-stderr bash "$MIGRATE_SH" .epic/stories/095-standard --apply
+  run --separate-stderr bash "$MIGRATE_SH" .epico/stories/095-standard --apply
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '[.rewrites[]] | add == 0' > /dev/null
   [ "$(tree_hash "$PROJ")" = "$before" ]
-  grep -qE '^[[:space:]]*- Requirements: R1\.1' "$PROJ/.epic/stories/095-standard/tasks.md"
+  grep -qE '^[[:space:]]*- Requirements: R1\.1' "$PROJ/.epico/stories/095-standard/tasks.md"
 }

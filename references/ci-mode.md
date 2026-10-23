@@ -1,6 +1,6 @@
 # CI/Headless Mode
 
-Use these patterns when running Epic plugin operations programmatically with `claude -p` or the Agent SDK. Every recipe that invokes `/epic:epic` must load the plugin: pass `--plugin-dir "$EPIC_PLUGIN_ROOT"` (a checkout of this repo), or install the plugin first. Do not add `--bare`: it skips every hook — the archive, executor and identity guards included — loads none of the plugin's sub-agents, and authenticates only through `ANTHROPIC_API_KEY`, never an OAuth login. Every recipe below also states its permissions instead of inheriting them:
+Use these patterns when running Epico plugin operations programmatically with `claude -p` or the Agent SDK. Every recipe that invokes `/epico:epico` must load the plugin: pass `--plugin-dir "$EPICO_PLUGIN_ROOT"` (a checkout of this repo), or install the plugin first. Do not add `--bare`: it skips every hook — the archive, executor and identity guards included — loads none of the plugin's sub-agents, and authenticates only through `ANTHROPIC_API_KEY`, never an OAuth login. Every recipe below also states its permissions instead of inheriting them:
 
 - `--permission-mode acceptEdits` — set it explicitly; a `-p` run with no mode picks one that depends on the provider.
 - `--permission-prompts none` — nobody is there to answer, so anything that would prompt is denied at once instead of hanging the run.
@@ -21,17 +21,17 @@ Export `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` as a precaution: it keeps every 
 
 ## Validate Stories in CI
 
-Run validation as a PR check or CI step. Inside a session with the plugin enabled, the scripts are on PATH as `epic-validate`, `epic-xref` and the other `epic-*` wrappers; for standalone CI pipelines clone the plugin repo and set `EPIC_PLUGIN_ROOT` to its path:
+Run validation as a PR check or CI step. Inside a session with the plugin enabled, the scripts are on PATH as `epico-validate`, `epico-xref` and the other `epic-*` wrappers; for standalone CI pipelines clone the plugin repo and set `EPICO_PLUGIN_ROOT` to its path:
 
 ```bash
 # Validate structural correctness
-bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" .epic/stories/001-feature-name/
+bash "$EPICO_PLUGIN_ROOT/scripts/validate-story.sh" .epico/stories/001-feature-name/
 
 # Validate with cross-reference checks (requirements traceability)
-bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" .epic/stories/001-feature-name/ --cross-ref
+bash "$EPICO_PLUGIN_ROOT/scripts/validate-story.sh" .epico/stories/001-feature-name/ --cross-ref
 
 # Dedicated cross-reference report
-bash "$EPIC_PLUGIN_ROOT/scripts/cross-reference.sh" .epic/stories/001-feature-name/
+bash "$EPICO_PLUGIN_ROOT/scripts/cross-reference.sh" .epico/stories/001-feature-name/
 ```
 
 Exit codes: 0 = pass, 1 = issues found, 2 = invalid input. Output is always JSON.
@@ -46,8 +46,8 @@ That object carries `story`, `scale` and `status` and **omits every measurement 
 ## Generate Stories Programmatically
 
 ```bash
-CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic Add retry logic to the payment gateway" \
-  --plugin-dir "$EPIC_PLUGIN_ROOT" \
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico Add retry logic to the payment gateway" \
+  --plugin-dir "$EPICO_PLUGIN_ROOT" \
   --permission-mode acceptEdits --permission-prompts none \
   --allowedTools "Read,Write,Edit,Glob,Grep,Bash,Agent,mcp__ai-memory__*" \
   --output-format json \
@@ -57,8 +57,8 @@ CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic Add retry logic to 
 ## Validate Implementation Against Story
 
 ```bash
-CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic stories validate 001" \
-  --plugin-dir "$EPIC_PLUGIN_ROOT" \
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico stories validate 001" \
+  --plugin-dir "$EPICO_PLUGIN_ROOT" \
   --permission-mode acceptEdits --permission-prompts none \
   --allowedTools "Read,Write,Edit,Glob,Grep,Bash,Agent,mcp__ai-memory__*" \
   --output-format json \
@@ -68,8 +68,8 @@ CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic stories validate 00
 ## List Stories
 
 ```bash
-CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic stories" \
-  --plugin-dir "$EPIC_PLUGIN_ROOT" \
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico stories" \
+  --plugin-dir "$EPICO_PLUGIN_ROOT" \
   --permission-mode acceptEdits --permission-prompts none \
   --allowedTools "Read,Glob,Grep,Bash" \
   --output-format text \
@@ -81,12 +81,12 @@ CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic stories" \
 ```yaml
 - name: Validate epic stories
   env:
-    EPIC_PLUGIN_ROOT: ${{ github.workspace }}/.epic-plugin
+    EPICO_PLUGIN_ROOT: ${{ github.workspace }}/.epico-plugin
   run: |
-    git clone https://github.com/lucascouts/epic.git "$EPIC_PLUGIN_ROOT"
-    for dir in .epic/stories/*/; do
+    git clone https://github.com/lucascouts/epico.git "$EPICO_PLUGIN_ROOT"
+    for dir in .epico/stories/*/; do
       echo "Validating $dir..."
-      bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" "$dir" --cross-ref || exit 1
+      bash "$EPICO_PLUGIN_ROOT/scripts/validate-story.sh" "$dir" --cross-ref || exit 1
     done
 ```
 
@@ -99,8 +99,8 @@ the `structured_output` field, sibling to the usual `result` and metadata.
 Example: extract a validation summary for a story:
 
 ```bash
-CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic stories validate 001" \
-  --plugin-dir "$EPIC_PLUGIN_ROOT" --permission-mode acceptEdits --permission-prompts none \
+CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico stories validate 001" \
+  --plugin-dir "$EPICO_PLUGIN_ROOT" --permission-mode acceptEdits --permission-prompts none \
   --allowedTools "Read,Write,Edit,Glob,Grep,Bash,Agent,mcp__ai-memory__*" \
   --output-format json \
   --json-schema '{
@@ -123,10 +123,10 @@ CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epic:epic stories validate 00
 Pipe to `jq` for CI gating:
 
 ```bash
-OUT=$(claude -p "..." --plugin-dir "$EPIC_PLUGIN_ROOT" --output-format json --json-schema '{...}')
+OUT=$(claude -p "..." --plugin-dir "$EPICO_PLUGIN_ROOT" --output-format json --json-schema '{...}')
 # A run that errored, or ended without a structured result, is a failure — not a pass.
 echo "$OUT" | jq -e '(.is_error | not) and (.structured_output != null)' >/dev/null \
-  || { echo "Epic run failed or returned no structured output" >&2; exit 1; }
+  || { echo "Epico run failed or returned no structured output" >&2; exit 1; }
 RESULT=$(echo "$OUT" | jq '.structured_output')
 STATUS=$(echo "$RESULT" | jq -r '.status')
 [ "$STATUS" = "fail" ] && { echo "$RESULT" | jq '.gaps'; exit 1; }
@@ -136,15 +136,15 @@ STATUS=$(echo "$RESULT" | jq -r '.status')
 
 When you run `claude -p` with `--output-format stream-json --verbose`, the stream
 carries one `system/init` event. It is not always the first line: SessionStart hook
-events (`hook_started`, `hook_response`) come before it, and Epic ships a
+events (`hook_started`, `hook_response`) come before it, and Epico ships a
 SessionStart hook — so select it by type. It contains a `plugins` array (loaded
 successfully), an optional `plugin_errors` array (load-time failures such as
-unsatisfied dependency versions) and the `slash_commands` the session can run. Use this to **fail CI when Epic does not load**,
+unsatisfied dependency versions) and the `slash_commands` the session can run. Use this to **fail CI when Epico does not load**,
 which can happen if the marketplace is unreachable or `plugin.json` becomes invalid:
 
 ```bash
 claude -p "Validate epic stories in this repo" \
-  --plugin-dir "$EPIC_PLUGIN_ROOT" \
+  --plugin-dir "$EPICO_PLUGIN_ROOT" \
   --permission-mode acceptEdits --permission-prompts none \
   --output-format stream-json \
   --verbose \
@@ -153,41 +153,41 @@ claude -p "Validate epic stories in this repo" \
 # Select system/init by type; hook events may precede it.
 INIT=$(jq -c 'select(.type == "system" and .subtype == "init")' stream.jsonl | head -1)
 
-if echo "$INIT" | jq -e '.plugin_errors[]? | select(.plugin == "epic")' >/dev/null; then
-  echo "Epic plugin failed to load:" >&2
-  echo "$INIT" | jq '.plugin_errors[] | select(.plugin == "epic")' >&2
+if echo "$INIT" | jq -e '.plugin_errors[]? | select(.plugin == "epico")' >/dev/null; then
+  echo "Epico plugin failed to load:" >&2
+  echo "$INIT" | jq '.plugin_errors[] | select(.plugin == "epico")' >&2
   exit 1
 fi
 
-if ! echo "$INIT" | jq -e '.plugins[]? | select(.name == "epic")' >/dev/null; then
-  echo "Epic plugin not found in loaded plugins. Check installation." >&2
+if ! echo "$INIT" | jq -e '.plugins[]? | select(.name == "epico")' >/dev/null; then
+  echo "Epico plugin not found in loaded plugins. Check installation." >&2
   exit 1
 fi
 
-if ! echo "$INIT" | jq -e '[.agents[]? | select(startswith("epic:"))] | length == 6' >/dev/null; then
-  echo "Epic loaded without its six sub-agents (is `--bare` set?)." >&2
+if ! echo "$INIT" | jq -e '[.agents[]? | select(startswith("epico:"))] | length == 6' >/dev/null; then
+  echo "Epico loaded without its six sub-agents (is `--bare` set?)." >&2
   exit 1
 fi
 
-if ! echo "$INIT" | jq -e '.slash_commands[]? | select(. == "epic:epic")' >/dev/null; then
-  echo "Epic loaded but /epic:epic is not available in this session." >&2
+if ! echo "$INIT" | jq -e '.slash_commands[]? | select(. == "epico:epico")' >/dev/null; then
+  echo "Epico loaded but /epico:epico is not available in this session." >&2
   exit 1
 fi
 
-echo "Epic loaded successfully."
+echo "Epico loaded successfully."
 ```
 
-This is independent of any Epic-specific output — it is the platform reporting
+This is independent of any Epico-specific output — it is the platform reporting
 what was actually loaded into the session. Combine with the validation example
 above for an end-to-end CI pipeline.
 
 ## Notes
 
 - Bound every unattended run: `--max-budget-usd` stops it at a cost ceiling, and `--no-session-persistence` leaves no session file behind on the runner
-- Never use `--bare` with `/epic:epic`: it skips the hooks and the sub-agents the plugin ships, and accepts only an API key
+- Never use `--bare` with `/epico:epico`: it skips the hooks and the sub-agents the plugin ships, and accepts only an API key
 - When the plugin comes from a marketplace instead of `--plugin-dir`, set `CLAUDE_CODE_SYNC_PLUGIN_INSTALL=1` so it is installed before the first turn
 - Stories are always in English (no locale variation in artifacts)
 - Scripts are standalone bash — no Claude Code dependency for validation
 - For structured output from Claude operations, use `--output-format json`
 - Combine with `--json-schema` for typed structured output (see example above)
-- Inside a Claude session with the Epic plugin enabled, call the scripts through their `epic-*` wrappers on PATH (`epic-validate`, `epic-xref`, …)
+- Inside a Claude session with the Epico plugin enabled, call the scripts through their `epico-*` wrappers on PATH (`epico-validate`, `epico-xref`, …)

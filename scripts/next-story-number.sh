@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Allocates the next story number for an Epic project — and, with --reserve,
+# Allocates the next story number for an Epico project — and, with --reserve,
 # claims numbers on disk so a second allocator cannot hand out the same one.
 #
 # Usage:
@@ -21,7 +21,7 @@
 # maximum across them is what `next` is derived from.
 #
 # WHAT "RESERVED" MEANS. Directory existence IS the reservation: a placeholder
-# `NNN-reserved/` under .epic/stories/ is what makes the number unavailable to
+# `NNN-reserved/` under .epico/stories/ is what makes the number unavailable to
 # the next scan. There is no lock file and no registry to go stale — the same
 # glob that answers `next` is what the reservation writes into.
 #
@@ -42,8 +42,8 @@
 
 set -euo pipefail
 
-STORIES_DIR=".epic/stories"
-ARCHIVE_DIR=".epic/archive"
+STORIES_DIR=".epico/stories"
+ARCHIVE_DIR=".epico/archive"
 MAX_NUMBER=999
 RESLOT_ATTEMPTS=200
 
@@ -51,7 +51,7 @@ print_usage() {
   cat <<HELP
 Usage: next-story-number.sh [--reserve N]
 
-Allocates the next story number across .epic/stories/ AND .epic/archive/.
+Allocates the next story number across .epico/stories/ AND .epico/archive/.
 
 Flags:
   --reserve N   Claim N numbers by creating NNN-reserved/ placeholders.

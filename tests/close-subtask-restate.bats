@@ -17,11 +17,11 @@ bats_require_minimum_version 1.5.0
 QUALIFIER_RE='(^|[^[:alnum:]_-])deferred:'
 
 setup() {
-  PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+  PLUGIN_ROOT="${EPICO_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   SCRIPT="$PLUGIN_ROOT/scripts/close-subtask.sh"
   WORK=$(mktemp -d)
   PROJ="$WORK/proj"
-  STORY="$PROJ/.epic/stories/021-fixture"
+  STORY="$PROJ/.epico/stories/021-fixture"
   mkdir -p "$STORY"
   write_fixture
 }

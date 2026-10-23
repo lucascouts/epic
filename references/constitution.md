@@ -1,6 +1,6 @@
 # Constitution Template
 
-The constitution is an optional governance file at `.epic/constitution.md` that defines cross-story constraints. All stories must respect these constraints.
+The constitution is an optional governance file at `.epico/constitution.md` that defines cross-story constraints. All stories must respect these constraints.
 
 ## Template
 
@@ -91,7 +91,7 @@ The constitution is an optional governance file at `.epic/constitution.md` that 
 - Lint — `eslint .`
 - Types — `tsc --noEmit`
 - Secrets — `gitleaks detect`
-- Pinned Actions — `.github/workflows/` present; `zizmor .github/workflows`
+- Hardened workflows — `.github/workflows/` present; `zizmor .github/workflows`
 ```
 
 **The constitution is mandatory.** `init` always writes it — every answer left unanswered takes its default — and triage refuses Standard and Full without one ([triage.md](triage.md#constitution-gate)). Tooling in `## Quality` and `## Security floor` is derived from what the host has (`command -v` per tool); a tool that is missing is recommended on its line, never installed without the user's yes.

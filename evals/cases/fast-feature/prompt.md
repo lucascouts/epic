@@ -6,4 +6,4 @@ timeout_seconds: 1500
 allowed_tools: [Read, Glob, Grep, Write, Edit, Bash, Skill, Agent]
 ---
 
-/epic:epic Add email validation to the user profile form
+/epico:epico Add email validation to the user profile form

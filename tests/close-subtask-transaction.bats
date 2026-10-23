@@ -13,17 +13,17 @@
 # assertions pin the completion definition (tasks.md#completion), not one
 # consumer's private aggregation of terminal tildes.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so a copy of this file outside
+# EPICO_PLUGIN_ROOT overrides root resolution so a copy of this file outside
 # tests/ can run against the plugin.
 
 bats_require_minimum_version 1.5.0
 
 setup() {
-  PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+  PLUGIN_ROOT="${EPICO_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   SCRIPT="$PLUGIN_ROOT/scripts/close-subtask.sh"
   WORK=$(mktemp -d)
   PROJ="$WORK/proj"
-  STORY="$PROJ/.epic/stories/013-txn"
+  STORY="$PROJ/.epico/stories/013-txn"
   mkdir -p "$STORY"
 }
 
@@ -109,7 +109,7 @@ status_line_of() { # status_line_of <file> → the status: value
 
 run_close() {
   cd "$PROJ"
-  run --separate-stderr bash "$SCRIPT" .epic/stories/013-txn "$@"
+  run --separate-stderr bash "$SCRIPT" .epico/stories/013-txn "$@"
 }
 
 # =====================================================================

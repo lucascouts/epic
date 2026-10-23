@@ -10,7 +10,7 @@ has() {  # <file> <extended regex>
 }
 
 @test "validate runs the claims check only when epic-supervise is on PATH, and never blocks on it" {
-  has references/validate-mode.md 'when `epic-supervise` is on PATH and `EPIC_SUPERVISION` is not `off`'
+  has references/validate-mode.md 'when `epic-supervise` is on PATH and `EPICO_SUPERVISION` is not `off`'
   has references/validate-mode.md 'epic-supervise claims --root <project> --story <NNN>'
   has references/validate-mode.md 'it never blocks the verdict'
   has references/validate-mode.md 'without the command, say so in one line and go on'

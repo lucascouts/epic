@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Wrapper over scripts/hook-inbox.sh, on PATH while the Epico plugin is enabled.
+# Usage: epico-inbox --story <story-dir>
+exec bash "$(dirname "$0")/../scripts/hook-inbox.sh" "$@"

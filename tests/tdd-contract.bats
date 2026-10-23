@@ -35,14 +35,14 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/run-mode.md 'setup repair the frozen-test rule allows'
 }
 
-@test "T3: epic-test-diff is enforced by close-subtask, run by the Auditor, released by refine" {
+@test "T3: epico-test-diff is enforced by close-subtask, run by the Auditor, released by refine" {
   has scripts/close-subtask.sh 'test-diff.sh'
-  has agents/auditor.md 'epic-test-diff'
+  has agents/auditor.md 'epico-test-diff'
   has references/run-mode.md 'a box whose test was rewritten does not close'
-  has references/refine-mode.md 'releasing a test blocked by `epic-test-diff`'
+  has references/refine-mode.md 'releasing a test blocked by `epico-test-diff`'
 }
 
-@test "T4: the Red scratch lives under TMPDIR/epic-red, outside .epic, and is removed" {
+@test "T4: the Red scratch lives under TMPDIR/epic-red, outside .epico, and is removed" {
   has agents/test-advisor.md '\$\{TMPDIR:-/tmp\}/epic-red/'
   has agents/test-advisor.md 'git worktree remove --force'
   has agents/test-advisor.md 'never create `\.draft/red-scratch/`'

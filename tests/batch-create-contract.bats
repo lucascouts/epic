@@ -14,19 +14,19 @@
 # Fidelity: every scenario reads the real files and executes the real
 # allocator — no stubs, no inline copies of the reference prose.
 #
-# EPIC_PLUGIN_ROOT overrides root resolution so the suite can run against a
+# EPICO_PLUGIN_ROOT overrides root resolution so the suite can run against a
 # plugin tree other than its parent directory.
 
 bats_require_minimum_version 1.5.0
 
 setup() {
-  PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+  PLUGIN_ROOT="${EPICO_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   SCRIPT="$PLUGIN_ROOT/scripts/next-story-number.sh"
   REF="$PLUGIN_ROOT/references/batch-create.md"
-  SKILL="$PLUGIN_ROOT/skills/epic/SKILL.md"
+  SKILL="$PLUGIN_ROOT/skills/epico/SKILL.md"
   LIST="$PLUGIN_ROOT/references/list-mode.md"
   WORK=$(mktemp -d)
-  mkdir -p "$WORK/.epic/stories" "$WORK/.epic/archive"
+  mkdir -p "$WORK/.epico/stories" "$WORK/.epico/archive"
 }
 
 teardown() {
@@ -42,7 +42,7 @@ slug() {
 
 @test "documented JSON keys round-trip against a live allocator run" {
   [ -f "$REF" ]
-  mkdir "$WORK/.epic/stories/003-fixture"
+  mkdir "$WORK/.epico/stories/003-fixture"
   out=$( cd "$WORK" && bash "$SCRIPT" --reserve 1 )
   echo "$out" | jq -e 'type == "object"'
   # every contract key the reference documents is emitted by the script

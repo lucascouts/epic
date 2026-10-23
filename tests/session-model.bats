@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# The model is chosen where it is active — the session. Epic suggests, before
+# The model is chosen where it is active — the session. Epico suggests, before
 # any work, continuing on the recommended model or starting a session already on
 # it; it never tries to switch the model itself.
 
@@ -11,9 +11,9 @@ ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   grep -qF '`claude --model sonnet`' "$ROOT/references/triage.md"
 }
 
-@test "triage: Epic suggests and never switches; nothing under --auto; Standard/Full go through clarify" {
+@test "triage: Epico suggests and never switches; nothing under --auto; Standard/Full go through clarify" {
   f="$ROOT/references/triage.md"
-  grep -qF 'So Epic never tries to switch it' "$f"
+  grep -qF 'So Epico never tries to switch it' "$f"
   grep -qF 'Under `--auto` or headless nothing is suggested' "$f"
   grep -qF 'clarify.md#the-run-model-standard-and-full' "$f"
 }

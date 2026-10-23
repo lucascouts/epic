@@ -17,7 +17,7 @@
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   WORK=$(mktemp -d)
-  SPIKE_DIR="$WORK/.epic/stories/031-probe-cache"
+  SPIKE_DIR="$WORK/.epico/stories/031-probe-cache"
   mkdir -p "$SPIKE_DIR"
 }
 

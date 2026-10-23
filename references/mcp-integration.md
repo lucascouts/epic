@@ -1,6 +1,6 @@
 # MCP Integration
 
-Epic sub-agents can use MCP (Model Context Protocol) servers when available. The goal is to **prefer what is already installed** on the user's system, respect cost, and fall back gracefully to Claude Code's native web tools (`WebFetch`, `WebSearch`) when no research MCP is present.
+Epico sub-agents can use MCP (Model Context Protocol) servers when available. The goal is to **prefer what is already installed** on the user's system, respect cost, and fall back gracefully to Claude Code's native web tools (`WebFetch`, `WebSearch`) when no research MCP is present.
 
 This document covers **research** MCPs (web search), the **docs source order** for library documentation — which needs no MCP — and, in its own section below, the **memory** MCP. For the policy on selecting an E2E testing tool or a frontend implementation aid — favorite vs. optional tiers, detection, and the recommend-and-pause fallback — see [preferred-tooling.md](preferred-tooling.md).
 
@@ -53,7 +53,7 @@ If no research MCP is detected (empty category after health-check):
 1. Fall back to Claude Code's native `WebFetch` and `WebSearch` tools for research tasks. Do not block the flow.
 2. Surface a one-time suggestion in the triage output:
 
-   > "No research MCP detected. Epic will use Claude Code's native `WebFetch` / `WebSearch`. For better research quality, consider installing one of: `brave-search` (recommended default, low cost), `exa`, or `tavily`. See https://code.claude.com/docs/en/mcp#find-and-build-mcp-servers."
+   > "No research MCP detected. Epico will use Claude Code's native `WebFetch` / `WebSearch`. For better research quality, consider installing one of: `brave-search` (recommended default, low cost), `exa`, or `tavily`. See https://code.claude.com/docs/en/mcp#find-and-build-mcp-servers."
 
 3. Let the user choose:
    - Proceed without an MCP (default — use native tools).
@@ -65,7 +65,7 @@ Never hard-block triage on missing MCPs. The suggestion is informative, not gati
 
 A second category, separate from research: **memory**. One candidate, `ai-memory`, the long-term project-memory server. It is **optional and recommended**: when it is reachable the story is enriched by what the project already knows; when it is not, nothing changes — every reader of memory below behaves as it does without memory, and the only trace is one line in the triage proposal.
 
-Its LLM work — the consolidation that turns raw observations into pages, the lint that finds contradictions between them — needs a provider Anthropic's terms allow for a third-party tool: an **API key** with a Haiku-class model, since the work is summarisation, or a **local model** through an OpenAI-compatible endpoint. **Never a Claude subscription OAuth token.** Since February 2026, OAuth from the Free, Pro and Max plans is for Claude Code and Claude.ai only — any other product, tool or service, the Agent SDK included, is outside the terms — and ai-memory's own documentation warns that its `anthropic-oauth` provider risks the account. The Epic's own reads and writes below need no LLM on the server at all.
+Its LLM work — the consolidation that turns raw observations into pages, the lint that finds contradictions between them — needs a provider Anthropic's terms allow for a third-party tool: an **API key** with a Haiku-class model, since the work is summarisation, or a **local model** through an OpenAI-compatible endpoint. **Never a Claude subscription OAuth token.** Since February 2026, OAuth from the Free, Pro and Max plans is for Claude Code and Claude.ai only — any other product, tool or service, the Agent SDK included, is outside the terms — and ai-memory's own documentation warns that its `anthropic-oauth` provider risks the account. The Epico's own reads and writes below need no LLM on the server at all.
 
 ### Detection
 
@@ -85,7 +85,7 @@ Its LLM work — the consolidation that turns raw observations into pages, the l
 
 ### Typed pages
 
-Every page the Epic writes has a type, and the type is in its path: `epic/<type>/<NNN>-<slug>.md`, where `type` is one of `decision`, `gotcha`, `deviation`, `finding`, `research`, `progress`, `proposal`. A reader — a later triage, a supervisor, a person — filters by type before it reads a word.
+Every page the Epico writes has a type, and the type is in its path: `epic/<type>/<NNN>-<slug>.md`, where `type` is one of `decision`, `gotcha`, `deviation`, `finding`, `research`, `progress`, `proposal`. A reader — a later triage, a supervisor, a person — filters by type before it reads a word.
 
 Each page opens with an H1, then one header line and, when it relates to another page, one links line:
 
@@ -107,21 +107,21 @@ links: causes epic/deviation/004-login · fixes epic/finding/002-report-guard ·
 ### Hard rules
 
 - **Memory is never evidence.** A recalled page says where to look; a finding still needs the file and the line that show it. An audit gap, a deviation verdict or a coverage claim resting on memory alone is a protocol violation — memory is an input to verify, not a source to quote. A recalled page can describe code that has since changed, so a finding that rests on it alone can report a defect the code does not have.
-- **Never call `memory_feedback`**, and never write a handoff by hand — the server's own lifecycle hooks capture sessions and hand off between them. The Epic writes durable pages and nothing else.
+- **Never call `memory_feedback`**, and never write a handoff by hand — the server's own lifecycle hooks capture sessions and hand off between them. The Epico writes durable pages and nothing else.
 - **Never copy a secret, a token or personal data** into a page. The register and the audit report are the sources; if one of them carries such a value, it is dropped from the page, not carried over.
-- **Recommend `ignore_paths = [".epic/**"]`** in the user's `.ai-memory.toml`, once, the first time memory is detected on a project — the server's hooks would otherwise capture the artifacts the Epic already versions, and the two records would drift. Informative, never gating.
+- **Recommend `ignore_paths = [".epico/**"]`** in the user's `.ai-memory.toml`, once, the first time memory is detected on a project — the server's hooks would otherwise capture the artifacts the Epico already versions, and the two records would drift. Informative, never gating.
 
 ## Progress notes
 
 A progress note says which protocol step a spawn has reached, so a run that stopped moving can be told from one that is still working. **One note per protocol step**: the Executor writes six per sub-task — `context`, `implementation`, `fidelity`, `validation`, `refactor` or `tests`, `report`; the Auditor, the Tech Reviewer and the Test Advisor write `start`, one per major step, and `report`.
 
 ```bash
-epic-progress --story <story-dir> --task <id> --step <name> --status <started|done|failed|skipped> --evidence "<one line>"
+epico-progress --story <story-dir> --task <id> --step <name> --status <started|done|failed|skipped> --evidence "<one line>"
 ```
 
 Each call appends one JSON line to `<story-dir>/.draft/progress.log` — fields `story`, `task`, `step`, `status`, `evidence`, `at` (UTC). `--evidence` is the one line that shows the step happened (the command and its exit code, the file written); the script flattens it and cuts it at 300 characters.
 
-- **The log is the only destination, never a memory page.** Sub-agents carry no memory tool (the orchestrator is the only writer, above), and `epic-doctor` is a script that reads files: a note it cannot read is a stall it cannot see.
+- **The log is the only destination, never a memory page.** Sub-agents carry no memory tool (the orchestrator is the only writer, above), and `epico-doctor` is a script that reads files: a note it cannot read is a stall it cannot see.
 - **The main tree's story directory, always.** A parallel Executor sits in a worktree, where a `.draft/` write is lost at the merge; the spawn prompt's `Story directory:` line names the path to pass.
 - **The Analyst and the Reviewer have no Bash.** The orchestrator writes their `start` note before the spawn and their `report` note after it returns.
 - A note is a trace, not a verdict: no mode reads a pass or a fail from it.
