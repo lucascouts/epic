@@ -139,6 +139,12 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 > not_verified:                           # the loss annotation — mandatory, never omitted
 >   - what: "E2E checkout flow"
 >     why: "no E2E tool in this story (design.md: E2E tool: none)"
+> untested:                               # changed behaviour no test covers — `[]` when every one has a test
+>   - behaviour: "the retry after a 503"
+>     where: "src/http/client.ts:42"
+> verified_at:                            # the fidelity rung the verification ran on, and its gap
+>   rung: "local bats suite, normal user"
+>   does_not_cover: "the runner's clean checkout — act was not run"
 > checks_run:                             # what was run for each check that found nothing
 >   - check: "Security"
 >     ran: "read src/auth/*.go; gosec ./... → 0 issues"
@@ -149,7 +155,7 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 >     detail: "import left behind by the refactor"
 > ```
 >
-> Every array is present even when empty (`gaps: []`) — only the empty one says checked and clean. `verdict` is `fail` when any gap, unmet gate or `missing_red` entry exists; `fail-record` when none of those exists but a deviation is inaccurate or unrecorded — each also in `record_issues[]` with its exact `fix`; `pass` otherwise; scope creep and checklist findings are advisory, never held against the run. `missing_red`'s `kind` keeps the two absences apart: `no-entry` for a pre-authored test with no Red evidence, `no-test` for a non-`None` `Tests:` field with no test at all.
+> Every array is present even when empty (`gaps: []`) — only the empty one says checked and clean. `verdict` is `fail` when any gap, unmet gate or `missing_red` entry exists; `fail-record` when none of those exists but a deviation is inaccurate or unrecorded — each also in `record_issues[]` with its exact `fix`; `pass` otherwise; scope creep and checklist findings are advisory, never held against the run. `missing_red`'s `kind` keeps the two absences apart: `no-entry` for a pre-authored test with no Red evidence, `no-test` for a non-`None` `Tests:` field with no test at all. `untested` lists each changed behaviour no test covers, written `untested: []` when there is none; `verified_at` names the rung the verification ran on and what it does not cover.
 >
 > Only then summarize in prose:
 > - List of gaps found (cite requirement numbers, component names, file paths)
@@ -170,7 +176,7 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 3. Delete the stale `.draft/validation-report.yaml` and `.draft/audit-report.yaml`, run `epico-validated <story-dir>` — it records the commit about to be checked, and whether the tree outside `.epico/` is dirty, in `.draft/validated.yaml`, which archive carries into the manifest (exit 2 outside git: carry on without it) — then spawn **one** Auditor sub-agent (`run_in_background: false`) and wait for its completion. It runs the validation first — each task's validation command, tests and gates, per [validation-protocol.md](validation-protocol.md) — and writes `.draft/validation-report.yaml`; on a validation pass it goes on to compare the code against story + design, review the deviation register, and write `.draft/audit-report.yaml`. The spawn prompt is the two blocks below, validation first. When memory is available, it carries prior structural findings recalled with one `memory_query` — `audit OR scope-creep OR false-positive OR recurring`, `limit: 10` — as things to verify ([mcp-integration.md](mcp-integration.md#memory-mcp))
 4. Read both verdicts with `epico-report --story <dir>` — never the whole YAML ([output-rules.md](output-rules.md#reading-files-back)). Take the validation verdict from the file `.draft/validation-report.yaml`. On `verdict: fail` the audit file is absent by design — the run is a validation failure. On `verdict: pass`, take the audit verdict from the file `.draft/audit-report.yaml` the same way
 4a. **The claims check**, when `epic-supervise` is on PATH and `EPICO_SUPERVISION` is not `off`: run `epic-supervise claims --root <project> --story <NNN> --workspace <ws> --project <proj>` (the ai-memory scope triage resolved) and wait for it. It compares what the run claimed — progress notes, reports, closed boxes — with the exit codes and commits recorded elsewhere, writes `.draft/reports/claims.md`, and adds one finding per divergence to the project's findings store. It never blocks the verdict: its divergences join the results below as claims to verify. Without the command, say so in one line and go on.
-5. Present the combined results to the user, composed from the two files: the validation's `results[]` and `gates[]`, the audit's `gaps[]`, `unmet_gates[]`, `deviations_reviewed[]`, `scope_creep[]`, `missing_red[]` and `findings[]` — and always its `not_verified[]`, as the last line, even on a pass
+5. Present the combined results to the user, composed from the two files: the validation's `results[]` and `gates[]`, the audit's `gaps[]`, `unmet_gates[]`, `deviations_reviewed[]`, `scope_creep[]`, `missing_red[]` and `findings[]` — and always its `not_verified[]`, `untested[]` and `verified_at`, as the last lines, even on a pass
 5a. **On `verdict: fail-record`, fix the record yourself.** Apply each `record_issues[]` fix with `epico-deviation` — `amend --id N --<field> …` for a wrong entry, `add deviation …` for a missing one — list every fix in `.draft/run-report.md` under `## Record fixes` and in the presented results, and treat the audit as `pass` from here on. No fix round, no task group, no second Auditor: the code passed, and only the register was wrong
 6. If gaps found, offer to create new tasks to address them — **bounded to two fix rounds**, see [Fix loop bound](#fix-loop-bound)
 7. Apply the status transition for this verdict — see Status Transition (`validated`)

@@ -150,3 +150,37 @@ ci_mirror_rule() { # ci_mirror_rule <label> <block> — the rule sits on one lin
   proto=$(section "$ROOT/references/validation-protocol.md" '^Then settle the' '^Then write')
   ci_mirror_rule "S14" "$proto"
 }
+
+# --- R2: untested and verified_at in the audit report ------------------------
+
+@test "S15: untested and verified_at are their own keys in auditor.md's report template, beside not_verified" {
+  rep=$(section "$ROOT/agents/auditor.md" '^## The Report File' '^## ')
+  yaml=$(printf '%s\n' "$rep" | awk '/^```yaml/{f=1;next} f && /^```/{exit} f')
+  [ "$(printf '%s\n' "$yaml" | command grep -c '^not_verified:')" -eq 1 ]
+  [ "$(printf '%s\n' "$yaml" | command grep -c '^untested:')" -eq 1 ]
+  [ "$(printf '%s\n' "$yaml" | command grep -c '^verified_at:')" -eq 1 ]
+}
+
+@test "S16: auditor.md writes untested: [] explicitly and verified_at names the rung and its gap" {
+  rep=$(section "$ROOT/agents/auditor.md" '^## The Report File' '^## ')
+  prose=$(printf '%s\n' "$rep" | awk '/^```/{f=!f;next} !f')
+  has "S16 empty" "$prose" '`untested: \[\]`'
+  has "S16 never omitted" "$prose" 'untested[^.]*(never|not) (left out|omitted)|never (left out|omitted)[^.]*untested'
+  has "S16 rung" "$prose" 'verified_at[^.]*rung'
+  has "S16 gap" "$prose" 'verified_at[^.]*does not cover'
+}
+
+@test "S17: validate-mode.md's audit template carries both keys beside not_verified" {
+  part2=$(section "$ROOT/references/validate-mode.md" '^## Audit — Part 2' '^## ')
+  [ "$(printf '%s\n' "$part2" | command grep -c '^> not_verified:')" -eq 1 ]
+  [ "$(printf '%s\n' "$part2" | command grep -c '^> untested:')" -eq 1 ]
+  [ "$(printf '%s\n' "$part2" | command grep -c '^> verified_at:')" -eq 1 ]
+}
+
+@test "S18: the step that presents not_verified presents untested and verified_at too" {
+  step=$(command grep -E '^5\. Present the combined results' "$ROOT/references/validate-mode.md")
+  [ -n "$step" ]
+  has "S18 not_verified" "$step" 'not_verified'
+  has "S18 untested" "$step" 'untested'
+  has "S18 verified_at" "$step" 'verified_at'
+}
