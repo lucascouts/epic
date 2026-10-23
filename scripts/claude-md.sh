@@ -98,6 +98,7 @@ block() {
   echo "- One command runs every test."
   echo "- Fakes are named for what they stand in for (\`FakeClock\`, \`InMemoryOrders\`)."
   echo "- Dependencies arrive through parameters or constructors, never through globals."
+  echo "- Never \`eval\`/exec input, never build a command or query from it."
   echo "- The formatter runs in pre-commit."
   echo "- Logs are JSON, one event per line."
   local inv

@@ -30,6 +30,7 @@ After a sub-task's validation passes — whether an Executor or the main agent i
 
 **For SQL/database:**
 - All queries use parameterized placeholders — no string interpolation
+- Never `eval`/exec input, never build a command or query from it: no `eval`, `exec`, shell string or query string assembled from external data
 - Foreign key references point to existing entities or the code handles the missing-entity case
 - Types in application structs match the database column types
 

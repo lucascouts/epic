@@ -298,3 +298,35 @@ RUN_MODE="$ROOT/references/run-mode.md"
   proto=$(section "$ROOT/agents/tech-reviewer.md" '^## Protocol' '^## ')
   has "S34 pointer" "$proto" 'language-rules\.md'
 }
+
+# --- R5.1–R5.3: never eval or exec input --------------------------------------
+
+eval_rule() { # eval_rule <label> <block>
+  has "$1 eval" "$2" 'never `?eval`?/?`?exec`?[^.]*input'
+  has "$1 build" "$2" 'never build a command or (a )?query from it'
+}
+
+@test "S35: the Executor's implementation step forbids eval/exec of input" {
+  step2=$(section "$ROOT/agents/executor.md" '^### Step 2' '^### ')
+  eval_rule "S35" "$step2"
+}
+
+@test "S36: the Tech Reviewer states it beside the parameterized-SQL rule" {
+  sql=$(section "$ROOT/agents/tech-reviewer.md" '^[*][*]For SQL' '^[*][*]For API')
+  has "S36 sql kept" "$sql" 'parameterized placeholders'
+  eval_rule "S36" "$sql"
+}
+
+@test "S37: the managed CLAUDE.md block carries it in Code rules, and stays under 100 lines" {
+  R=$(mktemp -d)
+  git -C "$R" init -q
+  mkdir -p "$R/.epico"
+  cp "$ROOT/.epico/constitution.md" "$R/.epico/constitution.md"
+  run bash "$ROOT/scripts/claude-md.sh" write --root "$R"
+  [ "$status" -eq 0 ]
+  lines=$(printf '%s' "$output" | jq -r '.lines')
+  rules=$(section "$R/CLAUDE.md" '^### Code rules' '^#')
+  rm -rf "$R"
+  eval_rule "S37" "$rules"
+  [ "$lines" -lt 100 ]
+}

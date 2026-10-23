@@ -57,6 +57,7 @@ Implement the changes described in the ToDo field.
 
 - Follow it **literally**. If it says "handle error", implement error handling. If it says "return 500 on failure", use graceful error handling — not panic, unwrap, expect, or unhandled throw.
 - Apply findings from Step 1.
+- Never `eval`/exec input, never build a command or query from it — pass it as an argument list or a bound parameter; input that reaches a shell, an interpreter or a query string is an injection.
 - When the ToDo specifies a function signature, match it against the Design Context. If you need to deviate, document WHY.
 
 **Frontend sub-tasks — `frontend-design` skill.** When a frontend implementation sub-task designates the `frontend-design` skill — as recorded in design.md's `## Tooling Decisions` block and surfaced in the sub-task ToDo — invoke that skill with the `Skill` tool during this Implementation step. Consume the recorded designation as-is: do NOT re-detect or re-decide the tooling.
