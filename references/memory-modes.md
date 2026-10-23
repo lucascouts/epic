@@ -4,7 +4,7 @@ Two modes turn what the project learned into something it keeps, and neither tou
 
 ## Stories from memory
 
-`/epic:epic stories from-memory [<page>]` drafts a story from a `proposal` page ([Typed pages](mcp-integration.md#typed-pages)) — a change an outside classifier or a supervisor thinks the project needs.
+`/epico:epico stories from-memory [<page>]` drafts a story from a `proposal` page ([Typed pages](mcp-integration.md#typed-pages)) — a change an outside classifier or a supervisor thinks the project needs.
 
 1. **Pick the proposal.** With `<page>`, read it (`memory_read_page`). Without, list this project's `epic/proposal/` pages not yet drafted (no `drafted:` line), newest `as_of` first, at most ten, and ask which one with `AskUserQuestion`. Headless: print the list and stop — choosing a story to open is the user's decision, never an assumption. A proposal marked `priority: urgent` is listed first and drafted only after the user acknowledges it in its own question — it came from a supervisor's urgent lane, not from a checkpoint's triage — and headless never drafts it.
 2. **Verify it against the code** ([lookup-order.md](lookup-order.md)). Every file, line, behaviour or number the page states is checked; what no longer holds is said beside the proposal, and a proposal whose premise the code contradicts is reported and not drafted.
@@ -15,7 +15,7 @@ The story then runs like any other. Nothing in the proposal is executed, and not
 
 ## Sync docs
 
-`/epic:epic sync-docs` turns what the project learned into a diff for its own documents, and writes only what the user accepts. Two parts: a **collector** that gathers the items, and the **doc writer** — the only thing in Epic that writes a project's root documents.
+`/epico:epico sync-docs` turns what the project learned into a diff for its own documents, and writes only what the user accepts. Two parts: a **collector** that gathers the items, and the **doc writer** — the only thing in Epic that writes a project's root documents.
 
 1. **Collect** the items since the last sync — the date in `.epic/.sync-docs` (absent: everything):
    - **From memory, when it is available:** this project's `epic/finding/` and `epic/decision/` pages with a later `as_of`. Without memory, say so in one line and use the other sources.
@@ -26,7 +26,7 @@ The story then runs like any other. Nothing in the proposal is executed, and not
 2. **Map each item to its document**, the ones the project has — each looked for at the root and under `docs/`:
    - `ROADMAP.md` — a decision that adds, drops or reorders planned work
    - the PRD (`PRD.md`) — a decision that changes a requirement or its scope
-   - `.epic/constitution.md` `## Invariants` — a finding that became a rule, as `- Never <X> — <the incident>`; `epic-claude-md write` then carries it into `CLAUDE.md`
+   - `.epic/constitution.md` `## Invariants` — a finding that became a rule, as `- Never <X> — <the incident>`; `epico-claude-md write` then carries it into `CLAUDE.md`
    - `adr/` — an architectural decision
 3. **An ADR's text is never rewritten.** What changes decides the form:
    - **The decision changes** → a **new** ADR with the next number, `Supersedes: ADR-<n>` and the reason; the old file is left exactly as it is. A decision with no ADR yet is a new ADR too.

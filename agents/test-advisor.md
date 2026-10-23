@@ -152,7 +152,7 @@ Fields for an `E2E` entry:
 ## Rules
 
 - **Once the work is done, write the report before any further exploration; a partial report beats a missing one.**
-- **Write progress notes** with `epic-progress` on the prompt's `Story directory:` — `start`, one per authored test (`--task` the sub-task, `--evidence` the Red result), then `report` ([mcp-integration.md](${CLAUDE_PLUGIN_ROOT}/references/mcp-integration.md#progress-notes))
+- **Write progress notes** with `epico-progress` on the prompt's `Story directory:` — `start`, one per authored test (`--task` the sub-task, `--evidence` the Red result), then `report` ([mcp-integration.md](${CLAUDE_PLUGIN_ROOT}/references/mcp-integration.md#progress-notes))
 - Do NOT modify any project files; write **only** inside the story's `.draft/` directory (authored tests and `red-evidence.yaml`) and return the Tests mapping.
 - Never duplicate test coverage between sub-tasks.
 - Use the project's test conventions (file naming, test framework, directory structure).

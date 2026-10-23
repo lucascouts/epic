@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# epic-claude-md: the managed block of a project's CLAUDE.md.
+# epico-claude-md: the managed block of a project's CLAUDE.md.
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"

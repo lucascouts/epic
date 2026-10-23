@@ -6,7 +6,7 @@
 #
 #   N1  the question is AskUserQuestion: one step (refine or validate) plus
 #       Stop here — never a menu of modes, never archive
-#   N2  the fill is measured by epic-telemetry's `band`, never estimated and
+#   N2  the fill is measured by epico-telemetry's `band`, never estimated and
 #       never from a guessed --window: a 200k guess on a 1M model read 107%
 #   N3  the bands: high recommended here, efficient allowed, degraded a new
 #       session — a mode that runs out of room mid-way loses what it checked
@@ -37,10 +37,10 @@ setup() {
   [[ "$END" == *"**Archive is never this question's step.**"* ]]
 }
 
-@test "N2: the context fill is read from epic-telemetry's band, never a guessed window" {
-  [[ "$END" == *"epic-telemetry | jq '.context'"* ]]
+@test "N2: the context fill is read from epico-telemetry's band, never a guessed window" {
+  [[ "$END" == *"epico-telemetry | jq '.context'"* ]]
   [[ "$END" == *'Read `band`'* ]]
-  run grep -q 'epic-telemetry --window' "$ROOT/references/run-mode.md"
+  run grep -q 'epico-telemetry --window' "$ROOT/references/run-mode.md"
   [ "$status" -eq 1 ]
 }
 
@@ -88,7 +88,7 @@ setup() {
 @test "N8: SKILL.md carries the next-step rule, since run-mode.md is read in slices" {
   # A 2026-09-26 run grepped run-mode.md for "End of Run" and never read the
   # section: a rule that lives only in a reference does not reach the Fast path.
-  grep -q 'A run that finishes a story ends with an `AskUserQuestion`' "$ROOT/skills/epic/SKILL.md"
+  grep -q 'A run that finishes a story ends with an `AskUserQuestion`' "$ROOT/skills/epico/SKILL.md"
 }
 
 @test "N9: a layperson is offered to see the program running, then asked again" {
@@ -118,6 +118,6 @@ setup() {
   VM="$ROOT/references/validate-mode.md"
   grep -q '2\. `status:` reads \*\*`validated`\*\* after step 2\.' "$VM"
   grep -q 'Run mode never makes it' "$VM"
-  grep -q 'epic-archive NNN --force "superseded by MMM"' "$ROOT/references/supersede-mode.md"
+  grep -q 'epico-archive NNN --force "superseded by MMM"' "$ROOT/references/supersede-mode.md"
   grep -q '**validated and complete**' "$ROOT/references/list-mode.md"
 }

@@ -34,18 +34,18 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has scripts/story-telemetry.sh 'e: 400000'
 }
 
-@test "X3: the deviation register is written only through epic-deviation" {
-  has references/run-mode.md 'written only through `epic-deviation`'
-  has references/run-mode.md 'epic-deviation discharge'
-  has references/validate-mode.md 'epic-deviation'
-  has references/refine-mode.md 'epic-deviation add deviation'
+@test "X3: the deviation register is written only through epico-deviation" {
+  has references/run-mode.md 'written only through `epico-deviation`'
+  has references/run-mode.md 'epico-deviation discharge'
+  has references/validate-mode.md 'epico-deviation'
+  has references/refine-mode.md 'epico-deviation add deviation'
 }
 
 @test "X4: the orchestrator greps and reads through epic-* scripts, never cats a whole report" {
   has references/output-rules.md '## reading files back'
   has references/output-rules.md 'never `cat` the file'
-  has references/output-rules.md 'epic-report --story'
-  has references/validate-mode.md 'epic-report --story <dir>'
+  has references/output-rules.md 'epico-report --story'
+  has references/validate-mode.md 'epico-report --story <dir>'
 }
 
 @test "X5: per-spawn effort for the Executor by complexity; model never passed on any other spawn" {
@@ -55,12 +55,12 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
 }
 
 @test "X6: headless takes the mode's gates but never starts the step after it (prompt-audit finding)" {
-  has skills/epic/SKILL.md 'the step after the mode is never started'
+  has skills/epico/SKILL.md 'the step after the mode is never started'
 }
 
 @test "X7: the Executor's model is the user's executorModel option, inherit by default" {
   command jq -e '.userConfig.executorModel.default == "inherit" and .userConfig.executorModel.options == ["inherit","haiku","by-complexity"]' "$ROOT/.claude-plugin/plugin.json"
-  has skills/epic/SKILL.md 'user_config.executorModel'
+  has skills/epico/SKILL.md 'user_config.executorModel'
   has references/run-mode.md 'read from the `executorModel` plugin option'
   has references/run-mode.md 'executor `model` under `by-complexity`'
 }

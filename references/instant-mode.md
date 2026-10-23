@@ -1,8 +1,8 @@
 # Instant — the disposable-work shortcut
 
-Loaded by `/epic:epic instant <description>`, together with [triage.md](triage.md), which it reads with the three pins below already set.
+Loaded by `/epico:epico instant <description>`, together with [triage.md](triage.md), which it reads with the three pins below already set.
 
-`/epic:epic instant <description>` is **Create with three pins, not a fourth scale.** It writes the same `tasks.md` every Fast story writes; what it removes is the deciding, not the artifact.
+`/epico:epico instant <description>` is **Create with three pins, not a fourth scale.** It writes the same `tasks.md` every Fast story writes; what it removes is the deciding, not the artifact.
 
 | Pin | Value | Why it is pinned rather than asked |
 |---|---|---|
@@ -14,7 +14,7 @@ Loaded by `/epic:epic instant <description>`, together with [triage.md](triage.m
 
 **No technical question round.** The intent cascade is already answered and does not run. A technical choice the request leaves open is taken as a recommended default and recorded on its line — never turned into a question. The requester asked for the short path; spending their turn on a menu is the one thing `instant` exists to avoid.
 
-**The interface speaks the language the request was written in.** `instant` asks nothing, so it does not ask this either — and the artifacts' English is about artifacts, never about the menu the requester reads. Take their language, and say so on its line: *"menu in Portuguese, the language you wrote in — say the word and I'll switch it"*. Shipping an interface the requester cannot read, on a rule that was never about them, is the shortcut deciding something that was not its to decide ([Language](../skills/epic/SKILL.md#language)).
+**The interface speaks the language the request was written in.** `instant` asks nothing, so it does not ask this either — and the artifacts' English is about artifacts, never about the menu the requester reads. Take their language, and say so on its line: *"menu in Portuguese, the language you wrote in — say the word and I'll switch it"*. Shipping an interface the requester cannot read, on a rule that was never about them, is the shortcut deciding something that was not its to decide ([Language](../skills/epico/SKILL.md#language)).
 
 **What it does not remove.** The three pins are the whole difference. Triage still runs, the plan is still written, and every box still carries a `Validation:` that proves it alone.
 

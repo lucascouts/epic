@@ -39,7 +39,7 @@ ROOT=$(cd "$ROOT" && pwd)
 MD="$ROOT/CLAUDE.md"
 CONST="$ROOT/.epic/constitution.md"
 # shellcheck disable=SC2016  # the backticks are literal Markdown
-START='<!-- epic:start — managed by the Epic plugin; `/epic:epic init --repair` rewrites everything up to epic:end -->'
+START='<!-- epic:start — managed by the Epic plugin; `/epico:epico init --repair` rewrites everything up to epic:end -->'
 END='<!-- epic:end -->'
 
 section() {  # <file> <heading> — the bullet lines under `## <heading>`

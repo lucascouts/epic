@@ -50,7 +50,7 @@ user request │  triage ─► analyst ─► clarify ─► phases (main agent
              └───────────────────────────────────────────────────┘
 ```
 
-Scale (Fast / Standard / Full) controls which artifacts exist and which personas activate. The triage step emits a single proposal covering mode, workflow variant, MCPs, and output path — see [`skills/epic/SKILL.md`](references/triage.md#triage-protocol).
+Scale (Fast / Standard / Full) controls which artifacts exist and which personas activate. The triage step emits a single proposal covering mode, workflow variant, MCPs, and output path — see [`skills/epico/SKILL.md`](references/triage.md#triage-protocol).
 
 ---
 
@@ -60,11 +60,11 @@ The plugin surface maps to Claude Code's extension points:
 
 | Directory | Claude Code hook point | Role |
 |---|---|---|
-| `skills/epic/` | Skill | The `/epic:epic` entry point. Parses `$ARGUMENTS`, routes to modes, orchestrates agents, writes artifacts. |
+| `skills/epico/` | Skill | The `/epico:epico` entry point. Parses `$ARGUMENTS`, routes to modes, orchestrates agents, writes artifacts. |
 | `agents/` | Sub-agents | 8 specialized personas with bounded tool access and dedicated context windows. |
 | `hooks/hooks.json` | Hooks | 9 hook events, each `if:`-filtered to `.epic/**` paths or tool-arg patterns. |
 | `output-styles/epic.md` | Output style | Optional structured presentation mode. |
-| `bin/` | PATH executables | `epic-validate`, `epic-xref`, `epic-archive` — thin wrappers over `scripts/`. |
+| `bin/` | PATH executables | `epico-validate`, `epico-xref`, `epico-archive` — thin wrappers over `scripts/`. |
 | `scripts/` | — | Bash implementations behind hooks, bin, and CI. |
 | `references/` | — | Mode-specific operational guides loaded on-demand by the skill. |
 | `.claude-plugin/plugin.json` | Manifest | Plugin metadata + `userConfig` schema. |
@@ -178,7 +178,7 @@ All files in a story share the same `version`. It's an integer, not semver; bump
 
 ## Hook matrix
 
-All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — so they fire on Claude's `.epic/**` writes even outside a `/epic:epic` session (another skill, a plain `Write`). A skill-frontmatter hook would start only once the skill is invoked, and then stay active for the rest of the session. Tool hooks never see edits made in an external editor. Each uses an `if:` filter or matcher to stay cheap when Epic is idle.
+All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — so they fire on Claude's `.epic/**` writes even outside a `/epico:epico` session (another skill, a plain `Write`). A skill-frontmatter hook would start only once the skill is invoked, and then stay active for the rest of the session. Tool hooks never see edits made in an external editor. Each uses an `if:` filter or matcher to stay cheap when Epic is idle.
 
 | Event | Matcher / if-filter | Script | Purpose |
 |---|---|---|---|
@@ -186,7 +186,7 @@ All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — 
 | `PreToolUse` | `Edit(**/.epic/archive/**)` · `Write(**/.epic/archive/**)` | `hook-archive-guard.sh` | Block mutations to archived stories |
 | `PreToolUse` | `Bash` (no filter) · `Edit`/`Write` of `**/.epic/stories/**/tasks.md` | `hook-executor-guard.sh` | Inside the Executor (`agent_type`), deny `git commit` and edits to `tasks.md` |
 | `PreToolUse` | `Bash` (no filter) | `hook-commit-identity-guard.sh` | Deny a commit that supplies its own identity, and any `git config user.*` write |
-| `SubagentStop` | `epic:auditor` | `hook-report-guard.sh` | Keep the agent running until its report file is on disk |
+| `SubagentStop` | `epico:auditor` | `hook-report-guard.sh` | Keep the agent running until its report file is on disk |
 | `Stop` | — | `hook-legend-guard.sh` | For a `layperson` requester, block the end of a turn once while a process word from any of its text has no legend, naming each word |
 | `Stop` | — | `hook-commit-guard.sh` | Block the end of a turn once while a finished group's pre-authored commit is missing, naming the message |
 | `SessionStart` | `compact` | `hook-session-restore.sh` | After a compaction, render the active story's state from disk into context |
@@ -266,9 +266,9 @@ Short rationale for choices a contributor might otherwise second-guess:
 
 All hook scripts and validators are bash. The plugin has zero runtime dependencies beyond `bash`, `git`, `jq` — which are baseline for any development environment. Adding Node/Python would force users into a runtime install for a plugin that mostly shells out to CC itself.
 
-### Single skill (`/epic:epic`), not multiple slash commands
+### Single skill (`/epico:epico`), not multiple slash commands
 
-Every mode (Create, List, Run, Validate, Refine, Archive, Init) lives under `/epic:epic` via `$ARGUMENTS` routing. This keeps discovery simple (one command to remember), concentrates triage/orchestration in one place, and lets reference files share context-loading rules. Modes that diverge heavily load dedicated `references/*-mode.md` files on entry.
+Every mode (Create, List, Run, Validate, Refine, Archive, Init) lives under `/epico:epico` via `$ARGUMENTS` routing. This keeps discovery simple (one command to remember), concentrates triage/orchestration in one place, and lets reference files share context-loading rules. Modes that diverge heavily load dedicated `references/*-mode.md` files on entry.
 
 ### Scale-adaptive (Fast / Standard / Full)
 
@@ -278,11 +278,11 @@ Test-first ordering is scale-adaptive too. Standard and Full author failing test
 
 ### English-only artifacts, user's language in chat
 
-Artifacts (story/design/tasks) are always English because Claude performs best on English technical content and these artifacts are consumed by later sub-agents. User-facing chat follows the user's prompt language. No override — this is in [SKILL.md](skills/epic/SKILL.md#language).
+Artifacts (story/design/tasks) are always English because Claude performs best on English technical content and these artifacts are consumed by later sub-agents. User-facing chat follows the user's prompt language. No override — this is in [SKILL.md](skills/epico/SKILL.md#language).
 
 ### Hooks at plugin scope, not skill frontmatter
 
-Plugin-scope hooks fire when the user edits `.epic/**` outside an active `/epic:epic` session (plain `Edit`, external editor, another skill). Skill-frontmatter hooks would only apply during skill execution — none of Epic's hooks fit that profile. Detailed rationale is embedded in [SKILL.md](skills/epic/SKILL.md#validation).
+Plugin-scope hooks fire when the user edits `.epic/**` outside an active `/epico:epico` session (plain `Edit`, external editor, another skill). Skill-frontmatter hooks would only apply during skill execution — none of Epic's hooks fit that profile. Detailed rationale is embedded in [SKILL.md](skills/epico/SKILL.md#validation).
 
 ### Archive immutability via PreToolUse block, not convention
 
@@ -301,7 +301,7 @@ Epic is opinionated about E2E test tooling so stories do not silently adopt what
 - **Favorites vs optional.** Favorite E2E tools are `playwright` and `chrome-devtools`. Optional E2E tools (`puppeteer`, `selenium`, `browser-use`, `stagehand`) are accepted but never auto-selected over a favorite.
 - **Three-mechanism detection.** Triage detects installed tools via (1) MCP health-check, (2) dependency-manifest inspection, and (3) skill-list presence. Detection runs in **all modes, including Fast** — it is not gated by scale.
 - **Recommend-and-pause fallback.** When no favorite is installed, triage surfaces a recommendation and pauses rather than silently choosing an optional tool.
-- **Where it surfaces.** Triage (`skills/epic/SKILL.md`) carries step 7b "Detect preferred tooling", a `### Preferred Tooling` subsection, and a `> - Tooling:` proposal line. The resolved selection is persisted to `design.md`'s `## Tooling Decisions` block, which the Test Advisor reads when authoring `E2E` tests.
+- **Where it surfaces.** Triage (`skills/epico/SKILL.md`) carries step 7b "Detect preferred tooling", a `### Preferred Tooling` subsection, and a `> - Tooling:` proposal line. The resolved selection is persisted to `design.md`'s `## Tooling Decisions` block, which the Test Advisor reads when authoring `E2E` tests.
 - **Frontend aid.** When the `frontend-design` skill is installed it is the preferred frontend implementation aid.
 
 ---
@@ -312,7 +312,7 @@ Common contributions and where they go:
 
 | Change | Touch |
 |---|---|
-| New story mode (e.g., `review`, `rollback`) | Add routing line in [SKILL.md](skills/epic/SKILL.md#command-routing), create `references/<name>-mode.md`, add mode row to Mode Dispatch table |
+| New story mode (e.g., `review`, `rollback`) | Add routing line in [SKILL.md](skills/epico/SKILL.md#command-routing), create `references/<name>-mode.md`, add mode row to Mode Dispatch table |
 | New sub-agent persona | Add `agents/<name>.md` with frontmatter (tools, effort, model), wire activation in SKILL.md's persona tables and relevant phase procedure |
 | New hook event | Append to `hooks/hooks.json` with `if:` filter, add script under `scripts/hook-*.sh`, document in [Hook matrix](#hook-matrix) |
 | New validation rule | Extend `scripts/validate-story.sh` (errors vs warnings), add a `bats` test under `tests/` |
@@ -328,7 +328,7 @@ Before adding a new reference file under `references/`, check whether existing o
 Epic deliberately does not do these things. Adding them would conflict with the design:
 
 - **Idea exploration.** Epic formalizes work already decided. It does not brainstorm alternatives or write speculative code.
-- **Generic code generation outside a story.** The `/epic:epic` command refuses to implement without an approved task.
+- **Generic code generation outside a story.** The `/epico:epico` command refuses to implement without an approved task.
 - **Repo-wide refactors as a single story.** Breaking large refactors into multiple stories is the correct pattern (linked via "based on" / "extends").
 - **Runtime dependencies beyond bash/git/jq.** MCPs are optional and health-checked; their absence degrades gracefully.
 - **Version-controlled drafts.** `.epic/` (including `.draft/`) is `.gitignored` by default; the user decides when a story is ready to commit.
@@ -338,7 +338,7 @@ Epic deliberately does not do these things. Adding them would conflict with the 
 ## See also
 
 - [README.md](README.md) — installation, feature list, version-compatibility matrix
-- [`skills/epic/SKILL.md`](skills/epic/SKILL.md) — the orchestrator, command routing, phase execution
+- [`skills/epico/SKILL.md`](skills/epico/SKILL.md) — the orchestrator, command routing, phase execution
 - [`references/phase-gates.md`](references/phase-gates.md) — gate protocol, cascade rollback, section progress
 - [`references/ci-mode.md`](references/ci-mode.md) — headless invocation, deferred commits
 - [`references/mcp-integration.md`](references/mcp-integration.md) — MCP health-check procedure

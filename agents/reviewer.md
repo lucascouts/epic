@@ -34,7 +34,7 @@ A path missing or unreadable → report `INCOMPLETE: <file> missing` and the che
 
 ## Checks
 
-1. **Requirement coverage:** Every requirement in `story.md` has at least one task in `tasks.md` — the mechanical half is `epic-xref` (its `mapping`); you judge whether the mapped tasks actually cover what the requirement says
+1. **Requirement coverage:** Every requirement in `story.md` has at least one task in `tasks.md` — the mechanical half is `epico-xref` (its `mapping`); you judge whether the mapped tasks actually cover what the requirement says
 2. **Data model coverage:** Every entity in `story.md` has a data model in `design.md`
 3. **Entry-point coverage:** Every entry point in `design.md` — route, endpoint, command, screen, job — maps to a task that implements it
 4. **Error path coverage:** Error paths in `story.md` are addressed in `design.md` error handling

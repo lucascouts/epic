@@ -1,6 +1,6 @@
 # Checkpoint mode — closing a stage
 
-`/epic:epic checkpoint <N>` closes stage N of the project's ROADMAP: it reconciles the plan with what the stories delivered, records the gate, decides what the stage changed in the documents, and details the next stage. It writes documents only through the doc writer ([memory-modes.md](memory-modes.md#sync-docs)), never code, never a story.
+`/epico:epico checkpoint <N>` closes stage N of the project's ROADMAP: it reconciles the plan with what the stories delivered, records the gate, decides what the stage changed in the documents, and details the next stage. It writes documents only through the doc writer ([memory-modes.md](memory-modes.md#sync-docs)), never code, never a story.
 
 It needs a ROADMAP — `ROADMAP.md`, `docs/ROADMAP.md` or `docs/stages/*.md` — that numbers stage N's tasks. Without one, say so in one line and stop.
 
@@ -13,7 +13,7 @@ It needs a ROADMAP — `ROADMAP.md`, `docs/ROADMAP.md` or `docs/stages/*.md` —
 
 ## Procedure
 
-1. **Reconcile.** Run `epic-checkpoint --stage <N>`. Each task arrives with a state:
+1. **Reconcile.** Run `epico-checkpoint --stage <N>`. Each task arrives with a state:
    - `closed` — an archived story names it; confirm in one block.
    - `in-work` — an open story names it; the stage is not done while it lasts.
    - `unmapped` — checked, but no story names it: a story from before `roadmap:` existed, or work done outside a story. Propose the story by title from `stories_without_roadmap`, or ask whether it was done outside a story.

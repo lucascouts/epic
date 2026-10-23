@@ -56,22 +56,22 @@ teardown() {
 guard() { bash "$PLUGIN_ROOT/scripts/hook-executor-guard.sh"; }
 
 @test "executor guard denies git commit inside the Executor" {
-  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epic:executor\",tool_name:\"Bash\",tool_input:{command:\"git add a && git commit -m x\"}}' | guard"
+  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epico:executor\",tool_name:\"Bash\",tool_input:{command:\"git add a && git commit -m x\"}}' | guard"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.hookSpecificOutput.permissionDecision == "deny"'
 }
 
 @test "executor guard denies editing tasks.md inside the Executor" {
-  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epic:executor\",tool_name:\"Edit\",tool_input:{file_path:\"/w/.epic/stories/001-x/tasks.md\"}}' | guard"
+  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epico:executor\",tool_name:\"Edit\",tool_input:{file_path:\"/w/.epic/stories/001-x/tasks.md\"}}' | guard"
   echo "$output" | jq -e '.hookSpecificOutput.permissionDecision == "deny"'
 }
 
 @test "executor guard leaves the orchestrator and harmless commands alone" {
   run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{tool_name:\"Bash\",tool_input:{command:\"git commit -m x\"}}' | guard"
   [ -z "$output" ]
-  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epic:executor\",tool_name:\"Bash\",tool_input:{command:\"git log --grep commit\"}}' | guard"
+  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epico:executor\",tool_name:\"Bash\",tool_input:{command:\"git log --grep commit\"}}' | guard"
   [ -z "$output" ]
-  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epic:executor\",tool_name:\"Write\",tool_input:{file_path:\"/w/src/app.js\"}}' | guard"
+  run bash -c "$(declare -f guard); PLUGIN_ROOT='$PLUGIN_ROOT'; jq -n '{agent_type:\"epico:executor\",tool_name:\"Write\",tool_input:{file_path:\"/w/src/app.js\"}}' | guard"
   [ -z "$output" ]
 }
 
@@ -91,10 +91,10 @@ guard() { bash "$PLUGIN_ROOT/scripts/hook-executor-guard.sh"; }
   cd "$WORK/src/deep"
   run bash -c "jq -n --arg f '$WORK/.epic/archive/001-old/story.md' '{tool_name:\"Edit\",tool_input:{file_path:\$f}}' | bash '$PLUGIN_ROOT/scripts/hook-archive-guard.sh'"
   [ "$status" -eq 2 ]
-  run bash -c "jq -n --arg f '../../.epic/stories/001-x/tasks.md' '{agent_type:\"epic:executor\",tool_name:\"Write\",tool_input:{file_path:\$f}}' | bash '$PLUGIN_ROOT/scripts/hook-executor-guard.sh'"
+  run bash -c "jq -n --arg f '../../.epic/stories/001-x/tasks.md' '{agent_type:\"epico:executor\",tool_name:\"Write\",tool_input:{file_path:\$f}}' | bash '$PLUGIN_ROOT/scripts/hook-executor-guard.sh'"
   echo "$output" | jq -e '.hookSpecificOutput.permissionDecision == "deny"'
   for c in 'git -C ../.. commit -m x' 'git -c core.hooksPath=/dev/null commit -m x' 'cd ../.. && git commit -m x'; do
-    run bash -c "jq -n --arg c '$c' '{agent_type:\"epic:executor\",tool_name:\"Bash\",tool_input:{command:\$c}}' | bash '$PLUGIN_ROOT/scripts/hook-executor-guard.sh'"
+    run bash -c "jq -n --arg c '$c' '{agent_type:\"epico:executor\",tool_name:\"Bash\",tool_input:{command:\$c}}' | bash '$PLUGIN_ROOT/scripts/hook-executor-guard.sh'"
     echo "$output" | jq -e '.hookSpecificOutput.permissionDecision == "deny"'
   done
   run bash -c "jq -n '{tool_name:\"Bash\",tool_input:{command:\"cd ../.. && git -c user.email=a@b commit -m x\"}}' | bash '$PLUGIN_ROOT/scripts/hook-commit-identity-guard.sh'"
@@ -109,7 +109,7 @@ spawn_transcript() {  # <file> <story-dir line> [project-root line]
   printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}' >> "$1"
 }
 report_guard() {  # <transcript> [stop_hook_active]
-  jq -n --arg t "$1" --arg c "$WORK" --argjson a "${2:-false}" '{agent_type:"epic:auditor",stop_hook_active:$a,agent_transcript_path:$t,cwd:$c}' \
+  jq -n --arg t "$1" --arg c "$WORK" --argjson a "${2:-false}" '{agent_type:"epico:auditor",stop_hook_active:$a,agent_transcript_path:$t,cwd:$c}' \
     | bash "$PLUGIN_ROOT/scripts/hook-report-guard.sh"
 }
 D() { printf '%s' "$WORK/.epic/stories/001-old/.draft"; }
@@ -149,7 +149,7 @@ D() { printf '%s' "$WORK/.epic/stories/001-old/.draft"; }
   printf '%s\n' '{"type":"user","message":{"role":"user","content":"validate it"}}' > "$WORK/n.jsonl"
   run report_guard "$WORK/n.jsonl"
   [ -z "$output" ]
-  run bash -c "jq -n '{agent_type:\"epic:executor\",stop_hook_active:false}' | bash '$PLUGIN_ROOT/scripts/hook-report-guard.sh'"
+  run bash -c "jq -n '{agent_type:\"epico:executor\",stop_hook_active:false}' | bash '$PLUGIN_ROOT/scripts/hook-report-guard.sh'"
   [ -z "$output" ]
   : > "$(D)/audit-report.yaml"
   run report_guard "$WORK/t.jsonl"

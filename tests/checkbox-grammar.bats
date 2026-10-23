@@ -394,7 +394,7 @@ load_roster() {
 }
 
 @test "epic-index.sh — the census the index renders folds the terminal [~] into done" {
-  # epic-index RENDERS FOR A HUMAN and reuses hook-session-restore's split verbatim:
+  # epico-index RENDERS FOR A HUMAN and reuses hook-session-restore's split verbatim:
   # a terminal [~] closes the box, `deferred:` is reported apart. It emits no
   # `open` field at all, so the shared open count is recovered as
   # total − done − deferred — that arithmetic is the agreement, and it is

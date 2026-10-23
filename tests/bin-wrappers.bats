@@ -14,9 +14,9 @@ setup() {
   [ "$status" -eq 1 ]
 }
 
-@test "every epic-* command the references name has an executable wrapper" {
+@test "every epico-* command the references name has an executable wrapper" {
   cd "$ROOT"
-  names=$(git grep -ohE '\bepic-(archive|claude-md|close|gitpolicy|git-status|index|integration|migrate|next-number|progress|doctor|deviation|inbox|jargon|report|stale|test-diff|supersede|telemetry|validate|validated|checkpoint|xref)\b' -- references skills | sort -u)
+  names=$(git grep -ohE '\bepico-(archive|claude-md|close|gitpolicy|git-status|index|integration|migrate|next-number|progress|doctor|deviation|inbox|jargon|report|stale|test-diff|supersede|telemetry|validate|validated|checkpoint|xref)\b' -- references skills | sort -u)
   [ -n "$names" ]
   for n in $names; do
     [ -x "bin/$n" ] || { echo "missing wrapper: bin/$n"; return 1; }
@@ -29,7 +29,7 @@ setup() {
     target=$(grep -E '^exec ' "$w" | grep -oE 'scripts/[a-z-]+\.sh')
     [ -f "$target" ] || { echo "$w points at missing $target"; return 1; }
   done
-  run bin/epic-stale --help
+  run bin/epico-stale --help
   [ "$status" -eq 0 ]
   [[ "$output" == *"Usage: monitor-stale.sh"* ]]
 }

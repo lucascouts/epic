@@ -1,6 +1,6 @@
 # Init Mode
 
-Triggered by `/epic:epic init`. Interactive wizard to set up project configuration files.
+Triggered by `/epico:epico init`. Interactive wizard to set up project configuration files.
 
 ## Contents
 
@@ -11,7 +11,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 ## Procedure
 
 1. **Scan project** — detect language, framework, dependencies, existing config files
-2. **Check existing files** — report whether `.epic/constitution.md` exists, whether the project has a `CLAUDE.md` and an `AGENTS.md`, and whether `epic-claude-md check` finds the managed block current
+2. **Check existing files** — report whether `.epic/constitution.md` exists, whether the project has a `CLAUDE.md` and an `AGENTS.md`, and whether `epico-claude-md check` finds the managed block current
 2a. **Check memory** — one `memory_status` call ([mcp-integration.md](mcp-integration.md#memory-mcp)). WHEN `ai-memory` answers and the nearest `.ai-memory.toml`, if any, has no `ignore_paths` entry covering `.epic/**`, add one line to the final report: `ai-memory detected — add ignore_paths = [".epic/**"] to .ai-memory.toml so its hooks do not capture the artifacts Epic versions`. Informative, never gating; a non-interactive run prints the same line and asks nothing
 3. **Interactive questionnaire** — ask questions in a single numbered block:
 
@@ -27,7 +27,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
    - `.worktreeinclude` only for ignored files an Executor needs (`.env*`); never `.epic/`
 
    **Protected files:**
-   - The archive: offer `permissions.deny: ["Edit(.epic/archive/**)", "Write(.epic/archive/**)"]` in `.claude/settings.json` — [1] add it (default) [2] skip. Claude Code enforces a deny rule; the archive hook is best-effort and stays as a second line. `epic-archive` moves stories through Bash, which the rule does not cover, so archiving keeps working
+   - The archive: offer `permissions.deny: ["Edit(.epic/archive/**)", "Write(.epic/archive/**)"]` in `.claude/settings.json` — [1] add it (default) [2] skip. Claude Code enforces a deny rule; the archive hook is best-effort and stays as a second line. `epico-archive` moves stories through Bash, which the rule does not cover, so archiving keeps working
    - Files or patterns Claude should never modify? When the user names any, offer to add one `Edit(<pattern>)` rule per pattern to `permissions.deny` in `.claude/settings.json` — a rule Claude Code enforces, where a line in `CLAUDE.md` is only advice. Write it only on the user's yes.
 
    **Defaults — decisions the requester is never asked** (written into `.epic/constitution.md` as a `## Defaults` block; triage, Clarify and Run read it, and the [plain register](plain-register.md#decisions-the-requester-is-not-asked) relies on it):
@@ -48,7 +48,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
    **Security floor, Reversibility, Invariants:** written from the template every time — the floor from [quality-catalog.md](quality-catalog.md#the-security-floor--five-items-no-level-drops) with this host's commands, the reversibility rule as written, and `## Invariants` empty until the project has one.
 
 4. **Generate files** — create all requested files with sensible defaults based on scan
-4a. **Write the managed `CLAUDE.md` block** — `epic-claude-md write`, after the constitution exists, since the block is built from it ([The managed CLAUDE.md block](#the-managed-claudemd-block)). Interactively, when a `CLAUDE.md` already exists, say in one line that the block is appended at its end and nothing else in it changes, and ask once; headless, append it
+4a. **Write the managed `CLAUDE.md` block** — `epico-claude-md write`, after the constitution exists, since the block is built from it ([The managed CLAUDE.md block](#the-managed-claudemd-block)). Interactively, when a `CLAUDE.md` already exists, say in one line that the block is appended at its end and nothing else in it changes, and ask once; headless, append it
 5. **Ask the versioning-policy question** — measure first, offer exactly two options, then write the chosen state. Defined once, below: [Versioning Policy](#versioning-policy). A non-interactive run never asks and never starts tracking
 6. **Report** — list all files created, and name the policy that was recorded
 
@@ -64,7 +64,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 
 ## The managed CLAUDE.md block
 
-`epic-claude-md` owns one block at the end of the project's `CLAUDE.md`, between `<!-- epic:start … -->` and `<!-- epic:end -->`, and never a byte outside it. It is the part of the project's rules every session needs before reading anything else: where the constitution is, the docs the scan found, the order to look things up in ([lookup-order.md](lookup-order.md)), the constitution's `## Quality` commands as "before committing", the code rules, the constitution's `## Invariants`, and where the living examples are — under 100 lines, every section left out when it has no source.
+`epico-claude-md` owns one block at the end of the project's `CLAUDE.md`, between `<!-- epic:start … -->` and `<!-- epic:end -->`, and never a byte outside it. It is the part of the project's rules every session needs before reading anything else: where the constitution is, the docs the scan found, the order to look things up in ([lookup-order.md](lookup-order.md)), the constitution's `## Quality` commands as "before committing", the code rules, the constitution's `## Invariants`, and where the living examples are — under 100 lines, every section left out when it has no source.
 
 - **No `CLAUDE.md`:** the file is created with the block only. The built-in `/init` can still be run later; it writes above the block.
 - **An `AGENTS.md`:** one `@AGENTS.md` line goes before the block, once, so both are read.
@@ -72,7 +72,7 @@ Triggered by `/epic:epic init`. Interactive wizard to set up project configurati
 
 ## Repair (`init --repair`)
 
-Re-runs steps 1, 2 and 4a against what exists and writes only what is missing or stale: the managed `CLAUDE.md` block, a constitution section the doctor reports absent (asked for interactively, never invented). It never overwrites a file, never re-asks the versioning-policy question when `.gitpolicy` exists, and ends with `epic-doctor --summary`.
+Re-runs steps 1, 2 and 4a against what exists and writes only what is missing or stale: the managed `CLAUDE.md` block, a constitution section the doctor reports absent (asked for interactively, never invented). It never overwrites a file, never re-asks the versioning-policy question when `.gitpolicy` exists, and ends with `epico-doctor --summary`.
 
 ## Versioning Policy
 
@@ -85,7 +85,7 @@ Re-runs steps 1, 2 and 4a against what exists and writes only what is missing or
 ### Step 5.1 — Measure before asking
 
 ```
-epic-gitpolicy
+epico-gitpolicy
 ```
 
 Run it from the **workspace root** — it resolves `.epic/` against `$PWD` — and read the JSON it prints on stdout with `jq`. Every measurement path exits 0; exit 2 is a usage error only (an argument this script does not take), so a non-zero exit here is a bug in the call, never a finding about the workspace.
@@ -157,7 +157,7 @@ The three patterns are the contract; the comment is the Rules' "each generated f
 | `true` | `.gitignore` | **Ask consent, quoting the exact line**; remove exactly that line on a yes |
 | `true` | `.git/info/exclude` | **Do not offer a removal.** Report that the rule lives in `.git/info/exclude` — a file local to this clone, which init does not edit — and leave the edit to the user |
 | `true` | any other path | The rule is in the user's global `core.excludesFile`. **Do not offer a removal**: that file governs every repository on the machine. Report its absolute path so the user knows where to look |
-| — | absent (`git: false`) | Nothing was measured — skip this step and say so. After `git init`, re-run `/epic:epic init` to get the offer |
+| — | absent (`git: false`) | Nothing was measured — skip this step and say so. After `git init`, re-run `/epico:epico init` to get the offer |
 
 Locate the line before quoting it:
 
@@ -189,7 +189,7 @@ Default is **no**. Removing a line from a file the user wrote is a destructive e
 ```
 tracked-md
 # Epic versioning policy — line 1 is the declaration and the only line read.
-# Written by /epic:epic init; re-run init to change it.
+# Written by /epico:epico init; re-run init to change it.
 # Docs: references/init-mode.md#versioning-policy
 ```
 
@@ -238,7 +238,7 @@ Appended block, when the file already exists:
 ```
 local-only
 # Epic versioning policy — line 1 is the declaration and the only line read.
-# Written by /epic:epic init; re-run init to change it.
+# Written by /epico:epico init; re-run init to change it.
 # Docs: references/init-mode.md#versioning-policy
 ```
 
@@ -262,7 +262,7 @@ Emit the outcome as a logged note, never a pause:
 
 ```
 Epic versioning policy: local-only applied (non-interactive run — the conservative
-default; nothing under .epic/ will be committed). Run `/epic:epic init` in an
+default; nothing under .epic/ will be committed). Run `/epico:epico init` in an
 interactive session to choose versioned artifacts instead.
 ```
 

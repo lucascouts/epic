@@ -8,7 +8,7 @@
 
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  SKILL="$ROOT/skills/epic/SKILL.md"
+  SKILL="$ROOT/skills/epico/SKILL.md"
 }
 
 @test "SKILL.md carries aiMemory and defaultScale through user_config" {
@@ -43,7 +43,7 @@ setup() {
   [ ! -e "$ROOT/scripts/hook-defer-commit.sh" ]
 }
 
-@test "ci-mode recipes never pass --bare with /epic:epic" {
+@test "ci-mode recipes never pass --bare with /epico:epico" {
   run bash -c "grep -nE -- '--bare( |\$)' '$ROOT/references/ci-mode.md' | grep -v 'Never use'"
   [ -z "$output" ]
 }

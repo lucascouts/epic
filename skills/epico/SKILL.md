@@ -1,5 +1,5 @@
 ---
-name: epic
+name: epico
 description: >
   Structured story creation, management, and execution for features and
   bugfixes — requirements, design, task breakdown, and implementation
@@ -40,7 +40,7 @@ allowed-tools:
 
 # Epic
 
-Scale-adaptive story framework for features and bugfixes. Invoked as `/epic:epic`. Links to `../../references/` mean `${CLAUDE_PLUGIN_ROOT}/references/`.
+Scale-adaptive story framework for features and bugfixes. Invoked as `/epico:epico`. Links to `../../references/` mean `${CLAUDE_PLUGIN_ROOT}/references/`.
 
 ## Scope
 
@@ -82,13 +82,13 @@ Do not start the out-of-scope work, and offer an Epic-wrapped version only when 
 Validation runs automatically via a PostToolUse hook when a story artifact under `.epic/stories/` is written with the Write tool; its errors come back to you as hook context. Manual validation is also available:
 
 ```bash
-epic-validate <story-directory>
+epico-validate <story-directory>
 ```
 
 For cross-reference checks (requirements traceability):
 
 ```bash
-epic-xref <story-directory>
+epico-xref <story-directory>
 ```
 
 Its JSON `mapping` field gives the requirement → sub-tasks relation directly — the Traceability Check builds its table from it, never by hand-counting.
@@ -106,7 +106,7 @@ Its JSON `mapping` field gives the requirement → sub-tasks relation directly �
 - **A run that finishes a story ends with an `AskUserQuestion`** when callable: one step (refine, run the rest or validate) plus *Stop here*; archive only after a passing validate. `--auto` takes the recommended step and logs it. See [End of Run](../../references/run-mode.md#end-of-run--next-step-index)
 - Fast → Standard upgrade: recommend it at triage or task generation when scope grows, **or** when the change needs requirement traceability or design documentation — Fast has neither
 - Constitution constraints are soft — warnings, not blocks
-- A `layperson` build turn writes no text between tool calls — no status line in any language; notes go to `run-report.md`, the chat gets the closing message, checked with `epic-jargon` first
+- A `layperson` build turn writes no text between tool calls — no status line in any language; notes go to `run-report.md`, the chat gets the closing message, checked with `epico-jargon` first
 ## Prerequisites
 
 - `bash`, `git`, and `jq` available on `PATH`
@@ -144,7 +144,7 @@ Substituted when this skill loads; a value still reading `${user_config.…}` wa
 
 | Term | Meaning |
 |---|---|
-| **Epic** | This plugin / the `/epic:epic` command |
+| **Epic** | This plugin / the `/epico:epico` command |
 | **Story** | A unit of work: feature, bugfix, or initiative |
 | **Task** | An implementation action inside tasks.md |
 
@@ -154,7 +154,7 @@ Substituted when this skill loads; a value still reading `${user_config.…}` wa
 
 ## Command Routing
 
-When invoked via `/epic:epic`, parse `$ARGUMENTS` using this cascading routing table:
+When invoked via `/epico:epico`, parse `$ARGUMENTS` using this cascading routing table:
 
 ```
 $ARGUMENTS parsing:
@@ -204,7 +204,7 @@ $ARGUMENTS parsing:
   → REFINE mode (delta workflow on story NNN)
 
 "stories archive NNN[-MMM]|--done"
-  → ARCHIVE mode (epic-archive, one call per story; ranges expanded here)
+  → ARCHIVE mode (epico-archive, one call per story; ranges expanded here)
 
 "stories supersede NNN --by MMM"
   → SUPERSEDE mode (replace story NNN with MMM)
@@ -236,19 +236,19 @@ When a command references `NNN`:
 
 | Mode | Trigger | Reference to load |
 |---|---|---|
-| **Create** | `/epic:epic` or `/epic:epic <description>` | Read [triage.md](../../references/triage.md), then [clarify.md](../../references/clarify.md) when a round runs, then [phase-execution.md](../../references/phase-execution.md) for Standard/Full |
-| **Instant** | `/epic:epic instant <description>` | Read [instant-mode.md](../../references/instant-mode.md), then [triage.md](../../references/triage.md) with its three pins set — no clarify round |
-| **Migrate** | `/epic:epic stories migrate NNN [--apply]` | Run `epic-migrate`; it writes only with `--apply` |
-| **Batch Create** | `/epic:epic stories create --batch <doc>` | Load [batch-create.md](../../references/batch-create.md) — one interview, N stories; numbers come from `epic-next-number` |
-| **Init** | `/epic:epic init` | Load [init-mode.md](../../references/init-mode.md) |
-| **List** | `/epic:epic stories [full] [NNN]` | Load [list-mode.md](../../references/list-mode.md) |
-| **Run** | `/epic:epic stories run NNN` or `NNN run N\|all` | Load [run-mode.md](../../references/run-mode.md) |
-| **Validate** | `/epic:epic stories validate NNN` | Load [validate-mode.md](../../references/validate-mode.md) |
-| **Refine** | `/epic:epic stories refine NNN` | Load [refine-mode.md](../../references/refine-mode.md) |
-| **Archive** | `/epic:epic stories archive NNN[-MMM]\|--done` | Load [list-mode.md](../../references/list-mode.md) (Archive Command) — one `epic-archive` call per story, never a manual move |
-| **From memory · Sync docs** | `/epic:epic stories from-memory [<page>]` · `/epic:epic sync-docs` | Load [memory-modes.md](../../references/memory-modes.md) |
-| **Checkpoint** | `/epic:epic checkpoint <N>` | Load [checkpoint-mode.md](../../references/checkpoint-mode.md) |
-| **Supersede** | `/epic:epic stories supersede NNN --by MMM` | Load [supersede-mode.md](../../references/supersede-mode.md) |
+| **Create** | `/epico:epico` or `/epico:epico <description>` | Read [triage.md](../../references/triage.md), then [clarify.md](../../references/clarify.md) when a round runs, then [phase-execution.md](../../references/phase-execution.md) for Standard/Full |
+| **Instant** | `/epico:epico instant <description>` | Read [instant-mode.md](../../references/instant-mode.md), then [triage.md](../../references/triage.md) with its three pins set — no clarify round |
+| **Migrate** | `/epico:epico stories migrate NNN [--apply]` | Run `epico-migrate`; it writes only with `--apply` |
+| **Batch Create** | `/epico:epico stories create --batch <doc>` | Load [batch-create.md](../../references/batch-create.md) — one interview, N stories; numbers come from `epico-next-number` |
+| **Init** | `/epico:epico init` | Load [init-mode.md](../../references/init-mode.md) |
+| **List** | `/epico:epico stories [full] [NNN]` | Load [list-mode.md](../../references/list-mode.md) |
+| **Run** | `/epico:epico stories run NNN` or `NNN run N\|all` | Load [run-mode.md](../../references/run-mode.md) |
+| **Validate** | `/epico:epico stories validate NNN` | Load [validate-mode.md](../../references/validate-mode.md) |
+| **Refine** | `/epico:epico stories refine NNN` | Load [refine-mode.md](../../references/refine-mode.md) |
+| **Archive** | `/epico:epico stories archive NNN[-MMM]\|--done` | Load [list-mode.md](../../references/list-mode.md) (Archive Command) — one `epico-archive` call per story, never a manual move |
+| **From memory · Sync docs** | `/epico:epico stories from-memory [<page>]` · `/epico:epico sync-docs` | Load [memory-modes.md](../../references/memory-modes.md) |
+| **Checkpoint** | `/epico:epico checkpoint <N>` | Load [checkpoint-mode.md](../../references/checkpoint-mode.md) |
+| **Supersede** | `/epico:epico stories supersede NNN --by MMM` | Load [supersede-mode.md](../../references/supersede-mode.md) |
 | **Expand** | User says "based on", "extends" existing story | Create new story referencing source |
 | **CI/Headless** | Programmatic invocation via Agent SDK | Load [ci-mode.md](../../references/ci-mode.md) |
 
@@ -256,7 +256,7 @@ When a command references `NNN`:
 
 ## Instant — the disposable-work shortcut
 
-`/epic:epic instant <description>`: **read [instant-mode.md](../../references/instant-mode.md) before anything else** — the three pins, what the shortcut drops and what it must still say.
+`/epico:epico instant <description>`: **read [instant-mode.md](../../references/instant-mode.md) before anything else** — the three pins, what the shortcut drops and what it must still say.
 
 ## Story Types
 

@@ -55,7 +55,7 @@ has() { # has <label> <block> <keyword>
 }
 
 @test "D3: the skill frontmatter carries no effort: line — the session's effort applies to the orchestrator" {
-  front=$(awk 'NR==1 && $0=="---" {f=1; next} f && $0=="---" {exit} f' "$ROOT/skills/epic/SKILL.md")
+  front=$(awk 'NR==1 && $0=="---" {f=1; next} f && $0=="---" {exit} f' "$ROOT/skills/epico/SKILL.md")
   [ -n "$front" ]
   if printf '%s\n' "$front" | grep -qE '^effort:'; then
     echo "D3: the skill frontmatter pins the orchestrator's effort; it must carry no effort: line so the session's effort applies" >&2
@@ -88,7 +88,7 @@ has() { # has <label> <block> <keyword>
   has "D6 test advisor" "$ta" "run_in_background: false"
   an=$(section "$ROOT/references/context-discovery.md" '^## Codebase Analysis' '^## ')
   has "D6 analyst" "$an" "run_in_background: false"
-  if grep -qE 'run_in_background: true' "$ROOT/skills/epic/SKILL.md" "$ROOT/references/personas.md" "$ROOT/references/triage.md" "$ROOT/references/clarify.md" "$ROOT/references/phase-execution.md" "$ROOT/references/phase-gates.md" "$ROOT/references/context-discovery.md" "$ROOT/references/run-mode.md" "$ROOT/references/validate-mode.md"; then
+  if grep -qE 'run_in_background: true' "$ROOT/skills/epico/SKILL.md" "$ROOT/references/personas.md" "$ROOT/references/triage.md" "$ROOT/references/clarify.md" "$ROOT/references/phase-execution.md" "$ROOT/references/phase-gates.md" "$ROOT/references/context-discovery.md" "$ROOT/references/run-mode.md" "$ROOT/references/validate-mode.md"; then
     echo "D6: a spawn site asks for a background sub-agent" >&2
     return 1
   fi

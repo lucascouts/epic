@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Appends one progress note to <story-dir>/.draft/progress.log: one JSON object
 # per line, fields story, task, step, status, evidence, at. Agents call it at
-# each protocol step so a stalled run is visible from disk (epic-doctor reads
+# each protocol step so a stalled run is visible from disk (epico-doctor reads
 # the last line's `at`). The log is the only destination: sub-agents carry no
 # memory tool, and the doctor is a script that reads files.
 #

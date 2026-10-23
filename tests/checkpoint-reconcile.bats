@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# epic-checkpoint: the mechanical step of a stage checkpoint — a stage's ROADMAP
+# epico-checkpoint: the mechanical step of a stage checkpoint — a stage's ROADMAP
 # tasks against the stories that worked on them. Synthetic fixture, two stages.
 
 setup() {

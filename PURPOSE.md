@@ -30,7 +30,7 @@ Epic must refuse the following, even when asked directly. The skill responds wit
 | **Analysis / architecture advice** without an attached story | Epic artifacts (`story.md`, `design.md`) are the only valid containers for analysis under this plugin | `/gsd-explore`, `/gsd-map-codebase`, `/tab`, or a regular chat turn |
 | **Exploratory code generation** outside a story | Implementation only happens inside Executor, driven by an approved sub-task | Create a Fast-mode story if the change is small |
 | **Repo-wide refactor as a single story** | Violates the story-is-a-unit-of-work contract | Split into multiple linked stories (`based on` / `extends`) |
-| **Execution of ad-hoc scripts / commands / investigations** | Epic only executes what is declared in a sub-task's `Validation:` or `Tests:` field | Run manually outside `/epic:epic` |
+| **Execution of ad-hoc scripts / commands / investigations** | Epic only executes what is declared in a sub-task's `Validation:` or `Tests:` field | Run manually outside `/epico:epico` |
 | **Debugging** a production incident | Debug flows live elsewhere and require different artifacts | `/gsd-debug` |
 
 The refusal is not soft-fail; the skill surfaces a one-line rejection explaining *why* and pointing to the alternative.
@@ -47,7 +47,7 @@ The refusal is not soft-fail; the skill surfaces a one-line rejection explaining
 
 ## How this is enforced
 
-- The skill body (`skills/epic/SKILL.md`) opens with a scope check. Out-of-scope requests short-circuit to the refusal table.
+- The skill body (`skills/epico/SKILL.md`) opens with a scope check. Out-of-scope requests short-circuit to the refusal table.
 - The skill refuses to write to paths outside `.epic/`, source files not listed in an approved sub-task's `Context:`, or archived stories (`.epic/archive/**`, blocked by `hook-archive-guard.sh`).
 - `references/` files are only loaded when the relevant mode is active — there is no "free-form" mode.
 
@@ -55,7 +55,7 @@ The refusal is not soft-fail; the skill surfaces a one-line rejection explaining
 
 ## If you need to extend
 
-Adding a new mode (`/epic:epic <verb>`) is allowed only if the verb still serves *creating, structuring, or managing an epic or its stories*. Modes that would widen the purpose (e.g., `review`, `refactor`, `debug`) are rejected at contribution time — see `ARCHITECTURE.md` → Extension points.
+Adding a new mode (`/epico:epico <verb>`) is allowed only if the verb still serves *creating, structuring, or managing an epic or its stories*. Modes that would widen the purpose (e.g., `review`, `refactor`, `debug`) are rejected at contribution time — see `ARCHITECTURE.md` → Extension points.
 
 ---
 

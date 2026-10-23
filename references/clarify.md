@@ -1,6 +1,6 @@
 # Clarify — the question rounds
 
-Loaded when a Create run asks questions (Standard and Full always; Fast when the request is ambiguous). Instant never loads it: it asks nothing. It lives outside [SKILL.md](../skills/epic/SKILL.md) so a run that does not need it does not carry it.
+Loaded when a Create run asks questions (Standard and Full always; Fast when the request is ambiguous). Instant never loads it: it asks nothing. It lives outside [SKILL.md](../skills/epico/SKILL.md) so a run that does not need it does not carry it.
 
 ## Clarify Protocol
 
@@ -78,7 +78,7 @@ the plain register, and both get the context and the example.
   in the requester's own language, one question, three options: English, the
   language they wrote in, another. Not asked when the request is
   already in English. The artifacts stay English either way
-  ([Language](../skills/epic/SKILL.md#language)).
+  ([Language](../skills/epico/SKILL.md#language)).
 - For each ambiguity, build a question with **2–4 mutually-exclusive options**.
   When the answer is binary, prefer `[yes / no / out-of-scope]` over open
   phrasings.

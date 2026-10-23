@@ -2,7 +2,7 @@
 # PreToolUse hook: enforces the two things the Executor must never do.
 #   - run `git commit`: commits are the orchestrator's, after the merge, with
 #     the pre-authored message;
-#   - edit or write a story's tasks.md: boxes are closed only by epic-close,
+#   - edit or write a story's tasks.md: boxes are closed only by epico-close,
 #     which takes the census and validates the story in one transaction.
 # It acts only inside the Executor (agent_type), so the orchestrator and every
 # other agent are untouched. hooks.json narrows the Edit/Write calls with `if`

@@ -13,8 +13,8 @@ has() {  # <extended regex> — case-insensitive, names the miss
 }
 
 @test "routed: the cascade arm, the dispatch row and the description" {
-  command grep -qF '"checkpoint <N>"' "$ROOT/skills/epic/SKILL.md"
-  command grep -qF '| **Checkpoint** | `/epic:epic checkpoint <N>` | Load [checkpoint-mode.md]' "$ROOT/skills/epic/SKILL.md"
+  command grep -qF '"checkpoint <N>"' "$ROOT/skills/epico/SKILL.md"
+  command grep -qF '| **Checkpoint** | `/epico:epico checkpoint <N>` | Load [checkpoint-mode.md]' "$ROOT/skills/epico/SKILL.md"
 }
 
 @test "the user leads: verdict first on judgment items, no recommended marker, --auto stops before judgment" {
@@ -24,8 +24,8 @@ has() {  # <extended regex> — case-insensitive, names the miss
   has 'headless: print every step.s evidence and proposed answers, write nothing'
 }
 
-@test "step 1 runs epic-checkpoint and handles every state it returns" {
-  has 'run `epic-checkpoint --stage <N>`'
+@test "step 1 runs epico-checkpoint and handles every state it returns" {
+  has 'run `epico-checkpoint --stage <N>`'
   for st in closed in-work unmapped mismatch open; do has "\`$st\` —"; done
   has 'unknown_ids'
 }

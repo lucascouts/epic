@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# epic-deviation: the one writer of .draft/deviations.yaml.
+# epico-deviation: the one writer of .draft/deviations.yaml.
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"

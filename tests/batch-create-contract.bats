@@ -23,7 +23,7 @@ setup() {
   PLUGIN_ROOT="${EPIC_PLUGIN_ROOT:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
   SCRIPT="$PLUGIN_ROOT/scripts/next-story-number.sh"
   REF="$PLUGIN_ROOT/references/batch-create.md"
-  SKILL="$PLUGIN_ROOT/skills/epic/SKILL.md"
+  SKILL="$PLUGIN_ROOT/skills/epico/SKILL.md"
   LIST="$PLUGIN_ROOT/references/list-mode.md"
   WORK=$(mktemp -d)
   mkdir -p "$WORK/.epic/stories" "$WORK/.epic/archive"

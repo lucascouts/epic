@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# epic-report: the two Auditor reports, read for the orchestrator in summary.
+# epico-report: the two Auditor reports, read for the orchestrator in summary.
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"

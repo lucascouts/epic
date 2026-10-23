@@ -651,7 +651,7 @@ assess_completion() {
   elif [[ "$FM_STATUS" == "validated" ]]; then
     COMPLETE=true
   else
-    INCOMPLETE_REASON="story '$STORY_ID' is not validated (status: ${FM_STATUS:-none}) — run '/epic:epic stories validate ${STORY_ID%%-*}' first, or pass --force <reason> to archive it unvalidated"
+    INCOMPLETE_REASON="story '$STORY_ID' is not validated (status: ${FM_STATUS:-none}) — run '/epico:epico stories validate ${STORY_ID%%-*}' first, or pass --force <reason> to archive it unvalidated"
   fi
   return 0
 }
@@ -1927,7 +1927,7 @@ derive_entry_fields() {
   # after the 16-key shape, so an entry written by an older release still reads
   # as complete). `roadmap` is tasks.md's list of ROADMAP task IDs, copied only
   # in the exact form validate-story.sh accepts — a malformed one is left out
-  # rather than made permanent. `validated_sha` is the commit epic-validated
+  # rather than made permanent. `validated_sha` is the commit epico-validated
   # recorded before the Auditor's spawn.
   STORY_ROADMAP=$(frontmatter_field "$STORY_PATH/tasks.md" roadmap | tr -d ' \t')
   if [[ "$STORY_ROADMAP" =~ ^\[[0-9]+(\.[0-9]+)+(,[0-9]+(\.[0-9]+)+)*\]$ ]]; then
@@ -1997,7 +1997,7 @@ manifest_entry_yaml() {
   printf '    pruned:\n'
   printf '      logs_kb: %d\n' "$PRUNED_LOGS_KB"
   printf '      copies_removed: %d\n' "$PRUNED_COPIES"
-  # Optional keys go BEFORE overrides_used: epic-index treats overrides_used as
+  # Optional keys go BEFORE overrides_used: epico-index treats overrides_used as
   # the sentinel of a finished entry, so nothing it needs may follow it.
   [[ -n "$STORY_ROADMAP" ]] && printf '    roadmap: %s\n' "$STORY_ROADMAP"
   [[ -n "$VALIDATED_SHA" ]] && printf '    validated_sha: %s\n' "$(quote_scalar "$VALIDATED_SHA")"

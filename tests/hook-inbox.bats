@@ -38,7 +38,7 @@ teardown() {
 hook() { jq -n --arg c "$1" '{tool_name: "Bash", tool_input: {command: $c}}' | bash "$PLUGIN_ROOT/scripts/hook-inbox.sh"; }
 
 @test "after a close, supervision mail becomes untrusted context; other mail stays unclaimed" {
-  run hook "epic-close 004 2.1"
+  run hook "epico-close 004 2.1"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.hookSpecificOutput.hookEventName == "PostToolUse"'
   ctx=$(echo "$output" | jq -r '.hookSpecificOutput.additionalContext')
@@ -61,17 +61,17 @@ hook() { jq -n --arg c "$1" '{tool_name: "Bash", tool_input: {command: $c}}' | b
   # These two exits come before the hook reads stdin. Where SIGPIPE is ignored
   # (the CI runner) the feeding jq prints "Broken pipe" — the producer's noise,
   # not the hook's output — so its stderr is dropped.
-  run env EPIC_SUPERVISION=off bash -c "jq -n '{tool_name:\"Bash\",tool_input:{command:\"epic-close 004 1\"}}' 2>/dev/null | bash '$PLUGIN_ROOT/scripts/hook-inbox.sh'"
+  run env EPIC_SUPERVISION=off bash -c "jq -n '{tool_name:\"Bash\",tool_input:{command:\"epico-close 004 1\"}}' 2>/dev/null | bash '$PLUGIN_ROOT/scripts/hook-inbox.sh'"
   [ -z "$output" ]
   echo '[]' > "$WORK/inbox.json"
-  run hook "epic-close 004 1"
+  run hook "epico-close 004 1"
   [ -z "$output" ]
-  run env EPIC_AI_MEMORY_BIN=/nonexistent bash -c "jq -n '{tool_name:\"Bash\",tool_input:{command:\"epic-close 004 1\"}}' 2>/dev/null | bash '$PLUGIN_ROOT/scripts/hook-inbox.sh'"
+  run env EPIC_AI_MEMORY_BIN=/nonexistent bash -c "jq -n '{tool_name:\"Bash\",tool_input:{command:\"epico-close 004 1\"}}' 2>/dev/null | bash '$PLUGIN_ROOT/scripts/hook-inbox.sh'"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
 
-@test "command mode (epic-inbox) prints the messages as text, at most three" {
+@test "command mode (epico-inbox) prints the messages as text, at most three" {
   jq '[range(0;5) as $i | {id: "s\($i)", subject: "supervision: layout \($i)", body: "b\($i)"}]' -n > "$WORK/inbox.json"
   run bash "$PLUGIN_ROOT/scripts/hook-inbox.sh" --story .epic/stories/004-login
   [ "$status" -eq 0 ]

@@ -338,7 +338,7 @@ init_isolated_repo() {
   echo "tracked-md" > "$WORK/.epic/.gitpolicy"
   # The declaration exists, the artifacts are on disk, the index is empty of
   # them, and no exclude rule is in the way. That is the entire state, and it is
-  # exactly what `/epic:epic init` leaves behind.
+  # exactly what `/epico:epico init` leaves behind.
   git commit -q --allow-empty -m "policy recorded; first artifact commit not made yet"
   run_lint
   [ "$status" -eq 0 ]

@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# epic-validated: the commit a story is validated against, recorded by a script
+# epico-validated: the commit a story is validated against, recorded by a script
 # before the Auditor's spawn, and carried into the archive manifest.
 
 setup() {
@@ -44,5 +44,5 @@ rec() { bash "$PLUGIN_ROOT/scripts/record-validated.sh" "$STORY"; }
 }
 
 @test "validate runs it before the Auditor's spawn" {
-  grep -qF 'epic-validated <story-dir>' "$PLUGIN_ROOT/references/validate-mode.md"
+  grep -qF 'epico-validated <story-dir>' "$PLUGIN_ROOT/references/validate-mode.md"
 }

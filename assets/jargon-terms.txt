@@ -50,4 +50,4 @@ ci:\bgates?\b
 ci:\bstubs?\b
 ci:\bassertions?\b
 ci:\basser[cç](ão|ões)\b
-cs:/epic:epic
+cs:/epico:epico

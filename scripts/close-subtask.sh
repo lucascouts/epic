@@ -1307,7 +1307,7 @@ if [[ "$FLAGS_GIVEN" -eq 0 && "$TARGET_KIND" == sub && -f "$STORY_ABS/.draft/red
   _td_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" 2> /dev/null && pwd -P) || _td_dir=""
   if [[ -n "$RED_TARGET" && -n "$_td_dir" && -f "$_td_dir/test-diff.sh" ]]; then
     if ! bash "$_td_dir/test-diff.sh" --story "$STORY_ABS" --file "$RED_TARGET" > /dev/null 2>&1; then
-      refuse "box '$TASK_ID' of story '$STORY_ID' cannot close: its pre-authored test '$RED_TARGET' no longer asserts what was authored — epic-test-diff reports an assertion line changed, removed or added, or the test missing. Assertions are frozen; restore them, or refine the story to carry the change into .draft/authored-tests/. Nothing was modified"
+      refuse "box '$TASK_ID' of story '$STORY_ID' cannot close: its pre-authored test '$RED_TARGET' no longer asserts what was authored — epico-test-diff reports an assertion line changed, removed or added, or the test missing. Assertions are frozen; restore them, or refine the story to carry the change into .draft/authored-tests/. Nothing was modified"
     fi
   fi
 fi

@@ -244,7 +244,7 @@ has() { # has <label> <block> <keyword>
 @test "Q19: the skill's core loads the requester's register — it is not left to a link inside triage.md" {
   # A run that never opens its register loses the register's rules — for a
   # layperson, that can mean a program shipped with no test.
-  core=$(section "$ROOT/skills/epic/SKILL.md" '^## Triage Protocol' '^## ')
+  core=$(section "$ROOT/skills/epico/SKILL.md" '^## Triage Protocol' '^## ')
   has "Q19 plain" "$core" "plain-register.md"
   has "Q19 developer" "$core" "developer-register.md"
   has "Q19 before plan" "$core" "before the plan is written"

@@ -22,7 +22,7 @@ The seed of `requester.always` and `requester.never` for `level: developer` — 
 
 ## What does not change
 
-- Every artifact is still written in English with every internal name — [SKILL.md](../skills/epic/SKILL.md#language)
+- Every artifact is still written in English with every internal name — [SKILL.md](../skills/epico/SKILL.md#language)
 - Every sub-agent still runs its whole protocol
 - **The level never changes the scale**
 - The profile is re-read from the answers: outcome words with no tool vocabulary re-read the requester as `layperson` ([clarify.md](clarify.md#clarify-protocol))

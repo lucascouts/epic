@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# epic-test-diff: a materialized pre-authored test against its authored copy.
+# epico-test-diff: a materialized pre-authored test against its authored copy.
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"

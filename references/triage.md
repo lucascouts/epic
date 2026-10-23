@@ -1,6 +1,6 @@
 # Triage — Create and Instant
 
-Loaded by Create and by Instant before anything is written. Instant reads it with its three pins already set. It lives outside [SKILL.md](../skills/epic/SKILL.md) so a run that does not need it does not carry it.
+Loaded by Create and by Instant before anything is written. Instant reads it with its three pins already set. It lives outside [SKILL.md](../skills/epico/SKILL.md) so a run that does not need it does not carry it.
 
 ## Contents
 
@@ -14,7 +14,7 @@ Loaded by Create and by Instant before anything is written. Instant reads it wit
 
 **Standard and Full need `.epic/constitution.md`** — its `## Defaults` answer the questions the requester is never asked, and its `## Quality` and `## Security floor` are the story's starting legend. Without it, both scales would ask what the project already decided, or decide it differently each run. So, before the precheck below:
 
-- **Missing, or without `## Defaults` and `## Quality`:** do not triage at Standard or Full. Interactively, say so in one line and offer `/epic:epic init --repair` now — one question, the run continues after it. **Headless:** run `init --repair` with every default, record it as an assumption, and continue.
+- **Missing, or without `## Defaults` and `## Quality`:** do not triage at Standard or Full. Interactively, say so in one line and offer `/epico:epico init --repair` now — one question, the run continues after it. **Headless:** run `init --repair` with every default, record it as an assumption, and continue.
 - **Fast and spike** are untouched: they read the constitution when it exists and carry on without it.
 
 ## Runtime dependency precheck (MANDATORY before Standard/Full triage)
@@ -73,7 +73,7 @@ Bugfix always follows: P1: story.md (bug analysis) > P2: design.md (root cause) 
 
 ## Triage Protocol
 
-Analyze the request (or `$ARGUMENTS` if invoked via `/epic:epic`) and present a **single proposal** for confirmation. Never ask each decision separately.
+Analyze the request (or `$ARGUMENTS` if invoked via `/epico:epico`) and present a **single proposal** for confirmation. Never ask each decision separately.
 
 **Read who is asking first — from the request alone, never from a question.** The reading is recorded as a `requester` block with four fields, in the proposal and, where a `.draft/` exists, in `meta.yaml`; its `level` is also written to `tasks.md` as `requester: layperson | developer` at every scale, Fast included, because `tasks.md` is the one file every story has and the legend guard reads it ([tasks.md](tasks.md)):
 
@@ -110,7 +110,7 @@ requester:
    - WHEN no favorite and no fitting optional tool exist, record `none — no E2E tooling available` in design.md's `## Tooling Decisions` block AND as a story Constraint.
 
    The recommendation/pause happens at triage **only**. The resolved decision is written to design.md's `## Tooling Decisions` block and the relevant E2E/frontend sub-tasks are annotated in tasks.md — the Executor and Test Advisor consume that decision without re-detecting.
-8. Allocate the story number with `epic-next-number` — the one tested allocator, used by single create and batch create alike
+8. Allocate the story number with `epico-next-number` — the one tested allocator, used by single create and batch create alike
 9. Propose output path in `NNN-kebab-case`
 10. If no existing stories in `.epic/stories/`: append EARS primer
 

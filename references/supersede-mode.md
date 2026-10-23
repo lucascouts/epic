@@ -1,4 +1,4 @@
-# Supersede Mode (`/epic:epic stories supersede NNN --by MMM`)
+# Supersede Mode (`/epico:epico stories supersede NNN --by MMM`)
 
 Supersede is the sanctioned story replacement — banner, remap, closure, archive offer. Story `MMM` takes over `NNN`'s scope: `NNN` is closed with a banner pointing at its replacement, every `NNN` artifact flips to `status: superseded` with `superseded-by: MMM`, the index re-renders, and the archive is offered on the spot. `MMM` must already exist before the command runs — creating the replacement is a separate CREATE, so a typo in `--by` can never mint a story.
 
@@ -21,7 +21,7 @@ Three steps: **ask**, **call**, **surface and offer**. The mechanical half — t
 2. **Call** — one invocation, which performs the whole mechanical sequence:
 
 ```
-epic-supersede <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=target>]... [--complete-interrupted]
+epico-supersede <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=target>]... [--complete-interrupted]
 ```
 
 3. **Surface, then offer** — report the verdict out of the JSON ([Output and exit codes](#output-and-exit-codes)), then, on exit 0 only, make [the archive offer](#the-archive-offer).
@@ -62,7 +62,7 @@ epic-supersede <NNN|story-dir> --by <MMM> [--rationale <text>] [--remap <N.N=tar
 Archive story NNN without validation (--force, reason: superseded by MMM)? [y/n]
 ```
 
-**Accepting the question is the user's consent to the override**, so on acceptance run `epic-archive NNN --force "superseded by MMM"` — the reason is the one the question showed, and the manifest records it as `overrides_used: ["force"]` + `forced_reason`. No other guard flag is added. The offer adds no preflight of its own — archive never consults integration state.
+**Accepting the question is the user's consent to the override**, so on acceptance run `epico-archive NNN --force "superseded by MMM"` — the reason is the one the question showed, and the manifest records it as `overrides_used: ["force"]` + `forced_reason`. No other guard flag is added. The offer adds no preflight of its own — archive never consults integration state.
 
 ## Refusal Matrix
 
@@ -155,7 +155,7 @@ The row-4 refusal targets a re-run over a *complete* prior op. Recovery therefor
 
 ## Walkthrough
 
-Example: `/epic:epic stories supersede 042 --by 051` — story `042-legacy-import` replaced by `051-modern-import`. `042`'s tasks.md before the op, one closed box and three open ones:
+Example: `/epico:epico stories supersede 042 --by 051` — story `042-legacy-import` replaced by `051-modern-import`. `042`'s tasks.md before the op, one closed box and three open ones:
 
 ```markdown
 - [x] 1.1 - Parse the legacy CSV export
@@ -167,7 +167,7 @@ Example: `/epic:epic stories supersede 042 --by 051` — story `042-legacy-impor
 Three open sub-tasks (`2.1` and `2.2` as `[ ]`, `3.1` as a deferred `[~]`) → three remap rows; `1.1` gets none. The mode asks for the rationale and for a target per open row — `2.1` is left unanswered on purpose, so it takes the default — and then makes one call:
 
 ```
-epic-supersede 042 --by 051 \
+epico-supersede 042 --by 051 \
   --rationale 'Vendor retired the v1 export API; 051 rebuilds the import on the v2 bulk endpoint.' \
   --remap '2.2=task 2.3' \
   --remap '3.1=dropped: the v1 sandbox died with the API'

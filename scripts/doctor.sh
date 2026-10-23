@@ -14,7 +14,7 @@
 # planning record, and a planned story whose .draft/ was cleaned up is healthy.
 #
 # A STALL is an in-progress story whose last progress note (.draft/progress.log,
-# written by epic-progress) is older than --stall-minutes. A story with no log
+# written by epico-progress) is older than --stall-minutes. A story with no log
 # predates the notes and is never called stalled.
 #
 # --summary is what SessionStart and the story list call: silent when there is
@@ -88,7 +88,7 @@ fi
 [ -f "$EPIC_DIR/.gitpolicy" ] || add warning gitpolicy .epic/.gitpolicy "missing — init records whether .epic/ is tracked"
 
 if [ ! -f "$EPIC_DIR/EPIC.md" ]; then
-  add warning index .epic/EPIC.md "missing — run epic-index"
+  add warning index .epic/EPIC.md "missing — run epico-index"
 else
   # Regenerate into a scratch copy that sees the same stories/ and archive/.
   T=$(mktemp -d)
@@ -97,7 +97,7 @@ else
   cp "$EPIC_DIR/EPIC.md" "$T/.epic/EPIC.md"
   for s in stories archive; do [ -e "$EPIC_DIR/$s" ] && ln -s "$EPIC_DIR/$s" "$T/.epic/$s"; done
   if bash "$SCRIPT_DIR/epic-index.sh" --epic-dir "$T/.epic" >/dev/null 2>&1; then
-    cmp -s "$EPIC_DIR/EPIC.md" "$T/.epic/EPIC.md" || add warning index .epic/EPIC.md "behind the disk — run epic-index"
+    cmp -s "$EPIC_DIR/EPIC.md" "$T/.epic/EPIC.md" || add warning index .epic/EPIC.md "behind the disk — run epico-index"
   fi
 fi
 
@@ -109,9 +109,9 @@ fi
 if [ -f "$ROOT/CLAUDE.md" ] || [ -f "$EPIC_DIR/constitution.md" ]; then
   if ! CM=$(bash "$SCRIPT_DIR/claude-md.sh" check --root "$ROOT" 2>/dev/null); then
     if printf '%s' "$CM" | jq -e '.present == true' >/dev/null 2>&1; then
-      add warning claude-md CLAUDE.md "the Epic block is stale — run /epic:epic init --repair"
+      add warning claude-md CLAUDE.md "the Epic block is stale — run /epico:epico init --repair"
     else
-      add warning claude-md CLAUDE.md "no Epic block — run /epic:epic init --repair"
+      add warning claude-md CLAUDE.md "no Epic block — run /epico:epico init --repair"
     fi
   fi
 fi
@@ -194,9 +194,9 @@ fi
 
 if $SUMMARY; then
   printf '%s' "$JSON" | jq -r 'select(.findings | length > 0)
-    | "epic-doctor: \(.errors) error(s), \(.warnings) warning(s) — "
+    | "epico-doctor: \(.errors) error(s), \(.warnings) warning(s) — "
       + ([.findings[] | "\(.target): \(.detail)"] | .[:3] | join("; "))
-      + (if (.findings | length) > 3 then "; … run epic-doctor for all \(.findings | length)" else "" end)'
+      + (if (.findings | length) > 3 then "; … run epico-doctor for all \(.findings | length)" else "" end)'
 else
   printf '%s\n' "$JSON"
 fi

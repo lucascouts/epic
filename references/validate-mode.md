@@ -1,6 +1,6 @@
 # Validate Mode
 
-Triggered by `/epic:epic stories validate NNN`.
+Triggered by `/epico:epico stories validate NNN`.
 
 ## Contents
 
@@ -16,7 +16,7 @@ Triggered by `/epic:epic stories validate NNN`.
 
 ## Post-Implementation Personas
 
-These personas are activated **after implementation**, not during story creation. They are optional — activated when the user invokes `/epic:epic validate` on a story directory, or when a sub-agent execution flow completes all tasks.
+These personas are activated **after implementation**, not during story creation. They are optional — activated when the user invokes `/epico:epico validate` on a story directory, or when a sub-agent execution flow completes all tasks.
 
 | Persona | Role | When | Sub-agent type |
 |---|---|---|---|
@@ -165,22 +165,22 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 
 1. Resolve story directory from NNN
 2. Read tasks.md and take the checkbox census. A story is **complete** when **no `[ ]` remains**: it is **`done`** when every box is `[x]` or terminal `[~]` (`waived:`, `n-a:`, `superseded-by:`), and **`done-except-external`** when the only non-`[x]` boxes are `[~] (deferred: …)`. `done-except-external` is computed at read time, never written to a file. Only `[x]` sub-tasks have an implementation to validate — see [tasks.md](tasks.md#completion)
-3. Delete the stale `.draft/validation-report.yaml` and `.draft/audit-report.yaml`, run `epic-validated <story-dir>` — it records the commit about to be checked, and whether the tree outside `.epic/` is dirty, in `.draft/validated.yaml`, which archive carries into the manifest (exit 2 outside git: carry on without it) — then spawn **one** Auditor sub-agent (`run_in_background: false`) and wait for its completion. It runs the validation first — each task's validation command, tests and gates, per [validation-protocol.md](validation-protocol.md) — and writes `.draft/validation-report.yaml`; on a validation pass it goes on to compare the code against story + design, review the deviation register, and write `.draft/audit-report.yaml`. The spawn prompt is the two blocks below, validation first. When memory is available, it carries prior structural findings recalled with one `memory_query` — `audit OR scope-creep OR false-positive OR recurring`, `limit: 10` — as things to verify ([mcp-integration.md](mcp-integration.md#memory-mcp))
-4. Read both verdicts with `epic-report --story <dir>` — never the whole YAML ([output-rules.md](output-rules.md#reading-files-back)). Take the validation verdict from the file `.draft/validation-report.yaml`. On `verdict: fail` the audit file is absent by design — the run is a validation failure. On `verdict: pass`, take the audit verdict from the file `.draft/audit-report.yaml` the same way
+3. Delete the stale `.draft/validation-report.yaml` and `.draft/audit-report.yaml`, run `epico-validated <story-dir>` — it records the commit about to be checked, and whether the tree outside `.epic/` is dirty, in `.draft/validated.yaml`, which archive carries into the manifest (exit 2 outside git: carry on without it) — then spawn **one** Auditor sub-agent (`run_in_background: false`) and wait for its completion. It runs the validation first — each task's validation command, tests and gates, per [validation-protocol.md](validation-protocol.md) — and writes `.draft/validation-report.yaml`; on a validation pass it goes on to compare the code against story + design, review the deviation register, and write `.draft/audit-report.yaml`. The spawn prompt is the two blocks below, validation first. When memory is available, it carries prior structural findings recalled with one `memory_query` — `audit OR scope-creep OR false-positive OR recurring`, `limit: 10` — as things to verify ([mcp-integration.md](mcp-integration.md#memory-mcp))
+4. Read both verdicts with `epico-report --story <dir>` — never the whole YAML ([output-rules.md](output-rules.md#reading-files-back)). Take the validation verdict from the file `.draft/validation-report.yaml`. On `verdict: fail` the audit file is absent by design — the run is a validation failure. On `verdict: pass`, take the audit verdict from the file `.draft/audit-report.yaml` the same way
 4a. **The claims check**, when `epic-supervise` is on PATH and `EPIC_SUPERVISION` is not `off`: run `epic-supervise claims --root <project> --story <NNN> --workspace <ws> --project <proj>` (the ai-memory scope triage resolved) and wait for it. It compares what the run claimed — progress notes, reports, closed boxes — with the exit codes and commits recorded elsewhere, writes `.draft/reports/claims.md`, and adds one finding per divergence to the project's findings store. It never blocks the verdict: its divergences join the results below as claims to verify. Without the command, say so in one line and go on.
 5. Present the combined results to the user, composed from the two files: the validation's `results[]` and `gates[]`, the audit's `gaps[]`, `unmet_gates[]`, `deviations_reviewed[]`, `scope_creep[]`, `missing_red[]` and `findings[]` — and always its `not_verified[]`, as the last line, even on a pass
-5a. **On `verdict: fail-record`, fix the record yourself.** Apply each `record_issues[]` fix with `epic-deviation` — `amend --id N --<field> …` for a wrong entry, `add deviation …` for a missing one — list every fix in `.draft/run-report.md` under `## Record fixes` and in the presented results, and treat the audit as `pass` from here on. No fix round, no task group, no second Auditor: the code passed, and only the register was wrong
+5a. **On `verdict: fail-record`, fix the record yourself.** Apply each `record_issues[]` fix with `epico-deviation` — `amend --id N --<field> …` for a wrong entry, `add deviation …` for a missing one — list every fix in `.draft/run-report.md` under `## Record fixes` and in the presented results, and treat the audit as `pass` from here on. No fix round, no task group, no second Auditor: the code passed, and only the register was wrong
 6. If gaps found, offer to create new tasks to address them — **bounded to two fix rounds**, see [Fix loop bound](#fix-loop-bound)
 7. Apply the status transition for this verdict — see Status Transition (`validated`)
 7a. **Memory write (when memory is available)** — for each `findings[]` entry that is structural by the Auditor's own criterion (likely to recur in this codebase: a recurring scope-creep pattern, a false-positive deviation, a project-specific gate failure) and for each `deviations_reviewed[]` entry with `accurate: false`, write or rewrite one page at `epic/finding/NNN-<subject-slug>.md`: H1 = the subject, body = the finding, the story it came from and the file/line evidence. Same subject, same path — a finding seen again rewrites its page, and that rewrite is the supersession. A story-specific bug gets no page; it belongs to the tasks step 6 offers ([mcp-integration.md](mcp-integration.md#memory-mcp))
-8. On a passing verdict, surface **at most one** integration warning when it applies — run `story-git-status.sh` once, then either report its `anchored_commits == 0` sentence or pipe the same JSON into `epic-integration --validate <NNN>`, which writes the sentence or nothing — then offer the archive and refresh the index. See Ordering at the pass point, then Integration Warning (and its precedence table), Archive Offer and Index Refresh
+8. On a passing verdict, surface **at most one** integration warning when it applies — run `story-git-status.sh` once, then either report its `anchored_commits == 0` sentence or pipe the same JSON into `epico-integration --validate <NNN>`, which writes the sentence or nothing — then offer the archive and refresh the index. See Ordering at the pass point, then Integration Warning (and its precedence table), Archive Offer and Index Refresh
 
 ### Fix loop bound
 
 A **fix round** is one pass of the loop validate fails → fix tasks are created and run → validate again. Unbounded, it is the most expensive thing Epic does: every round re-runs the whole suite and re-reads the whole story in the Auditor, and a finding the fix did not settle — or a new one the fix introduced — sends it round again.
 
 - **The round is counted from tasks.md, never remembered.** The group step 6 creates is titled `Validation fixes — round N`; the next round is one more than the highest `N` already in the file.
-- **Every offer states what a round costs**: the fix run plus one Auditor spawn, which validates and audits. When `epic-telemetry` measured this validation, give its `subagent` tokens and its wall clock as the price of the revalidation.
+- **Every offer states what a round costs**: the fix run plus one Auditor spawn, which validates and audits. When `epico-telemetry` measured this validation, give its `subagent` tokens and its wall clock as the price of the revalidation.
 - **Round 1** — offered as step 6 always offered it.
 - **After a fix round runs, the revalidation is asked, never chained.** Neither Run mode nor this mode starts VALIDATE on its own after a `Validation fixes` group closes; the next-step question at the end of that run offers it, stating the round and its cost ([run-mode.md](run-mode.md#end-of-run--next-step-index)).
 - **Round 2 is the last one offered.** When the validation that follows round 2 still fails, step 6 creates no round 3: present what remains, say two rounds did not settle it, and recommend refining the story, since a finding that survives two fixes is usually a plan problem, not an implementation one. A third round runs only when the user asks for it in so many words.
@@ -234,7 +234,7 @@ Validate mode owns exactly one of the six `status:` values — `validated` — a
 
 `verdict: fail-record` in the audit file reads as `pass` in this table once step 5a has applied its fixes — the code passed and the register now matches it.
 
-**Rule 2 — a partial validation must not manufacture the lie.** `/epic:epic stories validate NNN` can be invoked at any time, including on a story that still has open `[ ]` boxes: the validation simply has fewer `[x]` sub-tasks to run, and it can still pass. Writing `validated` there would immediately trip `validate-story.sh`'s ahead-of-checkboxes warning — `done` or `validated` while a `[ ]` remains — so the engine would have written the exact claim that check exists to expose. Report the pass instead, and say why the status stayed where it is: **`validated` means "the finished story was verified", not "the part that exists so far looks fine".** When the remaining boxes close, Run mode writes its own transition, and the next passing verdict earns `validated`.
+**Rule 2 — a partial validation must not manufacture the lie.** `/epico:epico stories validate NNN` can be invoked at any time, including on a story that still has open `[ ]` boxes: the validation simply has fewer `[x]` sub-tasks to run, and it can still pass. Writing `validated` there would immediately trip `validate-story.sh`'s ahead-of-checkboxes warning — `done` or `validated` while a `[ ]` remains — so the engine would have written the exact claim that check exists to expose. Report the pass instead, and say why the status stayed where it is: **`validated` means "the finished story was verified", not "the part that exists so far looks fine".** When the remaining boxes close, Run mode writes its own transition, and the next passing verdict earns `validated`.
 
 **Rule 3 — a failing verdict writes nothing at all.** Not `in-progress`, and not a rollback of a `validated` left by an earlier pass. A failure is a report, not a lifecycle transition; the story keeps whatever state its last real transition recorded. A run failed for want of a readable report lands here too: an unknown verdict is not a passing one.
 
@@ -262,8 +262,8 @@ Step 1 of the pass point. A passing verdict says the work is finished; whether i
 **The warning is rendered by the same script LIST annotates from** — [`scripts/render-integration.sh`](../scripts/render-integration.sh), asked for a different rendering of the same JSON — so the sentence the user reads is the sentence the test suite pins. On a passing verdict, pipe the detector into its `--validate` mode and append whatever comes back to the presented results:
 
 ```
-epic-git-status <story-dir> \
-  | epic-integration --validate <NNN>
+epico-git-status <story-dir> \
+  | epico-integration --validate <NNN>
 ```
 
 `<NNN>` is the story number **as the reader knows it** and is interpolated verbatim — pass `006`, not `6`. What the script writes, per the `integrated` field of the detector's JSON (`{story, main_branch, integrated, evidence, anchored_commits, checked_at}`), **documents its three arms rather than prescribing a rendering to perform by hand**:
@@ -305,9 +305,9 @@ this story's commits carry no (NNN) anchor — integration detection cannot see 
 **Run the detector once and decide from its JSON.** The count and `integrated` come out of the same object, so the pipe shown above becomes a second use of that object rather than a second detection — two runs could disagree, and the detector is the expensive half:
 
 ```
-status_json=$(epic-git-status <story-dir>) || status_json=""
+status_json=$(epico-git-status <story-dir>) || status_json=""
 # then, only when the table below says so:
-printf '%s\n' "$status_json" | epic-integration --validate <NNN>
+printf '%s\n' "$status_json" | epico-integration --validate <NNN>
 ```
 
 **Precedence — apply the first rule that matches.** Left to themselves the two warnings double-fire on one story: a story with no anchored commits has no `message-ref` evidence either, so `integrated` is usually `false` for the very same underlying fact, and the user reads two sentences about one problem.
@@ -364,7 +364,7 @@ Render each line as `N.N — title (qualifier: reason)` — the exact shape `arc
 ### On `[y]`
 
 ```
-epic-archive <story-dir>
+epico-archive <story-dir>
 ```
 
 The story number (`005`) works in place of the directory — it resolves against the nearest `.epic/`. Pass **no flags**. `--allow-heavy`, `--skip-secrets`, `--keep-logs`, `--keep-copies` and `--force <reason>` are the user's decisions and each is recorded in the manifest entry as an override: an override the engine chose for itself is an override nobody agreed to. The one `--force` an offer passes is supersede's, and only because its question names the flag and the reason before the user accepts ([supersede-mode.md](supersede-mode.md#the-archive-offer)). Never re-run a blocked archive with a guard flag on your own initiative — report the verdict and let the user ask for the override by name.
@@ -382,7 +382,7 @@ The script prints **one JSON object on stdout**, diagnostics on stderr. Surface 
 
 ### On `[n]`
 
-One line, no argument, no second ask: the story stays in `.epic/stories/`. The offer returns on the next passing verdict, and `/epic:epic stories archive NNN` runs the same script at any time.
+One line, no argument, no second ask: the story stays in `.epic/stories/`. The offer returns on the next passing verdict, and `/epico:epico stories archive NNN` runs the same script at any time.
 
 ### Headless
 
@@ -393,7 +393,7 @@ The note names the command, so a logged suggestion is still actionable:
 ```
 Archive suggestion: story 003 is validated and complete (2 deferred, still owed
 externally). To archive it, run:
-  epic-archive 003
+  epico-archive 003
 ```
 
 ## Index Refresh
@@ -401,7 +401,7 @@ externally). To archive it, run:
 Step 4 of the pass point, and **the single definition of the completion-time refresh** — Run mode invokes it at the end of a completed run and LIST refreshes it opportunistically, both pointing here.
 
 ```
-epic-index
+epico-index
 ```
 
 It regenerates the managed block between the `<!-- epic:index:start -->` / `<!-- epic:index:end -->` markers in `.epic/EPIC.md` and preserves every byte outside them.

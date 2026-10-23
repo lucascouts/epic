@@ -311,7 +311,7 @@ hasF() { # hasF <label> <block> <fixed string>
 }
 
 @test "E14b: instant is routed — grammar arm and dispatch row both exist" {
-  f="$ROOT/skills/epic/SKILL.md"
+  f="$ROOT/skills/epico/SKILL.md"
   grep -qE '^"instant <description>"' "$f"
   grep -q '| \*\*Instant\*\* |' "$f"
 }

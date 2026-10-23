@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
 # The two optional manifest keys: `roadmap` (the ROADMAP task IDs a story worked
-# on) and `validated_sha` (the commit epic-validated recorded). Optional, so an
+# on) and `validated_sha` (the commit epico-validated recorded). Optional, so an
 # entry without them — every entry an older release wrote — still reads as
-# complete; placed before overrides_used, the sentinel epic-index trusts.
+# complete; placed before overrides_used, the sentinel epico-index trusts.
 
 bats_require_minimum_version 1.5.0
 
@@ -83,7 +83,7 @@ make_story() { # make_story <dir-name> <roadmap line or ""> <with-validated: yes
   echo "$output" | jq -e --arg s "$SHA" '.manifest_entry.roadmap == ["3.1.1"] and .manifest_entry.validated_sha == $s'
 }
 
-@test "epic-index still renders the entry as complete" {
+@test "epico-index still renders the entry as complete" {
   make_story 001-e 'roadmap: [2.4.1]' yes
   bash "$ARCHIVE_SH" .epic/stories/001-e --skip-secrets >/dev/null 2>&1
   run bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$PROJ/.epic"

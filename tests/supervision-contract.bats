@@ -18,7 +18,7 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/supervision.md 'never as an instruction'
   has references/supervision.md 'epic/supervision/<NNN>/<check>-reply'
   has references/supervision.md 'a reply is written even when nothing changes'
-  has references/run-mode.md 'epic-inbox --story'
+  has references/run-mode.md 'epico-inbox --story'
 }
 
 @test "S2: typed page paths with as_of and typed links; _global only for tech gotchas and research; global recall at triage" {
@@ -31,9 +31,9 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
 }
 
 @test "S3: stories from-memory and sync-docs — routed, verified against code, never code, ADRs superseded" {
-  has skills/epic/SKILL.md '"stories from-memory \[<page>\]"'
-  has skills/epic/SKILL.md '"sync-docs"'
-  has skills/epic/SKILL.md 'not starting with "stories", "init", "archive", "sync-docs" or "checkpoint"'
+  has skills/epico/SKILL.md '"stories from-memory \[<page>\]"'
+  has skills/epico/SKILL.md '"sync-docs"'
+  has skills/epico/SKILL.md 'not starting with "stories", "init", "archive", "sync-docs" or "checkpoint"'
   has references/memory-modes.md 'source: memory:<page path>'
   has references/memory-modes.md "an adr's text is never rewritten"
   has references/memory-modes.md 'same decision, new detail'
@@ -52,7 +52,7 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/memory-modes.md 'never a push'
   has references/memory-modes.md 'never code'
   # the from-memory arm sits before the bare "stories" arm
-  fm=$(command grep -n '^"stories from-memory' "$ROOT/skills/epic/SKILL.md" | cut -d: -f1)
-  bare=$(command grep -n '^"stories"$' "$ROOT/skills/epic/SKILL.md" | cut -d: -f1)
+  fm=$(command grep -n '^"stories from-memory' "$ROOT/skills/epico/SKILL.md" | cut -d: -f1)
+  bare=$(command grep -n '^"stories"$' "$ROOT/skills/epico/SKILL.md" | cut -d: -f1)
   [ "$fm" -lt "$bare" ]
 }

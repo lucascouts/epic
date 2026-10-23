@@ -20,7 +20,7 @@ decide() {
 }
 
 @test "I1: the exact command the headless run used is denied" {
-  [ "$(decide 'cd /tmp/w; epic-close 001 1.1; git add a.js && git -c user.name=lucascs -c user.email=l@example.invalid commit -q -m "chore(001): x"')" = deny ]
+  [ "$(decide 'cd /tmp/w; epico-close 001 1.1; git add a.js && git -c user.name=lucascs -c user.email=l@example.invalid commit -q -m "chore(001): x"')" = deny ]
 }
 
 @test "I2: --author and GIT_AUTHOR/GIT_COMMITTER variables are denied" {

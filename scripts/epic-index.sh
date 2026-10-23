@@ -159,7 +159,7 @@ cleanup() {
 trap cleanup EXIT
 
 fail() {
-  echo "epic-index: $1" >&2
+  echo "epico-index: $1" >&2
   exit 1
 }
 
@@ -683,7 +683,7 @@ read_manifest() {
     "$e_total" "$e_closed" "$e_deferred" "$e_complete"
   return $rc
 }
-read_manifest || echo "epic-index manifest=$MANIFEST_FILE note=unreadable-in-part" >&2
+read_manifest || echo "epico-index manifest=$MANIFEST_FILE note=unreadable-in-part" >&2
 
 MANIFEST_COUNT=${#MAN_ROWS[@]}
 
@@ -693,7 +693,7 @@ MANIFEST_COUNT=${#MAN_ROWS[@]}
 # already exists IS maintained even at zero stories, because the user asked for
 # it by creating it.
 if [[ "$STORY_COUNT" -eq 0 && "$MANIFEST_COUNT" -eq 0 && ! -e "$INDEX_FILE" ]]; then
-  echo "epic-index index=$INDEX_FILE stories=0 action=skipped reason=no-stories" >&2
+  echo "epico-index index=$INDEX_FILE stories=0 action=skipped reason=no-stories" >&2
   exit 0
 fi
 
@@ -1000,7 +1000,7 @@ fi
 # Idempotence at its strongest: a second run with no state change does not open the
 # file for writing at all, so neither the bytes nor the mtime move.
 if [[ -f "$INDEX_FILE" ]] && cmp -s "$TMP_BUILD" "$INDEX_FILE"; then
-  echo "epic-index index=$INDEX_FILE stories=$STORY_COUNT manifest_only=$MANIFEST_COUNT action=unchanged" >&2
+  echo "epico-index index=$INDEX_FILE stories=$STORY_COUNT manifest_only=$MANIFEST_COUNT action=unchanged" >&2
   exit 0
 fi
 
@@ -1035,5 +1035,5 @@ chmod "$NEW_MODE" "$TMP_SWAP" 2>/dev/null || true
 mv -f "$TMP_SWAP" "$INDEX_FILE" || fail "could not replace $INDEX_FILE"
 TMP_SWAP=""
 
-echo "epic-index index=$INDEX_FILE stories=$STORY_COUNT manifest_only=$MANIFEST_COUNT action=written" >&2
+echo "epico-index index=$INDEX_FILE stories=$STORY_COUNT manifest_only=$MANIFEST_COUNT action=written" >&2
 exit 0

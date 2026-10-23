@@ -3,7 +3,7 @@
 # end of the turn, once, naming each word.
 #
 # The words leak in short status lines written between tool calls ("Red
-# confirmed, now the implementation") — never in the closing, which epic-jargon
+# confirmed, now the implementation") — never in the closing, which epico-jargon
 # already checks. Asking the model not to narrate is not reliable, so this hook
 # does not ask: it reads every assistant text block of the turn from the transcript, runs
 # jargon-check.sh over all of it, and when a term has no legend anywhere in the

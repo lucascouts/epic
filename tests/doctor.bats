@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# epic-doctor: read-only health check of .epic/, JSON or one summary line.
+# epico-doctor: read-only health check of .epic/, JSON or one summary line.
 
 setup() {
   PLUGIN_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -134,7 +134,7 @@ index() { bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$E" >/dev/null; 
   run doctor --summary
   [ "$status" -eq 0 ]
   [ "${#lines[@]}" -eq 1 ]
-  [[ "$output" == "epic-doctor: 1 error(s), 4 warning(s) — "*"run epic-doctor for all 5" ]]
+  [[ "$output" == "epico-doctor: 1 error(s), 4 warning(s) — "*"run epico-doctor for all 5" ]]
 }
 
 @test "read-only: the tree is byte-identical after a run" {

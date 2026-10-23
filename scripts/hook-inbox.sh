@@ -3,9 +3,9 @@
 # mailbox to the orchestrator, as UNTRUSTED claims to verify.
 #
 #   As a PostToolUse hook (JSON on stdin): acts only after a box was closed —
-#   a Bash call that ran `epic-close` or `close-subtask.sh` — and returns the
+#   a Bash call that ran `epico-close` or `close-subtask.sh` — and returns the
 #   messages as additionalContext.
-#   As a command: `hook-inbox.sh --story <dir>` (epic-inbox), run by the
+#   As a command: `hook-inbox.sh --story <dir>` (epico-inbox), run by the
 #   orchestrator at every group gate; prints the messages as text.
 #
 # Only messages whose subject starts with `supervision:` are claimed — the
@@ -33,9 +33,9 @@ else
   INPUT=$(cat)
   [ "$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)" = Bash ] || exit 0
   CMD=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
-  case "$CMD" in *epic-close* | *close-subtask.sh*) ;; *) exit 0 ;; esac
+  case "$CMD" in *epico-close* | *close-subtask.sh*) ;; *) exit 0 ;; esac
   # The story is the first argument after the close command.
-  STORY_ARG=$(printf '%s' "$CMD" | sed -nE 's/.*(epic-close|close-subtask\.sh)["]?[[:space:]]+([^[:space:];&|]+).*/\2/p' | head -n 1)
+  STORY_ARG=$(printf '%s' "$CMD" | sed -nE 's/.*(epico-close|close-subtask\.sh)["]?[[:space:]]+([^[:space:];&|]+).*/\2/p' | head -n 1)
   STORY_ARG=${STORY_ARG//\"/}
 fi
 
