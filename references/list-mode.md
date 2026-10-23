@@ -166,8 +166,8 @@ One pass over every story, **one invocation for the whole listing** — unlike t
 
 | The script writes | This mode renders |
 |---|---|
-| `Epic spike '031-probe-cache' has an open Verdict untouched for 15 days — promote or close.` | ` · spike open 15 days — promote or close` on that story's row |
-| `Epic story '…' has pending tasks untouched for N days.` | ` · stale N days` on that story's row |
+| `Epico spike '031-probe-cache' has an open Verdict untouched for 15 days — promote or close.` | ` · spike open 15 days — promote or close` on that story's row |
+| `Epico story '…' has pending tasks untouched for N days.` | ` · stale N days` on that story's row |
 
 The **decision** is the script's; only the shortening is this mode's, like the `·` separators and the column layout. A terminal Verdict never produces a line whatever its boxes say, and a story inside its deadline produces none either — silence here means "not stale", and it is the only thing that does.
 

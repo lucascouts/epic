@@ -44,7 +44,7 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has references/memory-modes.md 'headless writes nothing'
   # the doc writer: works without memory, commits one document at a time with trailers, never pushes
   has references/memory-modes.md 'sync docs reads memory when it is there and works without it'
-  has references/memory-modes.md 'the only thing in epic that writes a project'
+  has references/memory-modes.md 'the only thing in epico that writes a project'
   has references/memory-modes.md 'git commit --only -- <file>'
   has references/memory-modes.md 'write \*\*and commit\*\*'
   has references/memory-modes.md 'story: <nnn> <title>'

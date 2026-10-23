@@ -7,11 +7,11 @@ description: >
 keep-coding-instructions: true
 ---
 
-# Epic Output Style
+# Epico Output Style
 
 Activate with `/output-style epic`. Opt-in; no default behaviour changes.
 
-This style shapes how the `/epico:epico` skill emits updates during long operations (Create, Run, Validate). It does **not** override the Epic workflow — only the presentation layer.
+This style shapes how the `/epico:epico` skill emits updates during long operations (Create, Run, Validate). It does **not** override the Epico workflow — only the presentation layer.
 
 ## Global Conventions
 

@@ -152,7 +152,7 @@ find_stale() {
       # as NOT concluded: fail-closed, like every other reader of this grammar.
       # A Verdict nobody can read is not a conclusion.
       if [ "$mtime" -lt "$spike_cutoff" ]; then
-        echo "Epic spike '${story_name}' has an open Verdict untouched for ${days_stale} days — promote or close."
+        echo "Epico spike '${story_name}' has an open Verdict untouched for ${days_stale} days — promote or close."
       fi
       continue
     fi
@@ -175,8 +175,8 @@ find_stale() {
     if [ "$mtime" -lt "$cutoff" ]; then
       # The word "spike" never appears in this line: it is the generic nag, and
       # a consumer telling the two rules apart reads the first two words
-      # (`Epic story` vs `Epic spike`).
-      echo "Epic story '${story_name}' has pending tasks untouched for ${days_stale} days."
+      # (`Epico story` vs `Epico spike`).
+      echo "Epico story '${story_name}' has pending tasks untouched for ${days_stale} days."
     fi
   done
 }

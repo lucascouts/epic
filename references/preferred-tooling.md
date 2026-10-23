@@ -1,6 +1,6 @@
 # Preferred Tooling
 
-Epic personas that select an end-to-end (E2E) testing tool, or an implementation aid for a frontend story, must follow this policy. The goal is to **prefer a small set of favorite tools**, fall back to an optional tool only when one is already installed and the task context calls for it, and — when no favorite is present — recommend installing one and pause for the user's decision rather than guessing. This document is the single source of truth referenced by `SKILL.md` triage, the Test Advisor, and the Executor. For research MCP selection (a separate concern), see [mcp-integration.md](mcp-integration.md).
+Epico personas that select an end-to-end (E2E) testing tool, or an implementation aid for a frontend story, must follow this policy. The goal is to **prefer a small set of favorite tools**, fall back to an optional tool only when one is already installed and the task context calls for it, and — when no favorite is present — recommend installing one and pause for the user's decision rather than guessing. This document is the single source of truth referenced by `SKILL.md` triage, the Test Advisor, and the Executor. For research MCP selection (a separate concern), see [mcp-integration.md](mcp-integration.md).
 
 ## Priority order
 
@@ -40,7 +40,7 @@ When a story requires E2E testing and no favorite E2E tool (`playwright`, `chrom
 
 1. **Interactive session:** present the install recommendation with a `[y/n]` install/proceed choice, and link to the relevant install docs (https://code.claude.com/docs/en/mcp#find-and-build-mcp-servers for an MCP tool; the skill's install docs for `frontend-design`). **Pause** for the user's decision.
 
-   > "No favorite E2E tool detected. Epic recommends installing `playwright` (default favorite, MCP). Install now, or proceed with the best available tool? [y/n]  See https://code.claude.com/docs/en/mcp#find-and-build-mcp-servers."
+   > "No favorite E2E tool detected. Epico recommends installing `playwright` (default favorite, MCP). Install now, or proceed with the best available tool? [y/n]  See https://code.claude.com/docs/en/mcp#find-and-build-mcp-servers."
 
 2. **If the user installs:** re-run detection for that tool and select the favorite.
 3. **If the user proceeds without installing:** continue using the best available tool that fits the task context — an installed optional E2E tool when one fits (see "Priority order"), otherwise record `no E2E tooling available` as a story constraint. For a frontend task with no `frontend-design`, fall back to the Executor's default approach.

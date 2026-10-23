@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# The checkpoint mode's contract: the user's verdict before Epic's on judgment
+# The checkpoint mode's contract: the user's verdict before Epico's on judgment
 # items, no recommended marker there, --auto stops before judgment, documents
 # only through the doc writer, the record of every answer.
 
@@ -18,7 +18,7 @@ has() {  # <extended regex> — case-insensitive, names the miss
 }
 
 @test "the user leads: verdict first on judgment items, no recommended marker, --auto stops before judgment" {
-  has 'ask for the user.s verdict, and only then give Epic.s own reading'
+  has 'ask for the user.s verdict, and only then give Epico.s own reading'
   has 'carry \*\*no `\(Recommended\)` marker\*\*'
   has 'under `--auto` the checkpoint runs step 1, prints it, and stops before step 2'
   has 'headless: print every step.s evidence and proposed answers, write nothing'
@@ -37,7 +37,7 @@ has() {  # <extended regex> — case-insensitive, names the miss
   has 'never code, never a story'
 }
 
-@test "the record keeps the user's verdict, Epic's reading and the final answer" {
+@test "the record keeps the user's verdict, Epico's reading and the final answer" {
   has '\.epic/checkpoints/<N>\.yaml'
   has '^    user: '
   has '^    epic: '

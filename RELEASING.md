@@ -81,15 +81,15 @@ Then the tag, **annotated**, on the merge commit:
 
 ```bash
 git checkout main && git pull --ff-only
-git tag -a vN.N.N <merge-sha> -m 'Epic vN.N.N — <one line>'
+git tag -a vN.N.N <merge-sha> -m 'Epico vN.N.N — <one line>'
 git push origin vN.N.N
 ```
 
-**The tag is not the release.** Every version gets a GitHub Release object: a pushed tag alone leaves the version invisible on the releases page even though the `releases/tag/…` link in the CHANGELOG still resolves — which is exactly how this step gets missed. Create it from the version's own CHANGELOG section, verbatim, titled `Epic vN.N.N`:
+**The tag is not the release.** Every version gets a GitHub Release object: a pushed tag alone leaves the version invisible on the releases page even though the `releases/tag/…` link in the CHANGELOG still resolves — which is exactly how this step gets missed. Create it from the version's own CHANGELOG section, verbatim, titled `Epico vN.N.N`:
 
 ```bash
 awk '/^## \[N\.N\.N\]/{f=1; next} /^## \[/{f=0} f' CHANGELOG.md > /tmp/notes.md
-gh release create vN.N.N --title 'Epic vN.N.N' --notes-file /tmp/notes.md --verify-tag
+gh release create vN.N.N --title 'Epico vN.N.N' --notes-file /tmp/notes.md --verify-tag
 gh release list --limit 3        # the new one must read Latest
 ```
 

@@ -147,7 +147,7 @@ index() { bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$E" >/dev/null; 
   [ "$before" = "$after" ]
 }
 
-@test "CLAUDE.md: a missing or stale Epic block is a warning naming init --repair" {
+@test "CLAUDE.md: a missing or stale Epico block is a warning naming init --repair" {
   story 001-a fast in-progress ' '
   index
   run doctor
@@ -157,5 +157,5 @@ index() { bash "$PLUGIN_ROOT/scripts/epic-index.sh" --epic-dir "$E" >/dev/null; 
   echo "$output" | jq -e 'any(.findings[]; .check == "claude-md" and (.detail | test("stale.*init --repair")))'
   rm "$WORK/CLAUDE.md"
   run doctor
-  echo "$output" | jq -e 'any(.findings[]; .check == "claude-md" and (.detail | test("no Epic block")))'
+  echo "$output" | jq -e 'any(.findings[]; .check == "claude-md" and (.detail | test("no Epico block")))'
 }

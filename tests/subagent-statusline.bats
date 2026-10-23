@@ -12,7 +12,7 @@ setup() {
   jq -e '.subagentStatusLine.type == "command" and (.subagentStatusLine.command | length > 0)' "$PLUGIN_ROOT/settings.json"
 }
 
-@test "one id/content line per Epic row; other plugins' rows are left to the default" {
+@test "one id/content line per Epico row; other plugins' rows are left to the default" {
   stdin='{"columns":120,"tasks":[
     {"id":"t1","agentType":"epico:executor","label":"Write the parser","tokenCount":12345},
     {"id":"t2","agentType":"epico:auditor","description":"Validate 004","tokenCount":0},

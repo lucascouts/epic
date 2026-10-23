@@ -1,6 +1,6 @@
 # CI/Headless Mode
 
-Use these patterns when running Epic plugin operations programmatically with `claude -p` or the Agent SDK. Every recipe that invokes `/epico:epico` must load the plugin: pass `--plugin-dir "$EPIC_PLUGIN_ROOT"` (a checkout of this repo), or install the plugin first. Do not add `--bare`: it skips every hook — the archive, executor and identity guards included — loads none of the plugin's sub-agents, and authenticates only through `ANTHROPIC_API_KEY`, never an OAuth login. Every recipe below also states its permissions instead of inheriting them:
+Use these patterns when running Epico plugin operations programmatically with `claude -p` or the Agent SDK. Every recipe that invokes `/epico:epico` must load the plugin: pass `--plugin-dir "$EPIC_PLUGIN_ROOT"` (a checkout of this repo), or install the plugin first. Do not add `--bare`: it skips every hook — the archive, executor and identity guards included — loads none of the plugin's sub-agents, and authenticates only through `ANTHROPIC_API_KEY`, never an OAuth login. Every recipe below also states its permissions instead of inheriting them:
 
 - `--permission-mode acceptEdits` — set it explicitly; a `-p` run with no mode picks one that depends on the provider.
 - `--permission-prompts none` — nobody is there to answer, so anything that would prompt is denied at once instead of hanging the run.
@@ -126,7 +126,7 @@ Pipe to `jq` for CI gating:
 OUT=$(claude -p "..." --plugin-dir "$EPIC_PLUGIN_ROOT" --output-format json --json-schema '{...}')
 # A run that errored, or ended without a structured result, is a failure — not a pass.
 echo "$OUT" | jq -e '(.is_error | not) and (.structured_output != null)' >/dev/null \
-  || { echo "Epic run failed or returned no structured output" >&2; exit 1; }
+  || { echo "Epico run failed or returned no structured output" >&2; exit 1; }
 RESULT=$(echo "$OUT" | jq '.structured_output')
 STATUS=$(echo "$RESULT" | jq -r '.status')
 [ "$STATUS" = "fail" ] && { echo "$RESULT" | jq '.gaps'; exit 1; }
@@ -136,10 +136,10 @@ STATUS=$(echo "$RESULT" | jq -r '.status')
 
 When you run `claude -p` with `--output-format stream-json --verbose`, the stream
 carries one `system/init` event. It is not always the first line: SessionStart hook
-events (`hook_started`, `hook_response`) come before it, and Epic ships a
+events (`hook_started`, `hook_response`) come before it, and Epico ships a
 SessionStart hook — so select it by type. It contains a `plugins` array (loaded
 successfully), an optional `plugin_errors` array (load-time failures such as
-unsatisfied dependency versions) and the `slash_commands` the session can run. Use this to **fail CI when Epic does not load**,
+unsatisfied dependency versions) and the `slash_commands` the session can run. Use this to **fail CI when Epico does not load**,
 which can happen if the marketplace is unreachable or `plugin.json` becomes invalid:
 
 ```bash
@@ -154,30 +154,30 @@ claude -p "Validate epic stories in this repo" \
 INIT=$(jq -c 'select(.type == "system" and .subtype == "init")' stream.jsonl | head -1)
 
 if echo "$INIT" | jq -e '.plugin_errors[]? | select(.plugin == "epico")' >/dev/null; then
-  echo "Epic plugin failed to load:" >&2
+  echo "Epico plugin failed to load:" >&2
   echo "$INIT" | jq '.plugin_errors[] | select(.plugin == "epico")' >&2
   exit 1
 fi
 
 if ! echo "$INIT" | jq -e '.plugins[]? | select(.name == "epico")' >/dev/null; then
-  echo "Epic plugin not found in loaded plugins. Check installation." >&2
+  echo "Epico plugin not found in loaded plugins. Check installation." >&2
   exit 1
 fi
 
 if ! echo "$INIT" | jq -e '[.agents[]? | select(startswith("epico:"))] | length == 6' >/dev/null; then
-  echo "Epic loaded without its six sub-agents (is `--bare` set?)." >&2
+  echo "Epico loaded without its six sub-agents (is `--bare` set?)." >&2
   exit 1
 fi
 
 if ! echo "$INIT" | jq -e '.slash_commands[]? | select(. == "epico:epico")' >/dev/null; then
-  echo "Epic loaded but /epico:epico is not available in this session." >&2
+  echo "Epico loaded but /epico:epico is not available in this session." >&2
   exit 1
 fi
 
-echo "Epic loaded successfully."
+echo "Epico loaded successfully."
 ```
 
-This is independent of any Epic-specific output — it is the platform reporting
+This is independent of any Epico-specific output — it is the platform reporting
 what was actually loaded into the session. Combine with the validation example
 above for an end-to-end CI pipeline.
 
@@ -190,4 +190,4 @@ above for an end-to-end CI pipeline.
 - Scripts are standalone bash — no Claude Code dependency for validation
 - For structured output from Claude operations, use `--output-format json`
 - Combine with `--json-schema` for typed structured output (see example above)
-- Inside a Claude session with the Epic plugin enabled, call the scripts through their `epic-*` wrappers on PATH (`epico-validate`, `epico-xref`, …)
+- Inside a Claude session with the Epico plugin enabled, call the scripts through their `epic-*` wrappers on PATH (`epico-validate`, `epico-xref`, …)

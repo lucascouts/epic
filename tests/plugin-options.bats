@@ -33,7 +33,7 @@ setup() {
 }
 
 @test "SKILL.md states that .epic documentation is always English and not configurable" {
-  grep -q 'Everything the Epic writes under `.epic/` is written in English' "$SKILL"
+  grep -q 'Everything the Epico writes under `.epic/` is written in English' "$SKILL"
   grep -q 'This is not an option and no setting changes it' "$SKILL"
 }
 

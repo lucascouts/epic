@@ -2,7 +2,7 @@
 # Read-only health check of a project's .epic/ tree. Prints one JSON object
 # (default) or one summary line (--summary), and changes nothing on disk.
 #
-#   error   — something an Epic mode will trip over: no constitution or one
+#   error   — something an Epico mode will trip over: no constitution or one
 #             missing a required section, a story with no tasks.md, a
 #             standard/full story with no story.md.
 #   warning — drift that degrades a mode without breaking it: EPIC.md absent
@@ -109,9 +109,9 @@ fi
 if [ -f "$ROOT/CLAUDE.md" ] || [ -f "$EPIC_DIR/constitution.md" ]; then
   if ! CM=$(bash "$SCRIPT_DIR/claude-md.sh" check --root "$ROOT" 2>/dev/null); then
     if printf '%s' "$CM" | jq -e '.present == true' >/dev/null 2>&1; then
-      add warning claude-md CLAUDE.md "the Epic block is stale — run /epico:epico init --repair"
+      add warning claude-md CLAUDE.md "the Epico block is stale — run /epico:epico init --repair"
     else
-      add warning claude-md CLAUDE.md "no Epic block — run /epico:epico init --repair"
+      add warning claude-md CLAUDE.md "no Epico block — run /epico:epico init --repair"
     fi
   fi
 fi

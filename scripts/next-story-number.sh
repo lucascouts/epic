@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Allocates the next story number for an Epic project — and, with --reserve,
+# Allocates the next story number for an Epico project — and, with --reserve,
 # claims numbers on disk so a second allocator cannot hand out the same one.
 #
 # Usage:

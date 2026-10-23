@@ -1,16 +1,16 @@
-# Epic — Structured Story Framework for Claude Code
+# Epico — Structured Story Framework for Claude Code
 
-Scale-adaptive plugin for creating, managing, and executing development work as structured stories (features and bugfixes). Epic turns vague requests into EARS-notation requirements, design documents, and a tracked task list — then orchestrates specialized sub-agents to implement, validate, and audit the work.
+Scale-adaptive plugin for creating, managing, and executing development work as structured stories (features and bugfixes). Epico turns vague requests into EARS-notation requirements, design documents, and a tracked task list — then orchestrates specialized sub-agents to implement, validate, and audit the work.
 
 Invoked as `/epico:epico` inside Claude Code.
 
-> **Scope is narrow.** Epic creates, structures, and manages epics/stories — nothing else. It does **not** perform ad-hoc code review, security review, refactors outside a planned story, general analysis, or exploratory code generation. See [PURPOSE.md](PURPOSE.md) for the full in-scope / out-of-scope contract and which Claude Code command to use for each refused case.
+> **Scope is narrow.** Epico creates, structures, and manages epics/stories — nothing else. It does **not** perform ad-hoc code review, security review, refactors outside a planned story, general analysis, or exploratory code generation. See [PURPOSE.md](PURPOSE.md) for the full in-scope / out-of-scope contract and which Claude Code command to use for each refused case.
 
 ---
 
-## Why Epic
+## Why Epico
 
-Ad-hoc prompts lose context, drift in scope, and produce undocumented changes. Epic formalizes the loop:
+Ad-hoc prompts lose context, drift in scope, and produce undocumented changes. Epico formalizes the loop:
 
 - **Plan**: EARS requirements (`SHALL ...`), optional design doc with component interfaces, hierarchical tasks with validation commands.
 - **Execute**: Sub-agent (`executor`) follows a strict 6-step protocol per sub-task (context → implementation → design fidelity → validation → refactor-or-tests → report). Step 5 is conditional: Refactor when the sub-task carries a pre-authored failing test, Tests when it does not.
@@ -28,7 +28,7 @@ All three modes are **test-first**. Standard and Full at engineering level `proj
 
 **Scale is one axis; the engineering level is the other.** Triage also reads how long the thing must last — `experiment` (disposable, 1×), `tool` (kept and fixed, 2–3×), `project` (maintained, others depend on it, 4–6×), `product` (may be published or sold, 8×+) — proposes it with its price in one line, and from it sets which tier of the quality catalog the story activates, whether Phase 3 authors the tests or the run does, and the plan's box ceiling (5, 12, 24, 40 Task List boxes). The level never changes the scale. See [references/engineering-level.md](references/engineering-level.md).
 
-Epic ships an opinionated **preferred-tooling policy** ([references/preferred-tooling.md](references/preferred-tooling.md)) for E2E test tooling. Triage detects installed E2E tools — favorites are `playwright` and `chrome-devtools` — via MCP health-check, dependency-manifest inspection, and skill-list presence, in **all modes including Fast**. When no favorite is found, Epic recommends one and pauses rather than silently picking an optional tool (`puppeteer`, `selenium`, `browser-use`, `stagehand`). The resolved choice is persisted to `design.md`'s `## Tooling Decisions` block.
+Epico ships an opinionated **preferred-tooling policy** ([references/preferred-tooling.md](references/preferred-tooling.md)) for E2E test tooling. Triage detects installed E2E tools — favorites are `playwright` and `chrome-devtools` — via MCP health-check, dependency-manifest inspection, and skill-list presence, in **all modes including Fast**. When no favorite is found, Epico recommends one and pauses rather than silently picking an optional tool (`puppeteer`, `selenium`, `browser-use`, `stagehand`). The resolved choice is persisted to `design.md`'s `## Tooling Decisions` block.
 
 ---
 
@@ -63,8 +63,8 @@ Run `/reload-plugins` after updating plugin files.
 
 - **Claude Code v2.1.295 or newer.** One floor for every feature: the fail-closed guards (`onFailure`), the sub-agent status line, `LSP` in a background sub-agent and the plugin options all need it. Older versions are not supported.
 - `bash`, `git`, `jq` available on PATH
-- **Optional MCPs** for web research: `brave-search`, `exa`, `tavily`, `firecrawl`, and `perplexity` (premium, never the default). Epic health-checks each MCP before suggesting it; missing MCPs degrade gracefully. Library docs need no MCP: Epic reads the installed dependency first, then the official docs for that version.
-- **Optional — keep sub-agents in the foreground:** in interactive sessions Claude Code runs sub-agents in the background by default, and Epic then waits for each one's completion notification. To run them in the foreground instead, start Claude Code with `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` (or put it in your settings `env`). Side effect: no background Bash commands and no Ctrl+B.
+- **Optional MCPs** for web research: `brave-search`, `exa`, `tavily`, `firecrawl`, and `perplexity` (premium, never the default). Epico health-checks each MCP before suggesting it; missing MCPs degrade gracefully. Library docs need no MCP: Epico reads the installed dependency first, then the official docs for that version.
+- **Optional — keep sub-agents in the foreground:** in interactive sessions Claude Code runs sub-agents in the background by default, and Epico then waits for each one's completion notification. To run them in the foreground instead, start Claude Code with `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` (or put it in your settings `env`). Side effect: no background Bash commands and no Ctrl+B.
 - **Optional tooling for development**: `shellcheck` and `bats` for running the script test suite locally (`bats tests/`).
 
 ---
@@ -170,7 +170,7 @@ Versioned tracks exactly `story.md`, `design.md`, `tasks.md`, `EPIC.md` and `arc
 
 **Non-interactive runs get local-only, without prompting.** A headless or Agent SDK `init` applies the conservative status quo and never starts committing `.epic` behind your back. It also never overrides a policy already recorded: a workspace that declares `tracked-md` is left exactly as it is.
 
-**A per-project choice — init asks, and it supersedes any global doctrine.** If your global `CLAUDE.md` or personal convention says "never commit `.epic`", the answer recorded for *this* project wins here. Epic never reads or edits your global configuration.
+**A per-project choice — init asks, and it supersedes any global doctrine.** If your global `CLAUDE.md` or personal convention says "never commit `.epic`", the answer recorded for *this* project wins here. Epico never reads or edits your global configuration.
 
 **Checking the state:** `scripts/epic-gitpolicy.sh` is a read-only lint that prints one JSON object comparing the declared policy against what git actually does — `{git, policy, gitignore_ignores_epic, gitignore_source, tracked_md, tracked_draft, verdict}`, where `verdict` is `consistent`, `contradiction` or `partial`. Init runs it before asking, to show you the state you are choosing from.
 
@@ -263,7 +263,7 @@ The story list (`/epico:epico stories`) flags stories with pending tasks untouch
 
 ## Output Style (optional)
 
-Epic ships with a structured output style for Triage proposals, Phase Gates, Run reports, and validation/audit output. Activate it with:
+Epico ships with a structured output style for Triage proposals, Phase Gates, Run reports, and validation/audit output. Activate it with:
 
 ```
 /output-style epic

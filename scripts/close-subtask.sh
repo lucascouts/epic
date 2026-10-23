@@ -678,7 +678,7 @@ if [[ -d "$TARGET" ]]; then
   fi
 elif [[ "$TARGET" =~ ^[0-9]+$ ]]; then
   EPIC_DIR=$(find_epic_dir) ||
-    refuse "no .epic/ directory found from $(pwd) — run this inside an Epic project, or pass the story directory; nothing was modified"
+    refuse "no .epic/ directory found from $(pwd) — run this inside an Epico project, or pass the story directory; nothing was modified"
   STORY_PATH=$(resolve_by_number "$TARGET" "$EPIC_DIR") ||
     refuse "story '$TARGET' not found under $EPIC_DIR/stories or $EPIC_DIR/archive — nothing was modified"
 else

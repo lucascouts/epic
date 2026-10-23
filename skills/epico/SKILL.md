@@ -38,13 +38,13 @@ allowed-tools:
   - mcp__ai-memory__memory_write_page
 ---
 
-# Epic
+# Epico
 
 Scale-adaptive story framework for features and bugfixes. Invoked as `/epico:epico`. Links to `../../references/` mean `${CLAUDE_PLUGIN_ROOT}/references/`.
 
 ## Scope
 
-Epic exists solely to **create, structure, and manage epics and their stories** (`story.md` + `design.md` + `tasks.md`). Before running any mode, check that the request fits this purpose.
+Epico exists solely to **create, structure, and manage epics and their stories** (`story.md` + `design.md` + `tasks.md`). Before running any mode, check that the request fits this purpose.
 
 Decline these requests with one line and the suggested alternative:
 
@@ -53,23 +53,23 @@ Decline these requests with one line and the suggested alternative:
 | "Review this code / PR / branch" | No story artifact to anchor to | Use `/review`, `/security-review`, or `/code-review` |
 | "Security review of …" | Same | `/security-review` |
 | "Refactor X" (no existing story) | Skips design-fidelity contract | Create a Fast/Standard story first, then `run` it |
-| "Analyze / explain this codebase" | Epic artifacts are the only valid analysis container here | Plain chat, or `/review` for a change |
+| "Analyze / explain this codebase" | Epico artifacts are the only valid analysis container here | Plain chat, or `/review` for a change |
 | "Write this script / change this file" (no approved sub-task) | Implementation only happens inside Executor for an approved sub-task | Create a story (often Fast) then run its tasks |
 | "Debug this incident / failing test" | Debug flow is out-of-scope | Plain chat |
 | "Architecture advice for existing code" | No design.md to validate against | Plain chat, or `/code-review` for a change |
 
-Do not start the out-of-scope work, and offer an Epic-wrapped version only when the user rephrases it as story or task work. See [`../../PURPOSE.md`](../../PURPOSE.md) for the full boundary.
+Do not start the out-of-scope work, and offer an Epico-wrapped version only when the user rephrases it as story or task work. See [`../../PURPOSE.md`](../../PURPOSE.md) for the full boundary.
 
 ## Language
 
-**Everything the Epic writes under `.epic/` is written in English — stories, design, tasks, backlog, reports and every other document.** This is not an option and no setting changes it: these files are read later by sub-agents, and Claude models perform best on English technical content.
+**Everything the Epico writes under `.epic/` is written in English — stories, design, tasks, backlog, reports and every other document.** This is not an option and no setting changes it: these files are read later by sub-agents, and Claude models perform best on English technical content.
 
 - **Spec artifacts** (story.md, design.md, tasks.md): always English
 - **EARS keywords**: always English and CAPS (SHALL, WHEN, WHILE, IF, WHERE)
 - **Communication with the user**: always in the user's language — the `language` setting when the user has set one, otherwise the language of their prompt — **every line they can see, including a note between two tool calls and the closing message**.
 - **No whole passage in another language in the chat** — names and popular terms are fine, legended for a `layperson` ([plain-register.md](../../references/plain-register.md)); an English status line, sentence or option label in a Portuguese chat is not, the recommended marker included (`(Recomendado)`).
-- **Code identifiers and comments the Epic writes**: English. A comment in the user's language only when they ask, on the line below the English one.
-- **What the requester's own users read**: the program's interface — menu, prompts, error messages — and the documentation of how to use it (its README). **This is the one thing the English rule does not cover**, and it is not the Epic's to decide: it belongs to whoever will read it.
+- **Code identifiers and comments the Epico writes**: English. A comment in the user's language only when they ask, on the line below the English one.
+- **What the requester's own users read**: the program's interface — menu, prompts, error messages — and the documentation of how to use it (its README). **This is the one thing the English rule does not cover**, and it is not the Epico's to decide: it belongs to whoever will read it.
 
 **The interface language is asked, not assumed.** A request written in a language other than English carries no instruction about the program's own text, and the English rule above is about artifacts. So:
 
@@ -144,7 +144,7 @@ Substituted when this skill loads; a value still reading `${user_config.…}` wa
 
 | Term | Meaning |
 |---|---|
-| **Epic** | This plugin / the `/epico:epico` command |
+| **Epico** | This plugin / the `/epico:epico` command |
 | **Story** | A unit of work: feature, bugfix, or initiative |
 | **Task** | An implementation action inside tasks.md |
 

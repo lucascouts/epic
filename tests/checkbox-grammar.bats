@@ -402,7 +402,7 @@ load_roster() {
   snapshot_fixture
   COPY=$(mktemp -d "$WORK/index.XXXXXX")
   cp -r "$WORK/proj" "$COPY/proj"
-  printf '# Epic\n\n<!-- epic:index:start -->\n<!-- epic:index:end -->\n' \
+  printf '# Epico\n\n<!-- epic:index:start -->\n<!-- epic:index:end -->\n' \
     > "$COPY/proj/.epic/EPIC.md"
   cd "$COPY/proj"
 

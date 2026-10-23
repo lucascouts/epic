@@ -15,7 +15,7 @@ The story then runs like any other. Nothing in the proposal is executed, and not
 
 ## Sync docs
 
-`/epico:epico sync-docs` turns what the project learned into a diff for its own documents, and writes only what the user accepts. Two parts: a **collector** that gathers the items, and the **doc writer** — the only thing in Epic that writes a project's root documents.
+`/epico:epico sync-docs` turns what the project learned into a diff for its own documents, and writes only what the user accepts. Two parts: a **collector** that gathers the items, and the **doc writer** — the only thing in Epico that writes a project's root documents.
 
 1. **Collect** the items since the last sync — the date in `.epic/.sync-docs` (absent: everything):
    - **From memory, when it is available:** this project's `epic/finding/` and `epic/decision/` pages with a later `as_of`. Without memory, say so in one line and use the other sources.

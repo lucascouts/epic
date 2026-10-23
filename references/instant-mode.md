@@ -18,7 +18,7 @@ Loaded by `/epico:epico instant <description>`, together with [triage.md](triage
 
 **What it does not remove.** The three pins are the whole difference. Triage still runs, the plan is still written, and every box still carries a `Validation:` that proves it alone.
 
-**What it does cost, said plainly.** `instant` does not only drop ceremony — **it drops protections the person using the program would have had**, and it drops them without asking. Left alone, the shortcut can: leave out an operation the requester would have asked for; make an unreadable answer cost a point instead of re-asking the question for free; delete a record without confirming; pick an interface language the requester would have chosen differently; and ship **no README at all** — less documentation than the same request answered with no Epic in the session.
+**What it does cost, said plainly.** `instant` does not only drop ceremony — **it drops protections the person using the program would have had**, and it drops them without asking. Left alone, the shortcut can: leave out an operation the requester would have asked for; make an unreadable answer cost a point instead of re-asking the question for free; delete a record without confirming; pick an interface language the requester would have chosen differently; and ship **no README at all** — less documentation than the same request answered with no Epico in the session.
 
 That is a fair bargain for something disposable, and it is not a bug. It stops being fair the moment it is silent. So:
 

@@ -177,7 +177,7 @@ The second block of the same prompt, run only when Part 1's verdict is `pass` �
 
 ### Fix loop bound
 
-A **fix round** is one pass of the loop validate fails → fix tasks are created and run → validate again. Unbounded, it is the most expensive thing Epic does: every round re-runs the whole suite and re-reads the whole story in the Auditor, and a finding the fix did not settle — or a new one the fix introduced — sends it round again.
+A **fix round** is one pass of the loop validate fails → fix tasks are created and run → validate again. Unbounded, it is the most expensive thing Epico does: every round re-runs the whole suite and re-reads the whole story in the Auditor, and a finding the fix did not settle — or a new one the fix introduced — sends it round again.
 
 - **The round is counted from tasks.md, never remembered.** The group step 6 creates is titled `Validation fixes — round N`; the next round is one more than the highest `N` already in the file.
 - **Every offer states what a round costs**: the fix run plus one Auditor spawn, which validates and audits. When `epico-telemetry` measured this validation, give its `subagent` tokens and its wall clock as the price of the revalidation.

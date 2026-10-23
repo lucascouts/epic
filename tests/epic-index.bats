@@ -702,7 +702,7 @@ story_order() {
 man_start() {
   mkdir -p "$PROJ/.epic/archive"
   cat > "$PROJ/.epic/archive/manifest.yaml" <<'EOF'
-# Epic archive manifest — one entry per archived story, appended by
+# Epico archive manifest — one entry per archived story, appended by
 # scripts/archive-story.sh at the moment of the move.
 #
 # POLICY: Numbers are never recycled. A new story always takes the next highest

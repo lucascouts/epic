@@ -40,7 +40,7 @@ ci:\bheadless\b
 ci:\bfrontmatter\b
 ci:\bdeviation register\b
 ci:\bepic-[a-z]+\b
-# Internal words of the Epic itself, in either language, that a beginner has no use for.
+# Internal words of the Epico itself, in either language, that a beginner has no use for.
 ci:\btriagem\b
 ci:\brefer[eê]ncias do (epic|fluxo|modo)\b
 ci:\bmodo (instant|fast|standard|full|spike)\b

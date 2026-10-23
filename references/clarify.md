@@ -9,7 +9,7 @@ clarifications using the `AskUserQuestion` tool. Multiple-choice prompts are
 faster for the user than free-text confirmations and yield structured answers
 the orchestrator can route on without re-parsing prose.
 
-**The Epic asks the way an architect asks a client.** The requester came to
+**The Epico asks the way an architect asks a client.** The requester came to
 have something built, not to give instructions; whatever their level, they
 know what it is and what it must do, and the how — the stack, the storage,
 the pattern, the tooling — is not settled in their head. So every question

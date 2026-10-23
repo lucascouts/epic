@@ -991,7 +991,7 @@ else
   # Created with a heading above the block: projects hand-write context around the index, and a bare pair of HTML
   # comments does not invite it.
   {
-    printf '%s\n\n' '# Epic — Story Index'
+    printf '%s\n\n' '# Epico — Story Index'
     render_block
   } > "$TMP_BUILD" || fail "could not compose the new index"
 fi

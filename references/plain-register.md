@@ -1,6 +1,6 @@
 # Plain Register
 
-The seed of `requester.always` and `requester.never` for `level: layperson` — someone who described an outcome, not a mechanism, and showed no tool vocabulary ([triage.md](triage.md#triage-protocol)); the developer's seed is [developer-register.md](developer-register.md). It changes how the Epic **speaks and asks**. It never changes what it builds, what it writes to the story files, or the protocols the sub-agents run: the files keep every internal name, the chat drops them.
+The seed of `requester.always` and `requester.never` for `level: layperson` — someone who described an outcome, not a mechanism, and showed no tool vocabulary ([triage.md](triage.md#triage-protocol)); the developer's seed is [developer-register.md](developer-register.md). It changes how the Epico **speaks and asks**. It never changes what it builds, what it writes to the story files, or the protocols the sub-agents run: the files keep every internal name, the chat drops them.
 
 ## Words that stay in the files
 
@@ -17,7 +17,7 @@ Process words — executor, framework, box, commit, story, checklist, Quality Ga
 | Q1…Qn, quality requirement, legend, catalog ([quality-catalog.md](quality-catalog.md)) | "the checks I ran" — each named by what it checked, never by number |
 | engineering level, experiment / tool / project / product, multiple ([engineering-level.md](engineering-level.md)) | how long it needs to last, and what that costs in time — the one price line of the proposal |
 | npm, lockfile, package manager, dependency, MCP, tool, hook, headless | name what it does, never what it is |
-| the Epic's own words in any language — triage, "the Epic's references", "instant mode", the plan's boxes, run report, gate, stub, assertion, a bare `/epico:epico` (the translated forms live in `assets/jargon-terms.txt`) | nothing — the requester never needs the machinery's own words; say what was done ("I wrote the check first and saw it fail") |
+| the Epico's own words in any language — triage, "the Epico's references", "instant mode", the plan's boxes, run report, gate, stub, assertion, a bare `/epico:epico` (the translated forms live in `assets/jargon-terms.txt`) | nothing — the requester never needs the machinery's own words; say what was done ("I wrote the check first and saw it fail") |
 
 **A word from the left column in visible text is a defect unless the same message carries its legend** — the same class as a typo in an identifier, and reported the same way. The plain words on the right come first; when a term has to stay — the requester will meet it again, in a command, an error or a tutorial — the message carries its legend: a line below it, `*term* — what it means here`, in the requester's language and about this request. A term with no meaning attached is what loses a beginner, not the term itself.
 
@@ -44,7 +44,7 @@ A phase gate asks a developer to review a file. A beginner cannot evaluate a req
 
 ## Run and show
 
-Never "run `npm test` yourself" — a layperson may not know how, and the Epic can run it. Run it first, show the result in two or three lines, and only then offer: "want to try it? type `npm start`".
+Never "run `npm test` yourself" — a layperson may not know how, and the Epico can run it. Run it first, show the result in two or three lines, and only then offer: "want to try it? type `npm start`".
 
 ## Explain by example
 

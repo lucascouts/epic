@@ -14,7 +14,7 @@ STORIES_ROOT=".epic/stories"
 ORPHANS=$(find "$STORIES_ROOT" -mindepth 2 -maxdepth 2 -type d -name .draft -mtime +30 2>/dev/null || true)
 [ -n "${ORPHANS:-}" ] || exit 0
 
-echo "Epic: story drafts not touched in 30+ days. If they are no longer needed, the user can remove each one:"
+echo "Epico: story drafts not touched in 30+ days. If they are no longer needed, the user can remove each one:"
 while IFS= read -r draft; do
   [ -n "$draft" ] && printf '  rm -rf %q\n' "$draft"
 done <<< "$ORPHANS"

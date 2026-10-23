@@ -938,7 +938,7 @@ if [[ -d "$TARGET" ]]; then
   STORY_PATH="${TARGET%/}"
 elif [[ "$TARGET" =~ ^[0-9]+$ ]]; then
   EPIC_DIR=$(find_epic_dir) ||
-    usage_error "no .epic/ directory found from $(pwd) — run inside an Epic project or pass the story directory"
+    usage_error "no .epic/ directory found from $(pwd) — run inside an Epico project or pass the story directory"
   STORY_PATH=$(resolve_by_number "$TARGET" "$EPIC_DIR") ||
     usage_error "story '$TARGET' not found under $EPIC_DIR/stories or $EPIC_DIR/archive"
 else

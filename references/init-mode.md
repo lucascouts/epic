@@ -12,7 +12,7 @@ Triggered by `/epico:epico init`. Interactive wizard to set up project configura
 
 1. **Scan project** — detect language, framework, dependencies, existing config files
 2. **Check existing files** — report whether `.epic/constitution.md` exists, whether the project has a `CLAUDE.md` and an `AGENTS.md`, and whether `epico-claude-md check` finds the managed block current
-2a. **Check memory** — one `memory_status` call ([mcp-integration.md](mcp-integration.md#memory-mcp)). WHEN `ai-memory` answers and the nearest `.ai-memory.toml`, if any, has no `ignore_paths` entry covering `.epic/**`, add one line to the final report: `ai-memory detected — add ignore_paths = [".epic/**"] to .ai-memory.toml so its hooks do not capture the artifacts Epic versions`. Informative, never gating; a non-interactive run prints the same line and asks nothing
+2a. **Check memory** — one `memory_status` call ([mcp-integration.md](mcp-integration.md#memory-mcp)). WHEN `ai-memory` answers and the nearest `.ai-memory.toml`, if any, has no `ignore_paths` entry covering `.epic/**`, add one line to the final report: `ai-memory detected — add ignore_paths = [".epic/**"] to .ai-memory.toml so its hooks do not capture the artifacts Epico versions`. Informative, never gating; a non-interactive run prints the same line and asks nothing
 3. **Interactive questionnaire** — ask questions in a single numbered block:
 
    **For `.epic/constitution.md` — always written, mandatory for Standard and Full ([constitution.md](constitution.md)):**
@@ -137,7 +137,7 @@ Three writes, in this order. The gitignore step is second because it is the only
 **a. Write `.epic/.gitignore`, verbatim:**
 
 ```gitignore
-# Epic scratch space — never versioned under any policy.
+# Epico scratch space — never versioned under any policy.
 .draft/
 *.wip
 # A dependency tree under .epic/ is never an artifact — an `npm install`
@@ -188,7 +188,7 @@ Default is **no**. Removing a line from a file the user wrote is a destructive e
 
 ```
 tracked-md
-# Epic versioning policy — line 1 is the declaration and the only line read.
+# Epico versioning policy — line 1 is the declaration and the only line read.
 # Written by /epico:epico init; re-run init to change it.
 # Docs: references/init-mode.md#versioning-policy
 ```
@@ -227,7 +227,7 @@ Appended block, when the file already exists:
 
 ```gitignore
 
-# Epic artifacts stay local to this machine (policy: local-only, see .epic/.gitpolicy)
+# Epico artifacts stay local to this machine (policy: local-only, see .epic/.gitpolicy)
 .epic/
 ```
 
@@ -237,7 +237,7 @@ Appended block, when the file already exists:
 
 ```
 local-only
-# Epic versioning policy — line 1 is the declaration and the only line read.
+# Epico versioning policy — line 1 is the declaration and the only line read.
 # Written by /epico:epico init; re-run init to change it.
 # Docs: references/init-mode.md#versioning-policy
 ```
@@ -261,7 +261,7 @@ That last row is the one to get right. Overwriting a recorded `tracked-md` would
 Emit the outcome as a logged note, never a pause:
 
 ```
-Epic versioning policy: local-only applied (non-interactive run — the conservative
+Epico versioning policy: local-only applied (non-interactive run — the conservative
 default; nothing under .epic/ will be committed). Run `/epico:epico init` in an
 interactive session to choose versioned artifacts instead.
 ```

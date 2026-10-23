@@ -16,7 +16,7 @@ Only the latest release receives security fixes.
 
 ## Scope
 
-Epic is a Claude Code plugin: its scripts and hooks run on the machine of
+Epico is a Claude Code plugin: its scripts and hooks run on the machine of
 every user who installs it. Reports we care about most:
 
 - command or path injection through story artifacts, fixtures or frontmatter

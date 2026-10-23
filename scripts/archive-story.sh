@@ -1107,7 +1107,7 @@ secrets_cleanup_tmp() {
 # root, and in a monorepo with `.epic/` in a subproject the .gitleaksignore still
 # sits at the git root — anchoring on `.epic/` there would produce unmatchable
 # fingerprints one level down. The `.epic/` walk exists only for a project git cannot answer
-# for, which Epic supports (see epic-gitpolicy.sh).
+# for, which Epico supports (see epic-gitpolicy.sh).
 #
 # BOTH candidates are normalised through `cd … && pwd -P` because STORY_ABS is
 # built that way too. `git rev-parse --show-toplevel` may answer with a LOGICAL
@@ -1957,7 +1957,7 @@ derive_entry_fields() {
 # this file is the only place that still knows the number was ever used.
 manifest_header() {
   cat <<'HEADER'
-# Epic archive manifest — one entry per archived story, appended by
+# Epico archive manifest — one entry per archived story, appended by
 # scripts/archive-story.sh at the moment of the move.
 #
 # Every field is DERIVED from the story's own artifacts (checkbox census,
@@ -2844,7 +2844,7 @@ if [[ -d "$TARGET" ]]; then
   STORY_PATH="${TARGET%/}"
 elif [[ "$TARGET" =~ ^[0-9]+$ ]]; then
   EPIC_DIR=$(find_epic_dir) ||
-    usage_error "no .epic/ directory found from $(pwd) — run inside an Epic project or pass the story directory"
+    usage_error "no .epic/ directory found from $(pwd) — run inside an Epico project or pass the story directory"
   STORY_PATH=$(resolve_by_number "$TARGET" "$EPIC_DIR") ||
     usage_error "story '$TARGET' not found under $EPIC_DIR/stories or $EPIC_DIR/archive"
 else

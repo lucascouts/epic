@@ -1,6 +1,6 @@
 # Architecture
 
-Design-level view of the Epic plugin for contributors and integrators. The [README](README.md) covers *what* Epic is and how to install it; this document covers *how the pieces fit together* and *why*.
+Design-level view of the Epico plugin for contributors and integrators. The [README](README.md) covers *what* Epico is and how to install it; this document covers *how the pieces fit together* and *why*.
 
 - Last verified against: **v0.21.0** (`.claude-plugin/plugin.json`)
 - If you only want to add a new story mode or tweak an agent prompt, jump to [Extension points](#extension-points).
@@ -25,7 +25,7 @@ Design-level view of the Epic plugin for contributors and integrators. The [READ
 
 ## Conceptual model
 
-Epic turns an unstructured request into a tracked, validated implementation through three phases. Each phase has explicit artifacts, explicit gates, and specialized personas.
+Epico turns an unstructured request into a tracked, validated implementation through three phases. Each phase has explicit artifacts, explicit gates, and specialized personas.
 
 ```
              ┌──────────────────────── Plan ────────────────────────┐
@@ -76,7 +76,7 @@ The plugin surface maps to Claude Code's extension points:
 
 ## Sub-agent pipeline
 
-Epic's sub-agents are activated by scale and phase. The main agent orchestrates, writes the artifacts, runs the Completeness Checklist itself, and implements a closed-spec sub-task inline.
+Epico's sub-agents are activated by scale and phase. The main agent orchestrates, writes the artifacts, runs the Completeness Checklist itself, and implements a closed-spec sub-task inline.
 
 ### Who activates when
 
@@ -91,7 +91,7 @@ Epic's sub-agents are activated by scale and phase. The main agent orchestrates,
 
 ### Context isolation
 
-Each sub-agent runs in its own context window. The main agent selects inputs (file list, design excerpt, sub-task text) and the sub-agent returns a structured report. No persona has access to the full conversation by default — this is what allows Epic to keep long orchestrations within context limits.
+Each sub-agent runs in its own context window. The main agent selects inputs (file list, design excerpt, sub-task text) and the sub-agent returns a structured report. No persona has access to the full conversation by default — this is what allows Epico to keep long orchestrations within context limits.
 
 ### Tool scoping
 
@@ -178,7 +178,7 @@ All files in a story share the same `version`. It's an integer, not semver; bump
 
 ## Hook matrix
 
-All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — so they fire on Claude's `.epic/**` writes even outside a `/epico:epico` session (another skill, a plain `Write`). A skill-frontmatter hook would start only once the skill is invoked, and then stay active for the rest of the session. Tool hooks never see edits made in an external editor. Each uses an `if:` filter or matcher to stay cheap when Epic is idle.
+All hooks live in `hooks/hooks.json` at plugin scope, not skill frontmatter — so they fire on Claude's `.epic/**` writes even outside a `/epico:epico` session (another skill, a plain `Write`). A skill-frontmatter hook would start only once the skill is invoked, and then stay active for the rest of the session. Tool hooks never see edits made in an external editor. Each uses an `if:` filter or matcher to stay cheap when Epico is idle.
 
 | Event | Matcher / if-filter | Script | Purpose |
 |---|---|---|---|
@@ -218,7 +218,7 @@ The main agent does not implement code; the executor does not make scope decisio
 
 ## Validation layers
 
-Epic has four distinct validation layers, each catching a different failure mode:
+Epico has four distinct validation layers, each catching a different failure mode:
 
 | Layer | When | What it catches | Script / agent |
 |---|---|---|---|
@@ -282,7 +282,7 @@ Artifacts (story/design/tasks) are always English because Claude performs best o
 
 ### Hooks at plugin scope, not skill frontmatter
 
-Plugin-scope hooks fire when the user edits `.epic/**` outside an active `/epico:epico` session (plain `Edit`, external editor, another skill). Skill-frontmatter hooks would only apply during skill execution — none of Epic's hooks fit that profile. Detailed rationale is embedded in [SKILL.md](skills/epico/SKILL.md#validation).
+Plugin-scope hooks fire when the user edits `.epic/**` outside an active `/epico:epico` session (plain `Edit`, external editor, another skill). Skill-frontmatter hooks would only apply during skill execution — none of Epico's hooks fit that profile. Detailed rationale is embedded in [SKILL.md](skills/epico/SKILL.md#validation).
 
 ### Archive immutability via PreToolUse block, not convention
 
@@ -296,7 +296,7 @@ Research MCPs (`brave-search`, `exa`, `tavily`, `firecrawl`, `perplexity`) are h
 
 ## Preferred-tooling policy
 
-Epic is opinionated about E2E test tooling so stories do not silently adopt whatever happens to be installed. The full policy lives in [`references/preferred-tooling.md`](references/preferred-tooling.md); the architectural shape is:
+Epico is opinionated about E2E test tooling so stories do not silently adopt whatever happens to be installed. The full policy lives in [`references/preferred-tooling.md`](references/preferred-tooling.md); the architectural shape is:
 
 - **Favorites vs optional.** Favorite E2E tools are `playwright` and `chrome-devtools`. Optional E2E tools (`puppeteer`, `selenium`, `browser-use`, `stagehand`) are accepted but never auto-selected over a favorite.
 - **Three-mechanism detection.** Triage detects installed tools via (1) MCP health-check, (2) dependency-manifest inspection, and (3) skill-list presence. Detection runs in **all modes, including Fast** — it is not gated by scale.
@@ -325,9 +325,9 @@ Before adding a new reference file under `references/`, check whether existing o
 
 ## Non-goals
 
-Epic deliberately does not do these things. Adding them would conflict with the design:
+Epico deliberately does not do these things. Adding them would conflict with the design:
 
-- **Idea exploration.** Epic formalizes work already decided. It does not brainstorm alternatives or write speculative code.
+- **Idea exploration.** Epico formalizes work already decided. It does not brainstorm alternatives or write speculative code.
 - **Generic code generation outside a story.** The `/epico:epico` command refuses to implement without an approved task.
 - **Repo-wide refactors as a single story.** Breaking large refactors into multiple stories is the correct pattern (linked via "based on" / "extends").
 - **Runtime dependencies beyond bash/git/jq.** MCPs are optional and health-checked; their absence degrades gracefully.

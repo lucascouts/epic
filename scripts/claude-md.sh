@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The Epic-managed block of a project's CLAUDE.md.
+# The Epico-managed block of a project's CLAUDE.md.
 #
 #   claude-md.sh write [--root <dir>]    write or refresh the block
 #   claude-md.sh check [--root <dir>]    is the block present and current?
@@ -39,7 +39,7 @@ ROOT=$(cd "$ROOT" && pwd)
 MD="$ROOT/CLAUDE.md"
 CONST="$ROOT/.epic/constitution.md"
 # shellcheck disable=SC2016  # the backticks are literal Markdown
-START='<!-- epic:start — managed by the Epic plugin; `/epico:epico init --repair` rewrites everything up to epic:end -->'
+START='<!-- epic:start — managed by the Epico plugin; `/epico:epico init --repair` rewrites everything up to epic:end -->'
 END='<!-- epic:end -->'
 
 section() {  # <file> <heading> — the bullet lines under `## <heading>`
@@ -51,7 +51,7 @@ join() { local out=$1; shift; for x in "$@"; do out="$out, $x"; done; printf '%s
 
 block() {
   echo "$START"
-  echo "## Epic"
+  echo "## Epico"
   echo
   if [ -f "$CONST" ]; then
     echo "- Project rules: \`.epic/constitution.md\` — Defaults, Quality, Security floor. Read it before deciding anything it covers."

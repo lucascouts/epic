@@ -1,6 +1,6 @@
 # Quality Catalog
 
-The checks a piece of software is expected to carry, in three tiers, and how the Epic decides which of them a story activates. It is the source that the `## Quality` block of the constitution ([init-mode.md](init-mode.md)), the `## Quality Requirements` legend of a story ([requirements.md](requirements.md)) and the generated Quality Gates of `tasks.md` ([tasks.md](tasks.md#generated-quality-gates)) all draw from: each names an item by its row here.
+The checks a piece of software is expected to carry, in three tiers, and how the Epico decides which of them a story activates. It is the source that the `## Quality` block of the constitution ([init-mode.md](init-mode.md)), the `## Quality Requirements` legend of a story ([requirements.md](requirements.md)) and the generated Quality Gates of `tasks.md` ([tasks.md](tasks.md#generated-quality-gates)) all draw from: each names an item by its row here.
 
 ## How the set is chosen
 
