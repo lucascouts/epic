@@ -12,7 +12,7 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [0.22.0] — 2026-10-23
 
-The plugin is now **Epico**, to stop clashing with another project named Epic, and the quality catalog checks how CI workflows and the repository itself are hardened.
+The plugin is now **Epico**, and the quality catalog checks how CI workflows and the repository itself are hardened.
 
 **Minimum Claude Code:** 2.1.295, unchanged.
 
