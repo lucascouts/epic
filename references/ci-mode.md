@@ -83,7 +83,7 @@ CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 claude -p "/epico:epico stories" \
   env:
     EPIC_PLUGIN_ROOT: ${{ github.workspace }}/.epic-plugin
   run: |
-    git clone https://github.com/lucascouts/epic.git "$EPIC_PLUGIN_ROOT"
+    git clone https://github.com/lucascouts/epico.git "$EPIC_PLUGIN_ROOT"
     for dir in .epic/stories/*/; do
       echo "Validating $dir..."
       bash "$EPIC_PLUGIN_ROOT/scripts/validate-story.sh" "$dir" --cross-ref || exit 1

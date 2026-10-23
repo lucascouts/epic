@@ -39,21 +39,21 @@ Epico ships an opinionated **preferred-tooling policy** ([references/preferred-t
 Inside Claude Code:
 
 ```
-/plugin marketplace add lucascouts/epic
+/plugin marketplace add lucascouts/epico
 /plugin install epico@lucascouts
 ```
 
 Or from a shell:
 
 ```bash
-claude plugin marketplace add lucascouts/epic
+claude plugin marketplace add lucascouts/epico
 claude plugin install epico@lucascouts
 ```
 
 ### Local (development)
 
 ```bash
-git clone https://github.com/lucascouts/epic.git
+git clone https://github.com/lucascouts/epico.git
 claude --plugin-dir ./epic
 ```
 

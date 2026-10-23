@@ -5,7 +5,7 @@
 Please do **not** open a public issue for security problems. Use GitHub's
 private vulnerability reporting instead:
 
-https://github.com/lucascouts/epic/security/advisories/new
+https://github.com/lucascouts/epico/security/advisories/new
 
 Reports are handled on a best-effort basis; expect an acknowledgment within
 seven days.
