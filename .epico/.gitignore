@@ -1,0 +1,8 @@
+# Epico scratch space — never versioned under any policy.
+.draft/
+*.wip
+# A dependency tree under .epico/ is never an artifact — an `npm install`
+# run inside a story leaves one.
+node_modules/
+# Working notes, session reports and tool captures — local to this machine.
+docs/

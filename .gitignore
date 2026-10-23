@@ -1,6 +1,7 @@
 # Claude Code artifacts
-.epico/
+# epico-gitignore: off
 .claude/
+.ai-memory.toml
 
 # OS
 .DS_Store

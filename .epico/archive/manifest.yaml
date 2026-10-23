@@ -1,0 +1,470 @@
+# Epic archive manifest — one entry per archived story, appended by
+# scripts/archive-story.sh at the moment of the move.
+#
+# Every field is DERIVED from the story's own artifacts (checkbox census,
+# frontmatter) at move time, never declared by hand: an entry can never claim a
+# completion the checkboxes contradict.
+#
+# POLICY: Numbers are never recycled. A new story always takes the next highest
+# number, even when a lower one now exists only in this file.
+#
+# Append-only. Everything under .epic/archive/ is read-only for tools
+# (scripts/hook-archive-guard.sh); this file is written by that one script.
+archived:
+  - story: "001-test-first-execution"
+    number: "001"
+    slug: "test-first-execution"
+    type: "feature"
+    scale: "full"
+    status: ""
+    tasks_total: 23
+    tasks_closed: 23
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-08-11T17:06:53-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "002-fast-mode-test-first"
+    number: "002"
+    slug: "fast-mode-test-first"
+    type: "feature"
+    scale: "full"
+    status: ""
+    tasks_total: 22
+    tasks_closed: 22
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-08-11T17:07:22-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "003-preferred-tooling-policy"
+    number: "003"
+    slug: "preferred-tooling-policy"
+    type: "feature"
+    scale: "full"
+    status: ""
+    tasks_total: 26
+    tasks_closed: 25
+    tasks_deferred: 1
+    tasks_open: 0
+    deferred_items:
+      - "`bats tests/` and `shellcheck` show no regression (n-a: story modified zero `.sh`/`.bats`/test files — Markdown-only, so a shell regression is structurally impossible)"
+    archived_at: "2026-08-11T17:07:43-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "004-story-state-machine-checkbox-grammar"
+    number: "004"
+    slug: "story-state-machine-checkbox-grammar"
+    type: "feature"
+    scale: "full"
+    status: "validated"
+    tasks_total: 41
+    tasks_closed: 41
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-08-11T17:07:51-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "006-git-aware-lifecycle"
+    number: "006"
+    slug: "git-aware-lifecycle"
+    type: "feature"
+    scale: "full"
+    status: "done"
+    tasks_total: 76
+    tasks_closed: 76
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-08-11T17:09:33-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "007-spike-scale-and-epic-versioning-policy"
+    number: "007"
+    slug: "spike-scale-and-epic-versioning-policy"
+    type: "feature"
+    scale: "full"
+    status: "done"
+    tasks_total: 28
+    tasks_closed: 28
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-08-11T17:09:38-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "008-declared-scale-over-file-inference"
+    number: "008"
+    slug: "declared-scale-over-file-inference"
+    type: "bugfix"
+    scale: "full"
+    status: "done"
+    tasks_total: 19
+    tasks_closed: 19
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-08-11T17:09:43-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "005-archive-in-the-flow"
+    number: "005"
+    slug: "archive-in-the-flow"
+    type: "feature"
+    scale: "full"
+    status: "done"
+    tasks_total: 30
+    tasks_closed: 30
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-08-13T16:48:03-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "009-root-anchored-secrets-scan"
+    number: "009"
+    slug: "root-anchored-secrets-scan"
+    type: "bugfix"
+    scale: "full"
+    status: "done"
+    tasks_total: 20
+    tasks_closed: 20
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-08-13T17:59:06-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "010-executor-owns-marking"
+    number: "010"
+    slug: "executor-owns-marking"
+    type: "feature"
+    scale: "full"
+    status: "done"
+    tasks_total: 23
+    tasks_closed: 23
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-08-20T00:01:32-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "016-close-010-audit-gaps"
+    number: "016"
+    slug: "close-010-audit-gaps"
+    type: "feature"
+    scale: "fast"
+    status: "done"
+    tasks_total: 10
+    tasks_closed: 9
+    tasks_deferred: 1
+    tasks_open: 0
+    deferred_items:
+      - "Error handling implemented (n/a — no new runtime code; the two new transition cases cover the arms that decide what is *not* written) (n-a: no new runtime code; the two new transition cases cover the arms that decide what is not written)"
+    archived_at: "2026-08-20T00:01:33-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "011-reports-by-artifact"
+    number: "011"
+    slug: "reports-by-artifact"
+    type: "feature"
+    scale: "standard"
+    status: "validated"
+    tasks_total: 15
+    tasks_closed: 15
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-08-20T00:01:33-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "018-close-011-audit-gaps"
+    number: "018"
+    slug: "close-011-audit-gaps"
+    type: "feature"
+    scale: "fast"
+    status: "validated"
+    tasks_total: 10
+    tasks_closed: 9
+    tasks_deferred: 1
+    tasks_open: 0
+    deferred_items:
+      - "Error handling implemented (n/a at creation — no new runtime code; 1.1's three mutation reds are what cover the arm that decides a run is failed) (n-a: no new runtime code — the story edits prose and one test body; the arm that decides a run is failed is covered by 1.1's three mutation reds)"
+    archived_at: "2026-08-20T00:01:33-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "017-pin-the-full-consumer-roster"
+    number: "017"
+    slug: "pin-the-full-consumer-roster"
+    type: "feature"
+    scale: "standard"
+    status: "done"
+    tasks_total: 18
+    tasks_closed: 18
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-08-20T00:01:33-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "012-adaptive-effort"
+    number: "012"
+    slug: "adaptive-effort"
+    type: "feature"
+    scale: "fast"
+    status: "done"
+    tasks_total: 6
+    tasks_closed: 6
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-09-14T21:56:57-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "014-ears-lint-authoring-ceiling"
+    number: "014"
+    slug: "ears-lint-authoring-ceiling"
+    type: "feature"
+    scale: "standard"
+    status: "done"
+    tasks_total: 13
+    tasks_closed: 13
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-09-14T21:57:08-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "015-migrate-commit-field"
+    number: "015"
+    slug: "migrate-commit-field"
+    type: "feature"
+    scale: "full"
+    status: "done"
+    tasks_total: 18
+    tasks_closed: 18
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-09-14T21:57:09-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "019-pin-assertion-polarity"
+    number: "019"
+    slug: "pin-assertion-polarity"
+    type: "feature"
+    scale: "fast"
+    status: "done"
+    tasks_total: 11
+    tasks_closed: 10
+    tasks_deferred: 1
+    tasks_open: 0
+    deferred_items:
+      - "Error handling implemented (n-a: no new runtime code — the story changes five regexes and five assertion shapes across three test files, and the arm each one pins is covered by 1.1's, 1.2's and 1.7's reds)"
+    archived_at: "2026-09-14T21:57:09-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "020-close-the-polarity-census"
+    number: "020"
+    slug: "close-the-polarity-census"
+    type: "feature"
+    scale: "standard"
+    status: "done"
+    tasks_total: 32
+    tasks_closed: 32
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-09-14T21:57:09-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used: []
+  - story: "013-quick-create"
+    number: "013"
+    slug: "quick-create"
+    type: "feature"
+    scale: "full"
+    status: "done"
+    tasks_total: 15
+    tasks_closed: 15
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-09-14T21:57:10-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used:
+      - "keep-logs"
+  - story: "021-close-the-eval-deferrals"
+    number: "021"
+    slug: "close-the-eval-deferrals"
+    type: "bugfix"
+    scale: "full"
+    status: "done"
+    tasks_total: 25
+    tasks_closed: 23
+    tasks_deferred: 2
+    tasks_open: 0
+    deferred_items:
+      - "The description change is measured in both directions against a roster captured before the edit, and no query that fired in 3.1 fails in 3.4 (waived: the clause compares against the 2026-08-30 roster, and a same-day counterfactual measured the UNCHANGED old description (md5 0ef39c4c, that exact anchor) at 2/5 on the very query the clause fired for, against 3/3 for the same bytes thirteen days earlier. It fails identically for a tree carrying no edit, so it measures the calendar rather than the diff. The maintainer accepted the same-day comparator, under which the edit reads 1/5 against 2/5, p about 1.0. The gate's first half is satisfied; its second half is reported FAILED with its cause named, never ticked — see .draft/roster-after.md)"
+      - "Code integrated (one scorer, not two: `run-evals.sh` matches no skill id inline; `close-subtask.sh` remains the only writer of the checkbox grammar) (waived: the first clause holds, pinned by run-evals-contract case 5 — run-evals.sh matches no skill id inline, so there is one scorer. The second clause has one documented exception. Sub-task 5.1 rewrote three deferral REASONS in story 013 by hand, because no script path exists to restate one — close-subtask.sh refuses an already-closed box, --tilde opens nothing, and --fulfill discharges a debt rather than restating it. No box STATE was written by hand. All three remain closed exactly as they were, each carrying exactly one qualifier token, and validate-story.sh reports 0 errors on 013. A restate path is the follow-up this exposes)"
+    archived_at: "2026-09-14T21:57:10-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used:
+      - "keep-logs"
+  - story: "022-requester-block-and-registers"
+    number: "022"
+    slug: "requester-block-and-registers"
+    type: "feature"
+    scale: "standard"
+    status: "done"
+    tasks_total: 14
+    tasks_closed: 13
+    tasks_deferred: 1
+    tasks_open: 0
+    deferred_items:
+      - "Error handling implemented (n-a: prose-only story — no code path handles an error; the suite is the guard)"
+    archived_at: "2026-10-13T05:07:56-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used:
+      - "force"
+    forced_reason: "shipped in v0.7.0 (PR #15, 6d7c732) and covered by the bats suite since; never run through validate; archived 2026-10-13 by owner decision"
+  - story: "023-clarify-as-an-architect"
+    number: "023"
+    slug: "clarify-as-an-architect"
+    type: "feature"
+    scale: "standard"
+    status: "done"
+    tasks_total: 13
+    tasks_closed: 12
+    tasks_deferred: 1
+    tasks_open: 0
+    deferred_items:
+      - "Error handling implemented (n-a: prose-only story — no code path handles an error; the suite is the guard)"
+    archived_at: "2026-10-13T05:07:57-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used:
+      - "force"
+    forced_reason: "shipped in v0.7.0 (PR #15, 6d7c732) and covered by the bats suite since; never run through validate; archived 2026-10-13 by owner decision"
+  - story: "024-quality-catalog-and-legend"
+    number: "024"
+    slug: "quality-catalog-and-legend"
+    type: "feature"
+    scale: "standard"
+    status: "done"
+    tasks_total: 16
+    tasks_closed: 16
+    tasks_deferred: 0
+    tasks_open: 0
+    deferred_items: []
+    archived_at: "2026-10-13T05:07:57-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used:
+      - "force"
+    forced_reason: "shipped in v0.7.0 (PR #15, 6d7c732) and covered by the bats suite since; never run through validate; archived 2026-10-13 by owner decision"
+  - story: "025-fast-auto-effort-and-memory-wording"
+    number: "025"
+    slug: "fast-auto-effort-and-memory-wording"
+    type: "feature"
+    scale: "fast"
+    status: "done"
+    tasks_total: 14
+    tasks_closed: 13
+    tasks_deferred: 1
+    tasks_open: 0
+    deferred_items:
+      - "Error handling implemented (n-a: prose-only story — no code path handles an error; the suite is the guard)"
+    archived_at: "2026-10-13T05:07:57-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used:
+      - "force"
+    forced_reason: "shipped in v0.7.0 (PR #15, 6d7c732) and covered by the bats suite since; never run through validate; archived 2026-10-13 by owner decision"
+  - story: "026-sub-agents-in-the-foreground"
+    number: "026"
+    slug: "sub-agents-in-the-foreground"
+    type: "bugfix"
+    scale: "fast"
+    status: "done"
+    tasks_total: 9
+    tasks_closed: 8
+    tasks_deferred: 1
+    tasks_open: 0
+    deferred_items:
+      - "Error handling implemented (n-a: prose-only fix — no code path handles an error; the suite is the guard)"
+    archived_at: "2026-10-13T05:07:58-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used:
+      - "force"
+    forced_reason: "shipped in v0.7.0 (PR #15, 6d7c732) and covered by the bats suite since; never run through validate; archived 2026-10-13 by owner decision"
+  - story: "027-speed-changes-words-not-steps"
+    number: "027"
+    slug: "speed-changes-words-not-steps"
+    type: "bugfix"
+    scale: "fast"
+    status: "done"
+    tasks_total: 9
+    tasks_closed: 8
+    tasks_deferred: 1
+    tasks_open: 0
+    deferred_items:
+      - "Error handling implemented (n-a: prose-only fix — no code path handles an error; the suite is the guard)"
+    archived_at: "2026-10-13T05:07:58-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    overrides_used:
+      - "force"
+    forced_reason: "shipped in v0.7.0 (PR #15, 6d7c732) and covered by the bats suite since; never run through validate; archived 2026-10-13 by owner decision"
