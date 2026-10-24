@@ -27,8 +27,8 @@
 # (with the tries it waited and the lock's inode), read (the highest id seen),
 # written, released, and missing when the lock was gone before its holder
 # released it.
-# Off when unset. It exists because GitHub's runner once gave two concurrent
-# writers the same id while no local machine, container or VM ever did.
+# Off when unset. It is how the uutils mkdir race (see take_lock) was found
+# on GitHub's Ubuntu 26.04 runner, where no Ubuntu 24.04 mirror reproduced it.
 
 set -euo pipefail
 
@@ -123,21 +123,27 @@ trace() {  # <event> [<extra JSON members>]
   printf '{"pid": %d, "t_ns": %s, "event": "%s"%s}\n' "$$" "$(date +%s%N)" "$1" "${2:+, $2}" >> "$EPICO_DEVIATION_TRACE"
 }
 
+# The lock is a file bash creates under noclobber, not a directory made by
+# mkdir(1): `set -C` opens with O_EXCL, so the kernel lets exactly one writer
+# create it, whichever mkdir the system ships. uutils coreutils' mkdir (Ubuntu
+# 25.10 and later) can report success to two concurrent callers for one
+# directory — 121 of 300 rounds of 12 callers on Ubuntu 26.04 — and two writers
+# then read the same register and one entry is lost.
 LOCK=""
 release_lock() {
   [ -n "$LOCK" ] || return 0
-  if [ -d "$LOCK" ]; then rmdir "$LOCK" 2>/dev/null || true; trace released; else trace missing; fi
+  if [ -f "$LOCK" ]; then rm -f "$LOCK"; trace released; else trace missing; fi
 }
 take_lock() {
-  local i=0
+  local i=0 lock="$STORY/.draft/.deviations.lock"
   mkdir -p "$STORY/.draft"
-  until mkdir "$STORY/.draft/.deviations.lock" 2>/dev/null; do
-    i=$((i + 1)); [ "$i" -lt 100 ] || refuse "the register is locked by another writer ($STORY/.draft/.deviations.lock); nothing was written"
+  until (set -C; printf '%s\n' "$$" > "$lock") 2>/dev/null; do
+    i=$((i + 1)); [ "$i" -lt 100 ] || refuse "the register is locked by another writer ($lock); nothing was written"
     sleep 0.1
   done
-  LOCK="$STORY/.draft/.deviations.lock"
+  LOCK="$lock"
   trap release_lock EXIT
-  if [ -n "${EPICO_DEVIATION_TRACE-}" ]; then trace acquired "\"tries\": $i, \"inode\": $(stat -c %i "$LOCK")"; fi
+  if [ -n "${EPICO_DEVIATION_TRACE-}" ]; then trace acquired "\"tries\": $i, \"inode\": $(stat -c %i "$LOCK" 2>/dev/null || echo null)"; fi
 }
 
 write_atomic() {  # stdin: the register JSON

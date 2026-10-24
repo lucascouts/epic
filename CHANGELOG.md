@@ -29,6 +29,10 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 - **A parallel group no longer falls back to `--serial` without a worktree.** The worktree is preferred; without one (no `worktree.baseRef: "head"`, headless, declined) the group runs in the main checkout, since detection already proved it shares no file.
 - **A parallel group that shares a build, or edits code outside the session's repository, is refused** and runs inline, one item at a time. Disjoint files are not enough when the items compile together in one output directory, and a worktree of the session's repository holds none of the code that lives outside it.
 
+### Fixed
+
+- **Concurrent writers no longer lose entries on Ubuntu 25.10 and later.** Both locks relied on `mkdir` succeeding for exactly one caller, which uutils coreutils' `mkdir` does not guarantee: on Ubuntu 26.04 two of twelve concurrent writers could both win. The deviation register now locks with a file bash creates under noclobber (`O_EXCL`), and the archive manifest lock lets a winner hold only when its owner marker is the only one in the lock directory.
+
 ## [0.22.0] — 2026-10-23
 
 The plugin is now **Epico**, and the quality catalog checks how CI workflows and the repository itself are hardened.
