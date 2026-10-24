@@ -10,6 +10,12 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-10-24
+
+Production code stays with the agent that holds the conversation, verification runs from scripts instead of sub-agents, and every language the run detects gets its own secure-coding rules.
+
+**Minimum Claude Code:** 2.1.295, unchanged.
+
 ### Added
 
 - **`epico-validate-run`** runs a story's Validation and generated-gate commands and writes the Auditor's Part 1 report in seconds. The orchestrator runs it before the Auditor: on a failure no sub-agent is spawned, and the Auditor settles only the entries a command cannot (`JUDGE`).
