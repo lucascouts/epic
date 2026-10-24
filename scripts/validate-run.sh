@@ -111,7 +111,7 @@ run_cmd() {  # <command> — prints "<exit>\t<evidence line>"
   (cd "$ROOT" && setsid --fork --wait bash -c 'echo "$$" > "$0"; exec timeout "$1" bash -c "$2"' "$sidf" "$TIMEOUT" "$1") </dev/null >"$log" 2>&1
   code=$?
   set -e
-  [ -s "$sidf" ] && kill -TERM -- "-$(cat "$sidf")" 2>/dev/null || true
+  if [ -s "$sidf" ]; then kill -TERM -- "-$(cat "$sidf")" 2>/dev/null || true; fi
   if [ "$code" -eq 124 ]; then
     evidence="timed out after ${TIMEOUT}s"
   else
