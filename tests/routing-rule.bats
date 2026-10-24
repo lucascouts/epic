@@ -78,3 +78,18 @@ setup() {
   grep -q 'run the groups \*\*without worktrees\*\* (below), never `--serial` on that account' "$par"
   grep -q '\*\*The worktree is preferred, not required\*\*' "$par"
 }
+
+# A 2026-10-24 replay of story 040 (zeo) found 8 of 13 sub-tasks still routed
+# to Executors through parallel groups that wrote disjoint files but shared one
+# crate graph and one target/, in code the session's repository ignores:
+#   R9  a group sharing a build, or editing code outside the session's
+#       repository, is refused
+@test "R9: a parallel group that shares a build or edits code outside the repository is refused" {
+  par="$ROOT/references/run-parallel.md"
+  detection=$(awk '/^### Detection/{f=1; next} f && /^### /{exit} f' "$par")
+  [[ "$detection" == *'4. **Verify the group does not share a build, and that its code is in the session'"'"'s repository.**'* ]]
+  [[ "$detection" == *'**the same compile unit in the same output directory**'* ]]
+  [[ "$detection" == *'**outside the repository the session runs in**'* ]]
+  [[ "$detection" == *'A refused group runs its items one at a time, inline'* ]]
+  [[ "$detection" == *'A group that passed steps 1–4 is proven independent'* ]]
+}
