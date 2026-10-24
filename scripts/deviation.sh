@@ -22,6 +22,13 @@
 # a file and two writers never interleave.
 #
 # Output: JSON on stdout. Exit 0 done, 1 refused (nothing written), 2 usage.
+#
+# EPICO_DEVIATION_TRACE=<file> appends one JSON line per lock event — acquired
+# (with the tries it waited and the lock's inode), read (the highest id seen),
+# written, released, and missing when the lock was gone before its holder
+# released it.
+# Off when unset. It exists because GitHub's runner once gave two concurrent
+# writers the same id while no local machine, container or VM ever did.
 
 set -euo pipefail
 
@@ -111,7 +118,16 @@ render() {  # stdin: the register JSON → the YAML text
 
 # The lock covers read, change and write: a writer that read before taking it
 # would rewrite the register from a stale copy and drop a concurrent entry.
+trace() {  # <event> [<extra JSON members>]
+  [ -n "${EPICO_DEVIATION_TRACE-}" ] || return 0
+  printf '{"pid": %d, "t_ns": %s, "event": "%s"%s}\n' "$$" "$(date +%s%N)" "$1" "${2:+, $2}" >> "$EPICO_DEVIATION_TRACE"
+}
+
 LOCK=""
+release_lock() {
+  [ -n "$LOCK" ] || return 0
+  if [ -d "$LOCK" ]; then rmdir "$LOCK" 2>/dev/null || true; trace released; else trace missing; fi
+}
 take_lock() {
   local i=0
   mkdir -p "$STORY/.draft"
@@ -120,7 +136,8 @@ take_lock() {
     sleep 0.1
   done
   LOCK="$STORY/.draft/.deviations.lock"
-  trap '[ -z "$LOCK" ] || rmdir "$LOCK" 2>/dev/null || true' EXIT
+  trap release_lock EXIT
+  if [ -n "${EPICO_DEVIATION_TRACE-}" ]; then trace acquired "\"tries\": $i, \"inode\": $(stat -c %i "$LOCK")"; fi
 }
 
 write_atomic() {  # stdin: the register JSON
@@ -129,10 +146,12 @@ write_atomic() {  # stdin: the register JSON
   tmp=$(mktemp "$STORY/.draft/.deviations.XXXXXX")
   printf '%s\n' "$doc" | render > "$tmp"
   mv "$tmp" "$REG"
+  if [ -n "${EPICO_DEVIATION_TRACE-}" ]; then trace written "\"max_id\": $(printf '%s' "$doc" | jq '[.deviations[]?, .discoveries[]? | .id | numbers] | max // 0')"; fi
 }
 
 [ "$CMD" = list ] || take_lock
 DOC=$(parse)
+if [ "$CMD" != list ] && [ -n "${EPICO_DEVIATION_TRACE-}" ]; then trace read "\"max_id\": $(printf '%s' "$DOC" | jq '[.deviations[]?, .discoveries[]? | .id | numbers] | max // 0')"; fi
 if printf '%s' "$DOC" | jq -e 'has("error")' >/dev/null; then
   refuse "$(printf '%s' "$DOC" | jq -r '"\(.error) at \(.line) of '"$REG"' — this script reads one-line scalars under deviations: and discoveries: only; fix that line by hand, then re-run. Nothing was written"')"
 fi
