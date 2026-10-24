@@ -32,6 +32,6 @@
 | 025 | [fast-auto-effort-and-memory-wording](archive/025-fast-auto-effort-and-memory-wording/) | archived | 14/14 | archived |
 | 026 | [sub-agents-in-the-foreground](archive/026-sub-agents-in-the-foreground/) | archived | 9/9 | archived |
 | 027 | [speed-changes-words-not-steps](archive/027-speed-changes-words-not-steps/) | archived | 9/9 | archived |
-| 028 | [native-security-infra-rules](stories/028-native-security-infra-rules/story.md) | done | 30/30 | active |
+| 028 | [native-security-infra-rules](archive/028-native-security-infra-rules/story.md) | archived | 30/30 | archived |
 
 <!-- epico:index:end -->

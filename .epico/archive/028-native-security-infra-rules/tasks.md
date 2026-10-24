@@ -8,7 +8,7 @@ requester: developer
 run-model: sonnet
 version: 1
 created: 2026-10-23
-status: done
+status: archived
 ---
 
 # Implementation Plan - Native security and infra rules

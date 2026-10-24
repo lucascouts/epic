@@ -468,3 +468,24 @@ archived:
     overrides_used:
       - "force"
     forced_reason: "shipped in v0.7.0 (PR #15, 6d7c732) and covered by the bats suite since; never run through validate; archived 2026-10-13 by owner decision"
+  - story: "028-native-security-infra-rules"
+    number: "028"
+    slug: "native-security-infra-rules"
+    type: "feature"
+    scale: "standard"
+    status: "validated"
+    tasks_total: 30
+    tasks_closed: 26
+    tasks_deferred: 4
+    tasks_open: 0
+    deferred_items:
+      - "Error handling implemented (n-a: no new error path — the story adds reference prose and one echo line)"
+      - "Q4 — Secrets: `gitleaks git .` reports no leaks (waived: pre-existing before story 028, owner decision 2026-10-23 — fix owned by a separate story (gitleaks: AKIA fixture e378ef8:tests/archive-story.bats:1561 missing from .gitleaksignore))"
+      - "Q8 — Plugin schema: `claude plugin validate --strict` on `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `skills`, `agents` (waived: pre-existing before story 028, owner decision 2026-10-23 — fix owned by a separate story (plugin.json --strict: root CLAUDE.md and missing icon))"
+      - "Q9 — CI mirror: `act -j shellcheck`, `act -j validate-examples`, `act -j plugin-validate` pass (waived: pre-existing before story 028, owner decision 2026-10-23 — fix owned by a separate story (act -j plugin-validate: root CLAUDE.md warning))"
+    archived_at: "2026-10-23T16:02:58-03:00"
+    pruned:
+      logs_kb: 0
+      copies_removed: 0
+    validated_sha: "68b8c14cf058e1089e546685622d034219b495d0"
+    overrides_used: []
