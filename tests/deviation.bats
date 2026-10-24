@@ -88,8 +88,11 @@ EOF
 }
 
 @test "concurrent adds lose no entry and leave a parseable register" {
-  for i in $(seq 1 12); do dev add discovery --story "$S" --task "$i" --tech t --finding "f$i" >/dev/null & done
+  for i in $(seq 1 12); do dev add discovery --story "$S" --task "$i" --tech t --finding "f$i" > "$BATS_TEST_TMPDIR/add$i.out" 2>&1 & done
   wait
+  # Printed only when the case fails: each writer's answer. GitHub's runner lost
+  # entries here while no local run did, and the answers say why.
+  cat "$BATS_TEST_TMPDIR"/add*.out
   run dev list --story "$S"
   echo "$output" | jq -e '(.discoveries | length) == 12 and ([.discoveries[].id] | unique | length) == 12'
   [ ! -e "$S/.draft/.deviations.lock" ]
