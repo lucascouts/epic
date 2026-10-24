@@ -51,6 +51,8 @@
 99fd6d3265671f1bc11f3a265ac7b062ca696e7e:tests/archive-story.bats:aws-access-token:1623
 adea7273c69c55618c335fce5686cb000eeb9d00:tests/archive-story.bats:aws-access-token:856
 adea7273c69c55618c335fce5686cb000eeb9d00:tests/archive-story.bats:aws-access-token:869
+# The same fixture, carried into the project-layout rename.
+e378ef8582323ac78a1f13fdb1bf4d2c6648825e:tests/archive-story.bats:aws-access-token:1561
 
 
 # The two literals in tests/secrets-allowlist.bats.
@@ -65,21 +67,21 @@ b38a4ae4afca7a75233acc1ab9816d453c6e1e42:tests/secrets-allowlist.bats:aws-access
 # investigates any more.
 .epico/archive/005-archive-in-the-flow/.draft/authored-tests/tests/archive-story.bats:aws-access-token:276
 .epico/archive/005-archive-in-the-flow/.draft/authored-tests/tests/archive-story.bats:aws-access-token:289
-tests/archive-story.bats:aws-access-token:1331
-tests/archive-story.bats:aws-access-token:1344
-tests/archive-story.bats:aws-access-token:1523
-tests/archive-story.bats:aws-access-token:1537
-tests/archive-story.bats:aws-access-token:1541
-tests/archive-story.bats:aws-access-token:1549
-tests/archive-story.bats:aws-access-token:1551
-tests/archive-story.bats:aws-access-token:1567
-tests/archive-story.bats:aws-access-token:1574
+tests/archive-story.bats:aws-access-token:1355
+tests/archive-story.bats:aws-access-token:1368
+tests/archive-story.bats:aws-access-token:1547
+tests/archive-story.bats:aws-access-token:1561
+tests/archive-story.bats:aws-access-token:1565
+tests/archive-story.bats:aws-access-token:1573
 tests/archive-story.bats:aws-access-token:1575
-tests/archive-story.bats:aws-access-token:1588
-tests/archive-story.bats:aws-access-token:1607
-tests/archive-story.bats:aws-access-token:1616
-tests/archive-story.bats:aws-access-token:1641
-tests/archive-story.bats:aws-access-token:1730
+tests/archive-story.bats:aws-access-token:1591
+tests/archive-story.bats:aws-access-token:1598
+tests/archive-story.bats:aws-access-token:1599
+tests/archive-story.bats:aws-access-token:1612
+tests/archive-story.bats:aws-access-token:1631
+tests/archive-story.bats:aws-access-token:1640
+tests/archive-story.bats:aws-access-token:1665
+tests/archive-story.bats:aws-access-token:1754
 
 
 # The same two literals, in the suite and in its authored-test copy. Both are
