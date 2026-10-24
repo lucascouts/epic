@@ -199,8 +199,10 @@ result() {  # <id> — the result the run recorded for one entry
   [ "$SECONDS" -lt 10 ]
   [ "$(result 1.1)" = PASS ]
   [ -s "$PROJ/server.pid" ]
-  run kill -0 "$(cat "$PROJ/server.pid")"
-  [ "$status" -ne 0 ]
+  # Gone, or a zombie: a container whose PID 1 never reaps keeps the killed
+  # process in the table, and `kill -0` still answers for it.
+  state=$(awk '{print $3}' "/proc/$(cat "$PROJ/server.pid")/stat" 2>/dev/null || true)
+  [ -z "$state" ] || [ "$state" = Z ]
 }
 
 @test "validate-run: a Validation with two commands runs the first and leaves the rest to JUDGE" {
