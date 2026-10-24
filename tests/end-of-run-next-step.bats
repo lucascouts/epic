@@ -104,12 +104,14 @@ setup() {
   grep -q 'never the English marker in another language' "$ROOT/references/clarify.md"
 }
 
-@test "N11: the validate-fix loop is bounded — asked after round 1, stopped after round 2" {
+@test "N11: the validate-fix loop is bounded — one round, asked, and its revalidation re-checks only the failures" {
   # 2026-09-27 battery: a validate-fix-revalidate loop ran with no ceiling.
+  # 2026-10-24 timing: the Auditor was a fifth of an epico run's wall clock, and
+  # a second round re-ran the whole suite; the bound came down to one round.
   VM="$ROOT/references/validate-mode.md"
   grep -q '^### Fix loop bound' "$VM"
   grep -q 'Validation fixes — round N' "$VM"
-  grep -q '\*\*Round 2 is the last one offered.\*\*' "$VM"
+  grep -q '\*\*Round 1 is the only one offered.\*\*' "$VM"
   grep -q '\*\*Every offer states what a round costs\*\*' "$VM"
   [[ "$END" == *'**A fix round is asked, never chained.**'* ]]
 }

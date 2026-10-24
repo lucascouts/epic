@@ -19,3 +19,7 @@ Thumbs.db
 
 # claude plugin eval output
 evals/results/
+
+# Project context for sessions in this folder. A plugin never loads a root
+# CLAUDE.md, and `claude plugin validate --strict` fails on one.
+CLAUDE.md

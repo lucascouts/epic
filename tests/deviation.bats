@@ -88,9 +88,35 @@ EOF
 }
 
 @test "concurrent adds lose no entry and leave a parseable register" {
-  for i in $(seq 1 12); do dev add discovery --story "$S" --task "$i" --tech t --finding "f$i" >/dev/null & done
+  export EPICO_DEVIATION_TRACE="$BATS_TEST_TMPDIR/trace.jsonl"
+  for i in $(seq 1 12); do dev add discovery --story "$S" --task "$i" --tech t --finding "f$i" > "$BATS_TEST_TMPDIR/add$i.out" 2>&1 & done
   wait
+  # Printed only when the case fails: each writer's answer and the lock trace in
+  # time order: two `acquired` with no `released` between them is two writers
+  # inside the lock at once.
+  cat "$BATS_TEST_TMPDIR"/add*.out
+  jq -sc 'sort_by(.t_ns)[]' "$EPICO_DEVIATION_TRACE"
   run dev list --story "$S"
   echo "$output" | jq -e '(.discoveries | length) == 12 and ([.discoveries[].id] | unique | length) == 12'
   [ ! -e "$S/.draft/.deviations.lock" ]
+}
+
+@test "the lock trace pairs every acquire with a release, and is off when unset" {
+  EPICO_DEVIATION_TRACE="$BATS_TEST_TMPDIR/t.jsonl" dev add discovery --story "$S" --task 1 --tech t --finding f
+  jq -se '[.[].event] == ["acquired", "read", "written", "released"]' "$BATS_TEST_TMPDIR/t.jsonl"
+  dev add discovery --story "$S" --task 2 --tech t --finding g
+  [ "$(wc -l < "$BATS_TEST_TMPDIR/t.jsonl")" -eq 4 ]
+}
+
+@test "concurrent adds lose no entry under a mkdir that tells every caller it won" {
+  # RacyMkdir stands in for uutils coreutils' mkdir (Ubuntu 25.10 and later),
+  # which can report success to two concurrent callers for one directory: the
+  # register's lock must not depend on mkdir at all.
+  mkdir -p "$BATS_TEST_TMPDIR/racy-mkdir"
+  printf '#!/usr/bin/env bash\nexec %q -p "$@"\n' "$(command -v mkdir)" > "$BATS_TEST_TMPDIR/racy-mkdir/mkdir"
+  chmod +x "$BATS_TEST_TMPDIR/racy-mkdir/mkdir"
+  for i in $(seq 1 12); do PATH="$BATS_TEST_TMPDIR/racy-mkdir:$PATH" dev add discovery --story "$S" --task "$i" --tech t --finding "f$i" >/dev/null & done
+  wait
+  run dev list --story "$S"
+  echo "$output" | jq -e '(.discoveries | length) == 12 and ([.discoveries[].id] | unique | length) == 12'
 }

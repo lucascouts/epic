@@ -583,6 +583,24 @@ LEGACY
   echo "$output" | jq -r .reason | grep -qF 'group 1: "feat(010): mixed"'
 }
 
+@test "validate-run.sh — runs the [x] boxes, SKIPs both [~] with their qualifier, leaves the [ ] out" {
+  run bash "$PLUGIN_ROOT/scripts/validate-run.sh" --story "$MIXED"
+  J="$MIXED/.draft/validation-run.json"
+  [ "$(jq '[.entries[] | select(.kind == "sub")] | length' "$J")" -eq 4 ]
+  [ "$(jq -r '.entries[] | select(.id == "1.3") | .result + " " + .qualifier' "$J")" = "SKIP waived" ]
+  [ "$(jq -r '.entries[] | select(.id == "1.4") | .result + " " + .qualifier' "$J")" = "SKIP deferred" ]
+  [ "$(jq '[.entries[] | select(.id == "1.5")] | length' "$J")" -eq 0 ]
+  # "bats green" is prose, not a command: the Auditor judges it.
+  [ "$(jq -r '.entries[] | select(.id == "1.1") | .result' "$J")" = JUDGE ]
+}
+
+@test "run-report.sh — the census line agrees: 5 boxes, 3 closed, 1 deferred, 1 open" {
+  run bash "$PLUGIN_ROOT/scripts/run-report.sh" --story "$MIXED"
+  [ "$status" -eq 0 ]
+  grep -q ' · 5 boxes — 3 closed, 1 deferred, 1 open$' "$MIXED/.draft/run-report.md"
+  [ "$(grep -c '^- \[[x~]\] 1\.' "$MIXED/.draft/run-report.md")" -eq 4 ]
+}
+
 @test "every declared consumer is compared by a case in this harness" {
   # THE LOOP CLOSER. The roster derivation reddens when a script under
   # scripts/ reads the grammar and is not on the roster. This is the other

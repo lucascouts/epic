@@ -22,7 +22,7 @@ Perform a holistic review comparing what was planned vs what was built. Activate
 
 ## Part 1 — Validation
 
-**Before any audit check, read [validation-protocol.md](${CLAUDE_PLUGIN_ROOT}/references/validation-protocol.md) and run it whole** — every validation command, the Tests fields, the commits, the Quality Gates — and write `.draft/validation-report.yaml` in its format. One spawn validates and audits: a separate Validator would re-read the same story from an empty context. **On a validation `fail`, stop there**: write no audit report and summarise the failures. On a `pass`, continue with Part 2.
+**`epico-validate-run` has already run every command it could** and pre-filled `.draft/validation-report.yaml`: its PASS, FAIL and SKIP entries are settled — never re-run them. **Settle only the `JUDGE` entries**, by [validation-protocol.md](${CLAUDE_PLUGIN_ROOT}/references/validation-protocol.md), then rewrite the report with them decided and the verdict recomputed. When the file is absent — an older flow — run the protocol whole and write it in its format. One spawn validates and audits: a separate Validator would re-read the same story from an empty context. **On a validation `fail`, stop there**: write no audit report and summarise the failures. On a `pass`, continue with Part 2.
 
 ## Part 2 — Checks
 
@@ -95,6 +95,12 @@ claims:                                 # Executor-report claims your checks rel
 not_verified:                           # the loss annotation — mandatory, never omitted
   - what: "E2E checkout flow"
     why: "no E2E tool in this story (design.md: E2E tool: none)"
+untested:                               # changed behaviour no test covers — `[]` when every one has a test
+  - behaviour: "the retry after a 503"
+    where: "src/http/client.ts:42"
+verified_at:                            # the fidelity rung the verification ran on, and its gap
+  rung: "local bats suite, normal user"
+  does_not_cover: "the runner's clean checkout — act was not run"
 checks_run:                             # what was run for each check that found nothing
   - check: "Security"
     ran: "read src/auth/*.go; gosec ./... → 0 issues"
@@ -105,7 +111,7 @@ findings:
     detail: "import left behind by the refactor"
 ```
 
-Every array is present even when empty (`gaps: []`): an absent key and an empty one are not the same claim, and only the empty one says *checked and clean*. `verdict` is `fail` when any gap, unmet gate or `missing_red` entry exists — the code or its tests fall short. It is **`fail-record`** when none of those exists but the record does not match the code: a deviation whose stated impact is wrong (`accurate: false`), or a deviation the code shows and the register never recorded — each one also listed in `record_issues[]` with the exact `fix`. It is `pass` otherwise. A wrong record never fails the code: the orchestrator applies the fixes itself. **`not_verified` is the loss annotation and is never empty by omission**: list every check, claim or requirement you could not settle and why — a tool absent, a test that cannot run here, check 11 with no anchored commit. When everything was checked, write `not_verified: []` and say so in `checks_run`. **Scope creep and checklist findings are advisory** — recorded and presented, never held against the run: a verdict of `fail` sends the story into a fix round, and a round spent removing code nobody proved was out of scope, or renaming a variable, is the loop the fix-round bound exists to stop. `missing_red`'s `kind` keeps the two absences apart: a test that exists but left no Red evidence is a different defect from a `Tests:` field with no test at all, and a single list would hide which of them you found.
+Every array is present even when empty (`gaps: []`): an absent key and an empty one are not the same claim, and only the empty one says *checked and clean*. `verdict` is `fail` when any gap, unmet gate or `missing_red` entry exists — the code or its tests fall short. It is **`fail-record`** when none of those exists but the record does not match the code: a deviation whose stated impact is wrong (`accurate: false`), or a deviation the code shows and the register never recorded — each one also listed in `record_issues[]` with the exact `fix`. It is `pass` otherwise. A wrong record never fails the code: the orchestrator applies the fixes itself. **`not_verified` is the loss annotation and is never empty by omission**: list every check, claim or requirement you could not settle and why — a tool absent, a test that cannot run here, check 11 with no anchored commit. When everything was checked, write `not_verified: []` and say so in `checks_run`. **`untested` names each changed behaviour no test covers** — a line the diff changed that no test exercises — and is never left out: when every changed behaviour has a test, write `untested: []`. **`verified_at` names the fidelity rung the verification ran on and what that rung does not cover** — a local suite does not cover the runner's clean checkout, `act` does not cover the forge's OIDC — so a green from a low rung is not read as a green from a high one. Both keys sit beside `not_verified` and never fold into it: `not_verified` is what you could not check, `untested` is what nobody wrote a test for. **Scope creep and checklist findings are advisory** — recorded and presented, never held against the run: a verdict of `fail` sends the story into a fix round, and a round spent removing code nobody proved was out of scope, or renaming a variable, is the loop the fix-round bound exists to stop. `missing_red`'s `kind` keeps the two absences apart: a test that exists but left no Red evidence is a different defect from a `Tests:` field with no test at all, and a single list would hide which of them you found.
 
 ## Report Format
 
@@ -114,6 +120,7 @@ Only now, with the file written, reply — and keep the reply to the verdict and
 - line 1: `verdict: <pass | fail | fail-record>`
 - one line per gap, unmet gate, `missing_red` entry and `record_issues` entry, citing the requirement, gate, sub-task or file
 - one line `not verified:` with each `not_verified` item, or `nothing`
+- one line `untested:` with each `untested` item, or `nothing`, and one line `verified at:` with the rung and its gap
 - one last line counting what stays in the file: `advisory: N findings, N scope-creep items, N claims not confirmed — see .draft/audit-report.yaml`
 - `All checks passed` when line 1 is `pass` and nothing else is owed
 

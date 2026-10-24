@@ -22,6 +22,8 @@ For each sub-task marked `[~]`: run nothing, and report SKIP naming its qualifie
 
 Then settle the **Quality Gates**: for each gate in the Quality Gates section, decide from the task results whether it is satisfied, and record it PASS or FAIL with its evidence. **A generated gate — one carrying a `Qn` identifier and a command ([quality-catalog.md](quality-catalog.md)) — is settled by running that command**: its exit status is the verdict and its output the evidence, never a judgment read off the task results.
 
+**The CI mirror gate needs a container runtime.** Before running `act`, check `command -v docker || command -v podman`; when neither Docker nor Podman is on PATH, record the CI mirror gate as SKIP with the evidence `not run — no container runtime` — it is never a FAIL, since the work was not shown wrong, only not shown.
+
 Then write the report file below. It is the last step of this protocol. **If its verdict is `fail`, the spawn ends here** — summarise the failures and write no audit report; the audit runs only on a validation pass.
 
 ## The Report File
@@ -45,7 +47,7 @@ results:
     detail: "closed without the work — needs the provider's live account"
 gates:
   - gate: "All task validations pass"
-    result: PASS                        # PASS | FAIL
+    result: PASS                        # PASS | FAIL | SKIP (the CI mirror without a container runtime)
     evidence: "no FAIL in results[]"
 ```
 

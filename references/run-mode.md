@@ -84,9 +84,13 @@ tech_profile:
 
 The `tech_profile` is passed to the Executor sub-agent prompt. Boundaries trigger Tech Review after execution, on every route.
 
+**Each detected language maps to its section of [language-rules.md](language-rules.md)** — the secure-coding rules a linter does not catch — and only those sections are read, never the whole file. A detected language with no section there names none: say so in one line — `no language-rules.md section for <language>` — without inventing rules for it.
+
 ## Execution Threshold
 
-**The route is chosen per sub-task, and it is not read off `Complexity`.** `Complexity` is a parent-task field — [tasks.md](tasks.md#metadata-line-fields) makes it *Always on parent* and merely optional on the sub-task — so routing on it alone sends every sub-task of a `Moderate` parent to a sub-agent, the ones whose spec is already closed included. That is the expensive mistake: a sub-agent starts with an empty context and has to re-read what the orchestrator is already holding, so delegating a closed spec buys isolation nobody needed and pays for it in rediscovery.
+**The route is chosen per sub-task, and it is not read off `Complexity`.** `Complexity` is a parent-task field — [tasks.md](tasks.md#metadata-line-fields) makes it *Always on parent* and merely optional on the sub-task — so routing on it alone sends every sub-task of a `Moderate` parent to a sub-agent. That is the expensive mistake: a sub-agent starts with an empty context and has to re-read what the orchestrator is already holding, so delegating work the orchestrator could do buys isolation nobody needed and pays for it in rediscovery.
+
+**The question is whether the work needs what is in the context window.** A sub-agent starts blind to the conversation — the requester's answers, the decisions taken, what the earlier sub-tasks found — so it gets only work that needs none of it: a test written from the spec, a disposable probe, a review whose value is the fresh eye. Work that needs that context — production code above all — runs **inline**, or in a **new session** when the window is too full to carry it (the `degraded` band in Run Mode Rules); never in a sub-agent. The one exception is a parallel group, where several authors at once is the point and one main agent cannot be several. **In doubt, inline**: a sub-agent missing a decision fails silently, the main agent does not.
 
 Read the sub-task's own body and take the **first** route that matches.
 
@@ -95,9 +99,9 @@ Read the sub-task's own body and take the **first** route that matches.
 | The sub-task is… | How you can tell, from its body | Route | Why |
 |---|---|---|---|
 | **Verification** | its Objective is to review, audit or validate work that is already done | **Sub-agent, always** | here the fresh context *is* the product — whoever did not watch the author work is the only one who can see what the author cannot |
-| **Exploratory** | `Context.Files` lists many files, or names a directory instead of files, or the ToDo says where to look rather than what to change | **Sub-agent** | the throwaway reading dies with the sub-agent instead of settling into the orchestrator's context for the rest of the run |
-| **Closed spec** | the sub-task's body — its title, Objective or ToDo — names the files to create or modify, `Validation` carries a runnable command, and `Context` is absent or lists at most a couple of files | **Main agent, inline** | every input is already in hand; a sub-agent would spend its first minutes re-deriving them |
-| anything else | — | **Sub-agent** | when the sub-task does not say enough to route it, the isolated context is the safe default |
+| **Parallel group member** | [run-parallel.md](run-parallel.md) proved it independent of its group and `--serial` was not passed | **Executor sub-agent, in a worktree when one is available** | several sub-tasks written at once need several authors; this is the only route on which an Executor writes production code |
+| **Context-free** | it writes only a test from the spec, or a disposable file — a probe, a fixture, a generated report — or only reads, and nothing in it depends on the conversation | **Sub-agent** | it needs nothing the main agent holds, and its reading dies with it instead of settling into the orchestrator's context |
+| anything else | production code, or any work that depends on an answer, a decision or a finding from this session — however many `Context` files it lists | **Main agent, inline** — or a new session when the band is `degraded` | the rule above; this row also takes every sub-task the rows before it do not clearly claim |
 
 `Complexity` still governs the three columns the route does not decide. A sub-task carrying its own `Complexity` override uses that value; otherwise it inherits the parent's:
 
@@ -108,7 +112,7 @@ Read the sub-task's own body and take the **first** route that matches.
 | Moderate | Yes, if multi-tech boundary | Required | (omit — the agent's own `high`) | (omit — the session's model) |
 | High | Always (even single-tech) | Required + extra research | (omit — the agent's own `high`) | (omit — the session's model) |
 
-**This skill asks for the `effort` column**, so pass it as the Agent call's `effort` parameter when the row names one; omit the parameter otherwise, and the agent runs at its definition's `high`. A small sub-task does not need the depth of reasoning a design-level one does, and the per-spawn value is what lets one agent definition serve both. **The Executor's model is the user's choice, read from the `executorModel` plugin option** (SKILL.md, *Plugin options*): `inherit` — omit `model`, the Executor runs on the session's model; `haiku` — pass `model: "haiku"` on every Executor spawn; `by-complexity` — pass it where the last column says `haiku`, omit it otherwise. A Haiku Executor costs about a third less and takes longer under a Sonnet session — a trade the user makes, so it is offered, never imposed. Never pass `model` on any other spawn.
+**This skill asks for the `effort` column**, so pass it as the Agent call's `effort` parameter when the row names one; omit the parameter otherwise, and the agent runs at its definition's `high`. A small sub-task does not need the depth of reasoning a design-level one does, and the per-spawn value is what lets one agent definition serve both. **The Executor's model is the user's choice, read from the `executorModel` plugin option** (SKILL.md, *Plugin options*): `inherit` — omit `model`, the Executor runs on the session's model; `haiku` — pass `model: "haiku"` on every Executor spawn; `by-complexity` — pass it where the last column says `haiku`, omit it otherwise. A Haiku Executor costs about a third less and takes longer under a Sonnet session — a trade the user makes, so it is offered, never imposed. It reaches production code only through a parallel group: everywhere else production code is inline, on the session's model. The Auditor and the Tech Reviewer take the **`reviewModel`** option the same way — `inherit` omits `model`, `sonnet` or `haiku` passes it. `inherit` is the default because a smaller reviewer is shallower: on the same code, a Sonnet review found 5 of 9 real defects where an Opus review found 8, and saved a fifth of the time. Never pass `model` on any other spawn.
 
 **The route never relaxes the protocol.** Inline means the main agent runs the same six steps an Executor would (see Inline Route — Main Agent), gathers context whenever a Context field exists, and closes the box through `close-subtask.sh` like everyone else. It is the same work done in a cheaper place — never less work.
 
@@ -129,7 +133,7 @@ For a sub-task of any of them carrying a `Tests` field, the test is authored, ru
 3. **Green** — implement until the test passes and the Validation command passes.
 4. **Refactor** — improve the code while keeping the test and Validation green; revert any refactor that breaks either.
 
-None of them authors tests at plan time — there is no Test Advisor sub-agent, no `.draft/authored-tests/`, and no `red-evidence.yaml`. Test authorship is done by the **main agent** at run time (the `test-advisor` sub-agent is not spawned), and the authored test is written **directly into the project's real test tree** — no `.draft/` staging, which is why step 7 (Materialize pre-authored tests) does not apply to any of them. Red confirmation lives in the run report only; it is not persisted to a file. **For a `layperson` requester it lives there and nowhere else — and what keeps it there is form, not vocabulary: between tool calls, a build turn writes nothing to the chat.** Each step's note — the test authored, its Red and why it was valid, the Green — is collected as it happens and written into `run-report.md` **once, at the end of the turn**: one `Write`, not an `Edit` per step, and not announced in the chat. The turn's only visible text is its closing three lines — and, on the turn that finishes the run, the next-step question after them ([End of Run](#end-of-run--next-step-index)). A vocabulary rule alone does not hold this line — forbidden words leak in the interstitial text, never in the closing message ([plain-register.md](plain-register.md#ceiling-per-turn)); the form rule is what removes the place they leak into. This mirrors the "Plan time vs run time" note in `phase-gates.md` — the Test Advisor Lite checklist decides *whether* a test is needed; this section is *when* the test-first ordering happens.
+None of them authors tests at plan time — there is no Test Advisor sub-agent, no `.draft/authored-tests/`, and no `red-evidence.yaml`. Test authorship is done by the **main agent** at run time (the `test-advisor` sub-agent is not spawned), and the authored test is written **directly into the project's real test tree** — no `.draft/` staging, which is why step 7 (Materialize pre-authored tests) does not apply to any of them. Red confirmation lives in the run report only; it is not persisted to a file. **For a `layperson` requester it lives there and nowhere else — and what keeps it there is form, not vocabulary: between tool calls, a build turn writes nothing to the chat.** Each step's note — the test authored, its Red and why it was valid, the Green — is collected as it happens and written into `run-report.md` **once, at the end of the turn**: `epico-run-report --story <dir>` writes the skeleton — the recorded line, one line per closed box, the gates, the commits — and one `Edit` adds the notes no file holds, not an `Edit` per step, and not announced in the chat. The turn's only visible text is its closing three lines — and, on the turn that finishes the run, the next-step question after them ([End of Run](#end-of-run--next-step-index)). A vocabulary rule alone does not hold this line — forbidden words leak in the interstitial text, never in the closing message ([plain-register.md](plain-register.md#ceiling-per-turn)); the form rule is what removes the place they leak into. This mirrors the "Plan time vs run time" note in `phase-gates.md` — the Test Advisor Lite checklist decides *whether* a test is needed; this section is *when* the test-first ordering happens.
 
 A sub-task with no `Tests` field is implemented against its `Acceptance` field plus the Validation command — no test is authored. **The two scales differ in what may be absent**: Fast requires one of `Tests` or `Acceptance` on every implementing sub-task, while a spike may carry neither ([tasks.md](tasks.md#spike-scale-adaptations)) — probe code is throwaway and the Verdict is the deliverable. A spike sub-task carrying only `Validation` is therefore well-formed, and is implemented against that alone. A Standard or Full story at `experiment` or `tool` anchors a structural sub-task on its `Requirements` field with `Tests: None`, and at `experiment` may omit the field, like a spike.
 
@@ -139,9 +143,9 @@ The two routes below — inline and delegated — apply this ordering; Standard/
 
 ### Inline Route — Main Agent
 
-The main agent executes directly but MUST follow the same step sequence as the Executor. No step may be skipped. The Executor's breaker holds here too: the same command failing three times ends the sub-task as failed, with the shared error as its reason. If a Context field exists, context MUST be gathered before implementation.
+The main agent executes directly but MUST follow the same step sequence as the Executor. No step may be skipped. The Executor's breaker holds here too: the same command failing three times ends the sub-task as failed, with the shared error as its reason. If a Context field exists, context MUST be gathered before implementation. **A server the sub-task starts is waited for with `epico-wait-port <port>`**, never `sleep N` and a retried `curl`: it returns the moment the port answers, or fails at its timeout. Started in the background, pass its pid — `epico-wait-port <port> --pid $!` — so a server that dies at boot ends the wait at once instead of costing the whole timeout. **The main agent reads the `language-rules.md` sections of the detected languages before implementing** — the same sections an Executor's prompt would name, because the inline route never loads the Executor's definition and would otherwise skip them.
 
-**Tech review applies on this route too.** It is an orchestrator step, not an Executor step, so "the same step sequence" does not carry it: after the sub-task's validation passes and before the box is closed, run the Delegated Route's step 5 — spawn Tech Reviewers when the Complexity table in Execution Threshold calls for one. A closed spec that crosses a technology boundary is exactly where a generalist implementer misses what the reviewer catches, and routing it inline must not also drop its review.
+**Tech review applies on this route too.** It is an orchestrator step, not an Executor step, so "the same step sequence" does not carry it: after the sub-task's validation passes and before the box is closed, run the Delegated Route's step 5 — spawn Tech Reviewers when the Complexity table in Execution Threshold calls for one. Production code that crosses a technology boundary is exactly where a generalist implementer misses what the reviewer catches, and routing it inline must not also drop its review.
 
 For an **inline-routed** sub-task under the run-time ordering above (Fast, spike, or an `experiment`/`tool` story, `Tests` present), the main agent is the **single author** for the whole cycle: it authors the test, runs it, confirms **Red** (for the right reason), then implements inline to **Green**, validates, and **Refactors** — all in the one inline execution. The unexpected-green rule above applies: revise once, then escalate.
 
@@ -149,9 +153,11 @@ For an **inline-routed** sub-task under the run-time ordering above (Fast, spike
 
 ### Delegated Route — Executor Sub-agent
 
+**A serial sub-task that writes production code never lands here** — it is inline (Execution Threshold). This route carries a parallel group's members and the sub-tasks that write only tests or disposable files.
+
 Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent section. The orchestrator:
 
-1. Builds the Executor prompt with task fields + story context + design interfaces + tech profile
+1. Builds the Executor prompt with task fields + story context + design interfaces + tech profile + the `language-rules.md` section of each detected language
 2. Spawns the Executor — `run_in_background: false`, result awaited; with `isolation: "worktree"` for parallel tasks, a parallel group being several Agent calls in one message, every one awaited before the next step ([personas.md](personas.md#personas))
 3. Waits for the Executor to complete
 4. Reads the Executor's structured report
@@ -174,7 +180,7 @@ epico-close <NNN|story-dir> <N.N|N|gate:<text-prefix>> \
   [--tilde "<qualifier>: <reason>"]
 ```
 
-**One box per invocation.** The story number (`010`) works in place of the directory — it resolves against the nearest `.epico/`. The box is named the way the grammar names it: a sub-task (`3.1`), a task group (`3`), or a Quality Gate by a **prefix of its own text** (`gate:All task validations`) — gates carry no number, so a prefix is how one is pointed at.
+**One box per invocation of the script; several per call of the wrapper** — `epico-close <story> 2.1 2.2 2.3` closes them in order, one JSON object each, and stops at the first refusal; a flag (`--tilde`) takes one box. The story number (`010`) works in place of the directory — it resolves against the nearest `.epico/`. The box is named the way the grammar names it: a sub-task (`3.1`), a task group (`3`), or a Quality Gate by a **prefix of its own text** (`gate:All task validations`) — gates carry no number, so a prefix is how one is pointed at.
 
 #### From the closing block to the call
 
@@ -424,6 +430,7 @@ The Executor is a dedicated sub-agent that implements a single sub-task followin
 > **Requirements:** [requirements field]
 > **Commit:** [the group's `Commit:` message, verbatim, when this sub-task is the group's last — your closing block reports it]
 > **Comment language:** [English only — or English plus <language> on the line below, when the user asked for it]
+> **Language rules:** [`references/language-rules.md#<language>` for each detected language — read those sections before implementing; or `no language-rules.md section for <language>`]
 > **Story directory:** [absolute path to .epico/stories/NNN-slug in the main tree — your progress notes go there, never into a worktree copy]
 >
 > ## Story Context
@@ -615,7 +622,7 @@ Read `band`. The script derives the window and the thresholds from the model the
 
 The question offers **one** next step, never a menu of modes: a menu hands the user a decision the run already has the facts for, and recommending validate beside a pending fix recommends checking work that is known to be unfinished. The first match wins:
 
-1. **Refine** — the plan no longer describes the work: an entry in `.draft/deviations.yaml` carries `follow_up: true` ([Deviation Register](#deviation-register)), or this run closed `Validation fixes — round 2` ([Fix loop bound](validate-mode.md#fix-loop-bound)). The option's description names what is owed, in one line
+1. **Refine** — the plan no longer describes the work: an entry in `.draft/deviations.yaml` carries `follow_up: true` ([Deviation Register](#deviation-register)), or this run closed `Validation fixes — round 1` ([Fix loop bound](validate-mode.md#fix-loop-bound)). The option's description names what is owed, in one line
 2. **Run the rest** — the plan still holds and part of it is unrun: the last close's `census.open > 0`. The step is `/epico:epico stories NNN run all`, and the description names the open tasks. A partial run (`run N`) lands here: its open boxes are planned work, not a plan to change, and refining them would re-plan what is already planned
 3. **Validate** — otherwise: the story is finished and nothing is owed. Its pass point makes the archive offer ([validate-mode.md](validate-mode.md#archive-offer))
 

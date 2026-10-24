@@ -4,7 +4,7 @@ Loaded from [run-mode.md](run-mode.md) when a sub-task's `tech_profile` carries
 two or more technologies that interact at a boundary, or when its Complexity is
 `High` — which reviews even a single-technology sub-task.
 
-When a sub-task's tech_profile includes 2+ distinct technologies that interact at a boundary, the orchestrator spawns Tech Reviewer sub-agents AFTER the sub-task's implementation passes validation — whether an Executor or the main agent inline did the work.
+When a sub-task's tech_profile includes 2+ distinct technologies that interact at a boundary, the orchestrator spawns Tech Reviewer sub-agents — `model` set by the `reviewModel` option, as run-mode.md's Execution Threshold says — AFTER the sub-task's implementation passes validation — whether an Executor or the main agent inline did the work.
 
 ### When to Trigger
 
@@ -31,6 +31,10 @@ The Tech Reviewer's focus areas, its measurement rule and its report format live
 > [technology] — [the boundary, e.g. handler → template, app → SQL — or `none: single-tech review (Complexity High)`]
 >
 > Story directory: [absolute path to .epico/stories/NNN-slug in the main tree] · Sub-task: [number]
+>
+> ## Language rules
+>
+> [`references/language-rules.md#<language>` for each technology under review — or `no language-rules.md section for <language>`, never rules invented for it]
 >
 > ## Files to Review
 >

@@ -31,7 +31,9 @@ CHECKBOX_CONSUMERS=(
   hook-session-restore.sh
   migrate-story.sh
   monitor-stale.sh
+  run-report.sh
   supersede-story.sh
+  validate-run.sh
   validate-story.sh
 )
 

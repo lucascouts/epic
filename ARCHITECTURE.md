@@ -85,7 +85,7 @@ Epico's sub-agents are activated by scale and phase. The main agent orchestrates
 | Analyst (codebase scan) | — | triage, when code exists | triage, when code exists |
 | Test-advisor | — | Phase 3 | Phase 3 |
 | Reviewer | — | — | after Phase 3 |
-| Executor | exploratory, verification or parallel sub-tasks — a closed spec runs inline | same | same |
+| Executor | a parallel group's members, and context-free sub-tasks (a test from the spec, a disposable file) — anything that needs the session's context runs inline | same | same |
 | Tech-reviewer | technology boundary, or `High` complexity | same | same |
 | Auditor | validate mode — validation, then audit on a pass | same | same |
 

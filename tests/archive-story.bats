@@ -737,6 +737,42 @@ print("OK")
   jq -e '.status == "archived"' < "$WORK/excl.out" > /dev/null
 }
 
+@test "the manifest lock holds even when mkdir tells every caller it created it" {
+  # uutils coreutils' mkdir (Ubuntu 25.10 and later) can report success to two
+  # concurrent callers for one directory, so winning mkdir proves nothing on
+  # its own. RacyMkdir is that worst case made deterministic: it succeeds
+  # whether or not the directory exists. The archive must still not write a
+  # byte while another run's marker is in the lock.
+  make_story 005-racy complete
+  mkdir -p "$PROJ/.epico/archive" "$WORK/racy-mkdir"
+  printf '#!/usr/bin/env bash\nexec %q -p "$@"\n' "$(command -v mkdir)" > "$WORK/racy-mkdir/mkdir"
+  chmod +x "$WORK/racy-mkdir/mkdir"
+  local lock="$PROJ/.epico/archive/.manifest.lock"
+  mkdir "$lock"
+  : > "$lock/owner.test-holder"
+  printf '%s\n' 'archived:' > "$MANIFEST"
+  local before
+  before=$(wc -c < "$MANIFEST")
+  env PATH="$WORK/racy-mkdir:$PATH" EPICO_ARCHIVE_LOCK_TIMEOUT=30 bash "$ARCHIVE_SH" .epico/stories/005-racy \
+    > "$WORK/racy.out" 2> "$WORK/racy.err" &
+  local archiver=$!
+  sleep 1
+  [ "$(wc -c < "$MANIFEST")" -eq "$before" ] || {
+    echo "the manifest grew while the lock was held, under a mkdir that always succeeds"
+    kill "$archiver" 2> /dev/null || true
+    wait "$archiver" 2> /dev/null || true
+    false
+  }
+  [ -d "$PROJ/.epico/stories/005-racy" ]
+  # Release. The archiver's own marker comes and goes while it retries, so the
+  # rmdir may meet it; either way the archiver ends up alone and finishes.
+  rm -f "$lock/owner.test-holder"
+  rmdir "$lock" 2> /dev/null || true
+  wait "$archiver"
+  [ "$(grep -c 'story: "005-racy"' "$MANIFEST")" -eq 1 ]
+  jq -e '.status == "archived"' < "$WORK/racy.out" > /dev/null
+}
+
 @test "a stale manifest lock left by a killed run is broken, not inherited" {
   # The append is serialized by a lock directory. A run SIGKILLed inside the
   # critical section cannot release it, and a lock nobody will ever release

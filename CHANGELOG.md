@@ -10,6 +10,29 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Added
+
+- **`epico-validate-run`** runs a story's Validation and generated-gate commands and writes the Auditor's Part 1 report in seconds. The orchestrator runs it before the Auditor: on a failure no sub-agent is spawned, and the Auditor settles only the entries a command cannot (`JUDGE`).
+- **`epico-run-report`** writes the run report's skeleton — the recorded line, one line per closed box, the gates, the commits — so the model adds only what no file holds.
+- **`epico-wait-port`** waits for a server the run started, in place of `sleep` and retried `curl`. With `--pid` it stops the moment that server exits, instead of waiting out the timeout.
+- **`reviewModel`** option for the Auditor and the Tech Reviewer: `inherit` (default), `sonnet` or `haiku`.
+- **Secure-coding rules per language** (`references/language-rules.md`). The Executor, the main agent on the inline route and the Tech Reviewer read only the sections of the languages the run detected.
+- **Never eval or exec input**, in both agents and in the managed `CLAUDE.md` block: input reaches a shell, an interpreter or a query only as an argument list or a bound parameter.
+- **The quality catalog checks the CI mirror, structured logs and the supply chain.** The CI jobs pass locally before a push, mirroring the runner's environment, not just its command. Without Docker or Podman the CI mirror gate is recorded as SKIP (not run), never as FAIL.
+- **The audit report names what no test covers** (`untested:`) **and the fidelity rung it ran on** (`verified_at:`), so a green from a low rung is not read as one from a high one.
+
+### Changed
+
+- **One fix round, and its revalidation re-checks only the failures** (`epico-validate-run --only`). The Auditor is spawned again only for a `JUDGE` failure or an audit gap.
+- **`epico-close` takes several boxes** in one call, closing them in order and stopping at the first refusal.
+- **A sub-agent only gets work that needs nothing from the context window.** A test written from the spec, a disposable probe, a read, a review — sub-agent. Production code, or anything that depends on an answer, decision or finding of the session, runs inline, or in a new session when the context band is `degraded`. The default flipped: a sub-task no row clearly claims now runs inline, where before *anything else* went to a sub-agent. An Executor writes production code only as a member of a parallel group, so `executorModel` applies there and to context-free sub-tasks.
+- **A parallel group no longer falls back to `--serial` without a worktree.** The worktree is preferred; without one (no `worktree.baseRef: "head"`, headless, declined) the group runs in the main checkout, since detection already proved it shares no file.
+- **A parallel group that shares a build, or edits code outside the session's repository, is refused** and runs inline, one item at a time. Disjoint files are not enough when the items compile together in one output directory, and a worktree of the session's repository holds none of the code that lives outside it.
+
+### Fixed
+
+- **Concurrent writers no longer lose entries on Ubuntu 25.10 and later.** Both locks relied on `mkdir` succeeding for exactly one caller, which uutils coreutils' `mkdir` does not guarantee: on Ubuntu 26.04 two of twelve concurrent writers could both win. The deviation register now locks with a file bash creates under noclobber (`O_EXCL`), and the archive manifest lock lets a winner hold only when its owner marker is the only one in the lock directory.
+
 ## [0.22.0] — 2026-10-23
 
 The plugin is now **Epico**, and the quality catalog checks how CI workflows and the repository itself are hardened.

@@ -30,6 +30,7 @@ After a sub-task's validation passes — whether an Executor or the main agent i
 
 **For SQL/database:**
 - All queries use parameterized placeholders — no string interpolation
+- Never `eval`/exec input, never build a command or query from it: no `eval`, `exec`, shell string or query string assembled from external data
 - Foreign key references point to existing entities or the code handles the missing-entity case
 - Types in application structs match the database column types
 
@@ -54,7 +55,7 @@ So a finding resting on a runnable check carries the exact command and its obser
 ## Protocol
 
 1. Fetch current docs to verify behavior assumptions with `WebFetch`/`WebSearch` — the research tools you hold
-2. Review the implementation files against your focus area
+2. Review the implementation files against your focus area and the `language-rules.md` sections your prompt names — read only those; a language the prompt says has no section gets no rules from it
 3. Run the checks that bear on what you found, per Measurement above
 4. Write the full review to `<Story directory>/.draft/reports/<sub-task>-tech-review-<technology>.md` (through Bash: `cat > … <<'EOF'`), then reply with the verdict line and at most 10 lines — each issue's file, line and one-line summary. The verdicts:
    - **PASS** — no issues found at this boundary

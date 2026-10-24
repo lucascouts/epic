@@ -2263,6 +2263,16 @@ manifest_lock_owner() {
   return 0
 }
 
+# manifest_lock_markers — every marker NAME in the lock directory, space-separated.
+manifest_lock_markers() {
+  local f out=""
+  for f in "$MANIFEST_LOCK_DIR"/owner.*; do
+    [[ -e "$f" ]] || continue
+    out="${out:+$out }${f##*/}"
+  done
+  printf '%s' "$out"
+}
+
 # manifest_lock_acquire <nonce> — returns 0 holding the lock, or 1 with
 # MANIFEST_ERR set. FAIL-CLOSED: a lock that cannot be acquired is never a
 # reason to append anyway. The caller turns the non-zero into a `blocked`
@@ -2276,9 +2286,25 @@ manifest_lock_acquire() {
     if err=$(mkdir "$MANIFEST_LOCK_DIR" 2>&1); then
       # Won the race. Claim it BY NAME before anyone can call it abandoned.
       if : > "$MANIFEST_LOCK_DIR/owner.$1" 2> /dev/null; then
-        MANIFEST_LOCK_HELD=true
-        MANIFEST_LOCK_MARK="$MANIFEST_LOCK_DIR/owner.$1"
-        return 0
+        # WRITE, THEN CHECK. mkdir(1) is not always the atomic mkdir(2): uutils
+        # coreutils (Ubuntu 25.10 and later) can tell two concurrent callers
+        # that each created the directory — the concurrency case below failed
+        # 20 of 20 runs on Ubuntu 26.04, 0 of 20 with GNU mkdir first on PATH.
+        # So a winner holds only if its marker is the ONLY one: of two that both
+        # wrote before looking, the later writer always sees the earlier marker,
+        # so both cannot see themselves alone. The loser takes its marker back
+        # and retries; its rmdir fails with ENOTEMPTY while the holder's marker
+        # is inside, and a lone corpse it leaves is the empty-directory case the
+        # acquirer below already handles.
+        if [[ "$(manifest_lock_markers)" == "owner.$1" ]]; then
+          MANIFEST_LOCK_HELD=true
+          MANIFEST_LOCK_MARK="$MANIFEST_LOCK_DIR/owner.$1"
+          return 0
+        fi
+        rm -f "$MANIFEST_LOCK_DIR/owner.$1" 2> /dev/null || true
+        rmdir "$MANIFEST_LOCK_DIR" 2> /dev/null || true
+        manifest_lock_nap
+        continue
       fi
       # The directory vanished between the mkdir and the marker: a waiter broke
       # what looked like an empty corpse. We are NOT the holder — start over.
