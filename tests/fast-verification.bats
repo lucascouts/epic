@@ -176,6 +176,50 @@ result() {  # <id> — the result the run recorded for one entry
   grep -q 'take the \*\*`reviewModel`\*\* option' "$ROOT/references/run-mode.md"
   grep -q '`reviewModel` option' "$ROOT/references/run-tech-review.md"
   grep -q 'waited for with `epico-wait-port <port>`' "$ROOT/references/run-mode.md"
+  grep -qF 'epico-wait-port <port> --pid $!' "$ROOT/references/run-mode.md"
   grep -q '`epico-close <story> 2.1 2.2 2.3`' "$ROOT/references/run-mode.md"
   grep -q '`epico-run-report --story <dir>` writes the skeleton' "$ROOT/references/run-mode.md"
+}
+
+@test "wait-port --pid: a server that exits ends the wait at once" {
+  bash -c 'exit 3' &
+  pid=$!
+  wait "$pid" || true
+  SECONDS=0
+  run bash "$ROOT/scripts/wait-port.sh" 38773 --timeout 20 --pid "$pid"
+  [ "$status" -eq 1 ]
+  [ "$SECONDS" -lt 5 ]
+  [ "$(jq -r .exited <<< "$output")" = true ]
+}
+
+@test "validate-run: a command that backgrounds a server returns, and the server is killed" {
+  sed -i 's/`true` exits 0/`sleep 30 \& echo $! > server.pid` exits 0/' "$STORY/tasks.md"
+  SECONDS=0
+  run bash "$ROOT/scripts/validate-run.sh" --story "$STORY" --only 1.1 --timeout 20
+  [ "$SECONDS" -lt 10 ]
+  [ "$(result 1.1)" = PASS ]
+  [ -s "$PROJ/server.pid" ]
+  run kill -0 "$(cat "$PROJ/server.pid")"
+  [ "$status" -ne 0 ]
+}
+
+@test "validate-run: a Validation with two commands runs the first and leaves the rest to JUDGE" {
+  sed -i 's/`true` exits 0/`true` and, with the server running, `curl -fsS localhost:1` returns the page/' "$STORY/tasks.md"
+  run bash "$ROOT/scripts/validate-run.sh" --story "$STORY" --only 1.1
+  [ "$(result 1.1)" = JUDGE ]
+  jq -e '.entries[] | select(.id == "1.1") | .detail | test("`true` exit 0") and test("curl")' "$STORY/.draft/validation-run.json"
+  sed -i 's/`false` exits 0/`false` and then `true`/' "$STORY/tasks.md"
+  run bash "$ROOT/scripts/validate-run.sh" --story "$STORY" --only 1.2
+  [ "$(result 1.2)" = FAIL ]
+}
+
+@test "validate-run: cargo's per-binary summaries are added up, not cut to the doc-test line" {
+  cat > "$PROJ/fake-cargo.sh" <<'SH'
+#!/usr/bin/env bash
+printf 'running 30 tests\ntest result: ok. 30 passed; 0 failed; 0 ignored\n\nrunning 3 tests\ntest result: ok. 3 passed; 0 failed; 0 ignored\n\n   Doc-tests app\nrunning 0 tests\ntest result: ok. 0 passed; 0 failed; 0 ignored\n'
+SH
+  chmod +x "$PROJ/fake-cargo.sh"
+  sed -i 's|`true` exits 0|`./fake-cargo.sh` exits 0|' "$STORY/tasks.md"
+  run bash "$ROOT/scripts/validate-run.sh" --story "$STORY" --only 1.1
+  jq -e '.entries[] | select(.id == "1.1") | .detail | test("33 passed, 0 failed")' "$STORY/.draft/validation-run.json"
 }
