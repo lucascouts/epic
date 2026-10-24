@@ -56,13 +56,12 @@ jobs:
         # The whole directory, never a hand-maintained list: an enumerated list
         # silently drops every suite added after it.
         #
-        # RUNNING THIS JOB UNDER `act`: the cases that assert a script refuses
-        # an unreadable file or tree fail, and that is NOT a regression. act's
-        # runner image executes as root (uid 0); this runner is the non-root
-        # `runner` user. Root suffers no denial, so it reads what should have
-        # been unreadable and the refusal never happens. A root run is a false
-        # red here; plain local `bats tests/` as yourself is the faithful
-        # equivalent.
+        # RUNNING THIS JOB UNDER `act`: use the image in ci/act-ubuntu-26.04
+        # (`act -P ubuntu-26.04=epico-act:26.04 --pull=false`). The published
+        # act images are Ubuntu 24.04 with GNU coreutils, which hides what
+        # 26.04's uutils changes, and they run as root, where the cases that
+        # assert a script refuses an unreadable file fail as false reds. The
+        # local image is 26.04 and runs as the non-root `runner` user.
         run: bats tests/
 
   validate-examples:
