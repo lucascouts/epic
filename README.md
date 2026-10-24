@@ -144,9 +144,9 @@ epic/
 ├── agents/                      # 6 sub-agents: analyst, test-advisor, reviewer, executor, tech-reviewer, auditor
 ├── hooks/hooks.json             # 4 hook events (PreToolUse, PostToolUse, SessionStart, SubagentStop); the guards fail closed
 ├── output-styles/epic.md        # optional structured output style
-├── bin/                         # epic-* wrappers on PATH — Claude Code CLI only; a surface without a shell (claude.ai, Cowork) has none
+├── bin/                         # epico-* wrappers on PATH — Claude Code CLI only; a surface without a shell (claude.ai, Cowork) has none
 ├── references/                  # mode-specific operational guides
-├── scripts/                     # bash validators, hook scripts and the epic-* tools
+├── scripts/                     # bash validators, hook scripts and the epico-* tools
 ├── assets/examples/             # reference outputs for each scale
 ├── evals/                       # native eval suite (claude plugin eval)
 ├── tests/                       # bats unit tests for scripts
@@ -197,7 +197,7 @@ Use `--strict` in CI gates for stories expected to be production-ready (promotes
 bash "$EPICO_PLUGIN_ROOT/scripts/validate-story.sh" .epico/stories/001-feature/ --cross-ref --strict
 ```
 
-When the plugin is active, the scripts are also on PATH as `epico-validate`, `epico-xref`, `epico-archive`, `epico-doctor`, `epico-test-diff` and the other `epic-*` wrappers.
+When the plugin is active, the scripts are also on PATH as `epico-validate`, `epico-xref`, `epico-archive`, `epico-doctor`, `epico-test-diff` and the other `epico-*` wrappers.
 
 ### What a story actually cost
 
