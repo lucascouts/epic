@@ -32,7 +32,7 @@ has() {  # <file> <extended regex> — case-insensitive, names the miss
   has agents/auditor.md 'confirmed \| partial \| unsupported'
   has agents/auditor.md 'checks_run'
   has agents/auditor.md 'reviewed, no finding" carries what was run'
-  has references/validate-mode.md 'review budget: one validation and at most two fix rounds'
+  has references/validate-mode.md 'review budget: one validation and at most one fix round'
   has references/validate-mode.md '\.draft/reports/'
   has references/run-mode.md 'every report is on disk'
 }

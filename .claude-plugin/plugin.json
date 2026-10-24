@@ -65,6 +65,17 @@
         "haiku",
         "by-complexity"
       ]
+    },
+    "reviewModel": {
+      "type": "string",
+      "title": "Review model",
+      "description": "The model of the verifying sub-agents, the Auditor and the Tech Reviewer. sonnet (default): reading and reviewing need no larger model than the one that wrote the code, and a smaller one answers sooner. inherit: the session's model. haiku: the fastest, for small stories.",
+      "default": "sonnet",
+      "options": [
+        "sonnet",
+        "inherit",
+        "haiku"
+      ]
     }
   }
 }

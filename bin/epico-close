@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
 # Wrapper over scripts/close-subtask.sh, on PATH while the Epico plugin is enabled.
-# Usage is identical to the underlying script.
+# Usage is the underlying script's; with several boxes and no flag —
+#   epico-close <story> <box> <box> ...
+# — it closes them in order, one script call and one JSON object each, and
+# stops at the first refusal: a group's boxes cost one tool call instead of one each.
+if [ $# -gt 2 ] && ! printf '%s\n' "$@" | grep -q '^--'; then
+  story=$1; shift
+  for box in "$@"; do bash "$(dirname "$0")/../scripts/close-subtask.sh" "$story" "$box" || exit $?; done
+  exit 0
+fi
 exec bash "$(dirname "$0")/../scripts/close-subtask.sh" "$@"
