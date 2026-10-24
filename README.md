@@ -13,7 +13,7 @@ Invoked as `/epico:epico` inside Claude Code.
 Ad-hoc prompts lose context, drift in scope, and produce undocumented changes. Epico formalizes the loop:
 
 - **Plan**: EARS requirements (`SHALL ...`), optional design doc with component interfaces, hierarchical tasks with validation commands.
-- **Execute**: Sub-agent (`executor`) follows a strict 6-step protocol per sub-task (context → implementation → design fidelity → validation → refactor-or-tests → report). Step 5 is conditional: Refactor when the sub-task carries a pre-authored failing test, Tests when it does not.
+- **Execute**: the main agent writes production code inline; the `executor` sub-agent writes it only in a parallel group, and otherwise takes only work that needs nothing from the session's context — a test from the spec, a disposable file. Either follows a strict 6-step protocol per sub-task (context → implementation → design fidelity → validation → refactor-or-tests → report). Step 5 is conditional: Refactor when the sub-task carries a pre-authored failing test, Tests when it does not.
 - **Verify**: one Auditor spawn runs every validation command, then cross-checks code against story and design for scope creep, deviations, and unmet quality gates.
 
 Scale is chosen per request:

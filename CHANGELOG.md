@@ -10,6 +10,11 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Changed
+
+- **A sub-agent only gets work that needs nothing from the context window.** A test written from the spec, a disposable probe, a read, a review — sub-agent. Production code, or anything that depends on an answer, decision or finding of the session, runs inline, or in a new session when the context band is `degraded`. The default flipped: a sub-task no row clearly claims now runs inline, where before *anything else* went to a sub-agent. An Executor writes production code only as a member of a parallel group, so `executorModel` applies there and to context-free sub-tasks.
+- **A parallel group no longer falls back to `--serial` without a worktree.** The worktree is preferred; without one (no `worktree.baseRef: "head"`, headless, declined) the group runs in the main checkout, since detection already proved it shares no file.
+
 ## [0.22.0] — 2026-10-23
 
 The plugin is now **Epico**, and the quality catalog checks how CI workflows and the repository itself are hardened.

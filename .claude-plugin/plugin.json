@@ -58,7 +58,7 @@
     "executorModel": {
       "type": "string",
       "title": "Executor model",
-      "description": "inherit (default): the Executor runs on the session's model. haiku: every Executor spawn runs on Haiku — about a third cheaper, slower under a Sonnet session. by-complexity: Haiku for Trivial and Simple sub-tasks, the session's model for Moderate and High.",
+      "description": "inherit (default): the Executor runs on the session's model. haiku: every Executor spawn runs on Haiku — about a third cheaper, slower under a Sonnet session. by-complexity: Haiku for Trivial and Simple sub-tasks, the session's model for Moderate and High. Production code reaches an Executor only in a parallel group; everything that needs the session's context runs inline on the session's model.",
       "default": "inherit",
       "options": [
         "inherit",

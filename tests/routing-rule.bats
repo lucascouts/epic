@@ -3,13 +3,16 @@
 #
 # A 2026-09-26 audit of five Fast runs applied the routing table literally and
 # found three rule gaps, pinned here:
-#   R1  closed spec reads the files off the whole body — title, Objective or
+#   R1  closed spec read the files off the whole body — title, Objective or
 #       ToDo. Real tasks name them in the title or Objective, and 3 of 20
 #       sub-tasks had no file in the ToDo (one had no ToDo at all)
 #   R2  tech review is an orchestrator step, so the inline route must say it
 #       applies there too; "the same step sequence as the Executor" did not
 #   R3  a single-tech sub-task skips review unless its Complexity is High —
 #       the Complexity table says High reviews always
+# A 2026-10-23 run handed a production implementation to an Executor through
+# the "anything else" default; the owner ruled production code inline:
+#   R7  production code is the main agent's, except in a parallel group
 
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -17,9 +20,10 @@ setup() {
   TECH="$ROOT/references/run-tech-review.md"
 }
 
-@test "R1: closed spec names the files anywhere in the sub-task's body" {
-  grep -q "^| \*\*Closed spec\*\* | the sub-task's body — its title, Objective or ToDo — names the files" "$RUN"
-  run grep -q '| \*\*Closed spec\*\* | the ToDo names the files' "$RUN"
+@test "R1: the rule asks whether the work needs the context window, and doubt runs inline" {
+  grep -q "^\*\*The question is whether the work needs what is in the context window.\*\*" "$RUN"
+  grep -q "\*\*In doubt, inline\*\*" "$RUN"
+  run grep -q "^| \*\*Closed spec\*\*" "$RUN"
   [ "$status" -eq 1 ]
 }
 
@@ -53,4 +57,24 @@ setup() {
   [[ "$tpl" == *'> **Context:**'* ]]
   [[ "$tpl" == *'> **Acceptance:**'* ]]
   [[ "$tpl" == *'> **Commit:**'* ]]
+}
+
+@test "R7: only context-free work goes to a sub-agent; a parallel group is the one exception" {
+  table=$(awk '/^## Execution Threshold/{f=1; next} f && /^## /{exit} f' "$RUN")
+  [[ "$table" == *'| **Parallel group member** |'*'| **Executor sub-agent, in a worktree when one is available** |'* ]]
+  [[ "$table" == *'| **Context-free** |'*'| **Sub-agent** |'* ]]
+  [[ "$table" == *'| anything else | production code, or any work that depends on'*'| **Main agent, inline** — or a new session'* ]]
+  # Order matters: the first match wins, so the catch-all must stay last and inline.
+  par=$(grep -n '^| \*\*Parallel group member\*\*' "$RUN" | cut -d: -f1)
+  free=$(grep -n '^| \*\*Context-free\*\*' "$RUN" | cut -d: -f1)
+  rest=$(grep -n '^| anything else |' "$RUN" | cut -d: -f1)
+  [ "$par" -lt "$free" ] && [ "$free" -lt "$rest" ]
+  delegated=$(awk '/^### Delegated Route/{f=1; next} f && /^### /{exit} f' "$RUN")
+  [[ "$delegated" == *'**A serial sub-task that writes production code never lands here**'* ]]
+}
+
+@test "R8: a parallel group without a worktree runs in the main checkout, never serial" {
+  par="$ROOT/references/run-parallel.md"
+  grep -q 'run the groups \*\*without worktrees\*\* (below), never `--serial` on that account' "$par"
+  grep -q '\*\*The worktree is preferred, not required\*\*' "$par"
 }

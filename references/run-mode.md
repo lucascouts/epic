@@ -88,7 +88,9 @@ The `tech_profile` is passed to the Executor sub-agent prompt. Boundaries trigge
 
 ## Execution Threshold
 
-**The route is chosen per sub-task, and it is not read off `Complexity`.** `Complexity` is a parent-task field — [tasks.md](tasks.md#metadata-line-fields) makes it *Always on parent* and merely optional on the sub-task — so routing on it alone sends every sub-task of a `Moderate` parent to a sub-agent, the ones whose spec is already closed included. That is the expensive mistake: a sub-agent starts with an empty context and has to re-read what the orchestrator is already holding, so delegating a closed spec buys isolation nobody needed and pays for it in rediscovery.
+**The route is chosen per sub-task, and it is not read off `Complexity`.** `Complexity` is a parent-task field — [tasks.md](tasks.md#metadata-line-fields) makes it *Always on parent* and merely optional on the sub-task — so routing on it alone sends every sub-task of a `Moderate` parent to a sub-agent. That is the expensive mistake: a sub-agent starts with an empty context and has to re-read what the orchestrator is already holding, so delegating work the orchestrator could do buys isolation nobody needed and pays for it in rediscovery.
+
+**The question is whether the work needs what is in the context window.** A sub-agent starts blind to the conversation — the requester's answers, the decisions taken, what the earlier sub-tasks found — so it gets only work that needs none of it: a test written from the spec, a disposable probe, a review whose value is the fresh eye. Work that needs that context — production code above all — runs **inline**, or in a **new session** when the window is too full to carry it (the `degraded` band in Run Mode Rules); never in a sub-agent. The one exception is a parallel group, where several authors at once is the point and one main agent cannot be several. **In doubt, inline**: a sub-agent missing a decision fails silently, the main agent does not.
 
 Read the sub-task's own body and take the **first** route that matches.
 
@@ -97,9 +99,9 @@ Read the sub-task's own body and take the **first** route that matches.
 | The sub-task is… | How you can tell, from its body | Route | Why |
 |---|---|---|---|
 | **Verification** | its Objective is to review, audit or validate work that is already done | **Sub-agent, always** | here the fresh context *is* the product — whoever did not watch the author work is the only one who can see what the author cannot |
-| **Exploratory** | `Context.Files` lists many files, or names a directory instead of files, or the ToDo says where to look rather than what to change | **Sub-agent** | the throwaway reading dies with the sub-agent instead of settling into the orchestrator's context for the rest of the run |
-| **Closed spec** | the sub-task's body — its title, Objective or ToDo — names the files to create or modify, `Validation` carries a runnable command, and `Context` is absent or lists at most a couple of files | **Main agent, inline** | every input is already in hand; a sub-agent would spend its first minutes re-deriving them |
-| anything else | — | **Sub-agent** | when the sub-task does not say enough to route it, the isolated context is the safe default |
+| **Parallel group member** | [run-parallel.md](run-parallel.md) proved it independent of its group and `--serial` was not passed | **Executor sub-agent, in a worktree when one is available** | several sub-tasks written at once need several authors; this is the only route on which an Executor writes production code |
+| **Context-free** | it writes only a test from the spec, or a disposable file — a probe, a fixture, a generated report — or only reads, and nothing in it depends on the conversation | **Sub-agent** | it needs nothing the main agent holds, and its reading dies with it instead of settling into the orchestrator's context |
+| anything else | production code, or any work that depends on an answer, a decision or a finding from this session — however many `Context` files it lists | **Main agent, inline** — or a new session when the band is `degraded` | the rule above; this row also takes every sub-task the rows before it do not clearly claim |
 
 `Complexity` still governs the three columns the route does not decide. A sub-task carrying its own `Complexity` override uses that value; otherwise it inherits the parent's:
 
@@ -110,7 +112,7 @@ Read the sub-task's own body and take the **first** route that matches.
 | Moderate | Yes, if multi-tech boundary | Required | (omit — the agent's own `high`) | (omit — the session's model) |
 | High | Always (even single-tech) | Required + extra research | (omit — the agent's own `high`) | (omit — the session's model) |
 
-**This skill asks for the `effort` column**, so pass it as the Agent call's `effort` parameter when the row names one; omit the parameter otherwise, and the agent runs at its definition's `high`. A small sub-task does not need the depth of reasoning a design-level one does, and the per-spawn value is what lets one agent definition serve both. **The Executor's model is the user's choice, read from the `executorModel` plugin option** (SKILL.md, *Plugin options*): `inherit` — omit `model`, the Executor runs on the session's model; `haiku` — pass `model: "haiku"` on every Executor spawn; `by-complexity` — pass it where the last column says `haiku`, omit it otherwise. A Haiku Executor costs about a third less and takes longer under a Sonnet session — a trade the user makes, so it is offered, never imposed. Never pass `model` on any other spawn.
+**This skill asks for the `effort` column**, so pass it as the Agent call's `effort` parameter when the row names one; omit the parameter otherwise, and the agent runs at its definition's `high`. A small sub-task does not need the depth of reasoning a design-level one does, and the per-spawn value is what lets one agent definition serve both. **The Executor's model is the user's choice, read from the `executorModel` plugin option** (SKILL.md, *Plugin options*): `inherit` — omit `model`, the Executor runs on the session's model; `haiku` — pass `model: "haiku"` on every Executor spawn; `by-complexity` — pass it where the last column says `haiku`, omit it otherwise. A Haiku Executor costs about a third less and takes longer under a Sonnet session — a trade the user makes, so it is offered, never imposed. It reaches production code only through a parallel group: everywhere else production code is inline, on the session's model. Never pass `model` on any other spawn.
 
 **The route never relaxes the protocol.** Inline means the main agent runs the same six steps an Executor would (see Inline Route — Main Agent), gathers context whenever a Context field exists, and closes the box through `close-subtask.sh` like everyone else. It is the same work done in a cheaper place — never less work.
 
@@ -143,13 +145,15 @@ The two routes below — inline and delegated — apply this ordering; Standard/
 
 The main agent executes directly but MUST follow the same step sequence as the Executor. No step may be skipped. The Executor's breaker holds here too: the same command failing three times ends the sub-task as failed, with the shared error as its reason. If a Context field exists, context MUST be gathered before implementation. **The main agent reads the `language-rules.md` sections of the detected languages before implementing** — the same sections an Executor's prompt would name, because the inline route never loads the Executor's definition and would otherwise skip them.
 
-**Tech review applies on this route too.** It is an orchestrator step, not an Executor step, so "the same step sequence" does not carry it: after the sub-task's validation passes and before the box is closed, run the Delegated Route's step 5 — spawn Tech Reviewers when the Complexity table in Execution Threshold calls for one. A closed spec that crosses a technology boundary is exactly where a generalist implementer misses what the reviewer catches, and routing it inline must not also drop its review.
+**Tech review applies on this route too.** It is an orchestrator step, not an Executor step, so "the same step sequence" does not carry it: after the sub-task's validation passes and before the box is closed, run the Delegated Route's step 5 — spawn Tech Reviewers when the Complexity table in Execution Threshold calls for one. Production code that crosses a technology boundary is exactly where a generalist implementer misses what the reviewer catches, and routing it inline must not also drop its review.
 
 For an **inline-routed** sub-task under the run-time ordering above (Fast, spike, or an `experiment`/`tool` story, `Tests` present), the main agent is the **single author** for the whole cycle: it authors the test, runs it, confirms **Red** (for the right reason), then implements inline to **Green**, validates, and **Refactors** — all in the one inline execution. The unexpected-green rule above applies: revise once, then escalate.
 
 **The box is closed the same way it is on the Executor path** — one `close-subtask.sh` invocation, never a hand edit (see Closing a Box). Being the single author makes the main agent the executor here; it does not make it a second writer of the checkbox grammar. It produces the same closing block for itself that an Executor would have reported, and feeds it to the same script.
 
 ### Delegated Route — Executor Sub-agent
+
+**A serial sub-task that writes production code never lands here** — it is inline (Execution Threshold). This route carries a parallel group's members and the sub-tasks that write only tests or disposable files.
 
 Spawn an Executor sub-agent with the prompt defined in the Executor Sub-agent section. The orchestrator:
 
