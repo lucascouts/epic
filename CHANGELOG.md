@@ -10,7 +10,17 @@ on there is one floor for the whole plugin (see README "Prerequisites").
 
 ## [Unreleased]
 
+### Added
+
+- **`epico-validate-run`** runs a story's Validation and generated-gate commands and writes the Auditor's Part 1 report in seconds. The orchestrator runs it before the Auditor: on a failure no sub-agent is spawned, and the Auditor settles only the entries a command cannot (`JUDGE`).
+- **`epico-run-report`** writes the run report's skeleton — the recorded line, one line per closed box, the gates, the commits — so the model adds only what no file holds.
+- **`epico-wait-port`** waits for a server the run started, in place of `sleep` and retried `curl`.
+- **`reviewModel`** option for the Auditor and the Tech Reviewer: `inherit` (default), `sonnet` or `haiku`.
+
 ### Changed
+
+- **One fix round, and its revalidation re-checks only the failures** (`epico-validate-run --only`). The Auditor is spawned again only for a `JUDGE` failure or an audit gap.
+- **`epico-close` takes several boxes** in one call, closing them in order and stopping at the first refusal.
 
 - **A sub-agent only gets work that needs nothing from the context window.** A test written from the spec, a disposable probe, a read, a review — sub-agent. Production code, or anything that depends on an answer, decision or finding of the session, runs inline, or in a new session when the context band is `degraded`. The default flipped: a sub-task no row clearly claims now runs inline, where before *anything else* went to a sub-agent. An Executor writes production code only as a member of a parallel group, so `executorModel` applies there and to context-free sub-tasks.
 - **A parallel group no longer falls back to `--serial` without a worktree.** The worktree is preferred; without one (no `worktree.baseRef: "head"`, headless, declined) the group runs in the main checkout, since detection already proved it shares no file.

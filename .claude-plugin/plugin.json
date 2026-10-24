@@ -69,11 +69,11 @@
     "reviewModel": {
       "type": "string",
       "title": "Review model",
-      "description": "The model of the verifying sub-agents, the Auditor and the Tech Reviewer. sonnet (default): reading and reviewing need no larger model than the one that wrote the code, and a smaller one answers sooner. inherit: the session's model. haiku: the fastest, for small stories.",
-      "default": "sonnet",
+      "description": "The model of the verifying sub-agents, the Auditor and the Tech Reviewer. inherit (default): the session's model — on the same code a Sonnet review found 5 of 9 real defects where an Opus review found 8, for 22% less time. sonnet: faster, shallower. haiku: the fastest, for small stories.",
+      "default": "inherit",
       "options": [
-        "sonnet",
         "inherit",
+        "sonnet",
         "haiku"
       ]
     }

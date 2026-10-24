@@ -171,8 +171,8 @@ result() {  # <id> — the result the run recorded for one entry
 }
 
 @test "rules: verifiers take reviewModel; servers are waited for; boxes close in one call" {
-  jq -e '.userConfig.reviewModel.default == "sonnet"' "$ROOT/.claude-plugin/plugin.json"
-  grep -qF 'reviewModel`: `${user_config.reviewModel}` [`sonnet`]' "$ROOT/skills/epico/SKILL.md"
+  jq -e '.userConfig.reviewModel.default == "inherit"' "$ROOT/.claude-plugin/plugin.json"
+  grep -qF 'reviewModel`: `${user_config.reviewModel}` [`inherit`]' "$ROOT/skills/epico/SKILL.md"
   grep -q 'take the \*\*`reviewModel`\*\* option' "$ROOT/references/run-mode.md"
   grep -q '`reviewModel` option' "$ROOT/references/run-tech-review.md"
   grep -q 'waited for with `epico-wait-port <port>`' "$ROOT/references/run-mode.md"
